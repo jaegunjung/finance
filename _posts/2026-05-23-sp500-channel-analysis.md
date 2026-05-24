@@ -1,11 +1,51 @@
 ---
 layout: post
-title: "S&P 500 추세 채널과 현재 위치"
+title: "S&P 500 Trend Channel & Current Position"
 date: 2026-05-23
 categories: finance
 tags: [sp500, technical-analysis, trend-channel]
-excerpt: "1929년부터 이어져온 장기 추세 채널에서 현재 S&P 500은 어디에 있는가."
+excerpt: "Where does the S&P 500 stand today within the long-term trend channel stretching back to 1929?"
 ---
+
+{% include charts/sp500-mini.html %}
+
+<div class="en-only">
+
+## A 100-Year Channel
+
+On a log scale chart, a straight trendline represents a constant compounding growth rate. Spread out the S&P 500's long-term chart on a log scale and a remarkable regularity emerges: the 1929 bubble peak, the 1938 Munich Agreement rally peak, the 1956 post-war golden age peak, and the 2000 dot-com bubble peak all sit on one straight line.
+
+The lower line is even more striking. The 1932 Great Depression absolute bottom (-86%), the 1942 WWII darkest hour, the 1974 oil shock + Watergate compound crisis, and the 2009 Lehman crisis bottom — these four historic lows sit precisely on the same straight line. That market returned to the exact same slope channel across 97 years, through four systemic crises, carries meaning beyond a simple technical pattern.
+
+## Why the Channel Is Credible
+
+You can draw a straight line through any two points. What makes this channel special is that it has **four independent contact points**. More contact points = stronger collective memory = self-fulfilling prophecy.
+
+Market participants — fund managers, algorithms, individual investors — whether consciously aware of this channel or not, have repeatedly responded at the same support/resistance levels over decades. This is the core logic of technical analysis.
+
+## Interpreting the Channel
+
+Mapping the current S&P 500 (approximately 5,260 pts as of May 2026) onto the channel:
+
+**Upper line**: The current upper channel sits around 8,000–9,000 pts. The November 2024 high (5,910 pts) approaching and then pulling back from the upper band is consistent with the pattern.
+
+**Midline**: The channel center — the historical "fair value" baseline — currently sits around 3,500–4,000 pts. Current prices are above the midline.
+
+**Lower line**: The channel floor is currently around 900–1,100 pts. The 2009 bottom was exactly at this level.
+
+## The Current Dilemma
+
+Late 2024's AI momentum and Trump rally combined to push markets near the upper channel. From a channel-position standpoint alone, there is room for further gains after a short-term correction. But if prices break above the channel — as in the dot-com bubble — that would ironically signal a larger risk ahead.
+
+1994 or 1999? That is the core question for today's market. If the AI revolution is still in its early innings, there are 5–6 years of further gains like 1994. If it's already priced in, then like late 1999, we may be near the peak.
+
+## Conclusion
+
+The trend channel is not a prediction tool — it is a tool for **positioning awareness**. It tells us where we are in historical context. The channel shows where the market tends to revert over the long term, not when it will do so. That is enough to be useful.
+
+</div>
+
+<div class="ko-only">
 
 ## 100년의 채널
 
@@ -38,3 +78,5 @@ excerpt: "1929년부터 이어져온 장기 추세 채널에서 현재 S&P 500�
 ## 결론
 
 추세 채널은 예측 도구가 아니라 **위치 감각**의 도구다. "지금 우리가 어디 있는가"를 역사적 맥락에서 파악하는 것. 채널은 시장이 장기적으로 어디로 회귀하는지 보여줄 뿐이며, 언제 그렇게 될지는 알려주지 않는다. 그것으로도 충분히 유용하다.
+
+</div>

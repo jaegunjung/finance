@@ -1,9 +1,9 @@
 ---
 layout: default
-title: S&P 500 차트
+title: S&P 500 Chart
 ---
 <style>
-.range-row { display:flex; gap:6px; flex-wrap:wrap; margin: 20px 0 10px; }
+.range-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 .range-btn {
   padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
   background: none; color: var(--text-secondary); font-size: 0.8rem;
@@ -11,6 +11,14 @@ title: S&P 500 차트
 }
 .range-btn:hover { background: var(--bg-card); color: var(--text-primary); }
 .range-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+.ctrl-btn {
+  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+  background: none; color: var(--text-secondary); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.ctrl-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.ctrl-btn.active { background: var(--accent-green); color: #fff; border-color: var(--accent-green); }
 
 #chartContainer {
   position: relative; width: 100%; height: 520px;
@@ -29,7 +37,7 @@ title: S&P 500 차트
 #markerTooltip .tt-title { color: var(--text-secondary); font-size: 0.8rem; }
 
 #detailPanel {
-  position: fixed; top: 52px; right: 0; bottom: 0; width: 280px;
+  position: fixed; top: 52px; right: 0; bottom: 0; width: 300px;
   background: var(--bg-secondary); border-left: 1px solid var(--border);
   transform: translateX(100%); transition: transform 0.25s ease;
   z-index: 200; overflow-y: auto; padding: 20px;
@@ -46,28 +54,46 @@ title: S&P 500 차트
 #detailPanel h3 { font-size: 0.95rem; margin-bottom: 10px; line-height: 1.4; }
 #detailPanel p { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; }
 
-.chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 20px; }
-
+.chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 4px; }
 .cagr-wrapper { height: 200px; }
-
 .section-label {
   font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--accent-blue); margin-bottom: 8px;
 }
+.source-note { color: var(--text-muted); font-size: 0.73rem; margin-top: 4px; margin-bottom: 20px; }
+.source-note a { color: var(--text-muted); text-decoration: underline; }
 </style>
 
 <div style="padding: 28px 0 8px;">
-  <h1>S&P 500 장기 추세 차트</h1>
-  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">1927–2026 · 로그 스케일 · 추세 채널 · 역사적 고점·저점</p>
+  <h1>
+    <span class="en-only">S&amp;P 500 Long-Term Trend Chart</span>
+    <span class="ko-only">S&amp;P 500 장기 추세 차트</span>
+  </h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">1927–2026 · Log Scale · Trend Channel · Historical Peaks &amp; Troughs</span>
+    <span class="ko-only">1927–2026 · 로그 스케일 · 추세 채널 · 역사적 고점·저점</span>
+  </p>
 </div>
 
-<div class="range-row">
-  <button class="range-btn" data-months="60">5Y</button>
-  <button class="range-btn" data-months="120">10Y</button>
-  <button class="range-btn" data-months="240">20Y</button>
-  <button class="range-btn" data-months="360">30Y</button>
-  <button class="range-btn" data-months="600">50Y</button>
-  <button class="range-btn active" data-months="0">All</button>
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin: 16px 0 10px; align-items:center;">
+  <div class="range-row">
+    <button class="range-btn" data-months="60">5Y</button>
+    <button class="range-btn" data-months="120">10Y</button>
+    <button class="range-btn" data-months="240">20Y</button>
+    <button class="range-btn" data-months="360">30Y</button>
+    <button class="range-btn" data-months="600">50Y</button>
+    <button class="range-btn active" data-months="0">All</button>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+    <button id="realToggle" class="ctrl-btn" onclick="toggleReal()">
+      <span class="en-only">Real (CPI-adj.)</span>
+      <span class="ko-only">실질 (물가반영)</span>
+    </button>
+    <button id="phaseToggle" class="ctrl-btn" onclick="togglePhases()">
+      <span class="en-only">Show Phases</span>
+      <span class="ko-only">국면 표시</span>
+    </button>
+  </div>
 </div>
 
 <div id="chartContainer">
@@ -79,7 +105,15 @@ title: S&P 500 차트
     <div class="tt-title" id="ttTitle"></div>
   </div>
 </div>
-<p class="chart-hint">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</p>
+
+<p class="chart-hint">
+  <span class="en-only">Scroll to zoom · Drag to pan · Hover/click markers · Double-click to reset</span>
+  <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</span>
+</p>
+<p class="source-note">
+  <span class="en-only">Data: S&amp;P 500 historical prices via <a href="https://www.macrotrends.net/2324/sp-500-historical-chart-data" target="_blank" rel="noopener">Macrotrends</a> / Standard &amp; Poor's / Robert Shiller · CPI: US Bureau of Labor Statistics · Updated monthly via GitHub Actions</span>
+  <span class="ko-only">데이터 출처: <a href="https://www.macrotrends.net/2324/sp-500-historical-chart-data" target="_blank" rel="noopener">Macrotrends</a> / Standard &amp; Poor's / Robert Shiller · CPI: 미국 노동통계국 · 매월 자동 업데이트</span>
+</p>
 
 <div id="detailPanel">
   <button class="dp-close" id="dpClose">✕</button>
@@ -90,65 +124,183 @@ title: S&P 500 차트
   <p id="dpDesc"></p>
 </div>
 
-<!-- ANALYSIS SECTIONS -->
+<!-- ANALYSIS CARDS -->
 <div class="card">
-  <div class="section-label">추세 채널</div>
-  <h2>추세 채널 해석</h2>
-  <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
-    로그 스케일 차트에서 직선인 추세선은 복리 성장률이 일정함을 의미합니다.
-    채널을 구성하는 <strong style="color:var(--text-primary)">상단선</strong>은 1929년 고점 → 1938년 고점 → 1956년 고점 → 2000년 고점을 연결하며,
-    <strong style="color:var(--text-primary)">하단선</strong>은 1932년 바닥 → 1942년 바닥 → 1974년 바닥 → 2009년 바닥을 잇습니다.
-    이 선들이 신뢰할 만한 이유는 수십 년에 걸쳐 시장 참여자들의 집단적 심리가 반복적으로
-    같은 수준에서 반응해왔기 때문입니다. 많은 접점 = 더 강한 집단적 기억 = 자기실현적 예언.
-  </p>
+  <div class="section-label">
+    <span class="en-only">Trend Channel</span><span class="ko-only">추세 채널</span>
+  </div>
+  <div class="en-only">
+    <h2>How to Read the Trend Channel</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      On a log scale chart, a straight trendline means a constant compounding growth rate.
+      The channel's <strong style="color:var(--text-primary)">upper line</strong> connects the 1929 peak → 1938 peak → 1956 peak → 2000 peak.
+      The <strong style="color:var(--text-primary)">lower line</strong> connects the 1932 bottom → 1942 bottom → 1974 bottom → 2009 bottom.
+      These lines are credible because market participants have repeatedly responded at the same levels across decades.
+      More contact points = stronger collective memory = self-fulfilling prophecy.
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>추세 채널 해석</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      로그 스케일 차트에서 직선인 추세선은 복리 성장률이 일정함을 의미합니다.
+      채널을 구성하는 <strong style="color:var(--text-primary)">상단선</strong>은 1929년 고점 → 1938년 고점 → 1956년 고점 → 2000년 고점을 연결하며,
+      <strong style="color:var(--text-primary)">하단선</strong>은 1932년 바닥 → 1942년 바닥 → 1974년 바닥 → 2009년 바닥을 잇습니다.
+      이 선들이 신뢰할 만한 이유는 수십 년에 걸쳐 시장 참여자들의 집단적 심리가 반복적으로
+      같은 수준에서 반응해왔기 때문입니다. 많은 접점 = 더 강한 집단적 기억 = 자기실현적 예언.
+    </p>
+  </div>
 </div>
 
 <div class="card">
-  <div class="section-label">역사적 고점</div>
-  <h2>역사적 고점의 공통점</h2>
-  <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
-    채널 상단에 닿은 시기는 예외 없이 당대의 기술·경제 혁명이 정점에 달한 순간이었습니다.
-    <strong style="color:var(--text-primary)">1956년: 전후 산업화 완성.</strong>
-    <strong style="color:var(--text-primary)">2000년: 인터넷 혁명.</strong>
-    그리고 지금: <strong style="color:var(--accent-blue)">AI 혁명.</strong>
-    매번 "이번엔 다르다(This time is different)"는 심리가 가장 강했고,
-    실제로 혁명은 진짜였으나 가격이 혁명보다 먼저 달렸습니다.
-  </p>
+  <div class="section-label">
+    <span class="en-only">Historical Peaks</span><span class="ko-only">역사적 고점</span>
+  </div>
+  <div class="en-only">
+    <h2>What Every Major Peak Has in Common</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      Every touch of the upper channel has coincided with the peak of the era's dominant technological or economic revolution.
+      <strong style="color:var(--text-primary)">1956: Post-war industrialization.</strong>
+      <strong style="color:var(--text-primary)">2000: The internet revolution.</strong>
+      And now: <strong style="color:var(--accent-blue)">the AI revolution.</strong>
+      Each time, "this time is different" sentiment was strongest — and each time, the revolution was real, but prices ran ahead of it.
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>역사적 고점의 공통점</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      채널 상단에 닿은 시기는 예외 없이 당대의 기술·경제 혁명이 정점에 달한 순간이었습니다.
+      <strong style="color:var(--text-primary)">1956년: 전후 산업화 완성.</strong>
+      <strong style="color:var(--text-primary)">2000년: 인터넷 혁명.</strong>
+      그리고 지금: <strong style="color:var(--accent-blue)">AI 혁명.</strong>
+      매번 "이번엔 다르다"는 심리가 가장 강했고, 실제로 혁명은 진짜였으나 가격이 혁명보다 먼저 달렸습니다.
+    </p>
+  </div>
 </div>
 
 <div class="card">
-  <div class="section-label">성장 국면</div>
-  <h2>성장 기울기의 변화 <span style="font-size:0.85rem; font-weight:400; color:var(--text-secondary);">— 5개 국면</span></h2>
+  <div class="section-label">
+    <span class="en-only">Growth Phases</span><span class="ko-only">성장 국면</span>
+  </div>
+  <div class="en-only">
+    <h2>Shifting Growth Rates <span style="font-size:0.85rem; font-weight:400; color:var(--text-secondary);">— 5 Phases</span></h2>
+  </div>
+  <div class="ko-only">
+    <h2>성장 기울기의 변화 <span style="font-size:0.85rem; font-weight:400; color:var(--text-secondary);">— 5개 국면</span></h2>
+  </div>
   <div class="cagr-wrapper">
     <canvas id="cagrChart"></canvas>
   </div>
   <div style="margin-top:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:8px; font-size:0.8rem; color:var(--text-secondary);">
-    <div>• <strong style="color:var(--text-primary)">1956–1975:</strong> 오일쇼크·스태그플레이션 조정기</div>
-    <div>• <strong style="color:var(--text-primary)">1975–1994:</strong> 채널의 진정한 기울기</div>
-    <div>• <strong style="color:var(--accent-blue)">1994–2000:</strong> 닷컴 버블 가속 (평균의 3배)</div>
-    <div>• <strong style="color:var(--accent-red)">2000–2010:</strong> 잃어버린 10년</div>
-    <div>• <strong style="color:var(--accent-blue)">2010–현재:</strong> AI·저금리 강세장</div>
+    <div class="en-only" style="display:contents;">
+      <div>• <strong style="color:var(--text-primary)">1956–1975:</strong> Oil shocks &amp; stagflation</div>
+      <div>• <strong style="color:var(--text-primary)">1975–1994:</strong> The channel's true slope</div>
+      <div>• <strong style="color:var(--accent-blue)">1994–2000:</strong> Dot-com acceleration (3× average)</div>
+      <div>• <strong style="color:var(--accent-red)">2000–2010:</strong> Lost decade</div>
+      <div>• <strong style="color:var(--accent-blue)">2010–present:</strong> AI &amp; low-rate bull market</div>
+    </div>
+    <div class="ko-only" style="display:contents;">
+      <div>• <strong style="color:var(--text-primary)">1956–1975:</strong> 오일쇼크·스태그플레이션 조정기</div>
+      <div>• <strong style="color:var(--text-primary)">1975–1994:</strong> 채널의 진정한 기울기</div>
+      <div>• <strong style="color:var(--accent-blue)">1994–2000:</strong> 닷컴 버블 가속 (평균의 3배)</div>
+      <div>• <strong style="color:var(--accent-red)">2000–2010:</strong> 잃어버린 10년</div>
+      <div>• <strong style="color:var(--accent-blue)">2010–현재:</strong> AI·저금리 강세장</div>
+    </div>
   </div>
 </div>
 
 <div class="card">
-  <div class="section-label">현재 위치</div>
-  <h2>현재 위치 진단</h2>
-  <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
-    RSI 과매수 + 채널 상단 근접 + AI 혁명 기대감의 조합은
-    역사적으로 항상 변동성이 가장 컸던 구간과 일치합니다.
-    채널 상단이 아직 남아있다면 단기 조정 후 추가 상승 여지가 있고,
-    채널을 돌파한다면 닷컴 버블처럼 더 큰 가속 후 되돌림을 의미할 수 있습니다.
-    <strong style="color:var(--accent-blue)">현재의 AI 혁명이 1994년인지 1999년인지가 핵심 질문입니다.</strong>
-  </p>
+  <div class="section-label">
+    <span class="en-only">Current Position</span><span class="ko-only">현재 위치</span>
+  </div>
+  <div class="en-only">
+    <h2>Where Are We Now?</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      RSI overbought + proximity to the upper channel + AI revolution euphoria: historically, this combination has always marked the highest-volatility zones.
+      If the channel ceiling still has room, a short-term correction followed by further gains remains possible.
+      A breakout above the channel — as in the dot-com era — would signal further acceleration followed by a larger reversal.
+      <strong style="color:var(--accent-blue)">The key question: is the current AI revolution 1994 or 1999?</strong>
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>현재 위치 진단</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      RSI 과매수 + 채널 상단 근접 + AI 혁명 기대감의 조합은
+      역사적으로 항상 변동성이 가장 컸던 구간과 일치합니다.
+      채널 상단이 아직 남아있다면 단기 조정 후 추가 상승 여지가 있고,
+      채널을 돌파한다면 닷컴 버블처럼 더 큰 가속 후 되돌림을 의미할 수 있습니다.
+      <strong style="color:var(--accent-blue)">현재의 AI 혁명이 1994년인지 1999년인지가 핵심 질문입니다.</strong>
+    </p>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <script>
-// ── Trend channel parameters (log-linear best fit through anchor points) ──
-const SLOPE    = 0.005371;  // per month from 1927-01
+// ── CPI-U Annual averages (1982-84=100) for inflation adjustment ──
+const CPI_ANNUAL = {
+  1927:17.4,1928:17.1,1929:17.1,1930:16.7,1931:15.2,1932:13.7,1933:13.0,
+  1934:13.4,1935:13.7,1936:13.9,1937:14.4,1938:14.1,1939:13.9,1940:14.0,
+  1941:14.7,1942:16.3,1943:17.3,1944:17.6,1945:18.0,1946:19.5,1947:22.3,
+  1948:24.1,1949:23.8,1950:24.1,1951:26.0,1952:26.5,1953:26.7,1954:26.9,
+  1955:26.8,1956:27.2,1957:28.1,1958:28.9,1959:29.2,1960:29.6,1961:29.9,
+  1962:30.2,1963:30.6,1964:31.0,1965:31.5,1966:32.4,1967:33.4,1968:34.8,
+  1969:36.7,1970:38.8,1971:40.5,1972:41.8,1973:44.4,1974:49.3,1975:53.8,
+  1976:56.9,1977:60.6,1978:65.2,1979:72.6,1980:82.4,1981:90.9,1982:96.5,
+  1983:99.6,1984:103.9,1985:107.6,1986:109.6,1987:113.6,1988:118.3,
+  1989:124.0,1990:130.7,1991:136.2,1992:140.3,1993:144.5,1994:148.2,
+  1995:152.4,1996:156.9,1997:160.5,1998:163.0,1999:166.6,2000:172.2,
+  2001:177.1,2002:179.9,2003:184.0,2004:188.9,2005:195.3,2006:201.6,
+  2007:207.3,2008:215.3,2009:214.5,2010:218.1,2011:224.9,2012:229.6,
+  2013:233.0,2014:236.7,2015:237.0,2016:240.0,2017:245.1,2018:251.1,
+  2019:255.7,2020:258.8,2021:270.9,2022:292.7,2023:304.7,2024:314.2,
+  2025:320.0,2026:325.0
+};
+const CPI_BASE = CPI_ANNUAL[2025]; // display in 2025 dollars
+
+function getMonthCPI(dateStr) {
+  const [y, m] = dateStr.split('-').map(Number);
+  const c0 = CPI_ANNUAL[y] ?? CPI_ANNUAL[Object.keys(CPI_ANNUAL).map(Number).filter(k=>k<=y).pop()];
+  const c1 = CPI_ANNUAL[y+1] ?? c0;
+  return c0 + (c1 - c0) * ((m - 1) / 12);
+}
+
+// ── Bull/Bear market phases ──
+const PHASES = [
+  {from:'1929-09',to:'1932-06',type:'bear',en:'Great Crash',ko:'대공황 폭락'},
+  {from:'1932-06',to:'1937-03',type:'bull',en:'New Deal Bull',ko:'뉴딜 강세장'},
+  {from:'1937-03',to:'1938-04',type:'bear',en:"'37-'38 Bear",ko:'37-38 약세장'},
+  {from:'1938-04',to:'1940-05',type:'bull',en:'Pre-WWII Bull',ko:'전쟁 전 반등'},
+  {from:'1940-05',to:'1942-04',type:'bear',en:'WWII Bear',ko:'2차대전 하락'},
+  {from:'1942-04',to:'1946-05',type:'bull',en:'War Production Bull',ko:'전시 강세장'},
+  {from:'1946-05',to:'1949-06',type:'bear',en:'Postwar Bear',ko:'전후 약세장'},
+  {from:'1949-06',to:'1956-08',type:'bull',en:'Golden Age Bull',ko:'황금기 강세장'},
+  {from:'1956-08',to:'1957-10',type:'bear',en:'Suez Bear',ko:'수에즈 위기'},
+  {from:'1957-10',to:'1961-12',type:'bull',en:'JFK Growth',ko:'케네디 성장'},
+  {from:'1961-12',to:'1962-06',type:'bear',en:'Kennedy Slide',ko:'케네디 슬라이드'},
+  {from:'1962-06',to:'1966-02',type:'bull',en:'Great Society Bull',ko:'위대한 사회 강세장'},
+  {from:'1966-02',to:'1966-10',type:'bear',en:'Vietnam Bear',ko:'베트남 약세장'},
+  {from:'1966-10',to:'1968-12',type:'bull',en:'Late 60s Bull',ko:'60년대 후반 강세장'},
+  {from:'1968-12',to:'1970-06',type:'bear',en:'Nixon Bear',ko:'닉슨 약세장'},
+  {from:'1970-06',to:'1973-01',type:'bull',en:'Nixon Bull',ko:'닉슨 강세장'},
+  {from:'1973-01',to:'1974-09',type:'bear',en:'Oil Shock',ko:'오일쇼크'},
+  {from:'1974-09',to:'1980-11',type:'bull',en:'Recovery Bull',ko:'회복 강세장'},
+  {from:'1980-11',to:'1982-08',type:'bear',en:'Volcker Bear',ko:'볼커 긴축'},
+  {from:'1982-08',to:'1987-08',type:'bull',en:'Reagan Bull',ko:'레이건 강세장'},
+  {from:'1987-08',to:'1987-12',type:'bear',en:'Black Monday',ko:'블랙먼데이'},
+  {from:'1987-12',to:'2000-03',type:'bull',en:"90s Boom",ko:'90년대 붐'},
+  {from:'2000-03',to:'2002-09',type:'bear',en:'Dot-com Bust',ko:'닷컴 붕괴'},
+  {from:'2002-09',to:'2007-10',type:'bull',en:'Housing Bull',ko:'부동산 강세장'},
+  {from:'2007-10',to:'2009-03',type:'bear',en:'Financial Crisis',ko:'금융위기'},
+  {from:'2009-03',to:'2020-02',type:'bull',en:'QE Bull',ko:'양적완화 강세장'},
+  {from:'2020-02',to:'2020-04',type:'bear',en:'COVID Crash',ko:'코로나 폭락'},
+  {from:'2020-04',to:'2022-01',type:'bull',en:'COVID Recovery',ko:'코로나 회복'},
+  {from:'2022-01',to:'2022-10',type:'bear',en:'Fed Tightening',ko:'연준 긴축'},
+  {from:'2022-10',to:'2026-12',type:'bull',en:'AI Bull',ko:'AI 강세장'},
+];
+
+// ── Trend channel parameters (log-linear) ──
+const SLOPE     = 0.005371;
 const UPPER_INT = 2.4372;
 const LOWER_INT = 1.1128;
 const CENTER_INT = (UPPER_INT + LOWER_INT) / 2;
@@ -161,54 +313,54 @@ const channelPrice = (intercept, mn) => Math.exp(intercept + SLOPE * mn);
 
 // ── Marker data ──
 const PEAKS = [
-  {date:'1929-08',price:31.3,    title:'광란의 20년대 버블 정점',  desc:'투기 버블 절정. 10월 블랙먼데이(-13% 단일일)로 대공황 시작. 이후 3년간 -86%.'},
-  {date:'1934-02',price:11.0,    title:'뉴딜 1차 반등 고점',       desc:'금본위제 폐지+뉴딜 기대감으로 반등했으나 지속 불가. 이후 재하락.'},
-  {date:'1937-03',price:18.7,    title:'뉴딜 회복 정점',           desc:'루즈벨트 균형재정 전환+연준 긴축으로 1938년까지 -50% 폭락. 정책 실수의 교과서.'},
-  {date:'1938-12',price:13.8,    title:'뮌헨협정 안도 반등',       desc:'히틀러와의 협정으로 전쟁 회피 기대감. 그러나 2차대전 발발로 다시 하락.'},
-  {date:'1946-05',price:19.3,    title:'종전 첫 고점',             desc:'2차대전 승리 직후. 전시 수요 소멸+대규모 파업 우려로 조정.'},
-  {date:'1948-06',price:17.1,    title:'마셜플랜 기대 고점',       desc:'유럽 재건 계획 기대감. 베를린 봉쇄 위기(소련)로 하락.'},
-  {date:'1953-01',price:26.7,    title:'한국전쟁 휴전 기대 고점',  desc:'아이젠하워 취임+전쟁 종결 협상. 전후 긴축으로 단기 조정.'},
-  {date:'1956-03',price:48.4,    title:'전후 황금기 정점',         desc:'전후 복구 완성, 베이비붐, 소비 붐의 정점. 수에즈 위기+연준 긴축으로 -22%. 추세 채널 상단 첫 접촉.'},
-  {date:'1959-08',price:60.2,    title:'아이젠하워 2기 성장 고점', desc:'철강 파업(116일) 우려+경기 둔화 신호로 조정.'},
-  {date:'1961-12',price:72.6,    title:'케네디 뉴프론티어 고점',   desc:'케네디 우주·경제 개발 기대감. 1962년 쿠바 미사일 위기 전야.'},
-  {date:'1966-02',price:94.1,    title:'존슨 위대한사회 고점',     desc:'경기 과열+베트남 전비 급증 시작. 인플레이션 경고 신호.'},
-  {date:'1968-12',price:108.4,   title:'닉슨 당선 고점',           desc:'베트남 평화 협상 기대. 이후 인플레이션+오일쇼크로 긴 하락.'},
-  {date:'1973-01',price:120.2,   title:'브레튼우즈 붕괴 후 고점',  desc:'달러 평가절하로 수출 기업 호황. 1차 오일쇼크(10월) 직전 고점.'},
-  {date:'1976-09',price:107.8,   title:'오일쇼크 회복 고점',       desc:'포드·카터 교체기. 2차 오일쇼크+스태그플레이션 재발로 하락.'},
-  {date:'1980-11',price:141.0,   title:'레이건 당선 기대 고점',    desc:'공급측 경제학+감세 기대감 급등. 볼커 긴축(금리 20%) 지속으로 재하락.'},
-  {date:'1983-11',price:172.6,   title:'레이건 강세장 1차 고점',   desc:'볼커 긴축 완화 후 경기 회복. 재정적자 우려로 잠시 숨고르기.'},
-  {date:'1987-08',price:336.8,   title:'레이건 강세장 절정',       desc:'5년간 3배 급등 후 과열. 10월 블랙먼데이 하루 -22%, 역대 최대 단일일 낙폭.'},
-  {date:'1990-07',price:368.9,   title:'걸프전 직전 고점',         desc:'이라크 쿠웨이트 침공(8월)으로 급락. S&L 위기 동반.'},
-  {date:'1994-02',price:482.5,   title:'그린스펀 긴축 직전 고점',  desc:'채권시장 대학살 시작. 그린스펀 갑작스러운 금리 인상 시리즈.'},
-  {date:'2000-03',price:1527.5,  title:'닷컴 버블 정점',           desc:'인터넷 혁명 기대감 극대화. PER 무한대 기업들 시총 수조달러. 추세 채널 상단 터치. 이후 -49%.'},
-  {date:'2007-10',price:1565.2,  title:'서브프라임 버블 정점',     desc:'MBS·CDO 신용버블 절정. 리먼 브라더스 파산(2008-09)으로 -57%.'},
-  {date:'2020-02',price:3386.2,  title:'코로나 직전 고점',         desc:'역대 최장 강세장(11년) 마지막. 코로나19로 33일만에 -34%, 역대 최단 폭락.'},
-  {date:'2022-01',price:4797.0,  title:'제로금리 유동성 버블 정점',desc:'코로나 유동성+밈주식+암호화폐 버블 정점. 연준 급격 긴축으로 -25%.'},
-  {date:'2024-11',price:5910.0,  title:'AI+트럼프 랠리 고점',      desc:'트럼프 재선+AI 인프라 투자 붐. 추세 채널 상단 근접. 현재 조정 중.'},
+  {date:'1929-08',price:31.3,    en:'Roaring 20s Peak',          ko:'광란의 20년대 버블 정점',  enDesc:'Speculative bubble peak. Black Monday in October (-13% single day) triggered the Great Depression. S&P fell -86% over 3 years.',                                                                         koDesc:'투기 버블 절정. 10월 블랙먼데이(-13% 단일일)로 대공황 시작. 이후 3년간 -86%.'},
+  {date:'1934-02',price:11.0,    en:'New Deal Bounce',             ko:'뉴딜 1차 반등 고점',       enDesc:'Rally on FDR\'s gold standard abandonment and New Deal hopes, but unsustainable. Declined again.',                                                                                                           koDesc:'금본위제 폐지+뉴딜 기대감으로 반등했으나 지속 불가. 이후 재하락.'},
+  {date:'1937-03',price:18.7,    en:'New Deal Recovery Peak',      ko:'뉴딜 회복 정점',           enDesc:'FDR\'s pivot to balanced budgets + Fed tightening caused -50% crash into 1938. Textbook policy error.',                                                                                                     koDesc:'루즈벨트 균형재정 전환+연준 긴축으로 1938년까지 -50% 폭락. 정책 실수의 교과서.'},
+  {date:'1938-12',price:13.8,    en:'Munich Agreement Relief',     ko:'뮌헨협정 안도 반등',       enDesc:'Peace deal with Hitler boosted hopes. WWII outbreak caused renewed decline.',                                                                                                                                koDesc:'히틀러와의 협정으로 전쟁 회피 기대감. 그러나 2차대전 발발로 다시 하락.'},
+  {date:'1946-05',price:19.3,    en:'Post-WWII Peak',              ko:'종전 첫 고점',             enDesc:'WWII victory euphoria. War demand collapse + mass strikes caused correction.',                                                                                                                                koDesc:'2차대전 승리 직후. 전시 수요 소멸+대규모 파업 우려로 조정.'},
+  {date:'1948-06',price:17.1,    en:'Marshall Plan High',          ko:'마셜플랜 기대 고점',       enDesc:'European reconstruction hopes. Berlin Blockade (Soviet) caused sell-off.',                                                                                                                                   koDesc:'유럽 재건 계획 기대감. 베를린 봉쇄 위기(소련)로 하락.'},
+  {date:'1953-01',price:26.7,    en:'Korean Truce High',           ko:'한국전쟁 휴전 기대 고점',  enDesc:'Eisenhower inauguration + ceasefire talks. Post-war austerity caused short correction.',                                                                                                                    koDesc:'아이젠하워 취임+전쟁 종결 협상. 전후 긴축으로 단기 조정.'},
+  {date:'1956-03',price:48.4,    en:'Post-war Golden Age Peak',    ko:'전후 황금기 정점',         enDesc:'Post-war reconstruction complete, baby boom, consumer boom. Suez Crisis + Fed tightening caused -22%. First touch of upper trend channel.',                                                                  koDesc:'전후 복구 완성, 베이비붐, 소비 붐의 정점. 수에즈 위기+연준 긴축으로 -22%. 추세 채널 상단 첫 접촉.'},
+  {date:'1959-08',price:60.2,    en:"Ike's 2nd Term Peak",         ko:'아이젠하워 2기 성장 고점', enDesc:'Steel strike (116 days) + growth slowdown signals caused correction.',                                                                                                                                       koDesc:'철강 파업(116일) 우려+경기 둔화 신호로 조정.'},
+  {date:'1961-12',price:72.6,    en:'JFK New Frontier Peak',       ko:'케네디 뉴프론티어 고점',   enDesc:'Kennedy space/economic development euphoria. Cuban Missile Crisis followed in 1962.',                                                                                                                        koDesc:'케네디 우주·경제 개발 기대감. 1962년 쿠바 미사일 위기 전야.'},
+  {date:'1966-02',price:94.1,    en:'Great Society Peak',          ko:'존슨 위대한사회 고점',     enDesc:'Overheated economy + Vietnam war spending acceleration. Inflation warning signals.',                                                                                                                          koDesc:'경기 과열+베트남 전비 급증 시작. 인플레이션 경고 신호.'},
+  {date:'1968-12',price:108.4,   en:'Nixon Election High',         ko:'닉슨 당선 고점',           enDesc:'Vietnam peace talks sparked hope. Then inflation + oil shocks caused long decline.',                                                                                                                          koDesc:'베트남 평화 협상 기대. 이후 인플레이션+오일쇼크로 긴 하락.'},
+  {date:'1973-01',price:120.2,   en:'Post-Bretton Woods Peak',     ko:'브레튼우즈 붕괴 후 고점',  enDesc:'Dollar devaluation boosted exporters. Peak just before Oil Shock #1 (October).',                                                                                                                             koDesc:'달러 평가절하로 수출 기업 호황. 1차 오일쇼크(10월) 직전 고점.'},
+  {date:'1976-09',price:107.8,   en:'Post-Oil Shock Recovery',     ko:'오일쇼크 회복 고점',       enDesc:'Ford-Carter transition. Oil Shock #2 + stagflation recurrence caused decline.',                                                                                                                              koDesc:'포드·카터 교체기. 2차 오일쇼크+스태그플레이션 재발로 하락.'},
+  {date:'1980-11',price:141.0,   en:'Reagan Election High',        ko:'레이건 당선 기대 고점',    enDesc:'Supply-side economics + tax cut euphoria. Volcker tightening (20% rates) continued and caused decline.',                                                                                                     koDesc:'공급측 경제학+감세 기대감 급등. 볼커 긴축(금리 20%) 지속으로 재하락.'},
+  {date:'1983-11',price:172.6,   en:'Reagan Bull Phase 1',         ko:'레이건 강세장 1차 고점',   enDesc:'Volcker easing + economic recovery. Deficit concerns caused brief pause.',                                                                                                                                   koDesc:'볼커 긴축 완화 후 경기 회복. 재정적자 우려로 잠시 숨고르기.'},
+  {date:'1987-08',price:336.8,   en:'Reagan Bull Zenith',          ko:'레이건 강세장 절정',       enDesc:'5-year, 3× rally then overheated. October Black Monday: -22% single day, largest single-day loss ever.',                                                                                                     koDesc:'5년간 3배 급등 후 과열. 10월 블랙먼데이 하루 -22%, 역대 최대 단일일 낙폭.'},
+  {date:'1990-07',price:368.9,   en:'Pre-Gulf War High',           ko:'걸프전 직전 고점',         enDesc:'Iraq invaded Kuwait (Aug) causing plunge. S&L crisis also hit.',                                                                                                                                             koDesc:'이라크 쿠웨이트 침공(8월)으로 급락. S&L 위기 동반.'},
+  {date:'1994-02',price:482.5,   en:'Pre-Greenspan Tightening',    ko:'그린스펀 긴축 직전 고점',  enDesc:'Bond market massacre began. Greenspan\'s surprise rate hike series.',                                                                                                                                         koDesc:'채권시장 대학살 시작. 그린스펀 갑작스러운 금리 인상 시리즈.'},
+  {date:'2000-03',price:1527.5,  en:'Dot-com Bubble Peak',         ko:'닷컴 버블 정점',           enDesc:'Internet revolution euphoria at maximum. Companies with infinite PER valued at trillions. Upper channel touch. Then -49%.',                                                                                    koDesc:'인터넷 혁명 기대감 극대화. PER 무한대 기업들 시총 수조달러. 추세 채널 상단 터치. 이후 -49%.'},
+  {date:'2007-10',price:1565.2,  en:'Subprime Bubble Peak',        ko:'서브프라임 버블 정점',     enDesc:'MBS/CDO credit bubble peak. Lehman Brothers failure (2008-09) caused -57%.',                                                                                                                                  koDesc:'MBS·CDO 신용버블 절정. 리먼 브라더스 파산(2008-09)으로 -57%.'},
+  {date:'2020-02',price:3386.2,  en:'Pre-COVID Peak',              ko:'코로나 직전 고점',         enDesc:'Longest bull market (11 yrs) ended. COVID-19 caused fastest crash ever (-34% in 33 days).',                                                                                                                  koDesc:'역대 최장 강세장(11년) 마지막. 코로나19로 33일만에 -34%, 역대 최단 폭락.'},
+  {date:'2022-01',price:4797.0,  en:'ZIRP Bubble Peak',            ko:'제로금리 유동성 버블 정점',enDesc:'COVID liquidity + meme stocks + crypto bubble peak. Fed rapid tightening caused -25%.',                                                                                                                        koDesc:'코로나 유동성+밈주식+암호화폐 버블 정점. 연준 급격 긴축으로 -25%.'},
+  {date:'2024-11',price:5910.0,  en:'AI+Trump Rally Peak',         ko:'AI+트럼프 랠리 고점',      enDesc:'Trump re-election + AI infrastructure boom. Near upper channel. Currently correcting.',                                                                                                                       koDesc:'트럼프 재선+AI 인프라 투자 붐. 추세 채널 상단 근접. 현재 조정 중.'},
 ].map(m => ({...m, type:'peak'}));
 
 const TROUGHS = [
-  {date:'1932-05',price:4.4,    title:'대공황 절대 바닥',         desc:'실업률 24%, GDP -30%, 은행 수천 개 파산. 루즈벨트 당선(11월)으로 회복 시작. 추세 채널 하단 기준점.'},
-  {date:'1938-03',price:9.5,    title:'공황 속 공황 바닥',        desc:'루즈벨트 긴축 실수+연준 긴축으로 경기 재추락. 정책 반전 후 회복.'},
-  {date:'1942-04',price:7.5,    title:'2차대전 최악의 시기',      desc:'진주만(1941-12) 이후 태평양 전선 연패. 미드웨이 해전 직전 공포 정점. 이후 전시 생산 붐.'},
-  {date:'1946-10',price:15.1,   title:'전후 인플레이션 쇼크',     desc:'가격 통제 해제로 인플레이션 폭등. 전국 파업 동시다발. 트루먼 지지율 최저.'},
-  {date:'1949-06',price:13.6,   title:'전후 경기침체 바닥',       desc:'전시 재정 축소로 경기침체. 마셜플랜 본격화+한국전쟁(1950) 발발로 회복.'},
-  {date:'1953-09',price:22.7,   title:'아이젠하워 긴축 불황',     desc:'한국전쟁 종전 후 군비 축소+긴축. 이후 전후 황금기 본격 시작.'},
-  {date:'1957-10',price:38.9,   title:'스푸트니크 충격',          desc:'소련 인공위성 발사 충격+경기침체. 미국 과학·교육 투자 급증 계기.'},
-  {date:'1960-10',price:52.7,   title:'아이젠하워 말기 침체',     desc:'경기침체+케네디-닉슨 선거 불확실성. 케네디 당선으로 회복 기대.'},
-  {date:'1962-06',price:52.3,   title:'케네디 슬라이드',          desc:'쿠바 미사일 위기 전야 패닉 매도(-28%). 핵전쟁 공포 정점.'},
-  {date:'1966-10',price:73.2,   title:'베트남 전비 쇼크',         desc:'인플레이션 압력+연준 긴축 시작. 존슨 경기 부양책으로 회복.'},
-  {date:'1970-06',price:69.3,   title:'베트남 캄보디아 확전',     desc:'닉슨 캄보디아 폭격 발표로 반전 시위 폭발. 경기침체 동반.'},
-  {date:'1974-09',price:62.3,   title:'오일쇼크+워터게이트 바닥', desc:'1차 오일쇼크+닉슨 사임(8월). 스태그플레이션 최악. 추세 채널 하단 터치. 이후 대강세장 출발점.'},
-  {date:'1978-03',price:86.9,   title:'카터 스태그플레이션',      desc:'2차 오일쇼크 직전 바닥. 이란 혁명(1979)으로 유가 재폭등.'},
-  {date:'1982-08',price:102.4,  title:'볼커 긴축 최종 바닥',      desc:'기준금리 20% 정점. 멕시코 디폴트로 채무 위기 공포. 이후 금리 하락+레이건 감세로 80-90년대 대강세장.'},
-  {date:'1987-12',price:223.9,  title:'블랙먼데이 이후 바닥',     desc:'10월 단일일 -22% 충격 후 추가 하락. 연준 유동성 공급으로 빠른 회복.'},
-  {date:'1990-10',price:295.5,  title:'걸프전 공포 바닥',         desc:'이라크 쿠웨이트 점령+S&L 위기. 걸프전 단기 종결(100시간 전쟁)로 급반등.'},
-  {date:'1998-10',price:923.0,  title:'LTCM 붕괴 바닥',           desc:'러시아 디폴트→헤지펀드 LTCM 붕괴→금융시스템 위기. 그린스펀 3연속 긴급 금리 인하.'},
-  {date:'2002-09',price:800.6,  title:'닷컴 붕괴 최종 바닥',      desc:'버블 붕괴(-49%)+9/11 충격+이라크전 불안. S&P 500 실질 2.5년 만에 반토막.'},
-  {date:'2009-03',price:677.0,  title:'리먼 사태 바닥',           desc:'금융시스템 붕괴 직전. 버냉키 무제한 QE 선언. 이후 역대 최장·최대 강세장(11년, +400%). 추세 채널 하단 터치.'},
-  {date:'2020-03',price:2237.4, title:'코로나 패닉 바닥',         desc:'전 세계 봉쇄령. 연준 무제한 QE+미 정부 $2.2조 부양. 33일 폭락 후 V자 반등.'},
-  {date:'2022-10',price:3577.0, title:'연준 급긴축 바닥',         desc:'인플레이션 9%→연준 4연속 0.75%p 인상. 이후 AI 붐(ChatGPT 출시 2022-11)으로 급반등.'},
+  {date:'1932-05',price:4.4,    en:'Great Depression Bottom',     ko:'대공황 절대 바닥',         enDesc:'24% unemployment, GDP -30%, thousands of bank failures. FDR\'s election started recovery. Channel lower anchor point.',                                                                                      koDesc:'실업률 24%, GDP -30%, 은행 수천 개 파산. 루즈벨트 당선(11월)으로 회복 시작. 추세 채널 하단 기준점.'},
+  {date:'1938-03',price:9.5,    en:'Depression Relapse',          ko:'공황 속 공황 바닥',        enDesc:'FDR\'s austerity error + Fed tightening sent economy back into recession. Policy reversal led to recovery.',                                                                                                  koDesc:'루즈벨트 긴축 실수+연준 긴축으로 경기 재추락. 정책 반전 후 회복.'},
+  {date:'1942-04',price:7.5,    en:'WWII Darkest Hour',           ko:'2차대전 최악의 시기',      enDesc:'Defeat streak after Pearl Harbor. Fear peaked just before Midway Battle. War production boom followed.',                                                                                                       koDesc:'진주만(1941-12) 이후 태평양 전선 연패. 미드웨이 해전 직전 공포 정점. 이후 전시 생산 붐.'},
+  {date:'1946-10',price:15.1,   en:'Post-war Inflation Shock',    ko:'전후 인플레이션 쇼크',     enDesc:'Price controls lifted causing inflation surge. Nationwide strikes. Truman approval at lowest.',                                                                                                                koDesc:'가격 통제 해제로 인플레이션 폭등. 전국 파업 동시다발. 트루먼 지지율 최저.'},
+  {date:'1949-06',price:13.6,   en:'Post-war Recession Bottom',   ko:'전후 경기침체 바닥',       enDesc:'War spending cuts caused recession. Marshall Plan + Korean War (1950) drove recovery.',                                                                                                                        koDesc:'전시 재정 축소로 경기침체. 마셜플랜 본격화+한국전쟁(1950) 발발로 회복.'},
+  {date:'1953-09',price:22.7,   en:'Eisenhower Austerity Low',    ko:'아이젠하워 긴축 불황',     enDesc:'Post-Korean War defense cuts + austerity. Post-war golden age then began.',                                                                                                                                    koDesc:'한국전쟁 종전 후 군비 축소+긴축. 이후 전후 황금기 본격 시작.'},
+  {date:'1957-10',price:38.9,   en:'Sputnik Shock',               ko:'스푸트니크 충격',          enDesc:'Soviet satellite launch shock + recession. Drove massive US science/education investment.',                                                                                                                    koDesc:'소련 인공위성 발사 충격+경기침체. 미국 과학·교육 투자 급증 계기.'},
+  {date:'1960-10',price:52.7,   en:'Ike Era Recession',           ko:'아이젠하워 말기 침체',     enDesc:'Recession + Kennedy-Nixon election uncertainty. Kennedy win sparked recovery hopes.',                                                                                                                          koDesc:'경기침체+케네디-닉슨 선거 불확실성. 케네디 당선으로 회복 기대.'},
+  {date:'1962-06',price:52.3,   en:'Kennedy Slide Bottom',        ko:'케네디 슬라이드',          enDesc:'Cuban Missile Crisis fear (-28%). Nuclear war panic at peak.',                                                                                                                                                 koDesc:'쿠바 미사일 위기 전야 패닉 매도(-28%). 핵전쟁 공포 정점.'},
+  {date:'1966-10',price:73.2,   en:'Vietnam War Costs Shock',     ko:'베트남 전비 쇼크',         enDesc:'Inflation pressure + Fed tightening start. LBJ stimulus reversed decline.',                                                                                                                                   koDesc:'인플레이션 압력+연준 긴축 시작. 존슨 경기 부양책으로 회복.'},
+  {date:'1970-06',price:69.3,   en:'Vietnam Escalation Bottom',   ko:'베트남 캄보디아 확전',     enDesc:"Nixon's Cambodia bombing sparked anti-war protests. Recession alongside.",                                                                                                                                     koDesc:'닉슨 캄보디아 폭격 발표로 반전 시위 폭발. 경기침체 동반.'},
+  {date:'1974-09',price:62.3,   en:'Oil Shock + Watergate Bottom',ko:'오일쇼크+워터게이트 바닥', enDesc:'Oil Shock #1 + Nixon resignation (Aug). Worst stagflation. Channel lower touch. Start of great bull.',                                                                                                         koDesc:'1차 오일쇼크+닉슨 사임(8월). 스태그플레이션 최악. 추세 채널 하단 터치. 이후 대강세장 출발점.'},
+  {date:'1978-03',price:86.9,   en:'Carter Stagflation Low',      ko:'카터 스태그플레이션',      enDesc:'Just before Oil Shock #2. Iranian Revolution (1979) spiked oil again.',                                                                                                                                       koDesc:'2차 오일쇼크 직전 바닥. 이란 혁명(1979)으로 유가 재폭등.'},
+  {date:'1982-08',price:102.4,  en:'Volcker Tightening Bottom',   ko:'볼커 긴축 최종 바닥',      enDesc:'20% peak rates. Mexico default fueled debt crisis fear. Rate declines + Reagan tax cuts launched 1980-90s great bull.',                                                                                        koDesc:'기준금리 20% 정점. 멕시코 디폴트로 채무 위기 공포. 이후 금리 하락+레이건 감세로 80-90년대 대강세장.'},
+  {date:'1987-12',price:223.9,  en:'Post-Black Monday Bottom',    ko:'블랙먼데이 이후 바닥',     enDesc:"October's -22% single-day shock then further decline. Fed liquidity injected for quick recovery.",                                                                                                             koDesc:'10월 단일일 -22% 충격 후 추가 하락. 연준 유동성 공급으로 빠른 회복.'},
+  {date:'1990-10',price:295.5,  en:'Gulf War Fear Bottom',        ko:'걸프전 공포 바닥',         enDesc:'Iraq Kuwait occupation + S&L crisis. Gulf War\'s quick end (100-hr war) caused sharp bounce.',                                                                                                                  koDesc:'이라크 쿠웨이트 점령+S&L 위기. 걸프전 단기 종결(100시간 전쟁)로 급반등.'},
+  {date:'1998-10',price:923.0,  en:'LTCM Collapse Bottom',        ko:'LTCM 붕괴 바닥',           enDesc:'Russia default → LTCM implosion → financial system crisis. Greenspan cut rates 3× in emergency.',                                                                                                              koDesc:'러시아 디폴트→헤지펀드 LTCM 붕괴→금융시스템 위기. 그린스펀 3연속 긴급 금리 인하.'},
+  {date:'2002-09',price:800.6,  en:'Dot-com Bust Bottom',         ko:'닷컴 붕괴 최종 바닥',      enDesc:'Bubble burst (-49%) + 9/11 shock + Iraq war uncertainty. S&P 500 halved in 2.5 years.',                                                                                                                        koDesc:'버블 붕괴(-49%)+9/11 충격+이라크전 불안. S&P 500 실질 2.5년 만에 반토막.'},
+  {date:'2009-03',price:677.0,  en:'Financial Crisis Bottom',     ko:'리먼 사태 바닥',           enDesc:"Financial system near-collapse. Bernanke's unlimited QE. Then history's longest bull (11 yrs, +400%). Channel lower touch.",                                                                                   koDesc:'금융시스템 붕괴 직전. 버냉키 무제한 QE 선언. 이후 역대 최장·최대 강세장(11년, +400%). 추세 채널 하단 터치.'},
+  {date:'2020-03',price:2237.4, en:'COVID Panic Bottom',          ko:'코로나 패닉 바닥',         enDesc:'Global lockdowns. Fed unlimited QE + $2.2T stimulus. V-shaped recovery after 33-day crash.',                                                                                                                   koDesc:'전 세계 봉쇄령. 연준 무제한 QE+미 정부 $2.2조 부양. 33일 폭락 후 V자 반등.'},
+  {date:'2022-10',price:3577.0, en:'Fed Tightening Bottom',       ko:'연준 급긴축 바닥',         enDesc:'9% inflation → Fed: 4× consecutive 75bp hikes. AI boom (ChatGPT Nov 2022) sparked rapid recovery.',                                                                                                           koDesc:'인플레이션 9%→연준 4연속 0.75%p 인상. 이후 AI 붐(ChatGPT 출시 2022-11)으로 급반등.'},
 ].map(m => ({...m, type:'trough'}));
 
 const ALL_MARKERS = [...PEAKS, ...TROUGHS].sort((a,b) => a.date.localeCompare(b.date));
@@ -216,9 +368,16 @@ const ALL_MARKERS = [...PEAKS, ...TROUGHS].sort((a,b) => a.date.localeCompare(b.
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_NAMES[m-1]} ${y}`; };
 
-// ── Load CSV and init chart ──
-let chart, dates = [], prices = [];
+// ── State ──
+let chart, dates = [], prices = [], realPrices = [];
+let showReal = false, showPhases = false;
 
+// ── Language helper ──
+function currentLang() {
+  return document.documentElement.classList.contains('ko-mode') ? 'ko' : 'en';
+}
+
+// ── Load CSV and init ──
 fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
   .then(r => r.text())
   .then(csv => {
@@ -227,18 +386,33 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
       dates.push(d.trim());
       prices.push(parseFloat(p));
     });
+    // Compute real prices in 2025 dollars
+    realPrices = prices.map((p, i) => p * CPI_BASE / getMonthCPI(dates[i]));
     // Assign data indices to markers
-    ALL_MARKERS.forEach(m => {
-      m.idx = dates.indexOf(m.date);
-    });
+    ALL_MARKERS.forEach(m => { m.idx = dates.indexOf(m.date); });
     initChart();
     initCagrChart();
   });
 
+function getDisplayPrices() { return showReal ? realPrices : prices; }
+
+function toggleReal() {
+  showReal = !showReal;
+  document.getElementById('realToggle').classList.toggle('active', showReal);
+  chart.data.datasets[0].data = getDisplayPrices().map((p,i) => ({x:i, y:p}));
+  chart.resetZoom();
+  updateOverlay(chart);
+}
+
+function togglePhases() {
+  showPhases = !showPhases;
+  document.getElementById('phaseToggle').classList.toggle('active', showPhases);
+  updateOverlay(chart);
+}
+
 function initChart() {
   const canvas = document.getElementById('sp500Chart');
   const ctx = canvas.getContext('2d');
-
   let crossX, crossY;
 
   const crosshairPlugin = {
@@ -284,9 +458,7 @@ function initChart() {
           max: dates.length - 1,
           grid: { color: 'rgba(48,54,61,0.8)' },
           ticks: {
-            color: '#8b949e',
-            font: { size: 11 },
-            maxTicksLimit: 20,
+            color: '#8b949e', font: { size: 11 }, maxTicksLimit: 20,
             callback: (val) => {
               const i = Math.round(val);
               if (i < 0 || i >= dates.length) return '';
@@ -300,8 +472,7 @@ function initChart() {
           type: 'logarithmic',
           grid: { color: 'rgba(48,54,61,0.8)' },
           ticks: {
-            color: '#8b949e',
-            font: { size: 11 },
+            color: '#8b949e', font: { size: 11 },
             callback: v => {
               const vals = [1,2,5,10,20,50,100,200,500,1000,2000,5000,10000];
               return vals.includes(v) ? v.toLocaleString() : '';
@@ -312,18 +483,15 @@ function initChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          mode: 'index',
-          intersect: false,
-          backgroundColor: '#1c2128',
-          borderColor: '#30363d',
-          borderWidth: 1,
-          titleColor: '#e6edf3',
-          bodyColor: '#8b949e',
-          padding: 10,
-          displayColors: false,
+          mode: 'index', intersect: false,
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 10, displayColors: false,
           callbacks: {
             title: items => fmtDate(dates[Math.round(items[0].parsed.x)] || '1927-01'),
-            label: item => `S&P 500: ${item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1})}`
+            label: item => {
+              const val = item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1});
+              return showReal ? `S&P 500 (Real 2025$): ${val}` : `S&P 500: ${val}`;
+            }
           }
         },
         zoom: {
@@ -338,24 +506,15 @@ function initChart() {
     plugins: [crosshairPlugin, overlayPlugin]
   });
 
-  // Double-click to reset
   canvas.addEventListener('dblclick', () => chart.resetZoom());
 
-  // Crosshair + marker detection
   canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     crossX = mx; crossY = my;
-
     const found = detectMarker(mx, my);
-    if (found) {
-      canvas.style.cursor = 'pointer';
-      showTooltip(found, mx, my);
-    } else {
-      canvas.style.cursor = 'default';
-      hideTooltip();
-    }
+    canvas.style.cursor = found ? 'pointer' : 'default';
+    if (found) showTooltip(found, mx, my); else hideTooltip();
     chart.draw();
   });
 
@@ -367,21 +526,19 @@ function initChart() {
 
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const found = detectMarker(mx, my);
+    const found = detectMarker(e.clientX - rect.left, e.clientY - rect.top);
     if (found) openPanel(found);
   });
 }
 
 function detectMarker(mx, my) {
   if (!chart) return null;
-  const xS = chart.scales.x, yS = chart.scales.y;
-  const ca = chart.chartArea;
+  const xS = chart.scales.x, yS = chart.scales.y, ca = chart.chartArea;
+  const dp = getDisplayPrices();
   for (const m of ALL_MARKERS) {
     if (m.idx < 0) continue;
     const px = xS.getPixelForValue(m.idx);
-    const py = yS.getPixelForValue(m.price);
+    const py = yS.getPixelForValue(dp[m.idx] ?? m.price);
     if (px < ca.left || px > ca.right) continue;
     if (Math.abs(mx - px) < 10 && Math.abs(my - py) < 10) return m;
   }
@@ -390,9 +547,12 @@ function detectMarker(mx, my) {
 
 function showTooltip(m, mx, my) {
   const tt = document.getElementById('markerTooltip');
+  const lang = currentLang();
   document.getElementById('ttDate').textContent = fmtDate(m.date);
-  document.getElementById('ttPrice').textContent = m.price.toLocaleString();
-  document.getElementById('ttTitle').textContent = m.title;
+  const dp = getDisplayPrices();
+  const displayPrice = dp[m.idx] ?? m.price;
+  document.getElementById('ttPrice').textContent = displayPrice.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
+  document.getElementById('ttTitle').textContent = lang === 'ko' ? m.ko : m.en;
   tt.style.display = 'block';
   const container = document.getElementById('chartContainer');
   const cw = container.offsetWidth, ch = container.offsetHeight;
@@ -409,12 +569,17 @@ function hideTooltip() {
 }
 
 function openPanel(m) {
-  document.getElementById('dpType').textContent  = m.type === 'peak' ? '▲ 고점 (PEAK)' : '▼ 저점 (TROUGH)';
+  const lang = currentLang();
+  document.getElementById('dpType').textContent  = m.type === 'peak'
+    ? (lang === 'ko' ? '▲ 고점 (PEAK)' : '▲ PEAK')
+    : (lang === 'ko' ? '▼ 저점 (TROUGH)' : '▼ TROUGH');
   document.getElementById('dpType').style.color  = m.type === 'peak' ? '#f85149' : '#3B8BD4';
   document.getElementById('dpDate').textContent  = fmtDate(m.date);
-  document.getElementById('dpPrice').textContent = m.price.toLocaleString();
-  document.getElementById('dpTitle').textContent = m.title;
-  document.getElementById('dpDesc').textContent  = m.desc;
+  const dp = getDisplayPrices();
+  const displayPrice = dp[m.idx] ?? m.price;
+  document.getElementById('dpPrice').textContent = displayPrice.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
+  document.getElementById('dpTitle').textContent = lang === 'ko' ? m.ko : m.en;
+  document.getElementById('dpDesc').textContent  = lang === 'ko' ? m.koDesc : m.enDesc;
   document.getElementById('detailPanel').classList.add('open');
 }
 
@@ -422,43 +587,67 @@ document.getElementById('dpClose').addEventListener('click', () => {
   document.getElementById('detailPanel').classList.remove('open');
 });
 
-// ── SVG channel overlay ──
+// ── SVG channel overlay (phases + channel lines + markers) ──
+function phaseToIndex(dateStr) {
+  let idx = dates.indexOf(dateStr);
+  if (idx >= 0) return idx;
+  // fallback: find closest
+  for (let delta = 1; delta < 6; delta++) {
+    const [y, m] = dateStr.split('-').map(Number);
+    const alt = `${y}-${String(((m - 1 + delta) % 12) + 1).padStart(2,'0')}`;
+    idx = dates.indexOf(alt);
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
 function updateOverlay(ch) {
   const svg = document.getElementById('channelSvg');
   if (!ch || !ch.chartArea) return;
   const ca = ch.chartArea;
   const xS = ch.scales.x, yS = ch.scales.y;
+  const dp = getDisplayPrices();
 
-  const mn0 = xS.getValueForPixel(ca.left);
-  const mn1 = xS.getValueForPixel(ca.right);
-  const x0 = ca.left, x1 = ca.right;
+  let html = `<defs><clipPath id="ca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs>`;
+  html += '<g clip-path="url(#ca)">';
 
-  const uY0 = yS.getPixelForValue(channelPrice(UPPER_INT, mn0));
-  const uY1 = yS.getPixelForValue(channelPrice(UPPER_INT, mn1));
-  const lY0 = yS.getPixelForValue(channelPrice(LOWER_INT, mn0));
-  const lY1 = yS.getPixelForValue(channelPrice(LOWER_INT, mn1));
-  const cY0 = yS.getPixelForValue(channelPrice(CENTER_INT, mn0));
-  const cY1 = yS.getPixelForValue(channelPrice(CENTER_INT, mn1));
+  // Phase background rectangles
+  if (showPhases) {
+    for (const ph of PHASES) {
+      let fi = phaseToIndex(ph.from), ti = phaseToIndex(ph.to);
+      if (fi < 0) fi = 0;
+      if (ti < 0) ti = dates.length - 1;
+      const px0 = xS.getPixelForValue(fi);
+      const px1 = xS.getPixelForValue(ti);
+      if (px1 < ca.left || px0 > ca.right) continue;
+      const x0 = Math.max(ca.left, px0), x1 = Math.min(ca.right, px1);
+      const color = ph.type === 'bear' ? 'rgba(248,81,73,0.13)' : 'rgba(63,185,80,0.09)';
+      const stroke = ph.type === 'bear' ? 'rgba(248,81,73,0.25)' : 'rgba(63,185,80,0.2)';
+      html += `<rect x="${x0}" y="${ca.top}" width="${x1-x0}" height="${ca.bottom-ca.top}" fill="${color}" stroke="${stroke}" stroke-width="0.5"/>`;
+    }
+  }
 
-  let html = `
-    <defs>
-      <clipPath id="ca">
-        <rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/>
-      </clipPath>
-    </defs>
-    <g clip-path="url(#ca)">
-      <polygon points="${x0},${uY0} ${x1},${uY1} ${x1},${lY1} ${x0},${lY0}" fill="rgba(59,139,212,0.05)"/>
-      <line x1="${x0}" y1="${uY0}" x2="${x1}" y2="${uY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>
-      <line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>
-      <line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="2 4"/>
-    </g>`;
+  // Trend channel (only in nominal mode — channel params are nominal)
+  if (!showReal) {
+    const mn0 = xS.getValueForPixel(ca.left), mn1 = xS.getValueForPixel(ca.right);
+    const x0 = ca.left, x1 = ca.right;
+    const uY0 = yS.getPixelForValue(channelPrice(UPPER_INT, mn0));
+    const uY1 = yS.getPixelForValue(channelPrice(UPPER_INT, mn1));
+    const lY0 = yS.getPixelForValue(channelPrice(LOWER_INT, mn0));
+    const lY1 = yS.getPixelForValue(channelPrice(LOWER_INT, mn1));
+    const cY0 = yS.getPixelForValue(channelPrice(CENTER_INT, mn0));
+    const cY1 = yS.getPixelForValue(channelPrice(CENTER_INT, mn1));
+    html += `<polygon points="${x0},${uY0} ${x1},${uY1} ${x1},${lY1} ${x0},${lY0}" fill="rgba(59,139,212,0.05)"/>`;
+    html += `<line x1="${x0}" y1="${uY0}" x2="${x1}" y2="${uY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+    html += `<line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+    html += `<line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="2 4"/>`;
+  }
 
   // Markers
-  html += '<g>';
   for (const m of ALL_MARKERS) {
     if (m.idx < 0) continue;
     const px = xS.getPixelForValue(m.idx);
-    const py = yS.getPixelForValue(m.price);
+    const py = yS.getPixelForValue(dp[m.idx] ?? m.price);
     if (px < ca.left - 6 || px > ca.right + 6 || py < ca.top - 6 || py > ca.bottom + 6) continue;
     if (m.type === 'peak') {
       html += `<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
@@ -467,7 +656,6 @@ function updateOverlay(ch) {
     }
   }
   html += '</g>';
-
   svg.innerHTML = html;
 }
 
@@ -491,7 +679,7 @@ function initCagrChart() {
   new Chart(document.getElementById('cagrChart').getContext('2d'), {
     type: 'bar',
     data: {
-      labels: ['1956–1975','1975–1994','1994–2000','2000–2010','2010–현재'],
+      labels: ['1956–1975','1975–1994','1994–2000','2000–2010','2010–present'],
       datasets: [{
         data: [4, 7, 21, -3, 13],
         backgroundColor: ['rgba(63,185,80,0.55)','rgba(63,185,80,0.7)','rgba(59,139,212,0.8)','rgba(248,81,73,0.7)','rgba(59,139,212,0.7)'],
@@ -507,15 +695,9 @@ function initCagrChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1c2128',
-          borderColor: '#30363d',
-          borderWidth: 1,
-          titleColor: '#e6edf3',
-          bodyColor: '#8b949e',
-          displayColors: false,
-          callbacks: {
-            label: item => `CAGR: ${item.raw > 0 ? '+':''}${item.raw}%`
-          }
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#8b949e', displayColors: false,
+          callbacks: { label: item => `CAGR: ${item.raw > 0 ? '+':''}${item.raw}%` }
         }
       },
       scales: {

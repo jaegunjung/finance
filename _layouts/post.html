@@ -10,10 +10,12 @@ layout: default
         {% endfor %}
       {% endif %}
       <span style="color:var(--text-muted); font-size:0.8rem;">
-        {{ page.date | date: "%Y년 %m월 %d일" }}
+        <span class="en-only">{{ page.date | date: "%B %d, %Y" }}</span>
+        <span class="ko-only">{{ page.date | date: "%Y년 %m월 %d일" }}</span>
       </span>
       <span class="reading-time" style="font-size:0.8rem;">
-        · {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}{% if mins < 1 %}1{% else %}{{ mins }}{% endif %}분 읽기
+        <span class="en-only">· {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}{% if mins < 1 %}1{% else %}{{ mins }}{% endif %} min read</span>
+        <span class="ko-only">· {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}{% if mins < 1 %}1{% else %}{{ mins }}{% endif %}분 읽기</span>
       </span>
     </div>
     <h1 style="font-size:1.6rem; margin-bottom:0;">{{ page.title }}</h1>

@@ -240,3 +240,32 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
 
 /* READING TIME */
 .reading-time { color: var(--text-muted); }
+
+/* LANGUAGE SWITCHER */
+.lang-toggle-item {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  padding: 0 4px;
+  border-left: 1px solid var(--border);
+  margin-left: 4px;
+}
+.lang-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: all 0.15s;
+}
+.lang-btn:hover { color: var(--text-primary); border-color: var(--border); }
+.lang-btn.active { color: var(--accent-blue); border-color: var(--accent-blue); }
+
+/* I18N: hide Korean content by default (English is default) */
+.ko-only { display: none !important; }
+html.ko-mode .ko-only { display: revert !important; }
+html.ko-mode .en-only { display: none !important; }

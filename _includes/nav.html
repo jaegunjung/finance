@@ -5,5 +5,9 @@
     <li><a href="{{ '/blog/' | relative_url }}" {% if page.url contains '/blog' %}class="active"{% endif %}>Blog</a></li>
     <li><a href="{{ '/finance/' | relative_url }}" {% if page.url contains '/finance' %}class="active"{% endif %}>Finance</a></li>
     <li><a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>About</a></li>
+    <li class="lang-toggle-item">
+      <button class="lang-btn" data-lang-btn="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" data-lang-btn="ko" onclick="setLang('ko')">한</button>
+    </li>
   </ul>
 </nav>
