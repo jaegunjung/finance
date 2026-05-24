@@ -1,0 +1,535 @@
+---
+layout: default
+title: S&P 500 차트
+---
+<style>
+.range-row { display:flex; gap:6px; flex-wrap:wrap; margin: 20px 0 10px; }
+.range-btn {
+  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+  background: none; color: var(--text-secondary); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.range-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.range-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+#chartContainer {
+  position: relative; width: 100%; height: 520px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
+#sp500Chart { position: absolute; top:0; left:0; width:100%; height:100%; }
+#channelSvg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+
+#markerTooltip {
+  position: absolute; display: none; pointer-events: none; z-index: 10;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 12px; min-width: 160px;
+}
+#markerTooltip .tt-date { font-weight: 600; color: var(--text-primary); font-size: 0.875rem; }
+#markerTooltip .tt-price { color: var(--text-secondary); font-size: 0.8rem; margin: 2px 0; }
+#markerTooltip .tt-title { color: var(--text-secondary); font-size: 0.8rem; }
+
+#detailPanel {
+  position: fixed; top: 52px; right: 0; bottom: 0; width: 280px;
+  background: var(--bg-secondary); border-left: 1px solid var(--border);
+  transform: translateX(100%); transition: transform 0.25s ease;
+  z-index: 200; overflow-y: auto; padding: 20px;
+}
+#detailPanel.open { transform: translateX(0); }
+#detailPanel .dp-close {
+  position: absolute; top: 12px; right: 12px; background: none; border: none;
+  color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
+}
+#detailPanel .dp-close:hover { color: var(--text-primary); }
+#detailPanel .dp-type { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+#detailPanel .dp-date { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+#detailPanel .dp-price { color: var(--text-primary); font-size: 1.4rem; font-weight: 500; margin-bottom: 16px; }
+#detailPanel h3 { font-size: 0.95rem; margin-bottom: 10px; line-height: 1.4; }
+#detailPanel p { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; }
+
+.chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 20px; }
+
+.cagr-wrapper { height: 200px; }
+
+.section-label {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--accent-blue); margin-bottom: 8px;
+}
+</style>
+
+<div style="padding: 28px 0 8px;">
+  <h1>S&P 500 장기 추세 차트</h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">1927–2026 · 로그 스케일 · 추세 채널 · 역사적 고점·저점</p>
+</div>
+
+<div class="range-row">
+  <button class="range-btn" data-months="60">5Y</button>
+  <button class="range-btn" data-months="120">10Y</button>
+  <button class="range-btn" data-months="240">20Y</button>
+  <button class="range-btn" data-months="360">30Y</button>
+  <button class="range-btn" data-months="600">50Y</button>
+  <button class="range-btn active" data-months="0">All</button>
+</div>
+
+<div id="chartContainer">
+  <canvas id="sp500Chart"></canvas>
+  <svg id="channelSvg"></svg>
+  <div id="markerTooltip">
+    <div class="tt-date" id="ttDate"></div>
+    <div class="tt-price" id="ttPrice"></div>
+    <div class="tt-title" id="ttTitle"></div>
+  </div>
+</div>
+<p class="chart-hint">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</p>
+
+<div id="detailPanel">
+  <button class="dp-close" id="dpClose">✕</button>
+  <div class="dp-type" id="dpType"></div>
+  <div class="dp-date" id="dpDate"></div>
+  <div class="dp-price" id="dpPrice"></div>
+  <h3 id="dpTitle"></h3>
+  <p id="dpDesc"></p>
+</div>
+
+<!-- ANALYSIS SECTIONS -->
+<div class="card">
+  <div class="section-label">추세 채널</div>
+  <h2>추세 채널 해석</h2>
+  <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+    로그 스케일 차트에서 직선인 추세선은 복리 성장률이 일정함을 의미합니다.
+    채널을 구성하는 <strong style="color:var(--text-primary)">상단선</strong>은 1929년 고점 → 1938년 고점 → 1956년 고점 → 2000년 고점을 연결하며,
+    <strong style="color:var(--text-primary)">하단선</strong>은 1932년 바닥 → 1942년 바닥 → 1974년 바닥 → 2009년 바닥을 잇습니다.
+    이 선들이 신뢰할 만한 이유는 수십 년에 걸쳐 시장 참여자들의 집단적 심리가 반복적으로
+    같은 수준에서 반응해왔기 때문입니다. 많은 접점 = 더 강한 집단적 기억 = 자기실현적 예언.
+  </p>
+</div>
+
+<div class="card">
+  <div class="section-label">역사적 고점</div>
+  <h2>역사적 고점의 공통점</h2>
+  <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+    채널 상단에 닿은 시기는 예외 없이 당대의 기술·경제 혁명이 정점에 달한 순간이었습니다.
+    <strong style="color:var(--text-primary)">1956년: 전후 산업화 완성.</strong>
+    <strong style="color:var(--text-primary)">2000년: 인터넷 혁명.</strong>
+    그리고 지금: <strong style="color:var(--accent-blue)">AI 혁명.</strong>
+    매번 "이번엔 다르다(This time is different)"는 심리가 가장 강했고,
+    실제로 혁명은 진짜였으나 가격이 혁명보다 먼저 달렸습니다.
+  </p>
+</div>
+
+<div class="card">
+  <div class="section-label">성장 국면</div>
+  <h2>성장 기울기의 변화 <span style="font-size:0.85rem; font-weight:400; color:var(--text-secondary);">— 5개 국면</span></h2>
+  <div class="cagr-wrapper">
+    <canvas id="cagrChart"></canvas>
+  </div>
+  <div style="margin-top:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:8px; font-size:0.8rem; color:var(--text-secondary);">
+    <div>• <strong style="color:var(--text-primary)">1956–1975:</strong> 오일쇼크·스태그플레이션 조정기</div>
+    <div>• <strong style="color:var(--text-primary)">1975–1994:</strong> 채널의 진정한 기울기</div>
+    <div>• <strong style="color:var(--accent-blue)">1994–2000:</strong> 닷컴 버블 가속 (평균의 3배)</div>
+    <div>• <strong style="color:var(--accent-red)">2000–2010:</strong> 잃어버린 10년</div>
+    <div>• <strong style="color:var(--accent-blue)">2010–현재:</strong> AI·저금리 강세장</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-label">현재 위치</div>
+  <h2>현재 위치 진단</h2>
+  <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+    RSI 과매수 + 채널 상단 근접 + AI 혁명 기대감의 조합은
+    역사적으로 항상 변동성이 가장 컸던 구간과 일치합니다.
+    채널 상단이 아직 남아있다면 단기 조정 후 추가 상승 여지가 있고,
+    채널을 돌파한다면 닷컴 버블처럼 더 큰 가속 후 되돌림을 의미할 수 있습니다.
+    <strong style="color:var(--accent-blue)">현재의 AI 혁명이 1994년인지 1999년인지가 핵심 질문입니다.</strong>
+  </p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script>
+// ── Trend channel parameters (log-linear best fit through anchor points) ──
+const SLOPE    = 0.005371;  // per month from 1927-01
+const UPPER_INT = 2.4372;
+const LOWER_INT = 1.1128;
+const CENTER_INT = (UPPER_INT + LOWER_INT) / 2;
+
+const monthNum = d => {
+  const [y, m] = d.split('-').map(Number);
+  return (y - 1927) * 12 + (m - 1);
+};
+const channelPrice = (intercept, mn) => Math.exp(intercept + SLOPE * mn);
+
+// ── Marker data ──
+const PEAKS = [
+  {date:'1929-08',price:31.3,    title:'광란의 20년대 버블 정점',  desc:'투기 버블 절정. 10월 블랙먼데이(-13% 단일일)로 대공황 시작. 이후 3년간 -86%.'},
+  {date:'1934-02',price:11.0,    title:'뉴딜 1차 반등 고점',       desc:'금본위제 폐지+뉴딜 기대감으로 반등했으나 지속 불가. 이후 재하락.'},
+  {date:'1937-03',price:18.7,    title:'뉴딜 회복 정점',           desc:'루즈벨트 균형재정 전환+연준 긴축으로 1938년까지 -50% 폭락. 정책 실수의 교과서.'},
+  {date:'1938-12',price:13.8,    title:'뮌헨협정 안도 반등',       desc:'히틀러와의 협정으로 전쟁 회피 기대감. 그러나 2차대전 발발로 다시 하락.'},
+  {date:'1946-05',price:19.3,    title:'종전 첫 고점',             desc:'2차대전 승리 직후. 전시 수요 소멸+대규모 파업 우려로 조정.'},
+  {date:'1948-06',price:17.1,    title:'마셜플랜 기대 고점',       desc:'유럽 재건 계획 기대감. 베를린 봉쇄 위기(소련)로 하락.'},
+  {date:'1953-01',price:26.7,    title:'한국전쟁 휴전 기대 고점',  desc:'아이젠하워 취임+전쟁 종결 협상. 전후 긴축으로 단기 조정.'},
+  {date:'1956-03',price:48.4,    title:'전후 황금기 정점',         desc:'전후 복구 완성, 베이비붐, 소비 붐의 정점. 수에즈 위기+연준 긴축으로 -22%. 추세 채널 상단 첫 접촉.'},
+  {date:'1959-08',price:60.2,    title:'아이젠하워 2기 성장 고점', desc:'철강 파업(116일) 우려+경기 둔화 신호로 조정.'},
+  {date:'1961-12',price:72.6,    title:'케네디 뉴프론티어 고점',   desc:'케네디 우주·경제 개발 기대감. 1962년 쿠바 미사일 위기 전야.'},
+  {date:'1966-02',price:94.1,    title:'존슨 위대한사회 고점',     desc:'경기 과열+베트남 전비 급증 시작. 인플레이션 경고 신호.'},
+  {date:'1968-12',price:108.4,   title:'닉슨 당선 고점',           desc:'베트남 평화 협상 기대. 이후 인플레이션+오일쇼크로 긴 하락.'},
+  {date:'1973-01',price:120.2,   title:'브레튼우즈 붕괴 후 고점',  desc:'달러 평가절하로 수출 기업 호황. 1차 오일쇼크(10월) 직전 고점.'},
+  {date:'1976-09',price:107.8,   title:'오일쇼크 회복 고점',       desc:'포드·카터 교체기. 2차 오일쇼크+스태그플레이션 재발로 하락.'},
+  {date:'1980-11',price:141.0,   title:'레이건 당선 기대 고점',    desc:'공급측 경제학+감세 기대감 급등. 볼커 긴축(금리 20%) 지속으로 재하락.'},
+  {date:'1983-11',price:172.6,   title:'레이건 강세장 1차 고점',   desc:'볼커 긴축 완화 후 경기 회복. 재정적자 우려로 잠시 숨고르기.'},
+  {date:'1987-08',price:336.8,   title:'레이건 강세장 절정',       desc:'5년간 3배 급등 후 과열. 10월 블랙먼데이 하루 -22%, 역대 최대 단일일 낙폭.'},
+  {date:'1990-07',price:368.9,   title:'걸프전 직전 고점',         desc:'이라크 쿠웨이트 침공(8월)으로 급락. S&L 위기 동반.'},
+  {date:'1994-02',price:482.5,   title:'그린스펀 긴축 직전 고점',  desc:'채권시장 대학살 시작. 그린스펀 갑작스러운 금리 인상 시리즈.'},
+  {date:'2000-03',price:1527.5,  title:'닷컴 버블 정점',           desc:'인터넷 혁명 기대감 극대화. PER 무한대 기업들 시총 수조달러. 추세 채널 상단 터치. 이후 -49%.'},
+  {date:'2007-10',price:1565.2,  title:'서브프라임 버블 정점',     desc:'MBS·CDO 신용버블 절정. 리먼 브라더스 파산(2008-09)으로 -57%.'},
+  {date:'2020-02',price:3386.2,  title:'코로나 직전 고점',         desc:'역대 최장 강세장(11년) 마지막. 코로나19로 33일만에 -34%, 역대 최단 폭락.'},
+  {date:'2022-01',price:4797.0,  title:'제로금리 유동성 버블 정점',desc:'코로나 유동성+밈주식+암호화폐 버블 정점. 연준 급격 긴축으로 -25%.'},
+  {date:'2024-11',price:5910.0,  title:'AI+트럼프 랠리 고점',      desc:'트럼프 재선+AI 인프라 투자 붐. 추세 채널 상단 근접. 현재 조정 중.'},
+].map(m => ({...m, type:'peak'}));
+
+const TROUGHS = [
+  {date:'1932-05',price:4.4,    title:'대공황 절대 바닥',         desc:'실업률 24%, GDP -30%, 은행 수천 개 파산. 루즈벨트 당선(11월)으로 회복 시작. 추세 채널 하단 기준점.'},
+  {date:'1938-03',price:9.5,    title:'공황 속 공황 바닥',        desc:'루즈벨트 긴축 실수+연준 긴축으로 경기 재추락. 정책 반전 후 회복.'},
+  {date:'1942-04',price:7.5,    title:'2차대전 최악의 시기',      desc:'진주만(1941-12) 이후 태평양 전선 연패. 미드웨이 해전 직전 공포 정점. 이후 전시 생산 붐.'},
+  {date:'1946-10',price:15.1,   title:'전후 인플레이션 쇼크',     desc:'가격 통제 해제로 인플레이션 폭등. 전국 파업 동시다발. 트루먼 지지율 최저.'},
+  {date:'1949-06',price:13.6,   title:'전후 경기침체 바닥',       desc:'전시 재정 축소로 경기침체. 마셜플랜 본격화+한국전쟁(1950) 발발로 회복.'},
+  {date:'1953-09',price:22.7,   title:'아이젠하워 긴축 불황',     desc:'한국전쟁 종전 후 군비 축소+긴축. 이후 전후 황금기 본격 시작.'},
+  {date:'1957-10',price:38.9,   title:'스푸트니크 충격',          desc:'소련 인공위성 발사 충격+경기침체. 미국 과학·교육 투자 급증 계기.'},
+  {date:'1960-10',price:52.7,   title:'아이젠하워 말기 침체',     desc:'경기침체+케네디-닉슨 선거 불확실성. 케네디 당선으로 회복 기대.'},
+  {date:'1962-06',price:52.3,   title:'케네디 슬라이드',          desc:'쿠바 미사일 위기 전야 패닉 매도(-28%). 핵전쟁 공포 정점.'},
+  {date:'1966-10',price:73.2,   title:'베트남 전비 쇼크',         desc:'인플레이션 압력+연준 긴축 시작. 존슨 경기 부양책으로 회복.'},
+  {date:'1970-06',price:69.3,   title:'베트남 캄보디아 확전',     desc:'닉슨 캄보디아 폭격 발표로 반전 시위 폭발. 경기침체 동반.'},
+  {date:'1974-09',price:62.3,   title:'오일쇼크+워터게이트 바닥', desc:'1차 오일쇼크+닉슨 사임(8월). 스태그플레이션 최악. 추세 채널 하단 터치. 이후 대강세장 출발점.'},
+  {date:'1978-03',price:86.9,   title:'카터 스태그플레이션',      desc:'2차 오일쇼크 직전 바닥. 이란 혁명(1979)으로 유가 재폭등.'},
+  {date:'1982-08',price:102.4,  title:'볼커 긴축 최종 바닥',      desc:'기준금리 20% 정점. 멕시코 디폴트로 채무 위기 공포. 이후 금리 하락+레이건 감세로 80-90년대 대강세장.'},
+  {date:'1987-12',price:223.9,  title:'블랙먼데이 이후 바닥',     desc:'10월 단일일 -22% 충격 후 추가 하락. 연준 유동성 공급으로 빠른 회복.'},
+  {date:'1990-10',price:295.5,  title:'걸프전 공포 바닥',         desc:'이라크 쿠웨이트 점령+S&L 위기. 걸프전 단기 종결(100시간 전쟁)로 급반등.'},
+  {date:'1998-10',price:923.0,  title:'LTCM 붕괴 바닥',           desc:'러시아 디폴트→헤지펀드 LTCM 붕괴→금융시스템 위기. 그린스펀 3연속 긴급 금리 인하.'},
+  {date:'2002-09',price:800.6,  title:'닷컴 붕괴 최종 바닥',      desc:'버블 붕괴(-49%)+9/11 충격+이라크전 불안. S&P 500 실질 2.5년 만에 반토막.'},
+  {date:'2009-03',price:677.0,  title:'리먼 사태 바닥',           desc:'금융시스템 붕괴 직전. 버냉키 무제한 QE 선언. 이후 역대 최장·최대 강세장(11년, +400%). 추세 채널 하단 터치.'},
+  {date:'2020-03',price:2237.4, title:'코로나 패닉 바닥',         desc:'전 세계 봉쇄령. 연준 무제한 QE+미 정부 $2.2조 부양. 33일 폭락 후 V자 반등.'},
+  {date:'2022-10',price:3577.0, title:'연준 급긴축 바닥',         desc:'인플레이션 9%→연준 4연속 0.75%p 인상. 이후 AI 붐(ChatGPT 출시 2022-11)으로 급반등.'},
+].map(m => ({...m, type:'trough'}));
+
+const ALL_MARKERS = [...PEAKS, ...TROUGHS].sort((a,b) => a.date.localeCompare(b.date));
+
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_NAMES[m-1]} ${y}`; };
+
+// ── Load CSV and init chart ──
+let chart, dates = [], prices = [];
+
+fetch('/assets/data/sp500_monthly.csv')
+  .then(r => r.text())
+  .then(csv => {
+    csv.trim().split('\n').slice(1).forEach(line => {
+      const [d, p] = line.split(',');
+      dates.push(d.trim());
+      prices.push(parseFloat(p));
+    });
+    // Assign data indices to markers
+    ALL_MARKERS.forEach(m => {
+      m.idx = dates.indexOf(m.date);
+    });
+    initChart();
+    initCagrChart();
+  });
+
+function initChart() {
+  const canvas = document.getElementById('sp500Chart');
+  const ctx = canvas.getContext('2d');
+
+  let crossX, crossY;
+
+  const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw(ch) {
+      if (crossX === undefined) return;
+      const {ctx: c, chartArea: ca} = ch;
+      if (crossX < ca.left || crossX > ca.right || crossY < ca.top || crossY > ca.bottom) return;
+      c.save();
+      c.strokeStyle = 'rgba(139,148,158,0.3)';
+      c.lineWidth = 1;
+      c.beginPath(); c.moveTo(crossX, ca.top); c.lineTo(crossX, ca.bottom); c.stroke();
+      c.beginPath(); c.moveTo(ca.left, crossY); c.lineTo(ca.right, crossY); c.stroke();
+      c.restore();
+    }
+  };
+
+  const overlayPlugin = {
+    id: 'channelOverlay',
+    afterDraw(ch) { updateOverlay(ch); }
+  };
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        data: prices.map((p,i) => ({x:i, y:p})),
+        borderColor: '#3B8BD4',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0,
+        parsing: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: dates.length - 1,
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: {
+            color: '#8b949e',
+            font: { size: 11 },
+            maxTicksLimit: 20,
+            callback: (val) => {
+              const i = Math.round(val);
+              if (i < 0 || i >= dates.length) return '';
+              const d = dates[i];
+              if (d && d.slice(5) === '01') return d.slice(0,4);
+              return '';
+            }
+          }
+        },
+        y: {
+          type: 'logarithmic',
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: {
+            color: '#8b949e',
+            font: { size: 11 },
+            callback: v => {
+              const vals = [1,2,5,10,20,50,100,200,500,1000,2000,5000,10000];
+              return vals.includes(v) ? v.toLocaleString() : '';
+            }
+          }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          backgroundColor: '#1c2128',
+          borderColor: '#30363d',
+          borderWidth: 1,
+          titleColor: '#e6edf3',
+          bodyColor: '#8b949e',
+          padding: 10,
+          displayColors: false,
+          callbacks: {
+            title: items => fmtDate(dates[Math.round(items[0].parsed.x)] || '1927-01'),
+            label: item => `S&P 500: ${item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1})}`
+          }
+        },
+        zoom: {
+          zoom: { wheel: { enabled:true, speed:0.1 }, pinch:{ enabled:true }, mode:'x',
+                  onZoomComplete: () => updateOverlay(chart) },
+          pan:  { enabled:true, mode:'x',
+                  onPanComplete:  () => updateOverlay(chart) },
+          limits: { x: { min:'original', max:'original', minRange:6 } }
+        }
+      }
+    },
+    plugins: [crosshairPlugin, overlayPlugin]
+  });
+
+  // Double-click to reset
+  canvas.addEventListener('dblclick', () => chart.resetZoom());
+
+  // Crosshair + marker detection
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    crossX = mx; crossY = my;
+
+    const found = detectMarker(mx, my);
+    if (found) {
+      canvas.style.cursor = 'pointer';
+      showTooltip(found, mx, my);
+    } else {
+      canvas.style.cursor = 'default';
+      hideTooltip();
+    }
+    chart.draw();
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    crossX = crossY = undefined;
+    hideTooltip();
+    chart.draw();
+  });
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const found = detectMarker(mx, my);
+    if (found) openPanel(found);
+  });
+}
+
+function detectMarker(mx, my) {
+  if (!chart) return null;
+  const xS = chart.scales.x, yS = chart.scales.y;
+  const ca = chart.chartArea;
+  for (const m of ALL_MARKERS) {
+    if (m.idx < 0) continue;
+    const px = xS.getPixelForValue(m.idx);
+    const py = yS.getPixelForValue(m.price);
+    if (px < ca.left || px > ca.right) continue;
+    if (Math.abs(mx - px) < 10 && Math.abs(my - py) < 10) return m;
+  }
+  return null;
+}
+
+function showTooltip(m, mx, my) {
+  const tt = document.getElementById('markerTooltip');
+  document.getElementById('ttDate').textContent = fmtDate(m.date);
+  document.getElementById('ttPrice').textContent = m.price.toLocaleString();
+  document.getElementById('ttTitle').textContent = m.title;
+  tt.style.display = 'block';
+  const container = document.getElementById('chartContainer');
+  const cw = container.offsetWidth, ch = container.offsetHeight;
+  let lx = mx + 12, ly = my - 80;
+  if (lx + 180 > cw) lx = mx - 192;
+  if (ly < 0) ly = my + 12;
+  if (ly + 90 > ch) ly = ch - 90;
+  tt.style.left = lx + 'px';
+  tt.style.top  = ly + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('markerTooltip').style.display = 'none';
+}
+
+function openPanel(m) {
+  document.getElementById('dpType').textContent  = m.type === 'peak' ? '▲ 고점 (PEAK)' : '▼ 저점 (TROUGH)';
+  document.getElementById('dpType').style.color  = m.type === 'peak' ? '#f85149' : '#3B8BD4';
+  document.getElementById('dpDate').textContent  = fmtDate(m.date);
+  document.getElementById('dpPrice').textContent = m.price.toLocaleString();
+  document.getElementById('dpTitle').textContent = m.title;
+  document.getElementById('dpDesc').textContent  = m.desc;
+  document.getElementById('detailPanel').classList.add('open');
+}
+
+document.getElementById('dpClose').addEventListener('click', () => {
+  document.getElementById('detailPanel').classList.remove('open');
+});
+
+// ── SVG channel overlay ──
+function updateOverlay(ch) {
+  const svg = document.getElementById('channelSvg');
+  if (!ch || !ch.chartArea) return;
+  const ca = ch.chartArea;
+  const xS = ch.scales.x, yS = ch.scales.y;
+
+  const mn0 = xS.getValueForPixel(ca.left);
+  const mn1 = xS.getValueForPixel(ca.right);
+  const x0 = ca.left, x1 = ca.right;
+
+  const uY0 = yS.getPixelForValue(channelPrice(UPPER_INT, mn0));
+  const uY1 = yS.getPixelForValue(channelPrice(UPPER_INT, mn1));
+  const lY0 = yS.getPixelForValue(channelPrice(LOWER_INT, mn0));
+  const lY1 = yS.getPixelForValue(channelPrice(LOWER_INT, mn1));
+  const cY0 = yS.getPixelForValue(channelPrice(CENTER_INT, mn0));
+  const cY1 = yS.getPixelForValue(channelPrice(CENTER_INT, mn1));
+
+  let html = `
+    <defs>
+      <clipPath id="ca">
+        <rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/>
+      </clipPath>
+    </defs>
+    <g clip-path="url(#ca)">
+      <polygon points="${x0},${uY0} ${x1},${uY1} ${x1},${lY1} ${x0},${lY0}" fill="rgba(59,139,212,0.05)"/>
+      <line x1="${x0}" y1="${uY0}" x2="${x1}" y2="${uY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.3" stroke-width="1" stroke-dasharray="2 4"/>
+    </g>`;
+
+  // Markers
+  html += '<g>';
+  for (const m of ALL_MARKERS) {
+    if (m.idx < 0) continue;
+    const px = xS.getPixelForValue(m.idx);
+    const py = yS.getPixelForValue(m.price);
+    if (px < ca.left - 6 || px > ca.right + 6 || py < ca.top - 6 || py > ca.bottom + 6) continue;
+    if (m.type === 'peak') {
+      html += `<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
+    } else {
+      html += `<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
+    }
+  }
+  html += '</g>';
+
+  svg.innerHTML = html;
+}
+
+// ── Range buttons ──
+document.querySelectorAll('.range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const months = parseInt(btn.dataset.months);
+    if (!months) {
+      chart.resetZoom();
+    } else {
+      const max = dates.length - 1;
+      chart.zoomScale('x', { min: Math.max(0, max - months), max });
+    }
+  });
+});
+
+// ── CAGR chart ──
+function initCagrChart() {
+  new Chart(document.getElementById('cagrChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['1956–1975','1975–1994','1994–2000','2000–2010','2010–현재'],
+      datasets: [{
+        data: [4, 7, 21, -3, 13],
+        backgroundColor: ['rgba(63,185,80,0.55)','rgba(63,185,80,0.7)','rgba(59,139,212,0.8)','rgba(248,81,73,0.7)','rgba(59,139,212,0.7)'],
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c2128',
+          borderColor: '#30363d',
+          borderWidth: 1,
+          titleColor: '#e6edf3',
+          bodyColor: '#8b949e',
+          displayColors: false,
+          callbacks: {
+            label: item => `CAGR: ${item.raw > 0 ? '+':''}${item.raw}%`
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: -6, max: 25,
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: { color:'#8b949e', font:{size:11}, callback: v => `${v}%` }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color:'#8b949e', font:{size:11} }
+        }
+      }
+    }
+  });
+}
+</script>

@@ -1,0 +1,38 @@
+---
+layout: default
+---
+<article>
+  <div style="padding: 32px 0 16px;">
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+      {% if page.categories %}
+        {% for cat in page.categories %}
+          <span class="badge badge-{{ cat }}">{{ cat }}</span>
+        {% endfor %}
+      {% endif %}
+      <span style="color:var(--text-muted); font-size:0.8rem;">
+        {{ page.date | date: "%Y년 %m월 %d일" }}
+      </span>
+      <span class="reading-time" style="font-size:0.8rem;">
+        · {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}{% if mins < 1 %}1{% else %}{{ mins }}{% endif %}분 읽기
+      </span>
+    </div>
+    <h1 style="font-size:1.6rem; margin-bottom:0;">{{ page.title }}</h1>
+  </div>
+
+  <div class="post-content">
+    {{ content }}
+  </div>
+
+  <nav class="post-nav">
+    <div>
+      {% if page.previous.url %}
+        <a href="{{ page.previous.url }}">← {{ page.previous.title }}</a>
+      {% endif %}
+    </div>
+    <div>
+      {% if page.next.url %}
+        <a href="{{ page.next.url }}">{{ page.next.title }} →</a>
+      {% endif %}
+    </div>
+  </nav>
+</article>

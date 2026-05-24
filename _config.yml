@@ -1,0 +1,10 @@
+title: JJ Analysis
+description: S&P 500 & Market Analysis
+baseurl: ""
+url: "https://jaegunjung.github.io"
+permalink: /:categories/:year/:month/:day/:title/
+markdown: kramdown
+theme: null
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
