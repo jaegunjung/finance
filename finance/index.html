@@ -538,8 +538,12 @@ function initChart() {
               const lang = currentLang();
               const icon = ph.type === 'bull' ? '▲' : '▼';
               const label = lang === 'ko' ? ph.ko : ph.en;
-              const fromY = ph.from.slice(0,4), toY = ph.to.slice(0,4);
-              return `${icon} ${fromY}–${toY}  ${label}`;
+              const [fy, fm] = ph.from.split('-').map(Number);
+              const [ty, tm] = ph.to.split('-').map(Number);
+              const months = (ty - fy) * 12 + (tm - fm);
+              const durStr = months < 12 ? `${months} mo` : `${(months / 12).toFixed(1)} yr`;
+              const dateStr = fy === ty ? `${fy}.${fm}–${tm}` : `${fy}–${ty}`;
+              return `${icon} ${dateStr}  ${label}  (${durStr})`;
             }
           }
         },
@@ -554,6 +558,8 @@ function initChart() {
     },
     plugins: [crosshairPlugin, overlayPlugin]
   });
+
+  canvas.style.touchAction = 'pan-y';
 
   // Sync toggle button with initial state
   document.getElementById('realToggle').classList.toggle('active', showReal);
@@ -770,5 +776,6 @@ function initCagrChart() {
       }
     }
   });
+  document.getElementById('cagrChart').style.touchAction = 'pan-y';
 }
 </script>
