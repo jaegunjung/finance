@@ -97,7 +97,7 @@ title: S&P 500 Chart
 </div>
 
 <div id="chartContainer">
-  <canvas id="sp500Chart"></canvas>
+  <canvas id="sp500Chart" style="touch-action:pan-y;"></canvas>
   <svg id="channelSvg"></svg>
   <div id="markerTooltip">
     <div class="tt-date" id="ttDate"></div>
@@ -188,7 +188,7 @@ title: S&P 500 Chart
     <h2>성장 기울기의 변화 <span style="font-size:0.85rem; font-weight:400; color:var(--text-secondary);">— 5개 국면</span></h2>
   </div>
   <div class="cagr-wrapper">
-    <canvas id="cagrChart"></canvas>
+    <canvas id="cagrChart" style="touch-action:pan-y;"></canvas>
   </div>
   <div style="margin-top:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:8px; font-size:0.8rem; color:var(--text-secondary);">
     <div class="en-only" style="display:contents;">
@@ -544,7 +544,7 @@ function initChart() {
           }
         },
         zoom: {
-          zoom: { wheel: { enabled:true, speed:0.1 }, pinch:{ enabled:true }, mode:'x',
+          zoom: { wheel: { enabled:true, speed:0.1 }, pinch:{ enabled:false }, mode:'x',
                   onZoomComplete: () => updateOverlay(chart) },
           pan:  { enabled:true, mode:'x',
                   onPanComplete:  () => updateOverlay(chart) },
