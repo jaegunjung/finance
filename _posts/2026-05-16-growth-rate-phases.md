@@ -9,7 +9,7 @@ excerpt: "From 1956 to today, how has the market's long-term growth rate evolved
 
 {% include charts/cagr-mini.html %}
 
-<div class="en-only">
+<div class="en-only" markdown="1">
 
 ## When the Slope Changes
 
@@ -45,7 +45,7 @@ One thing is certain: **assuming the current 13% CAGR continues forever is somet
 
 </div>
 
-<div class="ko-only">
+<div class="ko-only" markdown="1">
 
 ## 기울기가 바뀌는 순간들
 

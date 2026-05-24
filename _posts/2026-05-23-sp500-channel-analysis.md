@@ -9,7 +9,7 @@ excerpt: "Where does the S&P 500 stand today within the long-term trend channel 
 
 {% include charts/sp500-mini.html %}
 
-<div class="en-only">
+<div class="en-only" markdown="1">
 
 ## A 100-Year Channel
 
@@ -45,7 +45,7 @@ The trend channel is not a prediction tool — it is a tool for **positioning aw
 
 </div>
 
-<div class="ko-only">
+<div class="ko-only" markdown="1">
 
 ## 100년의 채널
 

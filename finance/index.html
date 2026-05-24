@@ -370,7 +370,7 @@ const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_N
 
 // ── State ──
 let chart, dates = [], prices = [], realPrices = [];
-let showReal = false, showPhases = false;
+let showReal = true, showPhases = false;
 let realChannelParams = null;
 
 // Fit real-price trend channel from historical anchor points
@@ -425,6 +425,16 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
 
 function getDisplayPrices() { return showReal ? realPrices : prices; }
 
+function getPhaseForIdx(idx) {
+  for (const ph of PHASES) {
+    const fi = phaseToIndex(ph.from);
+    let ti = phaseToIndex(ph.to);
+    if (ti < 0) ti = dates.length - 1;
+    if (fi >= 0 && idx >= fi && idx <= ti) return ph;
+  }
+  return null;
+}
+
 function toggleReal() {
   showReal = !showReal;
   document.getElementById('realToggle').classList.toggle('active', showReal);
@@ -468,7 +478,7 @@ function initChart() {
     type: 'line',
     data: {
       datasets: [{
-        data: prices.map((p,i) => ({x:i, y:p})),
+        data: getDisplayPrices().map((p,i) => ({x:i, y:p})),
         borderColor: '#3B8BD4',
         borderWidth: 1.5,
         pointRadius: 0,
@@ -520,6 +530,16 @@ function initChart() {
             label: item => {
               const val = item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1});
               return showReal ? `S&P 500 (Real 2025$): ${val}` : `S&P 500: ${val}`;
+            },
+            afterLabel: item => {
+              const idx = Math.round(item.parsed.x);
+              const ph = getPhaseForIdx(idx);
+              if (!ph) return '';
+              const lang = currentLang();
+              const icon = ph.type === 'bull' ? '▲' : '▼';
+              const label = lang === 'ko' ? ph.ko : ph.en;
+              const fromY = ph.from.slice(0,4), toY = ph.to.slice(0,4);
+              return `${icon} ${fromY}–${toY}  ${label}`;
             }
           }
         },
@@ -534,6 +554,9 @@ function initChart() {
     },
     plugins: [crosshairPlugin, overlayPlugin]
   });
+
+  // Sync toggle button with initial state
+  document.getElementById('realToggle').classList.toggle('active', showReal);
 
   canvas.addEventListener('dblclick', () => chart.resetZoom());
 
