@@ -4,58 +4,116 @@
     <svg id="miniChannelSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;"></svg>
   </div>
   <p style="color:var(--text-muted);font-size:0.72rem;margin-top:4px;">
-    <span class="en-only">S&amp;P 500 1927–present · Log scale · Trend channel · <a href="{{ '/finance/' | relative_url }}" style="color:var(--text-muted);">Open interactive chart →</a></span>
-    <span class="ko-only">S&amp;P 500 1927–현재 · 로그 스케일 · 추세 채널 · <a href="{{ '/finance/' | relative_url }}" style="color:var(--text-muted);">인터랙티브 차트 열기 →</a></span>
+    <span class="en-only">S&amp;P 500 1927–present · Inflation-adjusted (2025$) · Log scale · Real trend channel · <a href="{{ '/finance/' | relative_url }}" style="color:var(--text-muted);">Open interactive chart →</a></span>
+    <span class="ko-only">S&amp;P 500 1927–현재 · 물가반영 (2025달러) · 로그 스케일 · 실질 추세 채널 · <a href="{{ '/finance/' | relative_url }}" style="color:var(--text-muted);">인터랙티브 차트 열기 →</a></span>
   </p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 (function() {
-  const SLOPE = 0.005371, UPPER_INT = 2.4372, LOWER_INT = 1.1128, CENTER_INT = (UPPER_INT + LOWER_INT) / 2;
-  const channelPrice = (int, mn) => Math.exp(int + SLOPE * mn);
+  // CPI-U annual averages (1982-84=100)
+  const CPI_A = {
+    1927:17.4,1928:17.1,1929:17.1,1930:16.7,1931:15.2,1932:13.7,1933:13.0,
+    1934:13.4,1935:13.7,1936:13.9,1937:14.4,1938:14.1,1939:13.9,1940:14.0,
+    1941:14.7,1942:16.3,1943:17.3,1944:17.6,1945:18.0,1946:19.5,1947:22.3,
+    1948:24.1,1949:23.8,1950:24.1,1951:26.0,1952:26.5,1953:26.7,1954:26.9,
+    1955:26.8,1956:27.2,1957:28.1,1958:28.9,1959:29.2,1960:29.6,1961:29.9,
+    1962:30.2,1963:30.6,1964:31.0,1965:31.5,1966:32.4,1967:33.4,1968:34.8,
+    1969:36.7,1970:38.8,1971:40.5,1972:41.8,1973:44.4,1974:49.3,1975:53.8,
+    1976:56.9,1977:60.6,1978:65.2,1979:72.6,1980:82.4,1981:90.9,1982:96.5,
+    1983:99.6,1984:103.9,1985:107.6,1986:109.6,1987:113.6,1988:118.3,
+    1989:124.0,1990:130.7,1991:136.2,1992:140.3,1993:144.5,1994:148.2,
+    1995:152.4,1996:156.9,1997:160.5,1998:163.0,1999:166.6,2000:172.2,
+    2001:177.1,2002:179.9,2003:184.0,2004:188.9,2005:195.3,2006:201.6,
+    2007:207.3,2008:215.3,2009:214.5,2010:218.1,2011:224.9,2012:229.6,
+    2013:233.0,2014:236.7,2015:237.0,2016:240.0,2017:245.1,2018:251.1,
+    2019:255.7,2020:258.8,2021:270.9,2022:292.7,2023:304.7,2024:314.2,
+    2025:320.0,2026:325.0
+  };
+  const CPI_BASE = CPI_A[2025];
+
+  function monthCPI(dateStr) {
+    const [y, m] = dateStr.split('-').map(Number);
+    const c0 = CPI_A[y] ?? CPI_A[Object.keys(CPI_A).map(Number).filter(k=>k<=y).pop()];
+    const c1 = CPI_A[y+1] ?? c0;
+    return c0 + (c1 - c0) * ((m - 1) / 12);
+  }
+
+  function computeRealChannel(dates, realPrices) {
+    function pt(dateStr) {
+      const idx = dates.indexOf(dateStr);
+      return (idx >= 0 && realPrices[idx] > 0) ? [idx, Math.log(realPrices[idx])] : null;
+    }
+    const upper = ['1956-03','2000-03'].map(pt).filter(Boolean);
+    const lower = ['1932-05','1974-09','2009-03'].map(pt).filter(Boolean);
+    if (upper.length < 2 || lower.length < 2) return null;
+
+    function lsSlope(pts) {
+      const n = pts.length;
+      let sx=0,sy=0,sxx=0,sxy=0;
+      for (const [x,y] of pts) { sx+=x;sy+=y;sxx+=x*x;sxy+=x*y; }
+      return (n*sxy-sx*sy)/(n*sxx-sx*sx);
+    }
+    const slope = lsSlope(lower);
+    const upperInt = upper.reduce((s,[x,y])=>s+(y-slope*x),0)/upper.length;
+    const lowerInt = lower.reduce((s,[x,y])=>s+(y-slope*x),0)/lower.length;
+    return { slope, upperInt, lowerInt };
+  }
 
   fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
     .then(r => r.text())
     .then(csv => {
-      const rows = csv.trim().split('\n').slice(1);
-      const dates = [], prices = [];
-      rows.forEach(line => {
+      const dates = [], prices = [], realPrices = [];
+      csv.trim().split('\n').slice(1).forEach(line => {
         const [d, p] = line.split(',');
-        dates.push(d.trim());
-        prices.push(parseFloat(p));
+        const dateStr = d.trim();
+        const nom = parseFloat(p);
+        dates.push(dateStr);
+        prices.push(nom);
+        realPrices.push(nom * CPI_BASE / monthCPI(dateStr));
       });
 
+      const cp = computeRealChannel(dates, realPrices);
       const ctx = document.getElementById('miniSp500Chart').getContext('2d');
+
       const overlayPlugin = {
         id: 'miniOverlay',
         afterDraw(ch) {
+          if (!cp) return;
           const svg = document.getElementById('miniChannelSvg');
           const ca = ch.chartArea, xS = ch.scales.x, yS = ch.scales.y;
           const mn0 = xS.getValueForPixel(ca.left), mn1 = xS.getValueForPixel(ca.right);
           const x0 = ca.left, x1 = ca.right;
-          const uY0 = yS.getPixelForValue(channelPrice(UPPER_INT, mn0)), uY1 = yS.getPixelForValue(channelPrice(UPPER_INT, mn1));
-          const lY0 = yS.getPixelForValue(channelPrice(LOWER_INT, mn0)), lY1 = yS.getPixelForValue(channelPrice(LOWER_INT, mn1));
-          const cY0 = yS.getPixelForValue(channelPrice(CENTER_INT, mn0)), cY1 = yS.getPixelForValue(channelPrice(CENTER_INT, mn1));
+          const c = (int, mn) => Math.exp(int + cp.slope * mn);
+          const cInt = (cp.upperInt + cp.lowerInt) / 2;
+          const uY0=yS.getPixelForValue(c(cp.upperInt,mn0)), uY1=yS.getPixelForValue(c(cp.upperInt,mn1));
+          const lY0=yS.getPixelForValue(c(cp.lowerInt,mn0)), lY1=yS.getPixelForValue(c(cp.lowerInt,mn1));
+          const cY0=yS.getPixelForValue(c(cInt,mn0)),        cY1=yS.getPixelForValue(c(cInt,mn1));
           svg.innerHTML = `
             <defs><clipPath id="mca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs>
             <g clip-path="url(#mca)">
               <polygon points="${x0},${uY0} ${x1},${uY1} ${x1},${lY1} ${x0},${lY0}" fill="rgba(59,139,212,0.06)"/>
-              <line x1="${x0}" y1="${uY0}" x2="${x1}" y2="${uY1}" stroke="#3B8BD4" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="6 4"/>
-              <line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="6 4"/>
-              <line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="2 4"/>
+              <line x1="${x0}" y1="${uY0}" x2="${x1}" y2="${uY1}" stroke="#3B8BD4" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="6 4"/>
+              <line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="6 4"/>
+              <line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.25" stroke-width="1"   stroke-dasharray="2 4"/>
             </g>`;
         }
       };
 
       new Chart(ctx, {
         type: 'line',
-        data: { datasets: [{ data: prices.map((p,i)=>({x:i,y:p})), borderColor:'#3B8BD4', borderWidth:1.2, pointRadius:0, tension:0, parsing:false }] },
+        data: { datasets: [{ data: realPrices.map((p,i)=>({x:i,y:p})), borderColor:'#3B8BD4', borderWidth:1.2, pointRadius:0, tension:0, parsing:false }] },
         options: {
-          responsive: true, maintainAspectRatio: false, animation: false,
+          responsive:true, maintainAspectRatio:false, animation:false,
           scales: {
-            x: { type:'linear', min:0, max:dates.length-1, grid:{color:'rgba(48,54,61,0.6)'}, ticks:{ color:'#8b949e', font:{size:10}, maxTicksLimit:12, callback:(v)=>{ const i=Math.round(v); if(i<0||i>=dates.length) return ''; const d=dates[i]; return d&&d.slice(5)==='01'?d.slice(0,4):''; } } },
-            y: { type:'logarithmic', grid:{color:'rgba(48,54,61,0.6)'}, ticks:{ color:'#8b949e', font:{size:10}, callback: v=>{ return [10,50,100,500,1000,5000].includes(v)?v.toLocaleString():''; } } }
+            x: { type:'linear', min:0, max:dates.length-1, grid:{color:'rgba(48,54,61,0.6)'},
+                 ticks:{ color:'#8b949e', font:{size:10}, maxTicksLimit:12,
+                         callback:(v)=>{ const i=Math.round(v); if(i<0||i>=dates.length) return '';
+                                         const d=dates[i]; return d&&d.slice(5)==='01'?d.slice(0,4):''; } } },
+            y: { type:'logarithmic', grid:{color:'rgba(48,54,61,0.6)'},
+                 ticks:{ color:'#8b949e', font:{size:10},
+                         callback:v=>{ return [50,100,200,500,1000,2000,5000].includes(v)?v.toLocaleString():''; } } }
           },
           plugins: { legend:{display:false}, tooltip:{enabled:false} }
         },
