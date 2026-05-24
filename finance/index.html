@@ -371,6 +371,34 @@ const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_N
 // ── State ──
 let chart, dates = [], prices = [], realPrices = [];
 let showReal = false, showPhases = false;
+let realChannelParams = null;
+
+// Fit real-price trend channel from historical anchor points
+function computeRealChannelParams() {
+  function logReal(dateStr) {
+    const idx = dates.indexOf(dateStr);
+    return (idx >= 0 && realPrices[idx] > 0) ? [idx, Math.log(realPrices[idx])] : null;
+  }
+  // Upper anchors: major channel-top touches in real terms
+  const upperPts = ['1956-03', '2000-03'].map(logReal).filter(Boolean);
+  // Lower anchors: major channel-bottom touches in real terms
+  const lowerPts = ['1932-05', '1974-09', '2009-03'].map(logReal).filter(Boolean);
+  if (upperPts.length < 2 || lowerPts.length < 2) return null;
+
+  // Least-squares slope from lower anchors (more points → more stable)
+  function lsSlope(pts) {
+    const n = pts.length;
+    let sx=0, sy=0, sxx=0, sxy=0;
+    for (const [x,y] of pts) { sx+=x; sy+=y; sxx+=x*x; sxy+=x*y; }
+    return (n*sxy - sx*sy) / (n*sxx - sx*sx);
+  }
+  const slope = lsSlope(lowerPts);
+
+  // Intercepts: average of (logReal − slope·idx) for each anchor group
+  const upperInt = upperPts.reduce((s,[x,y]) => s + (y - slope*x), 0) / upperPts.length;
+  const lowerInt = lowerPts.reduce((s,[x,y]) => s + (y - slope*x), 0) / lowerPts.length;
+  return { slope, upperInt, lowerInt };
+}
 
 // ── Language helper ──
 function currentLang() {
@@ -388,6 +416,7 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
     });
     // Compute real prices in 2025 dollars
     realPrices = prices.map((p, i) => p * CPI_BASE / getMonthCPI(dates[i]));
+    realChannelParams = computeRealChannelParams();
     // Assign data indices to markers
     ALL_MARKERS.forEach(m => { m.idx = dates.indexOf(m.date); });
     initChart();
@@ -627,16 +656,21 @@ function updateOverlay(ch) {
     }
   }
 
-  // Trend channel (only in nominal mode — channel params are nominal)
-  if (!showReal) {
+  // Trend channel — nominal or real depending on mode
+  const cp = showReal
+    ? realChannelParams
+    : { slope: SLOPE, upperInt: UPPER_INT, lowerInt: LOWER_INT };
+  if (cp) {
     const mn0 = xS.getValueForPixel(ca.left), mn1 = xS.getValueForPixel(ca.right);
     const x0 = ca.left, x1 = ca.right;
-    const uY0 = yS.getPixelForValue(channelPrice(UPPER_INT, mn0));
-    const uY1 = yS.getPixelForValue(channelPrice(UPPER_INT, mn1));
-    const lY0 = yS.getPixelForValue(channelPrice(LOWER_INT, mn0));
-    const lY1 = yS.getPixelForValue(channelPrice(LOWER_INT, mn1));
-    const cY0 = yS.getPixelForValue(channelPrice(CENTER_INT, mn0));
-    const cY1 = yS.getPixelForValue(channelPrice(CENTER_INT, mn1));
+    const ch = (int, mn) => Math.exp(int + cp.slope * mn);
+    const centerInt = (cp.upperInt + cp.lowerInt) / 2;
+    const uY0 = yS.getPixelForValue(ch(cp.upperInt, mn0));
+    const uY1 = yS.getPixelForValue(ch(cp.upperInt, mn1));
+    const lY0 = yS.getPixelForValue(ch(cp.lowerInt, mn0));
+    const lY1 = yS.getPixelForValue(ch(cp.lowerInt, mn1));
+    const cY0 = yS.getPixelForValue(ch(centerInt, mn0));
+    const cY1 = yS.getPixelForValue(ch(centerInt, mn1));
     html += `<polygon points="${x0},${uY0} ${x1},${uY1} ${x1},${lY1} ${x0},${lY0}" fill="rgba(59,139,212,0.05)"/>`;
     html += `<line x1="${x0}" y1="${uY0}" x2="${x1}" y2="${uY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>`;
     html += `<line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.6" stroke-width="1.5" stroke-dasharray="6 4"/>`;
