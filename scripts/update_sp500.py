@@ -2,14 +2,17 @@
 Fetch the latest S&P 500 monthly closing prices from Yahoo Finance
 and update assets/data/sp500_monthly.csv.
 
-Preserves all existing data (especially pre-1928 Shiller data).
-Only adds/updates recent months from Yahoo Finance (^GSPC).
+Run daily via GitHub Actions. Logic:
+  1. If the CSV already has this month's data → exit immediately (skip rest of month).
+  2. Otherwise fetch from Yahoo Finance.
+  3. If Yahoo Finance doesn't have this month's data yet → exit (try again tomorrow).
+  4. If new month data is available → update CSV and exit (the workflow then commits).
 """
 
 import csv
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
     import yfinance as yf
@@ -17,8 +20,9 @@ except ImportError:
     print("yfinance not installed. Run: pip install yfinance")
     sys.exit(1)
 
-CSV_PATH = os.path.join(os.path.dirname(__file__), '..', 'assets', 'data', 'sp500_monthly.csv')
-CSV_PATH = os.path.normpath(CSV_PATH)
+CSV_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), '..', 'assets', 'data', 'sp500_monthly.csv')
+)
 
 
 def read_existing():
@@ -31,36 +35,58 @@ def read_existing():
 
 
 def fetch_yahoo():
-    """Fetch S&P 500 monthly closes from Yahoo Finance."""
+    """Fetch S&P 500 monthly closes from Yahoo Finance (last 5 years)."""
     ticker = yf.Ticker("^GSPC")
-    # Download last 5 years of monthly data — enough to catch any gaps
     hist = ticker.history(period="5y", interval="1mo")
     if hist.empty:
         raise RuntimeError("No data returned from Yahoo Finance")
     result = {}
     for ts, row in hist.iterrows():
-        # Use YYYY-MM format (month of the timestamp)
-        date_str = ts.strftime('%Y-%m')
-        result[date_str] = round(float(row['Close']), 2)
+        result[ts.strftime('%Y-%m')] = round(float(row['Close']), 2)
     return result
 
 
-def main():
-    print(f"Reading existing data from {CSV_PATH}")
-    existing = read_existing()
-    original_count = len(existing)
-    print(f"  Existing entries: {original_count}")
+def write_csv(data):
+    sorted_dates = sorted(data.keys())
+    with open(CSV_PATH, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['date', 'price'])
+        for date in sorted_dates:
+            writer.writerow([date, data[date]])
+    return sorted_dates
 
-    print("Fetching latest data from Yahoo Finance (^GSPC)...")
+
+def main():
+    current_month = datetime.now(timezone.utc).strftime('%Y-%m')
+    print(f"Current month: {current_month}")
+
+    existing = read_existing()
+    latest_in_csv = max(existing.keys())
+    print(f"Latest in CSV:  {latest_in_csv}")
+
+    # ── Guard: already have this month → nothing to do until next month ──
+    if latest_in_csv >= current_month:
+        print(f"Already up to date ({latest_in_csv}). Skipping until next month.")
+        sys.exit(0)
+
+    # ── Need new data — check Yahoo Finance ──
+    print("Fetching from Yahoo Finance (^GSPC)...")
     try:
         new_data = fetch_yahoo()
     except Exception as e:
         print(f"Error fetching data: {e}")
         sys.exit(1)
 
-    updated = 0
-    added = 0
+    # ── Guard: source doesn't have this month yet → try again tomorrow ──
+    if current_month not in new_data:
+        print(f"Yahoo Finance does not have {current_month} yet. Will retry tomorrow.")
+        sys.exit(0)
+
+    # ── Update: add/fix any months newer than what we have ──
+    added, updated = 0, 0
     for date, price in new_data.items():
+        if date <= latest_in_csv:
+            continue  # don't touch historical data
         if date not in existing:
             existing[date] = price
             added += 1
@@ -69,22 +95,13 @@ def main():
             updated += 1
 
     if added == 0 and updated == 0:
-        print("Data is already up to date. No changes.")
-        return
+        print("No changes after merge. Nothing to commit.")
+        sys.exit(0)
 
-    print(f"  Added: {added} new months, Updated: {updated} existing months")
-
-    # Sort by date and write back
-    sorted_dates = sorted(existing.keys())
-    with open(CSV_PATH, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['date', 'price'])
-        for date in sorted_dates:
-            writer.writerow([date, existing[date]])
-
+    sorted_dates = write_csv(existing)
     latest = sorted_dates[-1]
-    print(f"  Saved {len(sorted_dates)} total entries.")
-    print(f"  Latest data point: {latest} = {existing[latest]}")
+    print(f"Added {added} month(s), updated {updated}. Latest: {latest} = {existing[latest]}")
+    print(f"Total entries: {len(sorted_dates)}")
 
 
 if __name__ == '__main__':

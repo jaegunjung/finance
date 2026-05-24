@@ -2,7 +2,7 @@ name: Update S&P 500 Data
 
 on:
   schedule:
-    - cron: '0 6 1 * *'  # First day of every month at 06:00 UTC
+    - cron: '0 6 * * *'  # Every day at 06:00 UTC — script exits early if this month already done
   workflow_dispatch:       # Allow manual trigger
 
 permissions:
