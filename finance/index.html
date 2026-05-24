@@ -191,20 +191,8 @@ title: S&P 500 Chart
     <canvas id="cagrChart" style="touch-action:pan-y;"></canvas>
   </div>
   <div style="margin-top:16px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:8px; font-size:0.8rem; color:var(--text-secondary);">
-    <div class="en-only" style="display:contents;">
-      <div>• <strong style="color:var(--text-primary)">1956–1975:</strong> Oil shocks &amp; stagflation</div>
-      <div>• <strong style="color:var(--text-primary)">1975–1994:</strong> The channel's true slope</div>
-      <div>• <strong style="color:var(--accent-blue)">1994–2000:</strong> Dot-com acceleration (3× average)</div>
-      <div>• <strong style="color:var(--accent-red)">2000–2010:</strong> Lost decade</div>
-      <div>• <strong style="color:var(--accent-blue)">2010–present:</strong> AI &amp; low-rate bull market</div>
-    </div>
-    <div class="ko-only" style="display:contents;">
-      <div>• <strong style="color:var(--text-primary)">1956–1975:</strong> 오일쇼크·스태그플레이션 조정기</div>
-      <div>• <strong style="color:var(--text-primary)">1975–1994:</strong> 채널의 진정한 기울기</div>
-      <div>• <strong style="color:var(--accent-blue)">1994–2000:</strong> 닷컴 버블 가속 (평균의 3배)</div>
-      <div>• <strong style="color:var(--accent-red)">2000–2010:</strong> 잃어버린 10년</div>
-      <div>• <strong style="color:var(--accent-blue)">2010–현재:</strong> AI·저금리 강세장</div>
-    </div>
+    <div id="cagrDescEn" class="en-only" style="display:contents;"></div>
+    <div id="cagrDescKo" class="ko-only" style="display:contents;"></div>
   </div>
 </div>
 
@@ -369,9 +357,74 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_NAMES[m-1]} ${y}`; };
 
 // ── State ──
-let chart, dates = [], prices = [], realPrices = [];
+let chart, cagrChart, dates = [], prices = [], realPrices = [];
 let showReal = true, showPhases = false;
 let realChannelParams = null;
+
+// ── CAGR phase data (nominal vs real) ──
+const CAGR_NOMINAL = {
+  labels: ['1956–1975','1975–1994','1994–2000','2000–2010','2010–present'],
+  data: [4, 7, 21, -3, 13],
+  colors: ['rgba(63,185,80,0.55)','rgba(63,185,80,0.7)','rgba(59,139,212,0.8)','rgba(248,81,73,0.7)','rgba(59,139,212,0.7)'],
+  xMin: -6, xMax: 25,
+  tooltipSuffix: '',
+  en: [
+    ['var(--text-primary)', '1956–1975', 'Oil shocks &amp; stagflation'],
+    ['var(--text-primary)', '1975–1994', 'The channel\'s true slope'],
+    ['var(--accent-blue)',  '1994–2000', 'Dot-com acceleration (3&times; average)'],
+    ['var(--accent-red)',   '2000–2010', 'Lost decade'],
+    ['var(--accent-blue)',  '2010–present', 'AI &amp; low-rate bull market'],
+  ],
+  ko: [
+    ['var(--text-primary)', '1956–1975', '오일쇼크·스태그플레이션 조정기'],
+    ['var(--text-primary)', '1975–1994', '채널의 진정한 기울기'],
+    ['var(--accent-blue)',  '1994–2000', '닷컴 버블 가속 (평균의 3배)'],
+    ['var(--accent-red)',   '2000–2010', '잃어버린 10년'],
+    ['var(--accent-blue)',  '2010–현재', 'AI·저금리 강세장'],
+  ],
+};
+const CAGR_REAL = {
+  labels: ['1956–1975','1975–1994','1994–2000','2000–2009','2009–present'],
+  data: [-1, 5, 18, -11, 10],
+  colors: ['rgba(248,81,73,0.6)','rgba(63,185,80,0.7)','rgba(59,139,212,0.8)','rgba(248,81,73,0.85)','rgba(59,139,212,0.7)'],
+  xMin: -14, xMax: 22,
+  tooltipSuffix: ' (real)',
+  en: [
+    ['var(--accent-red)',   '1956–1975', 'Stagflation — inflation wiped all nominal gains (−1%/yr real)'],
+    ['var(--text-primary)', '1975–1994', 'Post-stagflation recovery — choppy; real gains delayed until Volcker tamed inflation'],
+    ['var(--accent-blue)',  '1994–2000', 'Dot-com mania — explosive real gains, real upper channel breached'],
+    ['var(--accent-red)',   '2000–2009', 'Lost decade in real terms — inflation amplified nominal losses (−11%/yr real)'],
+    ['var(--accent-blue)',  '2009–present', 'QE &amp; AI bull — strong real gains, now near real upper channel'],
+  ],
+  ko: [
+    ['var(--accent-red)',   '1956–1975', '스태그플레이션 — 인플레가 명목 상승 소멸 (실질 −1%/년)'],
+    ['var(--text-primary)', '1975–1994', '스태그플레이션 이후 회복 — 볼커 긴축 이전까지 실질 수익 억제'],
+    ['var(--accent-blue)',  '1994–2000', '닷컴 버블 — 실질 기준 폭발적 상승, 실질 채널 상단 돌파'],
+    ['var(--accent-red)',   '2000–2009', '실질 기준 잃어버린 10년 — 인플레가 명목 손실 증폭 (실질 −11%/년)'],
+    ['var(--accent-blue)',  '2009–현재', 'QE·AI 강세장 — 강한 실질 상승, 실질 채널 상단 근접'],
+  ],
+};
+
+function updateCagrChart(isReal) {
+  const cfg = isReal ? CAGR_REAL : CAGR_NOMINAL;
+  if (cagrChart) {
+    cagrChart.data.labels = cfg.labels;
+    cagrChart.data.datasets[0].data = cfg.data;
+    cagrChart.data.datasets[0].backgroundColor = cfg.colors;
+    cagrChart.options.scales.x.min = cfg.xMin;
+    cagrChart.options.scales.x.max = cfg.xMax;
+    cagrChart.options.plugins.tooltip.callbacks.label =
+      item => `CAGR${cfg.tooltipSuffix}: ${item.raw > 0 ? '+' : ''}${item.raw}%`;
+    cagrChart.update();
+  }
+  const render = items => items.map(([col, period, desc]) =>
+    `<div>• <strong style="color:${col}">${period}:</strong> ${desc}</div>`
+  ).join('');
+  const enEl = document.getElementById('cagrDescEn');
+  const koEl = document.getElementById('cagrDescKo');
+  if (enEl) enEl.innerHTML = render(cfg.en);
+  if (koEl) koEl.innerHTML = render(cfg.ko);
+}
 
 // Fit real-price trend channel from historical anchor points
 function computeRealChannelParams() {
@@ -441,6 +494,7 @@ function toggleReal() {
   chart.data.datasets[0].data = getDisplayPrices().map((p,i) => ({x:i, y:p}));
   chart.resetZoom();
   updateOverlay(chart);
+  updateCagrChart(showReal);
 }
 
 function togglePhases() {
@@ -739,13 +793,13 @@ document.querySelectorAll('.range-btn').forEach(btn => {
 
 // ── CAGR chart ──
 function initCagrChart() {
-  new Chart(document.getElementById('cagrChart').getContext('2d'), {
+  cagrChart = new Chart(document.getElementById('cagrChart').getContext('2d'), {
     type: 'bar',
     data: {
-      labels: ['1956–1975','1975–1994','1994–2000','2000–2010','2010–present'],
+      labels: [],
       datasets: [{
-        data: [4, 7, 21, -3, 13],
-        backgroundColor: ['rgba(63,185,80,0.55)','rgba(63,185,80,0.7)','rgba(59,139,212,0.8)','rgba(248,81,73,0.7)','rgba(59,139,212,0.7)'],
+        data: [],
+        backgroundColor: [],
         borderRadius: 4,
         borderSkipped: false,
       }]
@@ -777,5 +831,6 @@ function initCagrChart() {
     }
   });
   document.getElementById('cagrChart').style.touchAction = 'pan-y';
+  updateCagrChart(showReal);
 }
 </script>
