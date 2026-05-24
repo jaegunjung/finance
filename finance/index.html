@@ -219,7 +219,7 @@ const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_N
 // ── Load CSV and init chart ──
 let chart, dates = [], prices = [];
 
-fetch('/assets/data/sp500_monthly.csv')
+fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
   .then(r => r.text())
   .then(csv => {
     csv.trim().split('\n').slice(1).forEach(line => {

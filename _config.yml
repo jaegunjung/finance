@@ -1,6 +1,6 @@
 title: JJ Analysis
 description: S&P 500 & Market Analysis
-baseurl: ""
+baseurl: "/finance"
 url: "https://jaegunjung.github.io"
 permalink: /:categories/:year/:month/:day/:title/
 markdown: kramdown
