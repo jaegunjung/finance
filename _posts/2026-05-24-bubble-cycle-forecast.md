@@ -1,13 +1,87 @@
 ---
 layout: post
-title: "버블 사이클이 말하는 S&P 500 향후 경로"
+title: "Where Are We in the AI Bubble Cycle?"
+title_en: "Where Are We in the AI Bubble Cycle? Reading 2026 S&P 500 via Shinhan's Bubble Template"
+title_ko: "AI 사이클은 지금 어디쯤인가 — 신한투자증권 버블 템플릿으로 읽는 2026년 S&P 500"
 date: 2026-05-24
 categories: finance
 tags: [sp500, forecast, bubble-cycle, rate-cut]
 excerpt: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사이클과 금리인하 이후 랠리 패턴을 비교하면 S&P 500은 2027년 하반기까지 추가 상승 여지가 있다."
 ---
 
-{% include charts/sp500-mini.html %}
+<!-- Reference charts from Shinhan Securities report (2025-08-19) -->
+<!-- TODO: Copy shinhan_bubble_cycle_comparison.png and shinhan_post_ratecut_rally.png to assets/images/
+     These are screenshots from Shinhan Securities report pages 45 and 47 (2025-08-19) -->
+
+<style>
+.ref-chart-block { margin: 24px 0; }
+.ref-chart-img { width: 100%; border-radius: 6px; border: 1px solid var(--border); display: block; }
+.ref-chart-placeholder {
+  width: 100%; min-height: 220px; border-radius: 6px;
+  border: 2px dashed var(--border); background: var(--bg-secondary);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 8px; padding: 24px; box-sizing: border-box;
+}
+.ref-chart-placeholder .ph-label { color: var(--text-muted); font-size: 0.8rem; text-align: center; }
+.ref-chart-caption { font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; font-style: italic; }
+.ref-chart-source { font-size: 0.78rem; color: var(--text-muted); margin-top: 16px; }
+</style>
+
+<div class="ref-chart-block">
+  {% if site.data %}
+  {% assign img_a = "/assets/images/shinhan_bubble_cycle_comparison.png" | relative_url %}
+  {% endif %}
+  {% capture img_a_path %}{{ site.baseurl }}/assets/images/shinhan_bubble_cycle_comparison.png{% endcapture %}
+  <div class="ref-chart-placeholder" id="phA">
+    <div class="ph-label en-only">[ Fig 1 — Shinhan bubble cycle chart ]<br>Place <code>assets/images/shinhan_bubble_cycle_comparison.png</code></div>
+    <div class="ph-label ko-only">[ 그림 1 — 신한증권 버블 사이클 비교 차트 ]<br><code>assets/images/shinhan_bubble_cycle_comparison.png</code> 파일을 넣어주세요</div>
+  </div>
+  <p class="ref-chart-caption">
+    <span class="en-only">Fig 1. Historical bubble cycles comparison (Shinhan Securities, 2025-08-19). All tech-led bull markets lasted ~5 years from T.</span>
+    <span class="ko-only">그림 1. 과거 버블 국면 비교 (신한투자증권, 2025-08-19). 기술혁신 강세장은 평균 5년간 확장하는 경향.</span>
+  </p>
+</div>
+
+<div class="ref-chart-block">
+  <div class="ref-chart-placeholder" id="phB">
+    <div class="ph-label en-only">[ Fig 2 — Shinhan post-rate-cut rally chart ]<br>Place <code>assets/images/shinhan_post_ratecut_rally.png</code></div>
+    <div class="ph-label ko-only">[ 그림 2 — 신한증권 금리 인하 후 랠리 차트 ]<br><code>assets/images/shinhan_post_ratecut_rally.png</code> 파일을 넣어주세요</div>
+  </div>
+  <p class="ref-chart-caption">
+    <span class="en-only">Fig 2. Post-final-rate-cut rally patterns (Shinhan Securities, 2025-08-19). Minimum 17 months of upside after last cut.</span>
+    <span class="ko-only">그림 2. 마지막 금리 인하 후 주가 궤적 (신한투자증권, 2025-08-19). 최소 17개월 추가 상승.</span>
+  </p>
+</div>
+
+<p class="ref-chart-source">
+  <span class="en-only">Source: Shinhan Securities Global Equity Strategy, 'Bubble Template: 2026-2027 US Market Bubble Scenario' (Kim Sung-hwan &amp; Oh Han-bi, 2025-08-19)</span>
+  <span class="ko-only">출처: 신한투자증권 글로벌 주식전략, '버블 템플릿: 2026-2027 미국 증시 버블 시나리오' (김성환·오한비, 2025-08-19)</span>
+</p>
+
+<script>
+// Replace placeholders with real images if they exist
+(function() {
+  function tryImg(placeholderId, src, altEn, altKo) {
+    var img = new Image();
+    img.onload = function() {
+      var ph = document.getElementById(placeholderId);
+      if (ph) {
+        var imgEl = document.createElement('img');
+        imgEl.src = src;
+        imgEl.alt = document.documentElement.classList.contains('ko-mode') ? altKo : altEn;
+        imgEl.className = 'ref-chart-img';
+        ph.parentNode.replaceChild(imgEl, ph);
+      }
+    };
+    img.src = src;
+  }
+  var base = '{{ site.baseurl }}';
+  tryImg('phA', base + '/assets/images/shinhan_bubble_cycle_comparison.png',
+    'Historical bubble cycles comparison', '과거 버블 국면 비교');
+  tryImg('phB', base + '/assets/images/shinhan_post_ratecut_rally.png',
+    'Post-rate-cut rally patterns', '금리 인하 후 랠리 패턴');
+})();
+</script>
 
 <div class="en-only" markdown="1">
 

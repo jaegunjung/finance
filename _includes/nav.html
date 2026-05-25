@@ -3,7 +3,8 @@
   <button class="nav-hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
   <ul class="nav-links">
     <li><a href="{{ '/blog/' | relative_url }}" {% if page.url contains '/blog' %}class="active"{% endif %}>Blog</a></li>
-    <li><a href="{{ '/finance/' | relative_url }}" {% if page.url contains '/finance' %}class="active"{% endif %}>Finance</a></li>
+    <li><a href="{{ '/finance/' | relative_url }}" {% if page.url contains '/finance' and page.url != '/finance/bitcoin/' %}class="active"{% endif %}>Finance</a></li>
+    <li><a href="{{ '/finance/bitcoin/' | relative_url }}" {% if page.url contains '/finance/bitcoin' %}class="active"{% endif %}>Bitcoin</a></li>
     <li><a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>About</a></li>
     <li class="lang-toggle-item">
       <button class="lang-btn" data-lang-btn="en" onclick="setLang('en')">EN</button>

@@ -1,0 +1,724 @@
+---
+layout: default
+title: Bitcoin Long-Term Trend
+---
+<style>
+.range-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.range-btn {
+  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+  background: none; color: var(--text-secondary); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.range-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.range-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+.ctrl-btn {
+  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+  background: none; color: var(--text-secondary); font-size: 0.8rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.ctrl-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.ctrl-btn.active { background: var(--accent-green); color: #fff; border-color: var(--accent-green); }
+
+#btcChartContainer {
+  position: relative; width: 100%; height: 520px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px 8px 0 0; overflow: hidden;
+}
+#btcChart { position: absolute; top:0; left:0; width:100%; height:100%; }
+#btcSvg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+
+#btcMarkerTooltip {
+  position: absolute; display: none; pointer-events: none; z-index: 10;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 12px; min-width: 160px;
+}
+#btcMarkerTooltip .tt-date { font-weight: 600; color: var(--text-primary); font-size: 0.875rem; }
+#btcMarkerTooltip .tt-price { color: var(--text-secondary); font-size: 0.8rem; margin: 2px 0; }
+#btcMarkerTooltip .tt-title { color: var(--text-secondary); font-size: 0.8rem; }
+
+#btcRsiContainer {
+  position: relative; width: 100%; height: 170px;
+  background: var(--bg-card); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden;
+}
+#btcRsiChart { position: absolute; top:0; left:0; width:100%; height:100%; }
+#btcRsiLabel {
+  position: absolute; top: 6px; left: 10px; font-size: 0.72rem; color: var(--text-muted);
+  pointer-events: none; z-index: 5; line-height: 1.6;
+}
+
+.chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 4px; }
+.source-note { color: var(--text-muted); font-size: 0.73rem; margin-top: 4px; margin-bottom: 20px; }
+.section-label {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--accent-blue); margin-bottom: 8px;
+}
+.forecast-legend { font-size: 0.75rem; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 0; }
+.rainbow-legend {
+  display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.72rem; margin: 4px 0;
+}
+.rainbow-legend span { display:flex; align-items:center; gap:4px; }
+.rainbow-legend .swatch { width:12px; height:12px; border-radius:2px; display:inline-block; }
+</style>
+
+<div style="padding: 28px 0 8px;">
+  <h1>
+    <span class="en-only">Bitcoin Long-Term Trend</span>
+    <span class="ko-only">비트코인 장기 추세 차트</span>
+  </h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">2010–2026 · Log Scale · Rainbow Chart · Halving Cycles</span>
+    <span class="ko-only">2010–2026 · 로그 스케일 · 레인보우 차트 · 반감기 사이클</span>
+  </p>
+  <p style="color:var(--text-muted); font-size:0.78rem; margin-top:4px;">
+    <span class="en-only">Bitcoin data via CoinGecko API · Updated daily</span>
+    <span class="ko-only">데이터: CoinGecko API · 매일 업데이트</span>
+  </p>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin: 16px 0 10px; align-items:center;">
+  <div class="range-row">
+    <button class="btc-range-btn range-btn" data-months="24">2Y</button>
+    <button class="btc-range-btn range-btn" data-months="60">5Y</button>
+    <button class="btc-range-btn range-btn" data-months="120">10Y</button>
+    <button class="btc-range-btn range-btn active" data-months="0">All</button>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+    <button id="btcMa12Toggle" class="ctrl-btn active" onclick="toggleBtcMA(12)">MA-12</button>
+    <button id="btcMa24Toggle" class="ctrl-btn active" onclick="toggleBtcMA(24)">MA-24</button>
+    <button id="btcMa48Toggle" class="ctrl-btn active" onclick="toggleBtcMA(48)">MA-48</button>
+    <button id="rainbowToggle" class="ctrl-btn active" onclick="toggleRainbow()">
+      <span class="en-only">🌈 Rainbow</span><span class="ko-only">🌈 레인보우</span>
+    </button>
+    <button id="btcForecastToggle" class="ctrl-btn active" onclick="toggleBtcForecast()">
+      <span class="en-only">Forecast On</span><span class="ko-only">예측 표시 중</span>
+    </button>
+  </div>
+</div>
+
+<div id="btcChartContainer">
+  <canvas id="btcChart" style="touch-action:pan-y;"></canvas>
+  <svg id="btcSvg"></svg>
+  <div id="btcMarkerTooltip">
+    <div class="tt-date" id="btcTtDate"></div>
+    <div class="tt-price" id="btcTtPrice"></div>
+    <div class="tt-title" id="btcTtTitle"></div>
+  </div>
+</div>
+
+<div id="btcRsiContainer">
+  <canvas id="btcRsiChart" style="touch-action:pan-y;"></canvas>
+  <div id="btcRsiLabel">RSI(14): —&nbsp;&nbsp;Signal: —</div>
+</div>
+
+<p class="chart-hint">
+  <span class="en-only">Scroll to zoom · Drag to pan · Hover/click markers · Double-click to reset</span>
+  <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</span>
+</p>
+<p class="source-note">
+  <span class="en-only">Data: CoinGecko API (fallback: hardcoded anchor prices) · Power Law regression: log₁₀(price) ≈ 5.84·log₁₀(days_since_genesis) − 17.01</span>
+  <span class="ko-only">데이터: CoinGecko API (대안: 하드코딩 앵커 가격) · Power Law 회귀: log₁₀(price) ≈ 5.84·log₁₀(일수) − 17.01</span>
+</p>
+<div id="btcForecastLegend" class="forecast-legend">
+  <span><span style="color:rgba(255,165,0,0.9); letter-spacing:-2px;">─ ─ ─</span>&nbsp;
+    <span class="en-only">Base case</span><span class="ko-only">기준 시나리오</span></span>
+  <span><span style="color:rgba(255,100,100,0.65);">─ ─</span>&nbsp;
+    <span class="en-only">Bull case</span><span class="ko-only">강세 시나리오</span></span>
+  <span><span style="color:rgba(100,180,100,0.65);">─ ─</span>&nbsp;
+    <span class="en-only">Bear case</span><span class="ko-only">약세 시나리오</span></span>
+</div>
+<div id="rainbowLegend" class="rainbow-legend" style="margin-top:6px;">
+  <span><span class="swatch" style="background:#ff0000"></span><span class="en-only">Maximum Bubble</span><span class="ko-only">버블 최고조</span></span>
+  <span><span class="swatch" style="background:#ff4500"></span><span class="en-only">Sell. Seriously.</span><span class="ko-only">진심으로 매도</span></span>
+  <span><span class="swatch" style="background:#ff8c00"></span><span class="en-only">FOMO intensifies</span><span class="ko-only">포모 극대화</span></span>
+  <span><span class="swatch" style="background:#ffd700"></span><span class="en-only">Is this a bubble?</span><span class="ko-only">버블인가?</span></span>
+  <span><span class="swatch" style="background:#adff2f"></span>HODL</span>
+  <span><span class="swatch" style="background:#00ff7f"></span><span class="en-only">Still cheap</span><span class="ko-only">아직 저렴</span></span>
+  <span><span class="swatch" style="background:#00bfff"></span><span class="en-only">Accumulate</span><span class="ko-only">매집</span></span>
+  <span><span class="swatch" style="background:#1e90ff"></span>BUY!</span>
+  <span><span class="swatch" style="background:#8a2be2"></span><span class="en-only">Fire sale!</span><span class="ko-only">불타는 세일!</span></span>
+</div>
+<p class="source-note" style="font-style:italic;">
+  <span class="en-only">* Bitcoin forecast based on halving cycle patterns and Power Law regression. Generated 2026-05-24. Extremely speculative. NOT investment advice.</span>
+  <span class="ko-only">* 비트코인 예측은 반감기 사이클 패턴과 Power Law 회귀 기반. 생성일: 2026-05-24. 매우 투기적 예측. 투자 권유 아님.</span>
+</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script>
+// ── Bitcoin genesis date (block 0) ──
+const GENESIS = new Date('2009-01-03');
+
+// ── Hardcoded monthly anchor prices (fallback) ──
+const BTC_ANCHORS = {
+  '2010-07':0.08,'2011-06':29.6,'2011-11':2.0,'2012-11':12.3,
+  '2013-04':230,'2013-07':65,'2013-12':1163,'2014-06':600,
+  '2015-01':172,'2015-10':300,'2016-07':650,'2017-03':1100,
+  '2017-12':19783,'2018-06':7500,'2018-12':3122,'2019-06':10800,
+  '2019-12':7300,'2020-03':4106,'2020-08':11700,'2020-12':28990,
+  '2021-04':63000,'2021-07':29800,'2021-11':68789,'2022-01':38500,
+  '2022-06':19000,'2022-11':15476,'2023-01':16600,'2023-06':30700,
+  '2023-12':42700,'2024-01':43600,'2024-03':73750,'2024-06':60500,
+  '2024-08':58000,'2024-11':98000,'2025-01':109000,'2025-04':85000,
+  '2025-08':82000,'2026-01':92000,'2026-05':103000,
+};
+
+// ── Halving dates ──
+const HALVINGS = [
+  {date:'2012-11',label:'Halving 1'},
+  {date:'2016-07',label:'Halving 2'},
+  {date:'2020-05',label:'Halving 3'},
+  {date:'2024-04',label:'Halving 4'},
+  {date:'2028-03',label:'Halving 5 (est.)',estimated:true},
+];
+
+// ── Bitcoin market peaks ──
+const BTC_PEAKS = [
+  {date:'2011-06',price:29.6,en:'First major bubble',ko:'첫 버블',
+   enDesc:'First major bubble. Mt.Gox era. Crashed -93% to $2.',koDesc:'첫 대형 버블. 마운트곡스 시대. -93% 폭락, $2까지.'},
+  {date:'2013-12',price:1163,en:'China adoption peak',ko:'중국 채택 정점',
+   enDesc:'China adoption peak. PBoC ban triggered -87% crash.',koDesc:'중국 수용 정점. 인민은행 금지로 -87% 폭락.'},
+  {date:'2017-12',price:19783,en:'Retail FOMO peak',ko:'개인 FOMO 정점',
+   enDesc:'Retail FOMO peak. Futures launch. CME listing = institutional sell signal.',koDesc:'개인 투자자 FOMO 최고조. 선물 출시. CME 상장 = 기관 매도 신호.'},
+  {date:'2021-04',price:63000,en:'Coinbase IPO euphoria',ko:'코인베이스 상장 기대',
+   enDesc:'Coinbase IPO euphoria + Tesla/institutional adoption narrative.',koDesc:'코인베이스 IPO 기대감 + 테슬라·기관 채택 내러티브.'},
+  {date:'2021-11',price:68789,en:'All-time high $69K',ko:'역대 최고점 $69K',
+   enDesc:'All-time high $69K. NFT/metaverse peak. Luna/LUNA still alive.',koDesc:'역대 최고점 $69K. NFT·메타버스 버블 정점. 루나/테라 붕괴 직전.'},
+  {date:'2024-03',price:73750,en:'ETF approval euphoria',ko:'ETF 승인 기대감',
+   enDesc:'ETF approval euphoria. Pre-halving run.',koDesc:'비트코인 현물 ETF 승인 기대감. 반감기 전 선행 상승.'},
+  {date:'2025-01',price:109000,en:'Trump rally ATH $109K',ko:'트럼프 랠리 ATH $109K',
+   enDesc:'Post-election Trump rally. Bitcoin Strategic Reserve narrative. ATH $109K.',koDesc:'트럼프 당선 후 랠리. 비트코인 전략 비축 내러티브. 역대 최고 $109K.'},
+].map(m=>({...m,type:'peak'}));
+
+// ── Bitcoin market troughs ──
+const BTC_TROUGHS = [
+  {date:'2011-11',price:2.0,en:'Mt.Gox hack fears',ko:'마운트곡스 해킹 공포',
+   enDesc:'Mt.Gox hack fears. 93% drawdown from June peak.',koDesc:'마운트곡스 해킹 공포. 6월 고점 대비 -93%.'},
+  {date:'2015-01',price:172,en:'Mt.Gox bankruptcy',ko:'마운트곡스 파산',
+   enDesc:'Mt.Gox bankruptcy. Silk Road seizure. Regulatory uncertainty peak.',koDesc:'마운트곡스 파산. 실크로드 압수. 규제 불확실성 극대화.'},
+  {date:'2018-12',price:3122,en:'Bear market bottom',ko:'약세장 바닥',
+   enDesc:'Bear market bottom. BCH hash war. -84% from ATH.',koDesc:'약세장 바닥. BCH 해시워. 역대 최고점 대비 -84%.'},
+  {date:'2020-03',price:4106,en:'COVID crash',ko:'코로나 폭락',
+   enDesc:'COVID crash. Liquidity crisis. $3,800 in 24 hours.',koDesc:'코로나 폭락. 유동성 위기. 24시간 만에 $3,800.'},
+  {date:'2022-11',price:15476,en:'FTX collapse',ko:'FTX 파산',
+   enDesc:'FTX collapse. Contagion fear. $15,476 bottom.',koDesc:'FTX 파산. 연쇄 전이 공포. $15,476 바닥.'},
+  {date:'2024-08',price:58000,en:'Yen carry unwind',ko:'엔 캐리 청산',
+   enDesc:'Yen carry trade unwind. Mt.Gox repayments. German govt selling.',koDesc:'엔화 캐리트레이드 청산. 마운트곡스 상환. 독일 정부 매도.'},
+].map(m=>({...m,type:'trough'}));
+
+const BTC_MARKERS = [...BTC_PEAKS,...BTC_TROUGHS].sort((a,b)=>a.date.localeCompare(b.date));
+
+// ── Forecast data ──
+const BTC_FORECAST = [
+  {date:'2026-05',price:103000},
+  {date:'2026-09',price:130000},
+  {date:'2026-12',price:150000},
+  {date:'2027-06',price:180000},
+  {date:'2027-12',price:160000},
+  {date:'2028-12',price:120000},
+];
+const BTC_BULL = [
+  {date:'2026-05',price:103000},
+  {date:'2026-10',price:280000},
+  {date:'2028-12',price:200000},
+];
+const BTC_BEAR = [
+  {date:'2026-05',price:103000},
+  {date:'2026-05',price:103000}, // peak already passed
+  {date:'2028-12',price:60000},
+];
+
+// ── Rainbow chart bands (Power Law) ──
+// log10(price) = 5.84 * log10(daysSinceGenesis) - 17.01 = center
+// Each band = 0.47 log10 units wide
+const PL_A = 5.84, PL_B = -17.01;
+const BAND_HALF = 0.47; // half-width per band in log10 price
+const RAINBOW_BANDS = [
+  {label:'Maximum Bubble',color:'rgba(255,0,0,0.35)',   offset: 4},
+  {label:'Sell. Seriously.',color:'rgba(255,69,0,0.3)', offset: 3},
+  {label:'FOMO intensifies',color:'rgba(255,140,0,0.3)',offset: 2},
+  {label:'Is this a bubble?',color:'rgba(255,215,0,0.3)',offset: 1},
+  {label:'HODL',color:'rgba(173,255,47,0.25)',          offset: 0},
+  {label:'Still cheap',color:'rgba(0,255,127,0.25)',    offset:-1},
+  {label:'Accumulate',color:'rgba(0,191,255,0.25)',     offset:-2},
+  {label:'BUY!',color:'rgba(30,144,255,0.3)',           offset:-3},
+  {label:'Fire sale!',color:'rgba(138,43,226,0.3)',     offset:-4},
+];
+
+function plPrice(daysSinceGenesis, offsetBands) {
+  return Math.pow(10, PL_A * Math.log10(daysSinceGenesis) + PL_B + offsetBands * BAND_HALF);
+}
+
+function daysSinceGenesis(dateStr) {
+  const [y,m] = dateStr.split('-').map(Number);
+  const d = new Date(y, m-1, 15);
+  return Math.max(1, Math.round((d - GENESIS) / 86400000));
+}
+
+// ── Month utilities ──
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtBtcDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_NAMES[m-1]} ${y}`; };
+
+// ── State ──
+let btcChart, btcRsiChart;
+let btcDates = [], btcPrices = [];
+let showRainbow = true, showBtcForecast = true;
+let showBtcMA = {12:true,24:true,48:true};
+let btcSharedCrossIdx = null;
+
+function computeBtcSMA(arr, period) {
+  return arr.map((_,i) => {
+    if (i < period-1) return null;
+    let s=0; for(let j=i-period+1;j<=i;j++) s+=arr[j]; return s/period;
+  });
+}
+
+function computeBtcRSI(arr, period) {
+  const rsi = new Array(arr.length).fill(null);
+  if (arr.length < period+1) return rsi;
+  let ag=0, al=0;
+  for(let i=1;i<=period;i++){const c=arr[i]-arr[i-1];if(c>0)ag+=c;else al-=c;}
+  ag/=period; al/=period;
+  rsi[period]=al===0?100:100-(100/(1+ag/al));
+  for(let i=period+1;i<arr.length;i++){
+    const c=arr[i]-arr[i-1];const g=c>0?c:0;const l=c<0?-c:0;
+    ag=(ag*(period-1)+g)/period;al=(al*(period-1)+l)/period;
+    rsi[i]=al===0?100:100-(100/(1+ag/al));
+  }
+  return rsi;
+}
+
+function computeBtcEMA(arr, period) {
+  const ema=new Array(arr.length).fill(null);
+  const k=2/(period+1); let first=-1;
+  for(let i=0;i<arr.length;i++){
+    if(arr[i]===null)continue;
+    if(first<0){ema[i]=arr[i];first=i;continue;}
+    ema[i]=arr[i]*k+ema[i-1]*(1-k);
+  }
+  return ema;
+}
+
+function getBtcMaData(period) {
+  return computeBtcSMA(btcPrices, period).map((v,i)=>v===null?null:{x:i,y:v});
+}
+
+function toggleBtcMA(period) {
+  showBtcMA[period] = !showBtcMA[period];
+  document.getElementById(`btcMa${period}Toggle`).classList.toggle('active', showBtcMA[period]);
+  if (!btcChart) return;
+  const dsIdx = {12:1,24:2,48:3}[period];
+  btcChart.data.datasets[dsIdx].hidden = !showBtcMA[period];
+  btcChart.update('none');
+}
+
+function toggleRainbow() {
+  showRainbow = !showRainbow;
+  document.getElementById('rainbowToggle').classList.toggle('active', showRainbow);
+  document.getElementById('rainbowLegend').style.display = showRainbow ? 'flex' : 'none';
+  updateBtcOverlay(btcChart);
+}
+
+function toggleBtcForecast() {
+  showBtcForecast = !showBtcForecast;
+  const btn = document.getElementById('btcForecastToggle');
+  btn.classList.toggle('active', showBtcForecast);
+  btn.querySelector('.en-only').textContent = showBtcForecast ? 'Forecast On' : 'Forecast Off';
+  btn.querySelector('.ko-only').textContent = showBtcForecast ? '예측 표시 중' : '예측 없음';
+  document.getElementById('btcForecastLegend').style.display = showBtcForecast ? 'flex' : 'none';
+  updateBtcOverlay(btcChart);
+}
+
+function btcDateToIdx(dateStr) {
+  return btcDates.indexOf(dateStr);
+}
+
+// Build btcDates/btcPrices by filling months from anchor data
+function buildBtcData(apiData) {
+  const merged = {};
+  // Fill from anchors first
+  for (const [k,v] of Object.entries(BTC_ANCHORS)) merged[k] = v;
+  // Override with API data if available
+  if (apiData) {
+    for (const [ts, price] of apiData.prices) {
+      const d = new Date(ts);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      merged[key] = price;
+    }
+  }
+  const keys = Object.keys(merged).sort();
+  // Expand to fill every month in range
+  const [sy,sm] = keys[0].split('-').map(Number);
+  const [ey,em] = keys[keys.length-1].split('-').map(Number);
+  let prevVal = null;
+  for (let y=sy, m=sm; y*12+m <= ey*12+em; ) {
+    const k = `${y}-${String(m).padStart(2,'0')}`;
+    if (!merged[k]) merged[k] = prevVal; // forward-fill gaps
+    else prevVal = merged[k];
+    if (++m > 12) { m=1; y++; }
+  }
+  const sorted = Object.entries(merged).filter(([,v])=>v!=null).sort(([a],[b])=>a.localeCompare(b));
+  btcDates = sorted.map(([k])=>k);
+  btcPrices = sorted.map(([,v])=>v);
+}
+
+function updateBtcRsiLabel(idx) {
+  const el = document.getElementById('btcRsiLabel');
+  if (!el || !btcRsiChart) return;
+  const rsiDs = btcRsiChart.data.datasets[0].data;
+  const emaDs = btcRsiChart.data.datasets[1].data;
+  const i = idx ?? (rsiDs.length-1);
+  const rv = rsiDs[i]?.y, ev = emaDs[i]?.y;
+  el.textContent = `RSI(14): ${rv!=null?rv.toFixed(1):'—'}   Signal: ${ev!=null?ev.toFixed(1):'—'}`;
+}
+
+function syncBtcRsiZoom() {
+  if (!btcChart || !btcRsiChart) return;
+  const {min,max} = btcChart.scales.x;
+  btcRsiChart.zoomScale('x', {min,max}, 'none');
+}
+
+function detectBtcMarker(mx, my) {
+  if (!btcChart) return null;
+  const xS=btcChart.scales.x, yS=btcChart.scales.y, ca=btcChart.chartArea;
+  for (const m of BTC_MARKERS) {
+    if (m.idx == null || m.idx < 0) continue;
+    const px=xS.getPixelForValue(m.idx), py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
+    if (px<ca.left-5||px>ca.right+5) continue;
+    if (Math.abs(mx-px)<10&&Math.abs(my-py)<10) return m;
+  }
+  return null;
+}
+
+function detectBtcForecastPoint(mx, my) {
+  if (!showBtcForecast || !btcChart) return null;
+  const xS=btcChart.scales.x, yS=btcChart.scales.y, ca=btcChart.chartArea;
+  for (const p of BTC_FORECAST) {
+    const idx = btcDateToIdx(p.date); if (idx<0) continue;
+    const px=xS.getPixelForValue(idx), py=yS.getPixelForValue(p.price);
+    if (px<ca.left-5||px>ca.right+5) continue;
+    if (Math.abs(mx-px)<10&&Math.abs(my-py)<10) return {...p,isForecast:true};
+  }
+  return null;
+}
+
+function showBtcTooltip(m, mx, my) {
+  const tt=document.getElementById('btcMarkerTooltip');
+  document.getElementById('btcTtDate').textContent = fmtBtcDate(m.date);
+  if (m.isForecast) {
+    document.getElementById('btcTtPrice').textContent = '$'+m.price.toLocaleString()+' (est.)';
+    document.getElementById('btcTtTitle').textContent = 'BTC Forecast (halving cycle)';
+  } else {
+    document.getElementById('btcTtPrice').textContent = '$'+(btcPrices[m.idx]??m.price).toLocaleString(undefined,{maximumFractionDigits:0});
+    const lang = document.documentElement.classList.contains('ko-mode')?'ko':'en';
+    document.getElementById('btcTtTitle').textContent = lang==='ko'?m.ko:m.en;
+  }
+  tt.style.display='block';
+  const cw=document.getElementById('btcChartContainer').offsetWidth;
+  const ch=document.getElementById('btcChartContainer').offsetHeight;
+  let lx=mx+12, ly=my-80;
+  if(lx+180>cw) lx=mx-192; if(ly<0) ly=my+12; if(ly+90>ch) ly=ch-90;
+  tt.style.left=lx+'px'; tt.style.top=ly+'px';
+}
+
+function hideBtcTooltip() { document.getElementById('btcMarkerTooltip').style.display='none'; }
+
+function updateBtcOverlay(ch) {
+  const svg=document.getElementById('btcSvg');
+  if(!ch||!ch.chartArea) return;
+  const ca=ch.chartArea, xS=ch.scales.x, yS=ch.scales.y;
+  let html=`<defs><clipPath id="bca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs><g clip-path="url(#bca)">`;
+
+  // Rainbow bands
+  if (showRainbow) {
+    const mn0=xS.getValueForPixel(ca.left), mn1=xS.getValueForPixel(ca.right);
+    for (let bi=0; bi<RAINBOW_BANDS.length; bi++) {
+      const band=RAINBOW_BANDS[bi];
+      const topOff=band.offset+0.5, botOff=band.offset-0.5;
+      // Sample enough points for smooth log curve
+      const nPts=60;
+      let pts='';
+      for(let t=0;t<=nPts;t++){
+        const frac=t/nPts;
+        const idx=mn0+(mn1-mn0)*frac;
+        if(idx<0) continue;
+        const dateKey=btcDates[Math.round(Math.max(0,Math.min(btcDates.length-1,idx)))];
+        if(!dateKey) continue;
+        const days=daysSinceGenesis(dateKey);
+        const px=xS.getPixelForValue(idx);
+        const py=yS.getPixelForValue(plPrice(days,topOff));
+        pts+=`${px},${py} `;
+      }
+      // Bottom edge (reverse)
+      for(let t=nPts;t>=0;t--){
+        const frac=t/nPts;
+        const idx=mn0+(mn1-mn0)*frac;
+        if(idx<0) continue;
+        const dateKey=btcDates[Math.round(Math.max(0,Math.min(btcDates.length-1,idx)))];
+        if(!dateKey) continue;
+        const days=daysSinceGenesis(dateKey);
+        const px=xS.getPixelForValue(idx);
+        const py=yS.getPixelForValue(plPrice(days,botOff));
+        pts+=`${px},${py} `;
+      }
+      html+=`<polygon points="${pts.trim()}" fill="${band.color}"/>`;
+    }
+  }
+
+  // Halving lines
+  for (const h of HALVINGS) {
+    const idx=btcDateToIdx(h.date); if(idx<0&&!h.estimated) continue;
+    // For estimated halving, compute idx approximation
+    let hIdx=idx>=0?idx:btcDates.length+12; // ~1yr beyond data
+    const px=xS.getPixelForValue(hIdx);
+    if(px<ca.left||px>ca.right) continue;
+    const dash=h.estimated?'3,5':'6,4';
+    const opacity=h.estimated?0.3:0.5;
+    html+=`<line x1="${px}" y1="${ca.top}" x2="${px}" y2="${ca.bottom}" stroke="rgba(255,255,255,${opacity})" stroke-width="1" stroke-dasharray="${dash}"/>`;
+    html+=`<text x="${px+4}" y="${ca.top+16}" fill="rgba(255,255,255,${opacity*1.5})" font-size="10">${h.label}</text>`;
+  }
+
+  // Markers
+  for (const m of BTC_MARKERS) {
+    if (m.idx==null||m.idx<0) continue;
+    const px=xS.getPixelForValue(m.idx), py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
+    if(px<ca.left-6||px>ca.right+6||py<ca.top-6||py>ca.bottom+6) continue;
+    if(m.type==='peak') html+=`<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
+    else html+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
+  }
+
+  // Forecast overlay
+  if (showBtcForecast) {
+    const fxPx=ds=>{const i=btcDateToIdx(ds);return i>=0?xS.getPixelForValue(i):null;};
+    const fyPx=price=>yS.getPixelForValue(price);
+    const upperPts=BTC_BULL.map(p=>{const px=fxPx(p.date);return px!=null?`${px},${fyPx(p.price)}`:null;}).filter(Boolean).join(' ');
+    const lowerPts=[...BTC_BEAR].reverse().map(p=>{const px=fxPx(p.date);return px!=null?`${px},${fyPx(p.price)}`:null;}).filter(Boolean).join(' ');
+    html+=`<polygon points="${upperPts} ${lowerPts}" fill="rgba(255,165,0,0.07)"/>`;
+    const bullD=BTC_BULL.map((p,i)=>{const px=fxPx(p.date);return px!=null?`${i?'L':'M'}${px},${fyPx(p.price)}`:null;}).filter(Boolean).join('');
+    if(bullD) html+=`<path d="${bullD}" fill="none" stroke="rgba(255,100,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
+    const bearD=BTC_BEAR.map((p,i)=>{const px=fxPx(p.date);return px!=null?`${i?'L':'M'}${px},${fyPx(p.price)}`:null;}).filter(Boolean).join('');
+    if(bearD) html+=`<path d="${bearD}" fill="none" stroke="rgba(100,180,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
+    const fcastD=BTC_FORECAST.map((p,i)=>{const px=fxPx(p.date);return px!=null?`${i?'L':'M'}${px},${fyPx(p.price)}`:null;}).filter(Boolean).join('');
+    if(fcastD) html+=`<path d="${fcastD}" fill="none" stroke="rgba(255,165,0,0.85)" stroke-width="2" stroke-dasharray="8,4"/>`;
+    for(const p of BTC_FORECAST){const px=fxPx(p.date);if(px!=null)html+=`<circle cx="${px}" cy="${fyPx(p.price)}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;}
+  }
+
+  html+='</g>';
+  svg.innerHTML=html;
+}
+
+function initBtcChart() {
+  // Assign marker indices
+  BTC_MARKERS.forEach(m => { m.idx = btcDates.indexOf(m.date); });
+
+  const canvas=document.getElementById('btcChart');
+  const ctx=canvas.getContext('2d');
+  let crossX, crossY;
+
+  const crosshairPlugin={
+    id:'btcCrosshair',
+    afterDraw(ch){
+      if(crossX===undefined) return;
+      const {ctx:c,chartArea:ca}=ch;
+      if(crossX<ca.left||crossX>ca.right||crossY<ca.top||crossY>ca.bottom) return;
+      c.save(); c.strokeStyle='rgba(139,148,158,0.3)'; c.lineWidth=1;
+      c.beginPath();c.moveTo(crossX,ca.top);c.lineTo(crossX,ca.bottom);c.stroke();
+      c.beginPath();c.moveTo(ca.left,crossY);c.lineTo(ca.right,crossY);c.stroke();
+      c.restore();
+    }
+  };
+
+  btcChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      datasets:[
+        {data:btcPrices.map((p,i)=>({x:i,y:p})),borderColor:'#f7931a',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,label:'Bitcoin'},
+        {data:getBtcMaData(12),borderColor:'#82aaff',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-12 (1Y)'},
+        {data:getBtcMaData(24),borderColor:'#ff9800',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-24 (2Y)'},
+        {data:getBtcMaData(48),borderColor:'#ef9f27',borderWidth:1,borderDash:[6,4],pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-48 (4Y)'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      scales:{
+        x:{type:'linear',min:0,max:btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
+           ticks:{color:'#8b949e',font:{size:11},maxTicksLimit:15,
+                  callback:(val)=>{const i=Math.round(val);if(i<0||i>=btcDates.length)return'';const d=btcDates[i];return(d&&d.slice(5)==='01')?d.slice(0,4):'';}
+           }},
+        y:{type:'logarithmic',grid:{color:'rgba(48,54,61,0.8)'},
+           ticks:{color:'#8b949e',font:{size:11},
+                  callback:v=>{const vals=[0.01,0.1,1,10,100,1000,10000,100000,1000000];return vals.some(vv=>Math.abs(v-vv)/vv<0.01)?v>=1?v.toLocaleString():`$${v}`:'';}
+           }}
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          mode:'index',intersect:false,
+          backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,
+          titleColor:'#e6edf3',bodyColor:'#8b949e',padding:10,displayColors:false,
+          callbacks:{
+            title:items=>fmtBtcDate(btcDates[Math.round(items[0].parsed.x)]||'2010-01'),
+            label:item=>{
+              if(item.datasetIndex===0){return'BTC: $'+item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0});}
+              const lbls=['','MA-12','MA-24','MA-48 (4Y halving)'];
+              return`${lbls[item.datasetIndex]}: $${item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+            }
+          }
+        },
+        zoom:{
+          zoom:{wheel:{enabled:true,speed:0.1},pinch:{enabled:false},mode:'x',
+                onZoomComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
+          pan:{enabled:true,mode:'x',
+               onPanComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
+          limits:{x:{min:0,max:btcDates.length+24,minRange:3}}
+        }
+      }
+    },
+    plugins:[crosshairPlugin,{id:'btcOverlay',afterDraw(ch){updateBtcOverlay(ch);}}]
+  });
+
+  canvas.style.touchAction='pan-y';
+  canvas.addEventListener('dblclick',()=>{btcChart.resetZoom();if(btcRsiChart)btcRsiChart.resetZoom();});
+
+  canvas.addEventListener('mousemove',e=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    crossX=mx; crossY=my;
+    btcSharedCrossIdx=Math.round(btcChart.scales.x.getValueForPixel(mx));
+    const found=detectBtcMarker(mx,my)||detectBtcForecastPoint(mx,my);
+    canvas.style.cursor=found?'pointer':'default';
+    if(found)showBtcTooltip(found,mx,my);else hideBtcTooltip();
+    btcChart.draw();
+    if(btcRsiChart){updateBtcRsiLabel(btcSharedCrossIdx);btcRsiChart.draw();}
+  });
+  canvas.addEventListener('mouseleave',()=>{
+    crossX=crossY=undefined; btcSharedCrossIdx=null;
+    hideBtcTooltip(); btcChart.draw();
+    if(btcRsiChart){updateBtcRsiLabel();btcRsiChart.draw();}
+  });
+  canvas.addEventListener('click',e=>{
+    const rect=canvas.getBoundingClientRect();
+    const found=detectBtcMarker(e.clientX-rect.left,e.clientY-rect.top);
+    if(found){
+      const lang=document.documentElement.classList.contains('ko-mode')?'ko':'en';
+      alert(`${fmtBtcDate(found.date)}\n$${(btcPrices[found.idx]??found.price).toLocaleString()}\n\n${lang==='ko'?found.koDesc:found.enDesc}`);
+    }
+  });
+}
+
+function getBtcMaData(period){
+  return computeBtcSMA(btcPrices,period).map((v,i)=>v===null?null:{x:i,y:v});
+}
+
+function initBtcRsiChart(){
+  const rsiVals=computeBtcRSI(btcPrices,14);
+  const emaVals=computeBtcEMA(rsiVals,9);
+  const rsiData=rsiVals.map((v,i)=>v===null?null:{x:i,y:v});
+  const emaData=emaVals.map((v,i)=>v===null?null:{x:i,y:v});
+
+  const canvas=document.getElementById('btcRsiChart');
+  const ctx=canvas.getContext('2d');
+
+  const crosshairPlugin={
+    id:'btcRsiCrosshair',
+    afterDraw(ch){
+      if(btcSharedCrossIdx===null) return;
+      const {ctx:c,chartArea:ca,scales}=ch;
+      const cx=scales.x.getPixelForValue(btcSharedCrossIdx);
+      if(cx<ca.left||cx>ca.right) return;
+      c.save();c.strokeStyle='rgba(139,148,158,0.3)';c.lineWidth=1;
+      c.beginPath();c.moveTo(cx,ca.top);c.lineTo(cx,ca.bottom);c.stroke();
+      c.restore();
+    }
+  };
+
+  btcRsiChart=new Chart(ctx,{
+    type:'line',
+    data:{datasets:[
+      {data:rsiData,borderColor:'#c792ea',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'RSI (14)',fill:false},
+      {data:emaData,borderColor:'#f78c6c',borderWidth:1.5,borderDash:[5,3],pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'Signal (EMA-9)',fill:false},
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      scales:{
+        x:{type:'linear',min:btcChart.scales.x.min,max:btcChart.scales.x.max,grid:{color:'rgba(48,54,61,0.8)'},ticks:{display:false}},
+        y:{type:'linear',min:0,max:100,grid:{color:'rgba(48,54,61,0.8)'},
+           ticks:{color:'#8b949e',font:{size:10},callback:v=>[0,30,70,100].includes(v)?v:''},
+           title:{display:true,text:'RSI (14)',color:'#8b949e',font:{size:10}}}
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{mode:'index',intersect:false,backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e',padding:8,displayColors:false,
+          callbacks:{
+            title:items=>fmtBtcDate(btcDates[Math.round(items[0].parsed.x)]||'2010-01'),
+            label:item=>item.datasetIndex===0?`RSI(14): ${item.parsed.y.toFixed(1)}`:`Signal(EMA-9): ${item.parsed.y.toFixed(1)}`
+          }
+        },
+        zoom:{
+          zoom:{wheel:{enabled:true,speed:0.1},pinch:{enabled:false},mode:'x',
+                onZoomComplete:()=>{btcChart.zoomScale('x',{min:btcRsiChart.scales.x.min,max:btcRsiChart.scales.x.max},'none');updateBtcOverlay(btcChart);}},
+          pan:{enabled:true,mode:'x',
+               onPanComplete:()=>{btcChart.zoomScale('x',{min:btcRsiChart.scales.x.min,max:btcRsiChart.scales.x.max},'none');updateBtcOverlay(btcChart);}},
+          limits:{x:{min:0,max:btcDates.length+24,minRange:3}}
+        }
+      }
+    },
+    plugins:[crosshairPlugin,{
+      id:'btcRsiZones',
+      afterDraw(ch){
+        const {ctx:c,chartArea:ca,scales}=ch;
+        const y70=scales.y.getPixelForValue(70),y30=scales.y.getPixelForValue(30);
+        const y100=scales.y.getPixelForValue(100),y0=scales.y.getPixelForValue(0);
+        c.save();
+        c.fillStyle='rgba(248,81,73,0.05)';c.fillRect(ca.left,y100,ca.right-ca.left,y70-y100);
+        c.fillStyle='rgba(63,185,80,0.05)';c.fillRect(ca.left,y30,ca.right-ca.left,y0-y30);
+        c.strokeStyle='rgba(248,81,73,0.5)';c.lineWidth=1;c.setLineDash([4,4]);
+        c.beginPath();c.moveTo(ca.left,y70);c.lineTo(ca.right,y70);c.stroke();
+        c.strokeStyle='rgba(63,185,80,0.5)';
+        c.beginPath();c.moveTo(ca.left,y30);c.lineTo(ca.right,y30);c.stroke();
+        c.setLineDash([]);
+        c.fillStyle='rgba(248,81,73,0.7)';c.font='10px sans-serif';c.fillText('70',ca.left+2,y70-3);
+        c.fillStyle='rgba(63,185,80,0.7)';c.fillText('30',ca.left+2,y30-3);
+        c.restore();
+      }
+    }]
+  });
+
+  canvas.style.touchAction='pan-y';
+  canvas.addEventListener('dblclick',()=>{btcChart.resetZoom();btcRsiChart.resetZoom();});
+  canvas.addEventListener('mousemove',e=>{
+    const rect=canvas.getBoundingClientRect();
+    btcSharedCrossIdx=Math.round(btcRsiChart.scales.x.getValueForPixel(e.clientX-rect.left));
+    updateBtcRsiLabel(btcSharedCrossIdx);
+    btcRsiChart.draw();if(btcChart)btcChart.draw();
+  });
+  canvas.addEventListener('mouseleave',()=>{btcSharedCrossIdx=null;updateBtcRsiLabel();btcRsiChart.draw();if(btcChart)btcChart.draw();});
+
+  updateBtcRsiLabel();
+}
+
+// ── Range buttons ──
+document.querySelectorAll('.btc-range-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.btc-range-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const months=parseInt(btn.dataset.months);
+    if(!months){btcChart.resetZoom();if(btcRsiChart)btcRsiChart.resetZoom();}
+    else{const max=btcDates.length-1;const rng={min:Math.max(0,max-months),max};btcChart.zoomScale('x',rng);if(btcRsiChart)btcRsiChart.zoomScale('x',rng,'none');}
+  });
+});
+
+// ── Load data ──
+async function loadBtcData(){
+  let apiData=null;
+  try{
+    const r=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=monthly');
+    if(r.ok) apiData=await r.json();
+  }catch(e){}
+  buildBtcData(apiData);
+  initBtcChart();
+  initBtcRsiChart();
+}
+
+loadBtcData();
+</script>

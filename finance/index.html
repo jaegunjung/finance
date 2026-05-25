@@ -64,6 +64,17 @@ title: S&P 500 Chart
 .source-note a { color: var(--text-muted); text-decoration: underline; }
 .forecast-notice { color: var(--text-muted); font-size: 0.75rem; margin: 0 0 4px; font-style: italic; display: none; }
 .forecast-legend { font-size: 0.75rem; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 0; }
+
+#rsiContainer {
+  position: relative; width: 100%; height: 170px;
+  background: var(--bg-card); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden;
+}
+#rsiChart { position: absolute; top:0; left:0; width:100%; height:100%; }
+#rsiLabel {
+  position: absolute; top: 6px; left: 10px; font-size: 0.72rem; color: var(--text-muted);
+  pointer-events: none; z-index: 5; line-height: 1.6;
+}
+#chartContainer { border-radius: 8px 8px 0 0; }
 </style>
 
 <div style="padding: 28px 0 8px;">
@@ -87,6 +98,9 @@ title: S&P 500 Chart
     <button class="range-btn active" data-months="0">All</button>
   </div>
   <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+    <button id="ma12Toggle" class="ctrl-btn active" onclick="toggleMA(12)">MA-12</button>
+    <button id="ma60Toggle" class="ctrl-btn active" onclick="toggleMA(60)">MA-60</button>
+    <button id="ma120Toggle" class="ctrl-btn active" onclick="toggleMA(120)">MA-120</button>
     <button id="realToggle" class="ctrl-btn" onclick="toggleReal()">
       <span class="en-only">Real (CPI-adj.)</span>
       <span class="ko-only">실질 (물가반영)</span>
@@ -116,6 +130,11 @@ title: S&P 500 Chart
   </div>
 </div>
 
+<div id="rsiContainer">
+  <canvas id="rsiChart" style="touch-action:pan-y;"></canvas>
+  <div id="rsiLabel">RSI(14): —&nbsp;&nbsp;Signal: —</div>
+</div>
+
 <p class="chart-hint">
   <span class="en-only">Scroll to zoom · Drag to pan · Hover/click markers · Double-click to reset</span>
   <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</span>
@@ -135,6 +154,10 @@ title: S&P 500 Chart
     <span class="en-only">Source: Shinhan Securities (2025.08.19)</span>
     <span class="ko-only">출처: 신한투자증권 (2025.08.19)</span></span>
 </div>
+<p class="source-note">
+  <span class="en-only">Monthly MAs shown. MA-12 ≈ daily MA-264, MA-60 ≈ daily MA-1320.</span>
+  <span class="ko-only">월간 MA 기준. MA-12 ≈ 일간 MA-264, MA-60 ≈ 일간 MA-1320.</span>
+</p>
 <p id="forecastNote" class="source-note" style="display:none; font-style:italic;">
   <span class="en-only">* Forecast based on Shinhan Securities report (2025-08-19, Kim Sung-hwan &amp; Oh Han-bi). Personal interpretation only — not investment advice.</span>
   <span class="ko-only">* 본 내용은 신한투자증권 리포트(2025.08.19, 담당: 김성환·오한비) 분석을 기반으로 한 개인적 해석이며 투자 권유가 아닙니다.</span>
@@ -382,9 +405,42 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_NAMES[m-1]} ${y}`; };
 
 // ── State ──
-let chart, cagrChart, dates = [], prices = [], realPrices = [];
+let chart, rsiChart, cagrChart, dates = [], prices = [], realPrices = [];
+let sharedCrossIdx = null; // shared x-index for crosshair sync between main and RSI chart
 let showReal = true, showPhases = false, showForecast = true;
 let realChannelParams = null;
+let showMA = { 12: true, 60: true, 120: true };
+
+function computeSMA(arr, period) {
+  return arr.map((_, i) => {
+    if (i < period - 1) return null;
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += arr[j];
+    return sum / period;
+  });
+}
+
+function getMaData(period) {
+  const src = getDisplayPrices();
+  return computeSMA(src, period).map((v, i) => v === null ? null : { x: i, y: v });
+}
+
+function toggleMA(period) {
+  showMA[period] = !showMA[period];
+  const btn = document.getElementById(`ma${period}Toggle`);
+  btn.classList.toggle('active', showMA[period]);
+  if (!chart) return;
+  const dsIdx = { 12: 1, 60: 2, 120: 3 }[period];
+  chart.data.datasets[dsIdx].hidden = !showMA[period];
+  chart.update('none');
+}
+
+function updateMaDatasets() {
+  if (!chart) return;
+  chart.data.datasets[1].data = getMaData(12);
+  chart.data.datasets[2].data = getMaData(60);
+  chart.data.datasets[3].data = getMaData(120);
+}
 
 // ── Forecast data (nominal S&P 500, based on Shinhan Securities 2025-08-19) ──
 const FORECAST_POINTS = [
@@ -526,6 +582,7 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
     // Assign data indices to markers
     ALL_MARKERS.forEach(m => { m.idx = dates.indexOf(m.date); });
     initChart();
+    initRsiChart();
     initCagrChart();
   });
 
@@ -570,7 +627,10 @@ function updateForecastToggleLabel() {
 
 function updateForecastAxisRange() {
   if (!chart) return;
-  chart.options.scales.x.max = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
+  const xMax = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
+  chart.options.scales.x.max = xMax;
+  chart.options.scales.y.max = isForecastVisible() ? 15000 : undefined;
+  if (rsiChart) rsiChart.options.scales.x.max = xMax;
 }
 
 function toggleReal() {
@@ -583,6 +643,8 @@ function toggleReal() {
   updateForecastToggleLabel();
   updateForecastAxisRange();
   chart.data.datasets[0].data = getDisplayPrices().map((p,i) => ({x:i, y:p}));
+  updateMaDatasets();
+  updateRsiDatasets();
   chart.resetZoom();
   updateOverlay(chart);
   updateCagrChart(showReal);
@@ -603,6 +665,226 @@ function toggleForecast() {
     chart.update('none');
     updateOverlay(chart);
   }
+}
+
+// ── RSI calculation ──
+function computeRSI(arr, period) {
+  const rsi = new Array(arr.length).fill(null);
+  if (arr.length < period + 1) return rsi;
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const chg = arr[i] - arr[i-1];
+    if (chg > 0) avgGain += chg; else avgLoss -= chg;
+  }
+  avgGain /= period; avgLoss /= period;
+  rsi[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+  for (let i = period + 1; i < arr.length; i++) {
+    const chg = arr[i] - arr[i-1];
+    const gain = chg > 0 ? chg : 0;
+    const loss = chg < 0 ? -chg : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    rsi[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+  }
+  return rsi;
+}
+
+function computeEMA(arr, period) {
+  const ema = new Array(arr.length).fill(null);
+  const k = 2 / (period + 1);
+  let first = -1;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] === null) continue;
+    if (first < 0) { ema[i] = arr[i]; first = i; continue; }
+    ema[i] = arr[i] * k + ema[i-1] * (1 - k);
+  }
+  return ema;
+}
+
+function getRsiDatasets() {
+  const src = getDisplayPrices();
+  const rsiVals = computeRSI(src, 14);
+  const emaVals = computeEMA(rsiVals, 9);
+  const rsiData  = rsiVals.map((v,i) => v === null ? null : {x:i, y:v});
+  const emaData  = emaVals.map((v,i) => v === null ? null : {x:i, y:v});
+  return { rsiData, emaData, rsiVals, emaVals };
+}
+
+function updateRsiLabel(idx) {
+  const el = document.getElementById('rsiLabel');
+  if (!el || !rsiChart) return;
+  const rsiDs = rsiChart.data.datasets[0].data;
+  const emaDs = rsiChart.data.datasets[1].data;
+  const i = idx ?? (rsiDs.length - 1);
+  const rv = rsiDs[i]?.y;
+  const ev = emaDs[i]?.y;
+  el.textContent = `RSI(14): ${rv != null ? rv.toFixed(1) : '—'}   Signal: ${ev != null ? ev.toFixed(1) : '—'}`;
+}
+
+function syncRsiZoom() {
+  if (!chart || !rsiChart) return;
+  const {min, max} = chart.scales.x;
+  rsiChart.zoomScale('x', {min, max}, 'none');
+}
+
+function initRsiChart() {
+  const {rsiData, emaData} = getRsiDatasets();
+  const canvas = document.getElementById('rsiChart');
+  const ctx = canvas.getContext('2d');
+
+  const crosshairPlugin = {
+    id: 'rsiCrosshair',
+    afterDraw(ch) {
+      if (sharedCrossIdx === null) return;
+      const {ctx: c, chartArea: ca, scales} = ch;
+      const cx = scales.x.getPixelForValue(sharedCrossIdx);
+      if (cx < ca.left || cx > ca.right) return;
+      c.save(); c.strokeStyle = 'rgba(139,148,158,0.3)'; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(cx, ca.top); c.lineTo(cx, ca.bottom); c.stroke();
+      c.restore();
+    }
+  };
+
+  rsiChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          data: rsiData,
+          borderColor: '#c792ea',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+          parsing: false,
+          spanGaps: false,
+          label: 'RSI (14)',
+          fill: false,
+        },
+        {
+          data: emaData,
+          borderColor: '#f78c6c',
+          borderWidth: 1.5,
+          borderDash: [5, 3],
+          pointRadius: 0,
+          tension: 0,
+          parsing: false,
+          spanGaps: false,
+          label: 'Signal (EMA-9)',
+          fill: false,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        x: {
+          type: 'linear',
+          min: chart.scales.x.min,
+          max: chart.scales.x.max,
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: { display: false }
+        },
+        y: {
+          type: 'linear',
+          min: 0, max: 100,
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: {
+            color: '#8b949e', font: { size: 10 },
+            callback: v => [0,30,70,100].includes(v) ? v : ''
+          },
+          title: { display: true, text: 'RSI (14)', color: '#8b949e', font: { size: 10 } }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index', intersect: false,
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8, displayColors: false,
+          callbacks: {
+            title: items => fmtDate(dates[Math.round(items[0].parsed.x)] || '1927-01'),
+            label: item => {
+              const val = item.parsed.y.toFixed(1);
+              return item.datasetIndex === 0 ? `RSI(14): ${val}` : `Signal(EMA-9): ${val}`;
+            }
+          }
+        },
+        zoom: {
+          zoom: { wheel: { enabled:true, speed:0.1 }, pinch:{enabled:false}, mode:'x',
+                  onZoomComplete: () => { chart.zoomScale('x', {min:rsiChart.scales.x.min, max:rsiChart.scales.x.max}, 'none'); updateOverlay(chart); } },
+          pan:  { enabled:true, mode:'x',
+                  onPanComplete:  () => { chart.zoomScale('x', {min:rsiChart.scales.x.min, max:rsiChart.scales.x.max}, 'none'); updateOverlay(chart); } },
+          limits: { x: { min: 0, max: FORECAST_XMAX, minRange: 6 } }
+        },
+        annotation: {
+          annotations: {
+            ob: { type:'line', yMin:70, yMax:70, borderColor:'rgba(248,81,73,0.5)', borderWidth:1, borderDash:[4,4], label:{display:false} },
+            os: { type:'line', yMin:30, yMax:30, borderColor:'rgba(63,185,80,0.5)', borderWidth:1, borderDash:[4,4], label:{display:false} },
+          }
+        }
+      }
+    },
+    plugins: [crosshairPlugin, {
+      id: 'rsiZones',
+      afterDraw(ch) {
+        const {ctx: c, chartArea: ca, scales} = ch;
+        const y70 = scales.y.getPixelForValue(70);
+        const y30 = scales.y.getPixelForValue(30);
+        const y100 = scales.y.getPixelForValue(100);
+        const y0 = scales.y.getPixelForValue(0);
+        // OB zone background
+        c.save();
+        c.fillStyle = 'rgba(248,81,73,0.05)';
+        c.fillRect(ca.left, y100, ca.right - ca.left, y70 - y100);
+        c.fillStyle = 'rgba(63,185,80,0.05)';
+        c.fillRect(ca.left, y30, ca.right - ca.left, y0 - y30);
+        // OB/OS lines
+        c.strokeStyle = 'rgba(248,81,73,0.5)'; c.lineWidth = 1;
+        c.setLineDash([4,4]);
+        c.beginPath(); c.moveTo(ca.left, y70); c.lineTo(ca.right, y70); c.stroke();
+        c.strokeStyle = 'rgba(63,185,80,0.5)';
+        c.beginPath(); c.moveTo(ca.left, y30); c.lineTo(ca.right, y30); c.stroke();
+        c.setLineDash([]);
+        // Label OB/OS
+        c.fillStyle = 'rgba(248,81,73,0.7)'; c.font = '10px sans-serif';
+        c.fillText('70', ca.left + 2, y70 - 3);
+        c.fillStyle = 'rgba(63,185,80,0.7)';
+        c.fillText('30', ca.left + 2, y30 - 3);
+        c.restore();
+      }
+    }]
+  });
+
+  canvas.style.touchAction = 'pan-y';
+  canvas.addEventListener('dblclick', () => { chart.resetZoom(); rsiChart.resetZoom(); });
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    sharedCrossIdx = Math.round(rsiChart.scales.x.getValueForPixel(mx));
+    updateRsiLabel(sharedCrossIdx);
+    rsiChart.draw();
+    if (chart) chart.draw();
+  });
+  canvas.addEventListener('mouseleave', () => {
+    sharedCrossIdx = null;
+    updateRsiLabel();
+    rsiChart.draw();
+    if (chart) chart.draw();
+  });
+
+  updateRsiLabel();
+}
+
+function updateRsiDatasets() {
+  if (!rsiChart) return;
+  const {rsiData, emaData} = getRsiDatasets();
+  rsiChart.data.datasets[0].data = rsiData;
+  rsiChart.data.datasets[1].data = emaData;
+  rsiChart.update('none');
+  updateRsiLabel();
 }
 
 function initChart() {
@@ -633,14 +915,48 @@ function initChart() {
   chart = new Chart(ctx, {
     type: 'line',
     data: {
-      datasets: [{
-        data: getDisplayPrices().map((p,i) => ({x:i, y:p})),
-        borderColor: '#3B8BD4',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        tension: 0,
-        parsing: false,
-      }]
+      datasets: [
+        {
+          data: getDisplayPrices().map((p,i) => ({x:i, y:p})),
+          borderColor: '#3B8BD4',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+          parsing: false,
+          label: 'S&P 500',
+        },
+        {
+          data: getMaData(12),
+          borderColor: '#82aaff',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+          parsing: false,
+          label: 'MA-12 (1Y)',
+          spanGaps: false,
+        },
+        {
+          data: getMaData(60),
+          borderColor: '#ff9800',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+          parsing: false,
+          label: 'MA-60 (5Y)',
+          spanGaps: false,
+        },
+        {
+          data: getMaData(120),
+          borderColor: '#ef9f27',
+          borderWidth: 1,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          tension: 0,
+          parsing: false,
+          label: 'MA-120 (10Y)',
+          spanGaps: false,
+        },
+      ]
     },
     options: {
       responsive: true,
@@ -689,8 +1005,13 @@ function initChart() {
           callbacks: {
             title: items => fmtDate(dates[Math.round(items[0].parsed.x)] || '1927-01'),
             label: item => {
+              if (item.datasetIndex === 0) {
+                const val = item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1});
+                return showReal ? `S&P 500 (Real 2025$): ${val}` : `S&P 500: ${val}`;
+              }
+              const labels = ['', 'MA-12 (1Y)', 'MA-60 (5Y)', 'MA-120 (10Y)'];
               const val = item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1});
-              return showReal ? `S&P 500 (Real 2025$): ${val}` : `S&P 500: ${val}`;
+              return `${labels[item.datasetIndex]}: ${val}`;
             },
             afterLabel: item => {
               const idx = Math.round(item.parsed.x);
@@ -710,9 +1031,9 @@ function initChart() {
         },
         zoom: {
           zoom: { wheel: { enabled:true, speed:0.1 }, pinch:{ enabled:false }, mode:'x',
-                  onZoomComplete: () => updateOverlay(chart) },
+                  onZoomComplete: () => { syncRsiZoom(); updateOverlay(chart); } },
           pan:  { enabled:true, mode:'x',
-                  onPanComplete:  () => updateOverlay(chart) },
+                  onPanComplete:  () => { syncRsiZoom(); updateOverlay(chart); } },
           limits: { x: { min: 0, max: FORECAST_XMAX, minRange: 6 } }
         }
       }
@@ -736,13 +1057,17 @@ function initChart() {
     const found = detectMarker(mx, my) || detectForecastPoint(mx, my);
     canvas.style.cursor = found ? 'pointer' : 'default';
     if (found) showTooltip(found, mx, my); else hideTooltip();
+    sharedCrossIdx = Math.round(chart.scales.x.getValueForPixel(mx));
     chart.draw();
+    if (rsiChart) { updateRsiLabel(sharedCrossIdx); rsiChart.draw(); }
   });
 
   canvas.addEventListener('mouseleave', () => {
     crossX = crossY = undefined;
     hideTooltip();
     chart.draw();
+    sharedCrossIdx = null;
+    if (rsiChart) { updateRsiLabel(); rsiChart.draw(); }
   });
 
   canvas.addEventListener('click', e => {
@@ -942,9 +1267,12 @@ document.querySelectorAll('.range-btn').forEach(btn => {
     const months = parseInt(btn.dataset.months);
     if (!months) {
       chart.resetZoom();
+      if (rsiChart) rsiChart.resetZoom();
     } else {
       const max = dates.length - 1;
-      chart.zoomScale('x', { min: Math.max(0, max - months), max });
+      const rng = { min: Math.max(0, max - months), max };
+      chart.zoomScale('x', rng);
+      if (rsiChart) rsiChart.zoomScale('x', rng, 'none');
     }
   });
 });

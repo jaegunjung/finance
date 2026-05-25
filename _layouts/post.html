@@ -18,7 +18,14 @@ layout: default
         <span class="ko-only">· {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}{% if mins < 1 %}1{% else %}{{ mins }}{% endif %}분 읽기</span>
       </span>
     </div>
-    <h1 style="font-size:1.6rem; margin-bottom:0;">{{ page.title }}</h1>
+    <h1 style="font-size:1.6rem; margin-bottom:0;">
+      {% if page.title_en or page.title_ko %}
+        <span class="en-only">{{ page.title_en | default: page.title }}</span>
+        <span class="ko-only">{{ page.title_ko | default: page.title }}</span>
+      {% else %}
+        {{ page.title }}
+      {% endif %}
+    </h1>
   </div>
 
   <div class="post-content">
