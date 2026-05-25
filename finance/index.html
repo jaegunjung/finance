@@ -121,6 +121,9 @@ title: S&P 500 Chart
 </p>
 
 <div id="chartContainer">
+  <div id="chartLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+    <span class="en-only">Loading data...</span><span class="ko-only">데이터 로딩 중...</span>
+  </div>
   <canvas id="sp500Chart" style="touch-action:pan-y;"></canvas>
   <svg id="channelSvg"></svg>
   <div id="markerTooltip">
@@ -270,8 +273,8 @@ title: S&P 500 Chart
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <script>
 // ── CPI-U Annual averages (1982-84=100) for inflation adjustment ──
 const CPI_ANNUAL = {
@@ -422,7 +425,7 @@ function computeSMA(arr, period) {
 
 function getMaData(period) {
   const src = getDisplayPrices();
-  return computeSMA(src, period).map((v, i) => v === null ? null : { x: i, y: v });
+  return computeSMA(src, period).map((v, i) => ({ x: i, y: v === null ? NaN : v }));
 }
 
 function toggleMA(period) {
@@ -568,23 +571,34 @@ function currentLang() {
 }
 
 // ── Load CSV and init ──
+function showChartError(msg) {
+  const el = document.getElementById('chartLoading');
+  if (el) el.textContent = msg;
+}
+
 fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
-  .then(r => r.text())
+  .then(r => { if (!r.ok) throw new Error('CSV fetch failed: ' + r.status); return r.text(); })
   .then(csv => {
     csv.trim().split('\n').slice(1).forEach(line => {
       const [d, p] = line.split(',');
-      dates.push(d.trim());
-      prices.push(parseFloat(p));
+      if (d && p) { dates.push(d.trim()); prices.push(parseFloat(p)); }
     });
-    // Compute real prices in 2025 dollars
+    if (dates.length === 0) throw new Error('CSV data empty');
     realPrices = prices.map((p, i) => p * CPI_BASE / getMonthCPI(dates[i]));
     realChannelParams = computeRealChannelParams();
-    // Assign data indices to markers
     ALL_MARKERS.forEach(m => { m.idx = dates.indexOf(m.date); });
-    initChart();
-    initRsiChart();
-    initCagrChart();
-  });
+    try {
+      initChart();
+      initRsiChart();
+      initCagrChart();
+      const loader = document.getElementById('chartLoading');
+      if (loader) loader.style.display = 'none';
+    } catch(e) {
+      showChartError('Chart error: ' + e.message);
+      console.error(e);
+    }
+  })
+  .catch(e => { showChartError('Load failed: ' + e.message); console.error(e); });
 
 function getDisplayPrices() { return showReal ? realPrices : prices; }
 
@@ -705,8 +719,8 @@ function getRsiDatasets() {
   const src = getDisplayPrices();
   const rsiVals = computeRSI(src, 14);
   const emaVals = computeEMA(rsiVals, 9);
-  const rsiData  = rsiVals.map((v,i) => v === null ? null : {x:i, y:v});
-  const emaData  = emaVals.map((v,i) => v === null ? null : {x:i, y:v});
+  const rsiData  = rsiVals.map((v,i) => ({ x:i, y: v === null ? NaN : v }));
+  const emaData  = emaVals.map((v,i) => ({ x:i, y: v === null ? NaN : v }));
   return { rsiData, emaData, rsiVals, emaVals };
 }
 
@@ -718,7 +732,8 @@ function updateRsiLabel(idx) {
   const i = idx ?? (rsiDs.length - 1);
   const rv = rsiDs[i]?.y;
   const ev = emaDs[i]?.y;
-  el.textContent = `RSI(14): ${rv != null ? rv.toFixed(1) : '—'}   Signal: ${ev != null ? ev.toFixed(1) : '—'}`;
+  const fmt = v => (v != null && !isNaN(v)) ? v.toFixed(1) : '—';
+  el.textContent = `RSI(14): ${fmt(rv)}   Signal: ${fmt(ev)}`;
 }
 
 function syncRsiZoom() {
@@ -817,12 +832,6 @@ function initRsiChart() {
           pan:  { enabled:true, mode:'x',
                   onPanComplete:  () => { chart.zoomScale('x', {min:rsiChart.scales.x.min, max:rsiChart.scales.x.max}, 'none'); updateOverlay(chart); } },
           limits: { x: { min: 0, max: FORECAST_XMAX, minRange: 6 } }
-        },
-        annotation: {
-          annotations: {
-            ob: { type:'line', yMin:70, yMax:70, borderColor:'rgba(248,81,73,0.5)', borderWidth:1, borderDash:[4,4], label:{display:false} },
-            os: { type:'line', yMin:30, yMax:30, borderColor:'rgba(63,185,80,0.5)', borderWidth:1, borderDash:[4,4], label:{display:false} },
-          }
         }
       }
     },

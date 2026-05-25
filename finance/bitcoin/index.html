@@ -96,6 +96,9 @@ title: Bitcoin Long-Term Trend
 </div>
 
 <div id="btcChartContainer">
+  <div id="btcChartLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+    <span class="en-only">Loading data...</span><span class="ko-only">데이터 로딩 중...</span>
+  </div>
   <canvas id="btcChart" style="touch-action:pan-y;"></canvas>
   <svg id="btcSvg"></svg>
   <div id="btcMarkerTooltip">
@@ -143,8 +146,8 @@ title: Bitcoin Long-Term Trend
 </p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <script>
 // ── Bitcoin genesis date (block 0) ──
 const GENESIS = new Date('2009-01-03');
@@ -369,7 +372,8 @@ function updateBtcRsiLabel(idx) {
   const emaDs = btcRsiChart.data.datasets[1].data;
   const i = idx ?? (rsiDs.length-1);
   const rv = rsiDs[i]?.y, ev = emaDs[i]?.y;
-  el.textContent = `RSI(14): ${rv!=null?rv.toFixed(1):'—'}   Signal: ${ev!=null?ev.toFixed(1):'—'}`;
+  const fmt = v => (v != null && !isNaN(v)) ? v.toFixed(1) : '—';
+  el.textContent = `RSI(14): ${fmt(rv)}   Signal: ${fmt(ev)}`;
 }
 
 function syncBtcRsiZoom() {
@@ -607,14 +611,14 @@ function initBtcChart() {
 }
 
 function getBtcMaData(period){
-  return computeBtcSMA(btcPrices,period).map((v,i)=>v===null?null:{x:i,y:v});
+  return computeBtcSMA(btcPrices,period).map((v,i)=>({x:i,y:v===null?NaN:v}));
 }
 
 function initBtcRsiChart(){
   const rsiVals=computeBtcRSI(btcPrices,14);
   const emaVals=computeBtcEMA(rsiVals,9);
-  const rsiData=rsiVals.map((v,i)=>v===null?null:{x:i,y:v});
-  const emaData=emaVals.map((v,i)=>v===null?null:{x:i,y:v});
+  const rsiData=rsiVals.map((v,i)=>({x:i,y:v===null?NaN:v}));
+  const emaData=emaVals.map((v,i)=>({x:i,y:v===null?NaN:v}));
 
   const canvas=document.getElementById('btcRsiChart');
   const ctx=canvas.getContext('2d');
@@ -709,15 +713,34 @@ document.querySelectorAll('.btc-range-btn').forEach(btn=>{
 });
 
 // ── Load data ──
+function showBtcError(msg) {
+  const el = document.getElementById('btcChartLoading');
+  if (el) el.textContent = msg;
+}
+
 async function loadBtcData(){
   let apiData=null;
+  let dataSource = 'hardcoded';
   try{
-    const r=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=monthly');
-    if(r.ok) apiData=await r.json();
-  }catch(e){}
-  buildBtcData(apiData);
-  initBtcChart();
-  initBtcRsiChart();
+    const r=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=monthly',
+      {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined});
+    if(r.ok){ apiData=await r.json(); dataSource='CoinGecko'; }
+  }catch(e){ console.log('CoinGecko unavailable, using hardcoded data'); }
+
+  try {
+    buildBtcData(apiData);
+    if(btcDates.length === 0) throw new Error('No price data');
+    initBtcChart();
+    initBtcRsiChart();
+    const loader=document.getElementById('btcChartLoading');
+    if(loader) loader.style.display='none';
+    // Show data source in subtitle
+    const note=document.querySelector('#btcChartContainer + div + p + p.source-note');
+    console.log('BTC chart loaded from:', dataSource);
+  } catch(e) {
+    showBtcError('Chart error: ' + e.message);
+    console.error(e);
+  }
 }
 
 loadBtcData();
