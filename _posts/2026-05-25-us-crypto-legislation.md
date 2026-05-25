@@ -10,7 +10,15 @@ categories: [crypto]
 tags: [crypto, bitcoin, regulation, GENIUS, CLARITY, ARMA, legislation]
 ---
 
-<span class="ko-only">
+<iframe
+  src="{{ '/crypto/btc-mini-chart.html' | relative_url }}"
+  width="100%"
+  height="300px"
+  frameborder="0"
+  style="border-radius:8px; margin-bottom:24px; border:1px solid #30363d; display:block;">
+</iframe>
+
+<div class="ko-only" markdown="1">
 
 ## 1. GENIUS Act — 스테이블코인의 법적 기반을 세우다
 
@@ -65,10 +73,6 @@ tags: [crypto, bitcoin, regulation, GENIUS, CLARITY, ARMA, legislation]
 
 **크립토 로비의 베팅**: 크립토 업계는 2026년 선거 사이클에 2억 7,100만 달러를 쏟아부었다. Fairshake, Defend American Jobs 등 슈퍼 PAC이 경합 지역구 의원들을 대상으로 크립토 우호적 표결을 압박한다. 2024년 선거에서 크립토 로비가 지지한 후보 78%가 당선됐고, 이 선례가 의원들의 계산을 바꾸고 있다.
 
-**시나리오**:
-- **공화당 하원 유지**: Clarity Act, ARMA 입법 속도 유지. 크립토 친화 규제 환경 지속.
-- **민주당 하원 탈환**: Clarity Act·ARMA 재협상 불가피. 소비자 보호 조항 강화, 일정 지연. 단, 완전 폐기보다는 협상·수정 가능성이 높다. 민주당도 크립토 유권자 이탈을 두려워하기 때문이다.
-
 **핵심 변수**: Clarity Act가 7월 4일 전 통과된다면, 선거 결과와 무관하게 법적 기반이 고착된다. 이것이 7월 4일 데드라인이 단순한 상징이 아닌 이유다.
 
 ---
@@ -91,9 +95,9 @@ tags: [crypto, bitcoin, regulation, GENIUS, CLARITY, ARMA, legislation]
 
 **출처**: GENIUS Act 공식 법률 텍스트(S.394, 119th Congress), 상원 은행위원회 보도자료(2026-05-14), Consensus Miami 패트릭 위트 발언(2026-05-06), ARMA 발의 보도자료(2026-05-21), FEC 선거자금 공시, CoinGecko BTC 가격 데이터.
 
-</span>
+</div>
 
-<span class="en-only">
+<div class="en-only" markdown="1">
 
 ## 1. GENIUS Act — Stablecoins Are Now Legal
 
@@ -168,4 +172,4 @@ All three pieces of legislation point in the same direction: **institutionalizin
 
 **Sources**: GENIUS Act (S.394, 119th Congress), Senate Banking Committee press release (2026-05-14), Patrick Witt remarks at Consensus Miami (2026-05-06), ARMA introduction press release (2026-05-21), FEC campaign finance disclosures, CoinGecko BTC price data.
 
-</span>
+</div>

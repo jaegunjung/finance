@@ -641,25 +641,29 @@ function updateForecastToggleLabel() {
 
 function updateForecastAxisRange() {
   if (!chart) return;
-  const xMax = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
+  const visible = isForecastVisible();
+  const maxForecastVal = Math.max(...FORECAST_BULL.map(p => p.price));
+  const xMax = visible ? FORECAST_XMAX : dates.length - 1;
   chart.options.scales.x.max = xMax;
-  chart.options.scales.y.max = isForecastVisible() ? 15000 : undefined;
+  chart.options.scales.y.max = visible ? Math.max(15000, maxForecastVal * 1.15) : undefined;
   if (rsiChart) rsiChart.options.scales.x.max = xMax;
 }
 
 function toggleReal() {
   showReal = !showReal;
-  // FIX 1: Auto-reset to All range
+  // Auto-reset to All range
   document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('.range-btn[data-months="0"]').classList.add('active');
-  // FIX 2: Update label to show current state
   updateRealToggleLabel();
   updateForecastToggleLabel();
   updateForecastAxisRange();
   chart.data.datasets[0].data = getDisplayPrices().map((p,i) => ({x:i, y:p}));
   updateMaDatasets();
   updateRsiDatasets();
-  chart.resetZoom();
+  const xMax = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
+  chart.zoomScale('x', {min: 0, max: xMax}, 'none');
+  if (rsiChart) rsiChart.zoomScale('x', {min: 0, max: xMax}, 'none');
+  chart.update('none');
   updateOverlay(chart);
   updateCagrChart(showReal);
 }
@@ -676,6 +680,9 @@ function toggleForecast() {
   updateForecastToggleLabel();
   if (chart) {
     updateForecastAxisRange();
+    const xMax = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
+    chart.zoomScale('x', {min: 0, max: xMax}, 'none');
+    if (rsiChart) rsiChart.zoomScale('x', {min: 0, max: xMax}, 'none');
     chart.update('none');
     updateOverlay(chart);
   }
@@ -1275,10 +1282,11 @@ document.querySelectorAll('.range-btn').forEach(btn => {
     btn.classList.add('active');
     const months = parseInt(btn.dataset.months);
     if (!months) {
-      chart.resetZoom();
-      if (rsiChart) rsiChart.resetZoom();
+      const xMax = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
+      chart.zoomScale('x', {min: 0, max: xMax}, 'none');
+      if (rsiChart) rsiChart.zoomScale('x', {min: 0, max: xMax}, 'none');
     } else {
-      const max = dates.length - 1;
+      const max = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
       const rng = { min: Math.max(0, max - months), max };
       chart.zoomScale('x', rng);
       if (rsiChart) rsiChart.zoomScale('x', rng, 'none');

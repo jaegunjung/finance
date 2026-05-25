@@ -39,10 +39,15 @@ excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사
     <div class="ph-label ko-only">[ 그림 1 — 신한증권 버블 사이클 비교 차트 ]<br><code>assets/images/shinhan_bubble_cycle_comparison.PNG</code> 파일을 넣어주세요</div>
   </div>
   <p class="ref-chart-caption">
-    <span class="en-only">Fig 1. Historical bubble cycles comparison (Shinhan Securities, 2025-08-19). All tech-led bull markets lasted ~5 years from T.</span>
-    <span class="ko-only">그림 1. 과거 버블 국면 비교 (신한투자증권, 2025-08-19). 기술혁신 강세장은 평균 5년간 확장하는 경향.</span>
+    <span class="en-only">Fig 1. Historical bubble cycles comparison (Shinhan Securities, 2025-08-19). In August 2025 the AI cycle was at T+2.5Y; as of May 2026 it has advanced to T+3.5Y — still 1.5+ years before the historical T+5Y peak.</span>
+    <span class="ko-only">그림 1. 과거 버블 국면 비교 (신한투자증권, 2025-08-19). 2025년 8월 기준 AI 사이클은 T+2.5년 진행 중이었으나, 2026년 5월 현재 T+3.5년으로 — 여전히 과거 버블 정점(T+5년)까지 1.5년 이상의 여력이 남아있다.</span>
   </p>
 </div>
+
+<p style="background:rgba(59,139,212,0.08);border-left:3px solid #3B8BD4;padding:12px 16px;border-radius:0 6px 6px 0;margin:20px 0;font-size:0.875rem;line-height:1.7;">
+  <span class="en-only">▶ <strong>May 2026 Update:</strong> Nine months have passed since this report was published in August 2025. The AI cycle has advanced from T+2.5Y (just past the first price correction) to T+3.5Y. Both the dot-com bubble and FANG cycle showed brief consolidation at this stage before further advances. Additionally, the White House officially announced a July 4 target for the Clarity Act (May 6, 2026), and ARMA was introduced bipartisanly on May 21. These institutional developments were not present when the report was published — they represent additional bullish catalysts.</span>
+  <span class="ko-only">▶ <strong>2026년 5월 업데이트:</strong> 위 보고서가 발간된 2025년 8월 이후 9개월이 지났다. AI 사이클은 그림 1(좌측 차트)에서 T+2.5년(1차 가격 조정 직후)에 위치했으나, 현재는 T+3.5년으로 이동했다. 닷컴 버블과 FANG 사이클 모두 이 구간에서 잠시 숨고르기 후 추가 상승했다. 또한 백악관은 2026년 5월 6일 Clarity Act의 7월 4일 서명을 공식 목표로 발표했으며, ARMA(미국 비트코인 전략비축법)도 5월 21일 초당적으로 발의됐다. 이러한 제도적 진전은 보고서 발간 당시에는 존재하지 않았던 추가적인 강세 촉매다.</span>
+</p>
 
 <div class="ref-chart-block">
   <div class="ref-chart-placeholder" id="phB">
@@ -50,8 +55,8 @@ excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사
     <div class="ph-label ko-only">[ 그림 2 — 신한증권 금리 인하 후 랠리 차트 ]<br><code>assets/images/shinhan_post_ratecut_rally.PNG</code> 파일을 넣어주세요</div>
   </div>
   <p class="ref-chart-caption">
-    <span class="en-only">Fig 2. Post-final-rate-cut rally patterns (Shinhan Securities, 2025-08-19). Minimum 17 months of upside after last cut.</span>
-    <span class="ko-only">그림 2. 마지막 금리 인하 후 주가 궤적 (신한투자증권, 2025-08-19). 최소 17개월 추가 상승.</span>
+    <span class="en-only">Fig 2. Post-final-rate-cut rally patterns (Shinhan Securities, 2025-08-19). In August 2025 this was at T+2.5Y just after the first price correction; as of May 2026 at T+3.5Y, this aligns with the pre-secondary-correction phase in both the dot-com (yellow) and FANG (grey) cycles. Per historical patterns, late 2027 would be the final peak zone.</span>
+    <span class="ko-only">그림 2. 마지막 금리 인하 후 주가 궤적 (신한투자증권, 2025-08-19). 2025년 8월에는 1차 가격 조정 직후 T+2.5년 구간이었으나, 2026년 5월 현재 T+3.5년으로 닷컴(노란) 및 FANG(회색) 사이클의 2차 조정 이전 구간에 해당. 과거 패턴대로라면 2027년 하반기가 최종 정점 구간.</span>
   </p>
 </div>
 

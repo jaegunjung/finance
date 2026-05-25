@@ -1,0 +1,262 @@
+---
+layout: null
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BTC Mini Chart</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 12px;
+      height: 300px;
+      overflow: hidden;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .label {
+      font-size: 0.7rem;
+      color: #484f58;
+    }
+    .price-row {
+      display: flex;
+      gap: 16px;
+      align-items: baseline;
+    }
+    .current-price {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #e6edf3;
+    }
+    .change {
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .change.pos { color: #3fb950; }
+    .change.neg { color: #f85149; }
+    #miniChartContainer {
+      width: 100%;
+      height: 210px;
+      position: relative;
+    }
+    #miniChart {
+      width: 100%;
+      height: 100%;
+    }
+    .source-label {
+      font-size: 0.65rem;
+      color: #484f58;
+      margin-top: 4px;
+      text-align: right;
+    }
+    .loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #484f58;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="label" id="chartLabel">BTC/USD · Daily · 365D</div>
+      <div class="price-row">
+        <span class="current-price" id="currentPrice">—</span>
+        <span class="change" id="change7d">7D: —</span>
+        <span class="change" id="change30d">30D: —</span>
+      </div>
+    </div>
+    <div class="label" id="dataSourceLabel">Loading…</div>
+  </div>
+
+  <div id="miniChartContainer">
+    <div class="loading" id="loadingMsg">Loading data…</div>
+    <canvas id="miniChart"></canvas>
+  </div>
+  <div class="source-label" id="sourceNote">BTC/USD · Daily · Source: Local DB + CoinGecko</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>
+    let miniChart = null;
+
+    function computeSMA(arr, period) {
+      return arr.map((_, i) => {
+        if (i < period - 1) return NaN;
+        let s = 0;
+        for (let j = i - period + 1; j <= i; j++) s += arr[j];
+        return s / period;
+      });
+    }
+
+    function fmtPrice(p) {
+      return '$' + p.toLocaleString(undefined, {maximumFractionDigits: 0});
+    }
+
+    function pctChange(from, to) {
+      return ((to - from) / from * 100).toFixed(1);
+    }
+
+    function renderChart(labels, prices) {
+      const ma30 = computeSMA(prices, 30);
+
+      document.getElementById('loadingMsg').style.display = 'none';
+
+      const last = prices[prices.length - 1];
+      const p7 = prices[prices.length - 8] || prices[0];
+      const p30 = prices[prices.length - 31] || prices[0];
+      const chg7 = pctChange(p7, last);
+      const chg30 = pctChange(p30, last);
+
+      document.getElementById('currentPrice').textContent = fmtPrice(last);
+      const el7 = document.getElementById('change7d');
+      el7.textContent = `7D: ${chg7 > 0 ? '+' : ''}${chg7}%`;
+      el7.className = `change ${chg7 >= 0 ? 'pos' : 'neg'}`;
+      const el30 = document.getElementById('change30d');
+      el30.textContent = `30D: ${chg30 > 0 ? '+' : ''}${chg30}%`;
+      el30.className = `change ${chg30 >= 0 ? 'pos' : 'neg'}`;
+
+      const ctx = document.getElementById('miniChart').getContext('2d');
+      if (miniChart) miniChart.destroy();
+      miniChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              data: prices,
+              borderColor: '#58a6ff',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              tension: 0.3,
+              fill: true,
+              backgroundColor: 'rgba(88,166,255,0.05)',
+            },
+            {
+              data: ma30,
+              borderColor: 'rgba(255,152,0,0.7)',
+              borderWidth: 1.5,
+              borderDash: [4, 3],
+              pointRadius: 0,
+              tension: 0.3,
+              fill: false,
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              mode: 'index', intersect: false,
+              backgroundColor: '#1c2128',
+              borderColor: '#30363d', borderWidth: 1,
+              titleColor: '#e6edf3', bodyColor: '#8b949e',
+              padding: 8, displayColors: false,
+              callbacks: {
+                label: item => {
+                  if (item.datasetIndex === 1 && isNaN(item.parsed.y)) return null;
+                  return item.datasetIndex === 0
+                    ? fmtPrice(item.parsed.y)
+                    : `MA-30: ${fmtPrice(item.parsed.y)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(48,54,61,0.5)' },
+              ticks: {
+                color: '#484f58', font: { size: 10 },
+                maxTicksLimit: 8,
+                callback: (val, idx) => {
+                  const label = labels[idx];
+                  return label && label.slice(5) === '01' ? label.slice(0, 7) : '';
+                }
+              }
+            },
+            y: {
+              grid: { color: 'rgba(48,54,61,0.5)' },
+              ticks: {
+                color: '#484f58', font: { size: 10 },
+                callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'K' : v)
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function load() {
+      let labels = [], prices = [];
+      let source = '';
+
+      // 1. Try local daily CSV
+      try {
+        const r = await fetch('{{ "/crypto/data/btc_daily.csv" | relative_url }}');
+        if (r.ok) {
+          const text = await r.text();
+          const lines = text.trim().split('\n');
+          if (lines.length > 1) {
+            const header = lines[0].split(',');
+            const di = header.indexOf('date');
+            const pi = header.indexOf('open_price_usd');
+            if (di >= 0 && pi >= 0) {
+              const rows = lines.slice(1)
+                .map(l => { const c = l.split(','); return { d: c[di]?.trim(), p: parseFloat(c[pi]) }; })
+                .filter(r => r.d && !isNaN(r.p) && r.p > 0)
+                .slice(-365);
+              if (rows.length > 30) {
+                labels = rows.map(r => r.d);
+                prices = rows.map(r => r.p);
+                source = 'Local DB';
+              }
+            }
+          }
+        }
+      } catch(e) {}
+
+      // 2. Fall back to CoinGecko 365-day API
+      if (prices.length === 0) {
+        try {
+          const r = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily');
+          if (r.ok) {
+            const data = await r.json();
+            data.prices.forEach(([ts, p]) => {
+              labels.push(new Date(ts).toISOString().slice(0, 10));
+              prices.push(p);
+            });
+            source = 'CoinGecko';
+          }
+        } catch(e) {}
+      }
+
+      if (prices.length === 0) {
+        document.getElementById('loadingMsg').textContent = 'Data unavailable';
+        return;
+      }
+
+      document.getElementById('dataSourceLabel').textContent = source;
+      document.getElementById('sourceNote').textContent =
+        `BTC/USD · Daily · Source: ${source}`;
+      renderChart(labels, prices);
+    }
+
+    load();
+  </script>
+</body>
+</html>

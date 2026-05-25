@@ -118,8 +118,15 @@ title: Bitcoin Long-Term Trend
   <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</span>
 </p>
 <p class="source-note">
-  <span class="en-only">Data: CoinGecko API (fallback: hardcoded anchor prices) · Power Law regression: log₁₀(price) ≈ 5.84·log₁₀(days_since_genesis) − 17.01</span>
-  <span class="ko-only">데이터: CoinGecko API (대안: 하드코딩 앵커 가격) · Power Law 회귀: log₁₀(price) ≈ 5.84·log₁₀(일수) − 17.01</span>
+  <span id="btcDataSource">
+    <span class="en-only">Data: CoinGecko API (fallback: hardcoded anchor prices)</span>
+    <span class="ko-only">데이터: CoinGecko API (대안: 하드코딩 앵커 가격)</span>
+  </span>
+  · Power Law: log₁₀(price) ≈ 5.84·log₁₀(days) − 17.01
+</p>
+<p class="source-note" style="font-style:italic;">
+  <span class="en-only">Initial data from local database · Daily updates via CoinGecko API</span>
+  <span class="ko-only">초기 데이터: 로컬 DB · 일별 업데이트: CoinGecko API</span>
 </p>
 <div id="btcForecastLegend" class="forecast-legend">
   <span><span style="color:rgba(255,165,0,0.9); letter-spacing:-2px;">─ ─ ─</span>&nbsp;
@@ -546,8 +553,13 @@ function initBtcChart() {
       responsive:true,maintainAspectRatio:false,animation:false,
       scales:{
         x:{type:'linear',min:0,max:btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
-           ticks:{color:'#8b949e',font:{size:11},maxTicksLimit:15,
-                  callback:(val)=>{const i=Math.round(val);if(i<0||i>=btcDates.length)return'';const d=btcDates[i];return(d&&d.slice(5)==='01')?d.slice(0,4):'';}
+           ticks:{color:'#8b949e',font:{size:11},stepSize:12,maxTicksLimit:25,
+                  callback:(val)=>{
+                    const i=Math.round(val);if(i<0)return'';
+                    if(i<btcDates.length)return btcDates[i].slice(0,4);
+                    // extrapolate year for forecast region (data starts 2010-07, offset=6)
+                    return String(2010+Math.floor((6+i)/12));
+                  }
            }},
         y:{type:'logarithmic',grid:{color:'rgba(48,54,61,0.8)'},
            ticks:{color:'#8b949e',font:{size:11},
@@ -718,24 +730,91 @@ function showBtcError(msg) {
   if (el) el.textContent = msg;
 }
 
+function updateDataSourceNote(source, dateRange) {
+  const el = document.getElementById('btcDataSource');
+  if (!el) return;
+  const isKo = document.documentElement.classList.contains('ko-mode');
+  if (source === 'csv') {
+    el.textContent = isKo
+      ? `데이터: 로컬 CSV (일별) · ${dateRange}`
+      : `Data: Local CSV (daily) · ${dateRange}`;
+  } else if (source === 'api') {
+    el.textContent = isKo ? '데이터: CoinGecko API' : 'Data: CoinGecko API';
+  } else {
+    el.textContent = isKo ? '데이터: 내장 앵커 가격' : 'Data: Hardcoded anchors';
+  }
+}
+
+// Parse daily CSV and aggregate to monthly averages
+function parseDailyCsv(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return null;
+  const header = lines[0].split(',');
+  const dateIdx = header.indexOf('date');
+  const priceIdx = header.indexOf('open_price_usd');
+  if (dateIdx < 0 || priceIdx < 0) return null;
+  const monthly = {};
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    const d = cols[dateIdx]?.trim();
+    const p = parseFloat(cols[priceIdx]);
+    if (!d || isNaN(p) || p <= 0) continue;
+    const key = d.slice(0, 7); // YYYY-MM
+    if (!monthly[key]) monthly[key] = [];
+    monthly[key].push(p);
+  }
+  const keys = Object.keys(monthly).sort();
+  if (keys.length === 0) return null;
+  // Convert to format compatible with CoinGecko response
+  const prices = keys.map(k => {
+    const avg = monthly[k].reduce((s, v) => s + v, 0) / monthly[k].length;
+    const [y, m] = k.split('-').map(Number);
+    return [new Date(y, m - 1, 15).getTime(), avg];
+  });
+  return { prices };
+}
+
 async function loadBtcData(){
-  let apiData=null;
+  let apiData = null;
   let dataSource = 'hardcoded';
-  try{
-    const r=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=monthly',
-      {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined});
-    if(r.ok){ apiData=await r.json(); dataSource='CoinGecko'; }
-  }catch(e){ console.log('CoinGecko unavailable, using hardcoded data'); }
+  let csvDateRange = '';
+
+  // 1. Try local CSV first
+  try {
+    const csvUrl = '{{ "/crypto/data/btc_daily.csv" | relative_url }}';
+    const r = await fetch(csvUrl);
+    if (r.ok) {
+      const text = await r.text();
+      const parsed = parseDailyCsv(text);
+      if (parsed && parsed.prices.length > 0) {
+        apiData = parsed;
+        dataSource = 'csv';
+        const first = parsed.prices[0];
+        const last = parsed.prices[parsed.prices.length - 1];
+        const fmt = ts => new Date(ts).toISOString().slice(0, 7);
+        csvDateRange = `${fmt(first[0])} – ${fmt(last[0])}`;
+        console.log('BTC data loaded from CSV:', parsed.prices.length, 'monthly points');
+      }
+    }
+  } catch(e) { console.log('CSV unavailable:', e.message); }
+
+  // 2. Fall back to CoinGecko API
+  if (!apiData) {
+    try {
+      const r = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=monthly',
+        {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined});
+      if (r.ok) { apiData = await r.json(); dataSource = 'api'; }
+    } catch(e) { console.log('CoinGecko unavailable, using hardcoded anchors'); }
+  }
 
   try {
     buildBtcData(apiData);
-    if(btcDates.length === 0) throw new Error('No price data');
+    if (btcDates.length === 0) throw new Error('No price data');
     initBtcChart();
     initBtcRsiChart();
-    const loader=document.getElementById('btcChartLoading');
-    if(loader) loader.style.display='none';
-    // Show data source in subtitle
-    const note=document.querySelector('#btcChartContainer + div + p + p.source-note');
+    const loader = document.getElementById('btcChartLoading');
+    if (loader) loader.style.display = 'none';
+    updateDataSourceNote(dataSource, csvDateRange);
     console.log('BTC chart loaded from:', dataSource);
   } catch(e) {
     showBtcError('Chart error: ' + e.message);
