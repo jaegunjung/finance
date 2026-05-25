@@ -1,10 +1,14 @@
 ---
 layout: post
 title: "S&P 500 Trend Channel & Current Position"
+title_en: "S&P 500 Trend Channel & Current Position"
+title_ko: "S&P 500 추세 채널과 현재 위치"
 date: 2026-05-23
 categories: finance
 tags: [sp500, technical-analysis, trend-channel]
 excerpt: "Where does the S&P 500 stand today within the long-term trend channel stretching back to 1929?"
+excerpt_en: "Where does the S&P 500 stand today within the long-term trend channel stretching back to 1929?"
+excerpt_ko: "1929년까지 거슬러 올라가는 장기 추세 채널 안에서 현재 S&P 500은 어디에 위치하는가?"
 ---
 
 {% include charts/sp500-mini.html %}

@@ -7,10 +7,12 @@ date: 2026-05-24
 categories: finance
 tags: [sp500, forecast, bubble-cycle, rate-cut]
 excerpt: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사이클과 금리인하 이후 랠리 패턴을 비교하면 S&P 500은 2027년 하반기까지 추가 상승 여지가 있다."
+excerpt_en: "Based on Shinhan Securities Aug 2025 report: comparing historical bubble cycles and post-rate-cut rally patterns, the S&P 500 may have further upside through late 2027."
+excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사이클과 금리인하 이후 랠리 패턴을 비교하면 S&P 500은 2027년 하반기까지 추가 상승 여지가 있다."
 ---
 
 <!-- Reference charts from Shinhan Securities report (2025-08-19) -->
-<!-- TODO: Copy shinhan_bubble_cycle_comparison.png and shinhan_post_ratecut_rally.png to assets/images/
+<!-- TODO: Copy shinhan_bubble_cycle_comparison.PNG and shinhan_post_ratecut_rally.PNG to assets/images/
      These are screenshots from Shinhan Securities report pages 45 and 47 (2025-08-19) -->
 
 <style>
@@ -29,12 +31,12 @@ excerpt: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사이
 
 <div class="ref-chart-block">
   {% if site.data %}
-  {% assign img_a = "/assets/images/shinhan_bubble_cycle_comparison.png" | relative_url %}
+  {% assign img_a = "/assets/images/shinhan_bubble_cycle_comparison.PNG" | relative_url %}
   {% endif %}
-  {% capture img_a_path %}{{ site.baseurl }}/assets/images/shinhan_bubble_cycle_comparison.png{% endcapture %}
+  {% capture img_a_path %}{{ site.baseurl }}/assets/images/shinhan_bubble_cycle_comparison.PNG{% endcapture %}
   <div class="ref-chart-placeholder" id="phA">
-    <div class="ph-label en-only">[ Fig 1 — Shinhan bubble cycle chart ]<br>Place <code>assets/images/shinhan_bubble_cycle_comparison.png</code></div>
-    <div class="ph-label ko-only">[ 그림 1 — 신한증권 버블 사이클 비교 차트 ]<br><code>assets/images/shinhan_bubble_cycle_comparison.png</code> 파일을 넣어주세요</div>
+    <div class="ph-label en-only">[ Fig 1 — Shinhan bubble cycle chart ]<br>Place <code>assets/images/shinhan_bubble_cycle_comparison.PNG</code></div>
+    <div class="ph-label ko-only">[ 그림 1 — 신한증권 버블 사이클 비교 차트 ]<br><code>assets/images/shinhan_bubble_cycle_comparison.PNG</code> 파일을 넣어주세요</div>
   </div>
   <p class="ref-chart-caption">
     <span class="en-only">Fig 1. Historical bubble cycles comparison (Shinhan Securities, 2025-08-19). All tech-led bull markets lasted ~5 years from T.</span>
@@ -44,8 +46,8 @@ excerpt: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사이
 
 <div class="ref-chart-block">
   <div class="ref-chart-placeholder" id="phB">
-    <div class="ph-label en-only">[ Fig 2 — Shinhan post-rate-cut rally chart ]<br>Place <code>assets/images/shinhan_post_ratecut_rally.png</code></div>
-    <div class="ph-label ko-only">[ 그림 2 — 신한증권 금리 인하 후 랠리 차트 ]<br><code>assets/images/shinhan_post_ratecut_rally.png</code> 파일을 넣어주세요</div>
+    <div class="ph-label en-only">[ Fig 2 — Shinhan post-rate-cut rally chart ]<br>Place <code>assets/images/shinhan_post_ratecut_rally.PNG</code></div>
+    <div class="ph-label ko-only">[ 그림 2 — 신한증권 금리 인하 후 랠리 차트 ]<br><code>assets/images/shinhan_post_ratecut_rally.PNG</code> 파일을 넣어주세요</div>
   </div>
   <p class="ref-chart-caption">
     <span class="en-only">Fig 2. Post-final-rate-cut rally patterns (Shinhan Securities, 2025-08-19). Minimum 17 months of upside after last cut.</span>
@@ -76,26 +78,105 @@ excerpt: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사이
     img.src = src;
   }
   var base = '{{ site.baseurl }}';
-  tryImg('phA', base + '/assets/images/shinhan_bubble_cycle_comparison.png',
+  tryImg('phA', base + '/assets/images/shinhan_bubble_cycle_comparison.PNG',
     'Historical bubble cycles comparison', '과거 버블 국면 비교');
-  tryImg('phB', base + '/assets/images/shinhan_post_ratecut_rally.png',
+  tryImg('phB', base + '/assets/images/shinhan_post_ratecut_rally.PNG',
     'Post-rate-cut rally patterns', '금리 인하 후 랠리 패턴');
 })();
 </script>
 
+<div class="ko-only" markdown="1">
+
+## 현황 요약 (2026년 5월)
+
+- **S&P 500**: 연초 대비 +8%, 현재 ~5,700. AI 강세장 **T+3.5년** (기산점: 2022년 10월).
+- **비트코인**: ~$103,000, 레인보우 차트 기준 "BUY" 구간.
+- **크립토 입법**: Clarity Act 7월 4일 서명 목표 — 통과 여부가 향후 6주의 최대 변수.
+
+신한투자증권 2025년 8월 19일 리포트(담당: 김성환·오한비)가 제시한 두 가지 역사적 패턴은 2026년 5월 현재도 여전히 유효하다. 다만 시간이 경과하면서 각 패턴의 의미가 더욱 선명해졌다. **이 글은 공개 정보 기반의 개인적 해석이며 투자 권유가 아닙니다.**
+
+## 패턴 1: 버블 사이클 — 5년 클록
+
+과거 기술 주도 버블 사이클은 저점에서 정점까지 평균 **4.5~5.5년**이었다.
+
+| 버블 사이클 | 저점 | 정점 | 기간 |
+|---|---|---|---|
+| 1920년대 급등 | ~1924년 | 1929년 8월 | ~5년 |
+| 닷컴 버블 | ~1994~95년 | 2000년 3월 | ~5~6년 |
+| GFC 이후 QE | 2009년 3월 | 2020년 2월 | ~11년 (역대 최장) |
+| **AI 강세장** | **2022년 10월** | **2027년 10월?** | **~5년** |
+
+**T=0 = 2022년 10월** 기준, 2026년 5월은 **T+3.5년**. 중심 시나리오 정점(2027년 10월)까지 약 **17개월** 남았다.
+
+## 패턴 2: 금리인하 이후 랠리 — 창이 닫히고 있다
+
+연준은 2024년 9월 첫 금리 인하를 단행했다. 역대 인하 사이클에서 첫 인하 이후 주식 랠리는 **17~24개월** 지속됐다.
+
+| 사이클 | 첫 인하 | 랠리 종료 | 기간 |
+|---|---|---|---|
+| 1995년 | 1995년 7월 | 2000년 3월 | ~57개월 (이례적 연장) |
+| 1998년 | 1998년 9월 | 2000년 3월 | ~18개월 |
+| 2019년 | 2019년 7월 | 2020년 2월 | ~7개월 (코로나 중단) |
+
+- 17개월 창: **2026년 2월** 만료 ← 이미 지남
+- 24개월 창: **2026년 9월** 만료 ← 4개월 남음
+
+연준이 2026년 6월에 추가 인하를 단행한다면, 새로운 17~24개월 창이 시작된다 → 정점 **2027년 11월~2028년 6월**. 이는 버블 사이클 5년 시계와 거의 일치한다.
+
+**핵심 시나리오**: 2026년 중반 중간 조정 → AI·크립토 입법 모멘텀으로 최종 가속 → 2027년 하반기 정점.
+
+## 2026년 신규 변수: 크립토 입법
+
+버블 사이클 프레임에는 없었던 변수가 추가됐다. 미국 크립토 입법이 임박했다.
+
+- **Clarity Act**: 상원 은행위원회 5월 14일 마크업 통과. 백악관 Patrick Witt, 5월 6일 컨센서스 마이애미에서 **7월 4일 서명 목표** 공식 발표.
+- **ARMA**: 5월 21일 양당 공동 발의. 비트코인 전략 비축을 법률로 고착화.
+- Polymarket 예측: Clarity Act 2026년 내 서명 **61%** (4월 47% → 상승 중).
+
+Clarity Act 통과 = 기관 크립토 채택 확실성 → **비트코인·이더리움·토크나이제이션 플레이 강세** 촉매. 실패 시 = 불확실성 지속, 2028년까지 지연 가능성.
+
+11월 중간선거(민주당 하원 탈환 예측 확률 84%)가 실제로 발생하면, 7월 4일 이전 서명이 사실상 마지막 기회다.
+
+## 중심 시나리오 (명목 S&P 500)
+
+| 시기 | 지수 수준 | 비고 |
+|---|---|---|
+| 2026년 5월 | ~5,700 | 현재 (T+3.5년) |
+| 2026년 12월 | ~6,800 | 중간 조정 후 랠리 재개 |
+| 2027년 6월 | ~8,000 | 정점 전 가속 |
+| 2027년 10월 | ~9,000~9,500 | 버블 사이클 T+5 정점 |
+| 2028년 3월 | ~8,500 | 정점 후 조정 시작 |
+| 2028년 12월 | ~6,500 | 약세장 저점 |
+
+**강세 시나리오**: Clarity Act 통과 + AI 기업이익 가속 → 2027년 8월 ~10,500.
+
+**약세 시나리오**: 랠리 창 소진 + Clarity Act 실패 → 2027년 1분기 ~7,200 정점, 이후 급락.
+
+## 추세 채널과의 관계
+
+실질(CPI 반영, 2025달러) 기준으로 보면, 중심 시나리오 정점 ~9,200(명목)은 실질 기준 **약 8,700~8,900** — 당시 실질 채널 상단의 **1.6~1.7배**다.
+
+2000년 닷컴 버블조차 실질 채널 상단을 잠깐 돌파하는 수준이었다. 중심 시나리오가 실현된다면 전례 없는 채널 이탈이다. "이번엔 다르다(AI 생산성 혁명)"이거나, 결국 채널 중앙선(실질 ~3,100) 복귀가 따르거나 — 둘 중 하나다.
+
+## 면책 고지
+
+*본 내용은 공개 정보 기반 개인적 분석이며 투자 권유가 아닙니다. 신한투자증권 리포트(2025.08.19, 담당: 김성환·오한비) 프레임워크를 참고했으나, 2026년 업데이트는 개인 해석입니다. 모든 예측은 추정치이며 실제 결과는 크게 다를 수 있습니다.*
+
+</div>
+
 <div class="en-only" markdown="1">
 
-## Summary
+## Status Summary (May 2026)
 
-This post interprets a Shinhan Securities research report dated August 19, 2025 (analysts: Kim Sung-hwan, Oh Han-bi), applying their framework to the S&P 500 through May 2026. **Personal interpretation only — not investment advice.**
+- **S&P 500**: +8% YTD, currently ~5,700. AI bull market at **T+3.5 years** (from Oct 2022 bottom).
+- **Bitcoin**: ~$103,000, in the "BUY" zone on the rainbow chart.
+- **Crypto legislation**: Clarity Act targeting July 4 signing — the biggest variable for the next 6 weeks.
 
-The report identifies two historical patterns that, taken together, suggest the current bull market may have further to run before peaking — but with a compressed remaining timeline.
+The two historical patterns identified in the Shinhan Securities report (Aug 19, 2025, analysts Kim Sung-hwan & Oh Han-bi) remain valid as of May 2026. With more time elapsed, each pattern's signal has sharpened. **Personal interpretation only — not investment advice.**
 
-## Pattern 1: Bubble Cycle Duration (~5 Years)
+## Pattern 1: Bubble Cycle — The 5-Year Clock
 
-Comparing major market bubbles — the 1920s surge into the 1929 crash, the late-1990s dot-com into the 2000 peak, and the 2009–2020 QE bull — each cycle from cyclical trough to bubble peak ran approximately **4.5–5.5 years**.
-
-Setting **T=0 at October 2022** (the Fed tightening trough, where the current AI bull began), a 5-year bubble cycle points to a peak around **October 2027**.
+Tech-led bubble cycles have historically run **4.5–5.5 years** from trough to peak.
 
 | Bubble cycle | Trough | Peak | Duration |
 |---|---|---|---|
@@ -104,117 +185,58 @@ Setting **T=0 at October 2022** (the Fed tightening trough, where the current AI
 | Post-GFC QE | Mar 2009 | Feb 2020 | ~11 yr (longest ever) |
 | **AI bull** | **Oct 2022** | **Oct 2027?** | **~5 yr** |
 
-As of May 2026, this leaves approximately **17 months remaining** under the central scenario.
+With **T=0 at October 2022**, May 2026 is **T+3.5 years**. Under the central scenario, roughly **17 months remain** to the projected October 2027 peak.
 
-## Pattern 2: Post-Rate-Cut Rally (17–24 Months)
+## Pattern 2: Post-Rate-Cut Rally — The Window Is Closing
 
-The Fed began cutting rates in **September 2024**. In prior cutting cycles, equity rallies from the first cut lasted **17–24 months**:
+The Fed began cutting in September 2024. Historical post-cut equity rallies lasted **17–24 months**.
 
 | Cycle | First cut | Rally end | Duration |
 |---|---|---|---|
 | 1995 | Jul 1995 | Mar 2000 | ~57 mo (extended) |
 | 1998 | Sep 1998 | Mar 2000 | ~18 mo |
-| 2019 | Jul 2019 | Feb 2020 | ~7 mo (COVID cut short) |
+| 2019 | Jul 2019 | Feb 2020 | ~7 mo (COVID) |
 
-The 17-month window from September 2024 ends **February 2026**; the 24-month window ends **September 2026**. We are currently at — or past — the outer boundary of the historical post-cut rally window.
+- 17-month window: expired **February 2026**
+- 24-month window: expires **September 2026** (4 months away)
 
-**The tension**: the post-cut rally framework says we may be near the end of the momentum phase. But the bubble cycle framework says the peak is October 2027. The likely resolution: a **mid-cycle correction in mid-2026**, followed by a final AI-driven acceleration leg into late 2027.
+If the Fed cuts again in June 2026, a fresh 17–24 month window starts → peak **Nov 2027–Jun 2028**, closely aligning with the bubble cycle clock.
+
+**Central scenario**: mid-2026 correction → final acceleration on AI + crypto legislation tailwinds → late-2027 peak.
+
+## 2026 Wildcard: Crypto Legislation
+
+A variable the original bubble cycle framework didn't include: US crypto legislation is imminent.
+
+- **Clarity Act**: Senate Banking Committee markup passed May 14. White House crypto adviser Patrick Witt announced **July 4 signing target** at Consensus Miami (May 6).
+- **ARMA**: Introduced May 21, bipartisan, would codify the Bitcoin Strategic Reserve into law.
+- Polymarket: **61%** chance Clarity Act signed in 2026 (up from 47% in April).
+
+Clarity Act passing = institutional certainty catalyst → **bullish for BTC, ETH, tokenization plays**. Failure = regulatory uncertainty persists, timeline pushed to 2028. With November midterms likely flipping the House to Democrats (84% probability on prediction markets), July 4 is effectively the last window.
 
 ## Central Forecast (Nominal S&P 500)
 
-Combining both frameworks:
-
 | Date | Level | Notes |
 |---|---|---|
-| May 2026 | ~5,700 | Current level |
-| Dec 2026 | ~6,800 | Post-correction rally |
+| May 2026 | ~5,700 | Current (T+3.5yr) |
+| Dec 2026 | ~6,800 | Post-correction rally resumes |
 | Jun 2027 | ~8,000 | Pre-peak acceleration |
 | Oct 2027 | ~9,000–9,500 | Bubble cycle T+5 peak |
 | Mar 2028 | ~8,500 | Post-peak correction begins |
 | Dec 2028 | ~6,500 | Bear market trough |
 
-**Bull scenario**: AI productivity gains compound into earnings faster than expected → peak ~10,500 by August 2027.
+**Bull scenario**: Clarity Act passes + AI earnings acceleration → peak ~10,500 by August 2027.
 
-**Bear scenario**: post-cut rally window expires now, macro headwinds mount → peak ~7,200 in Q1 2027, sharper correction to follow.
+**Bear scenario**: post-cut window expires + Clarity Act fails → peak ~7,200 in Q1 2027, sharper reversal.
 
 ## Trend Channel Context
 
-In real (CPI-adjusted, 2025$) terms, the central forecast peak of ~9,200 nominal in October 2027 translates to roughly **8,700–8,900 in real 2025$** — approximately **1.6–1.7× the real upper channel line** at that time.
+In real (CPI-adjusted, 2025$) terms, the central forecast nominal peak of ~9,200 translates to roughly **8,700–8,900 real 2025$** — approximately **1.6–1.7× the real upper channel line** at that time.
 
-Even the 2000 dot-com peak, which was an extreme overshoot, only briefly pierced the real upper channel. The central scenario here would represent an unprecedented departure from the century-long channel.
-
-The implication: either the AI revolution generates structural productivity gains large enough to justify a permanently higher equity premium (the "1999" argument), or a mean-reversion to the channel midline (~3,100 in real 2025$) or lower becomes necessary at some point.
+Even the 2000 dot-com peak only briefly breached the real upper channel. This central scenario would be an unprecedented channel departure — either the AI revolution justifies a structurally higher equity premium ("1999 this-time-is-different"), or mean-reversion to the channel midline (~3,100 real) eventually follows. History favors the latter.
 
 ## Disclaimer
 
-*This post is a personal interpretation of the Shinhan Securities report (2025-08-19, analysts: Kim Sung-hwan & Oh Han-bi). It does not constitute investment advice. All forecasts are speculative projections with substantial uncertainty.*
-
-</div>
-
-<div class="ko-only" markdown="1">
-
-## 요약
-
-이 글은 신한투자증권 2025년 8월 19일 리포트 (담당 애널리스트: 김성환, 오한비)의 분석 틀을 바탕으로, 2026년 5월 현재 S&P 500의 향후 경로를 개인적으로 해석한 것이다. **투자 권유가 아님을 미리 밝힌다.**
-
-리포트는 두 가지 역사적 패턴을 근거로, 현재 강세장이 아직 정점에 도달하지 않았을 가능성을 제시한다. 다만 남은 시간은 그리 길지 않다.
-
-## 패턴 1: 버블 사이클 (Bubble Cycle) 지속 기간 (~5년)
-
-과거 주요 버블 사이클 — 1920년대→1929년 대공황, 1990년대→2000년 닷컴 버블, 글로벌 금융위기(GFC) 이후 QE 강세장 — 의 저점에서 정점까지 소요 기간은 대략 **4.5~5.5년**이었다.
-
-**T=0을 2022년 10월** (연준 긴축 사이클의 저점, 현재 AI 강세장의 시작점)으로 설정하면, 5년 주기의 정점은 **2027년 10월**이 된다.
-
-| 버블 사이클 | 저점 | 정점 | 기간 |
-|---|---|---|---|
-| 1920년대 급등 | ~1924년 | 1929년 8월 | ~5년 |
-| 닷컴 버블 | ~1994~1995년 | 2000년 3월 | ~5~6년 |
-| GFC 이후 QE 강세장 | 2009년 3월 | 2020년 2월 | ~11년 (역대 최장) |
-| **AI 강세장** | **2022년 10월** | **2027년 10월?** | **~5년** |
-
-2026년 5월 현재 중심 시나리오 기준 **약 17개월이 남아 있다.**
-
-## 패턴 2: 금리인하 이후 랠리 (Post Rate-Cut Rally) 지속 기간 (17~24개월)
-
-연준은 **2024년 9월**에 금리인하 사이클을 시작했다. 역대 금리인하 사이클에서 첫 인하 이후 주식시장 랠리는 **17~24개월** 지속되었다:
-
-| 사이클 | 첫 인하 | 랠리 종료 | 기간 |
-|---|---|---|---|
-| 1995년 | 1995년 7월 | 2000년 3월 | ~57개월 (이례적 연장) |
-| 1998년 | 1998년 9월 | 2000년 3월 | ~18개월 |
-| 2019년 | 2019년 7월 | 2020년 2월 | ~7개월 (코로나로 중단) |
-
-17개월 창은 **2026년 2월** 종료, 24개월 창은 **2026년 9월** 종료. 현재 이 창의 상단에 도달했거나 이미 지나고 있는 시점이다.
-
-**핵심 갈등 (Key Tension)**: 금리인하 이후 랠리 패턴은 모멘텀 단계가 끝나고 있음을 시사하지만, 버블 사이클 분석은 정점이 2027년 10월임을 가리킨다. 두 분석틀의 해소 경로로 가장 유력한 것은 **2026년 중반 중간 조정(Mid-cycle Correction) 후 AI 주도 최종 상승**이다.
-
-## 중심 시나리오 (Central Forecast, 명목 S&P 500)
-
-두 패턴을 종합한 기준 시나리오:
-
-| 시기 | 지수 수준 | 비고 |
-|---|---|---|
-| 2026년 5월 | ~5,700 | 현재 수준 |
-| 2026년 12월 | ~6,800 | 조정 후 랠리 재개 |
-| 2027년 6월 | ~8,000 | 정점 전 가속 구간 |
-| 2027년 10월 | ~9,000~9,500 | 버블 사이클 T+5 정점 |
-| 2028년 3월 | ~8,500 | 정점 이후 조정 시작 |
-| 2028년 12월 | ~6,500 | 약세장 저점 |
-
-**강세 시나리오 (Bull)**: AI 생산성 향상이 기업 이익으로 빠르게 반영된다면 → 2027년 8월경 ~10,500까지 상승 가능.
-
-**약세 시나리오 (Bear)**: 금리인하 이후 랠리 창이 지금 소진되고 거시 역풍이 강해진다면 → 2027년 1분기 ~7,200에서 정점, 이후 더 급격한 조정.
-
-## 추세 채널 (Trend Channel)과의 관계
-
-실질 기준(CPI 반영, 2025달러)으로 환산하면, 중심 시나리오의 2027년 10월 명목 정점 ~9,200은 **실질 기준 약 8,700~8,900 포인트** — 당시 실질 채널 상단의 약 **1.6~1.7배**에 달하는 수준이다.
-
-닷컴 버블(2000년) 역시 실질 채널 상단을 돌파했지만, 이 정도의 이탈은 아니었다. 중심 시나리오가 실현된다면 전례 없는 실질 채널 이탈이 된다.
-
-시사점은 두 가지다: AI 혁명이 기업 이익에 구조적으로 반영되어 높은 밸류에이션이 정당화되거나 (1999년식 "이번엔 다르다" 논리), 아니면 역사가 반복되어 채널 중앙선 (현재 실질 기준 ~3,100) 혹은 그 이하로의 회귀가 결국 따라오거나 — 역사는 항상 후자였다.
-
-## 면책 고지 (Disclaimer)
-
-*본 내용은 신한투자증권 리포트(2025.08.19, 담당 애널리스트: 김성환·오한비) 분석을 기반으로 한 개인적 해석이며 투자 권유가 아닙니다. 모든 예측은 추정치이며 실제 결과는 크게 다를 수 있습니다.*
+*This post is a personal interpretation based on publicly available information, including the Shinhan Securities report (2025-08-19, analysts: Kim Sung-hwan & Oh Han-bi). All 2026 updates are personal analysis. Not investment advice. All forecasts are speculative projections with substantial uncertainty.*
 
 </div>

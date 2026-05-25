@@ -1,5 +1,5 @@
-title: JJ Analysis
-description: S&P 500 & Market Analysis
+title: JJ Financial Analysis
+description: S&P 500, Bitcoin & Market Analysis
 baseurl: "/finance"
 url: "https://jaegunjung.github.io"
 permalink: /:categories/:year/:month/:day/:title/
@@ -8,3 +8,4 @@ theme: null
 plugins:
   - jekyll-feed
   - jekyll-sitemap
+  - jekyll-redirect-from

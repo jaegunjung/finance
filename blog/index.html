@@ -23,8 +23,22 @@ title: Blog
           <span class="badge badge-{{ cat }}">{{ cat }}</span>
         {% endfor %}
       </div>
-      <h3>{{ post.title }}</h3>
-      <p class="post-excerpt">{{ post.excerpt | strip_html | truncate: 150 }}</p>
+      <h3>
+        {% if post.title_en or post.title_ko %}
+          <span class="en-only">{{ post.title_en | default: post.title }}</span>
+          <span class="ko-only">{{ post.title_ko | default: post.title }}</span>
+        {% else %}
+          {{ post.title }}
+        {% endif %}
+      </h3>
+      <p class="post-excerpt">
+        {% if post.excerpt_en or post.excerpt_ko %}
+          <span class="en-only">{{ post.excerpt_en | default: post.excerpt | strip_html | truncate: 150 }}</span>
+          <span class="ko-only">{{ post.excerpt_ko | default: post.excerpt | strip_html | truncate: 150 }}</span>
+        {% else %}
+          {{ post.excerpt | strip_html | truncate: 150 }}
+        {% endif %}
+      </p>
     </a>
   </li>
   {% endfor %}

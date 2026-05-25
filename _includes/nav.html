@@ -1,14 +1,15 @@
 <nav>
-  <a class="nav-brand" href="{{ '/' | relative_url }}">JJ Analysis</a>
+  <a class="nav-brand" href="{{ '/' | relative_url }}">JJ Financial Analysis</a>
   <button class="nav-hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
   <ul class="nav-links">
     <li><a href="{{ '/blog/' | relative_url }}" {% if page.url contains '/blog' %}class="active"{% endif %}>Blog</a></li>
-    <li><a href="{{ '/finance/' | relative_url }}" {% if page.url contains '/finance' and page.url != '/finance/bitcoin/' %}class="active"{% endif %}>Finance</a></li>
-    <li><a href="{{ '/finance/bitcoin/' | relative_url }}" {% if page.url contains '/finance/bitcoin' %}class="active"{% endif %}>Bitcoin</a></li>
+    <li><a href="{{ '/stock/' | relative_url }}" {% if page.url contains '/stock' %}class="active"{% endif %}>
+      <span class="en-only">Stock</span><span class="ko-only">주식</span></a></li>
+    <li><a href="{{ '/crypto/' | relative_url }}" {% if page.url contains '/crypto' %}class="active"{% endif %}>
+      <span class="en-only">Crypto</span><span class="ko-only">크립토</span></a></li>
     <li><a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>About</a></li>
     <li class="lang-toggle-item">
-      <button class="lang-btn" data-lang-btn="en" onclick="setLang('en')">EN</button>
-      <button class="lang-btn" data-lang-btn="ko" onclick="setLang('ko')">한</button>
+      <button id="langToggleBtn" class="lang-btn" onclick="toggleLang()">한</button>
     </li>
   </ul>
 </nav>

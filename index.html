@@ -3,29 +3,41 @@ layout: default
 title: Home
 ---
 <div class="hero">
-  <h1>JJ Analysis</h1>
+  <h1>JJ Financial Analysis</h1>
   <p>
-    <span class="en-only">S&amp;P 500 Long-Term Trends · Market History · Investment Insights</span>
-    <span class="ko-only">S&amp;P 500 장기 추세 분석 · 시장 역사 · 투자 인사이트</span>
+    <span class="en-only">S&amp;P 500 · Bitcoin · Market History · Investment Insights</span>
+    <span class="ko-only">S&amp;P 500 · 비트코인 · 시장 역사 · 투자 인사이트</span>
   </p>
 </div>
 
 <div class="grid-2">
   <div class="feature-card">
-    <a href="{{ '/finance/' | relative_url }}">
-      <h3>📈 <span class="en-only">S&amp;P 500 Interactive Chart</span><span class="ko-only">S&amp;P 500 인터랙티브 차트</span></h3>
+    <a href="{{ '/stock/' | relative_url }}">
+      <h3>📈 <span class="en-only">S&amp;P 500 Long-Term Chart</span><span class="ko-only">S&amp;P 500 장기 추세 차트</span></h3>
       <p>
-        <span class="en-only">S&amp;P 500 monthly data from 1927 to present. Log scale, trend channel, historical peak &amp; trough markers. Toggle inflation-adjusted view and market phase coloring.</span>
-        <span class="ko-only">1927년부터 현재까지 S&amp;P 500 월봉 데이터. 로그 스케일, 추세 채널, 역사적 고점·저점 마커. 물가 반영 및 시장 국면 토글.</span>
+        <span class="en-only">1927–present monthly data. Log scale · Trend channel · Peaks &amp; troughs · RSI · MA overlays · Real/nominal toggle · Forecast.</span>
+        <span class="ko-only">1927년~현재 월봉. 로그 스케일 · 추세 채널 · 고점·저점 · RSI · MA 오버레이 · 실질/명목 토글 · 예측.</span>
       </p>
     </a>
   </div>
   <div class="feature-card">
+    <a href="{{ '/crypto/' | relative_url }}">
+      <h3>📈 <span class="en-only">Bitcoin Long-Term Chart</span><span class="ko-only">비트코인 장기 추세 차트</span></h3>
+      <p>
+        <span class="en-only">Log-scale analysis · Rainbow chart · Halving cycles · RSI · Forecast.</span>
+        <span class="ko-only">로그 스케일 분석 · 레인보우 차트 · 반감기 사이클 · RSI · 예측.</span>
+      </p>
+    </a>
+  </div>
+</div>
+
+<div class="grid-2" style="margin-top:0;">
+  <div class="feature-card">
     <a href="{{ '/blog/' | relative_url }}">
       <h3>📝 <span class="en-only">Analysis Blog</span><span class="ko-only">분석 블로그</span></h3>
       <p>
-        <span class="en-only">Deep dives into trend channel interpretation, growth rate phases, and current market positioning.</span>
-        <span class="ko-only">추세 채널 해석, 성장 기울기 분석, 현재 시장 위치 진단 등 심층 분석 아티클.</span>
+        <span class="en-only">Deep dives into trend channel interpretation, growth rate phases, crypto legislation, and market positioning.</span>
+        <span class="ko-only">추세 채널 해석, 성장 기울기 분석, 크립토 입법, 시장 위치 진단 등 심층 분석 아티클.</span>
       </p>
     </a>
   </div>
@@ -44,8 +56,22 @@ title: Home
           <span>{{ post.date | date: "%Y-%m-%d" }}</span>
           {% for cat in post.categories %}<span class="badge badge-{{ cat }}">{{ cat }}</span>{% endfor %}
         </div>
-        <h3>{{ post.title }}</h3>
-        <p class="post-excerpt">{{ post.excerpt | strip_html | truncate: 150 }}</p>
+        <h3>
+          {% if post.title_en or post.title_ko %}
+            <span class="en-only">{{ post.title_en | default: post.title }}</span>
+            <span class="ko-only">{{ post.title_ko | default: post.title }}</span>
+          {% else %}
+            {{ post.title }}
+          {% endif %}
+        </h3>
+        <p class="post-excerpt">
+          {% if post.excerpt_en or post.excerpt_ko %}
+            <span class="en-only">{{ post.excerpt_en | default: post.excerpt | strip_html | truncate: 150 }}</span>
+            <span class="ko-only">{{ post.excerpt_ko | default: post.excerpt | strip_html | truncate: 150 }}</span>
+          {% else %}
+            {{ post.excerpt | strip_html | truncate: 150 }}
+          {% endif %}
+        </p>
       </a>
     </li>
     {% endfor %}

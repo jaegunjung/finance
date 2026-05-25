@@ -14,9 +14,13 @@
       window.setLang = function(l) {
         localStorage.setItem('jj-lang', l);
         document.documentElement.classList.toggle('ko-mode', l === 'ko');
-        document.querySelectorAll('[data-lang-btn]').forEach(function(btn) {
-          btn.classList.toggle('active', btn.dataset.langBtn === l);
-        });
+        // Single toggle button: show opposite language as the label
+        var btn = document.getElementById('langToggleBtn');
+        if (btn) btn.textContent = l === 'ko' ? 'EN' : '한';
+      };
+    window.toggleLang = function() {
+        var current = localStorage.getItem('jj-lang') || 'en';
+        setLang(current === 'ko' ? 'en' : 'ko');
       };
     })();
   </script>
@@ -31,9 +35,8 @@
     // Sync lang buttons after DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
       const lang = localStorage.getItem('jj-lang') || 'en';
-      document.querySelectorAll('[data-lang-btn]').forEach(function(btn) {
-        btn.classList.toggle('active', btn.dataset.langBtn === lang);
-      });
+      var btn = document.getElementById('langToggleBtn');
+      if (btn) btn.textContent = lang === 'ko' ? 'EN' : '한';
     });
   </script>
 </body>

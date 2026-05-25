@@ -1,10 +1,14 @@
 ---
 layout: post
 title: "S&P 500: Five Phases of Growth"
+title_en: "S&P 500: Five Phases of Growth"
+title_ko: "S&P 500: 성장률의 5가지 국면"
 date: 2026-05-16
 categories: finance
 tags: [sp500, cagr, market-history]
 excerpt: "From 1956 to today, how has the market's long-term growth rate evolved across five distinct phases?"
+excerpt_en: "From 1956 to today, how has the market's long-term growth rate evolved across five distinct phases?"
+excerpt_ko: "1956년부터 현재까지, S&P 500의 장기 성장률은 다섯 개의 뚜렷한 국면을 거치며 어떻게 변해왔는가?"
 ---
 
 {% include charts/cagr-mini.html %}
