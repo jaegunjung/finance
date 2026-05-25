@@ -62,6 +62,8 @@ title: S&P 500 Chart
 }
 .source-note { color: var(--text-muted); font-size: 0.73rem; margin-top: 4px; margin-bottom: 20px; }
 .source-note a { color: var(--text-muted); text-decoration: underline; }
+.forecast-notice { color: var(--text-muted); font-size: 0.75rem; margin: 0 0 4px; font-style: italic; display: none; }
+.forecast-legend { font-size: 0.75rem; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 0; }
 </style>
 
 <div style="padding: 28px 0 8px;">
@@ -90,11 +92,19 @@ title: S&P 500 Chart
       <span class="ko-only">실질 (물가반영)</span>
     </button>
     <button id="phaseToggle" class="ctrl-btn" onclick="togglePhases()">
-      <span class="en-only">Show Phases</span>
-      <span class="ko-only">국면 표시</span>
+      <span class="en-only">Phases Off</span>
+      <span class="ko-only">국면 없음</span>
+    </button>
+    <button id="forecastToggle" class="ctrl-btn" onclick="toggleForecast()">
+      <span class="en-only">Forecast On</span>
+      <span class="ko-only">예측 표시 중</span>
     </button>
   </div>
 </div>
+<p id="forecastNotice" class="forecast-notice">
+  <span class="en-only">Forecast is nominal-price only — switch off Real mode to view.</span>
+  <span class="ko-only">예측은 명목 가격 기준 — 실질 모드 해제 후 확인하세요.</span>
+</p>
 
 <div id="chartContainer">
   <canvas id="sp500Chart" style="touch-action:pan-y;"></canvas>
@@ -113,6 +123,21 @@ title: S&P 500 Chart
 <p class="source-note">
   <span class="en-only">Data: S&amp;P 500 historical prices via <a href="https://www.macrotrends.net/2324/sp-500-historical-chart-data" target="_blank" rel="noopener">Macrotrends</a> / Standard &amp; Poor's / Robert Shiller · CPI: US Bureau of Labor Statistics · Updated monthly via GitHub Actions</span>
   <span class="ko-only">데이터 출처: <a href="https://www.macrotrends.net/2324/sp-500-historical-chart-data" target="_blank" rel="noopener">Macrotrends</a> / Standard &amp; Poor's / Robert Shiller · CPI: 미국 노동통계국 · 매월 자동 업데이트</span>
+</p>
+<div id="forecastLegend" class="forecast-legend" style="display:none;">
+  <span><span style="color:rgba(255,165,0,0.9); letter-spacing:-2px;">─ ─ ─</span>&nbsp;
+    <span class="en-only">Central forecast</span><span class="ko-only">중심 예측</span></span>
+  <span><span style="color:rgba(255,100,100,0.65);">─ ─</span>&nbsp;
+    <span class="en-only">Bull scenario</span><span class="ko-only">강세 시나리오</span></span>
+  <span><span style="color:rgba(100,180,100,0.65);">─ ─</span>&nbsp;
+    <span class="en-only">Bear scenario</span><span class="ko-only">약세 시나리오</span></span>
+  <span style="color:var(--text-muted);">
+    <span class="en-only">Source: Shinhan Securities (2025.08.19)</span>
+    <span class="ko-only">출처: 신한투자증권 (2025.08.19)</span></span>
+</div>
+<p id="forecastNote" class="source-note" style="display:none; font-style:italic;">
+  <span class="en-only">* Forecast based on Shinhan Securities report (2025-08-19, Kim Sung-hwan &amp; Oh Han-bi). Personal interpretation only — not investment advice.</span>
+  <span class="ko-only">* 본 내용은 신한투자증권 리포트(2025.08.19, 담당: 김성환·오한비) 분석을 기반으로 한 개인적 해석이며 투자 권유가 아닙니다.</span>
 </p>
 
 <div id="detailPanel">
@@ -358,8 +383,36 @@ const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_N
 
 // ── State ──
 let chart, cagrChart, dates = [], prices = [], realPrices = [];
-let showReal = true, showPhases = false;
+let showReal = true, showPhases = false, showForecast = true;
 let realChannelParams = null;
+
+// ── Forecast data (nominal S&P 500, based on Shinhan Securities 2025-08-19) ──
+const FORECAST_POINTS = [
+  {date:'2026-05', price:5700},
+  {date:'2026-12', price:6800},
+  {date:'2027-06', price:8000},
+  {date:'2027-10', price:9200},
+  {date:'2028-03', price:8500},
+  {date:'2028-12', price:6500},
+];
+const FORECAST_BULL = [
+  {date:'2026-05', price:5700},
+  {date:'2027-08', price:10500},
+  {date:'2028-12', price:8500},
+];
+const FORECAST_BEAR = [
+  {date:'2026-05', price:5700},
+  {date:'2027-03', price:7200},
+  {date:'2028-12', price:5000},
+];
+
+function dateToIdx(dateStr) {
+  const [y, m] = dateStr.split('-').map(Number);
+  return (y - 1927) * 12 + (m - 1);
+}
+const FORECAST_XMAX = dateToIdx('2029-03'); // ~1226, enough to show Dec 2028
+
+function isForecastVisible() { return showForecast && !showReal; }
 
 // ── CAGR phase data (nominal vs real) ──
 const CAGR_NOMINAL = {
@@ -488,9 +541,47 @@ function getPhaseForIdx(idx) {
   return null;
 }
 
+function updateRealToggleLabel() {
+  const btn = document.getElementById('realToggle');
+  btn.classList.toggle('active', showReal);
+  btn.querySelector('.en-only').textContent = showReal ? 'Real (CPI-adj.)' : 'Nominal Price';
+  btn.querySelector('.ko-only').textContent = showReal ? '실질 (물가반영)' : '명목 가격';
+}
+
+function updatePhaseToggleLabel() {
+  const btn = document.getElementById('phaseToggle');
+  btn.classList.toggle('active', showPhases);
+  btn.querySelector('.en-only').textContent = showPhases ? 'Phases On' : 'Phases Off';
+  btn.querySelector('.ko-only').textContent = showPhases ? '국면 표시 중' : '국면 없음';
+}
+
+function updateForecastToggleLabel() {
+  const btn = document.getElementById('forecastToggle');
+  btn.classList.toggle('active', showForecast);
+  btn.querySelector('.en-only').textContent = showForecast ? 'Forecast On' : 'Forecast Off';
+  btn.querySelector('.ko-only').textContent = showForecast ? '예측 표시 중' : '예측 없음';
+  const notice = document.getElementById('forecastNotice');
+  const legend = document.getElementById('forecastLegend');
+  const note = document.getElementById('forecastNote');
+  if (notice) notice.style.display = (showForecast && showReal) ? 'block' : 'none';
+  if (legend) legend.style.display = isForecastVisible() ? 'flex' : 'none';
+  if (note)   note.style.display   = isForecastVisible() ? 'block' : 'none';
+}
+
+function updateForecastAxisRange() {
+  if (!chart) return;
+  chart.options.scales.x.max = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
+}
+
 function toggleReal() {
   showReal = !showReal;
-  document.getElementById('realToggle').classList.toggle('active', showReal);
+  // FIX 1: Auto-reset to All range
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.range-btn[data-months="0"]').classList.add('active');
+  // FIX 2: Update label to show current state
+  updateRealToggleLabel();
+  updateForecastToggleLabel();
+  updateForecastAxisRange();
   chart.data.datasets[0].data = getDisplayPrices().map((p,i) => ({x:i, y:p}));
   chart.resetZoom();
   updateOverlay(chart);
@@ -499,8 +590,19 @@ function toggleReal() {
 
 function togglePhases() {
   showPhases = !showPhases;
-  document.getElementById('phaseToggle').classList.toggle('active', showPhases);
+  // FIX 3: Update label to show current state
+  updatePhaseToggleLabel();
   updateOverlay(chart);
+}
+
+function toggleForecast() {
+  showForecast = !showForecast;
+  updateForecastToggleLabel();
+  if (chart) {
+    updateForecastAxisRange();
+    chart.update('none');
+    updateOverlay(chart);
+  }
 }
 
 function initChart() {
@@ -554,10 +656,15 @@ function initChart() {
             color: '#8b949e', font: { size: 11 }, maxTicksLimit: 20,
             callback: (val) => {
               const i = Math.round(val);
-              if (i < 0 || i >= dates.length) return '';
-              const d = dates[i];
-              if (d && d.slice(5) === '01') return d.slice(0,4);
-              return '';
+              if (i < 0) return '';
+              if (i < dates.length) {
+                const d = dates[i];
+                return (d && d.slice(5) === '01') ? d.slice(0,4) : '';
+              }
+              // Future indices (forecast period beyond CSV data)
+              const year = 1927 + Math.floor(i / 12);
+              const month = (i % 12) + 1;
+              return month === 1 ? String(year) : '';
             }
           }
         },
@@ -606,7 +713,7 @@ function initChart() {
                   onZoomComplete: () => updateOverlay(chart) },
           pan:  { enabled:true, mode:'x',
                   onPanComplete:  () => updateOverlay(chart) },
-          limits: { x: { min:'original', max:'original', minRange:6 } }
+          limits: { x: { min: 0, max: FORECAST_XMAX, minRange: 6 } }
         }
       }
     },
@@ -615,8 +722,10 @@ function initChart() {
 
   canvas.style.touchAction = 'pan-y';
 
-  // Sync toggle button with initial state
-  document.getElementById('realToggle').classList.toggle('active', showReal);
+  // Initialize all toggle button labels and UI state
+  updateRealToggleLabel();
+  updatePhaseToggleLabel();
+  updateForecastToggleLabel();
 
   canvas.addEventListener('dblclick', () => chart.resetZoom());
 
@@ -624,7 +733,7 @@ function initChart() {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     crossX = mx; crossY = my;
-    const found = detectMarker(mx, my);
+    const found = detectMarker(mx, my) || detectForecastPoint(mx, my);
     canvas.style.cursor = found ? 'pointer' : 'default';
     if (found) showTooltip(found, mx, my); else hideTooltip();
     chart.draw();
@@ -657,14 +766,33 @@ function detectMarker(mx, my) {
   return null;
 }
 
+function detectForecastPoint(mx, my) {
+  if (!isForecastVisible() || !chart) return null;
+  const xS = chart.scales.x, yS = chart.scales.y, ca = chart.chartArea;
+  for (const p of FORECAST_POINTS) {
+    const px = xS.getPixelForValue(dateToIdx(p.date));
+    const py = yS.getPixelForValue(p.price);
+    if (px < ca.left - 5 || px > ca.right + 5) continue;
+    if (Math.abs(mx - px) < 10 && Math.abs(my - py) < 10) return { ...p, isForecast: true };
+  }
+  return null;
+}
+
 function showTooltip(m, mx, my) {
   const tt = document.getElementById('markerTooltip');
   const lang = currentLang();
   document.getElementById('ttDate').textContent = fmtDate(m.date);
-  const dp = getDisplayPrices();
-  const displayPrice = dp[m.idx] ?? m.price;
-  document.getElementById('ttPrice').textContent = displayPrice.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
-  document.getElementById('ttTitle').textContent = lang === 'ko' ? m.ko : m.en;
+  if (m.isForecast) {
+    document.getElementById('ttPrice').textContent = m.price.toLocaleString() + ' (est.)';
+    document.getElementById('ttTitle').textContent = lang === 'ko'
+      ? '신한투자증권 예측 (2025.08)'
+      : 'Shinhan Forecast (2025.08)';
+  } else {
+    const dp = getDisplayPrices();
+    const displayPrice = dp[m.idx] ?? m.price;
+    document.getElementById('ttPrice').textContent = displayPrice.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
+    document.getElementById('ttTitle').textContent = lang === 'ko' ? m.ko : m.en;
+  }
   tt.style.display = 'block';
   const container = document.getElementById('chartContainer');
   const cw = container.offsetWidth, ch = container.offsetHeight;
@@ -772,6 +900,36 @@ function updateOverlay(ch) {
       html += `<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
     }
   }
+
+  // Forecast overlay (nominal mode only)
+  if (isForecastVisible()) {
+    const fxPx = ds => xS.getPixelForValue(dateToIdx(ds));
+    const fyPx = price => yS.getPixelForValue(price);
+
+    // Uncertainty band polygon (bounded by bull and bear scenarios)
+    const upperPts = FORECAST_BULL.map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
+    const lowerPts = [...FORECAST_BEAR].reverse().map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
+    html += `<polygon points="${upperPts} ${lowerPts}" fill="rgba(255,165,0,0.08)"/>`;
+
+    // Bull scenario line
+    const bullD = FORECAST_BULL.map((p,i) => `${i?'L':'M'}${fxPx(p.date)},${fyPx(p.price)}`).join('');
+    html += `<path d="${bullD}" fill="none" stroke="rgba(255,100,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
+
+    // Bear scenario line
+    const bearD = FORECAST_BEAR.map((p,i) => `${i?'L':'M'}${fxPx(p.date)},${fyPx(p.price)}`).join('');
+    html += `<path d="${bearD}" fill="none" stroke="rgba(100,180,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
+
+    // Central forecast line
+    const fcastD = FORECAST_POINTS.map((p,i) => `${i?'L':'M'}${fxPx(p.date)},${fyPx(p.price)}`).join('');
+    html += `<path d="${fcastD}" fill="none" stroke="rgba(255,165,0,0.85)" stroke-width="2" stroke-dasharray="8,4"/>`;
+
+    // Forecast data point dots
+    for (const p of FORECAST_POINTS) {
+      const px2 = fxPx(p.date), py2 = fyPx(p.price);
+      html += `<circle cx="${px2}" cy="${py2}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;
+    }
+  }
+
   html += '</g>';
   svg.innerHTML = html;
 }
