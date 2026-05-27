@@ -604,6 +604,12 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
       initChart();
       initRsiChart();
       initCagrChart();
+      // Apply forecast axis range on first load if forecast is already visible
+      updateForecastAxisRange();
+      if (isForecastVisible()) {
+        chart.zoomScale('x', {min: 0, max: FORECAST_XMAX}, 'none');
+        if (rsiChart) rsiChart.zoomScale('x', {min: 0, max: FORECAST_XMAX}, 'none');
+      }
       const loader = document.getElementById('chartLoading');
       if (loader) loader.style.display = 'none';
     } catch(e) {
