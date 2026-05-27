@@ -531,11 +531,13 @@ function initBtcChart() {
           titleColor:'#e6edf3',bodyColor:'#8b949e',padding:10,displayColors:false,
           callbacks:{
             title:items=>{
+              if(!items[0]||!items[0].parsed) return '';
               const i=Math.round(items[0].parsed.x);
               const d=btcDates[i]||'2010-01-01';
               return d.slice(0,10);
             },
             label:item=>{
+              if(!item.parsed||isNaN(item.parsed.y)) return null;
               if(item.datasetIndex===0){return'BTC: $'+item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0});}
               const lbls=['','MA-365d (1Y)','MA-730d (2Y)','MA-1460d (4Y halving)'];
               return`${lbls[item.datasetIndex]}: $${item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0})}`;
@@ -623,8 +625,8 @@ function initBtcRsiChart(){
         legend:{display:false},
         tooltip:{mode:'index',intersect:false,backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e',padding:8,displayColors:false,
           callbacks:{
-            title:items=>fmtBtcDate(btcDates[Math.round(items[0].parsed.x)]||'2010-01'),
-            label:item=>item.datasetIndex===0?`RSI(14): ${item.parsed.y.toFixed(1)}`:`Signal(EMA-9): ${item.parsed.y.toFixed(1)}`
+            title:items=>(!items[0]||!items[0].parsed)?'':fmtBtcDate(btcDates[Math.round(items[0].parsed.x)]||'2010-01'),
+            label:item=>(!item.parsed||isNaN(item.parsed.y))?null:item.datasetIndex===0?`RSI(14): ${item.parsed.y.toFixed(1)}`:`Signal(EMA-9): ${item.parsed.y.toFixed(1)}`
           }
         },
         zoom:{
