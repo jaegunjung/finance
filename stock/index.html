@@ -154,16 +154,16 @@ title: S&P 500 Chart
   <span><span style="color:rgba(100,180,100,0.65);">─ ─</span>&nbsp;
     <span class="en-only">Bear scenario</span><span class="ko-only">약세 시나리오</span></span>
   <span style="color:var(--text-muted);">
-    <span class="en-only">Source: Shinhan Securities (2025.08.19)</span>
-    <span class="ko-only">출처: 신한투자증권 (2025.08.19)</span></span>
+    <span class="en-only">S&P 500 estimate based on Shinhan Securities (2026.05)</span>
+    <span class="ko-only">신한투자증권 2026.05 보고서 기반 S&P 500 추정</span></span>
 </div>
 <p class="source-note">
   <span class="en-only">Monthly MAs shown. MA-12 ≈ daily MA-264, MA-60 ≈ daily MA-1320.</span>
   <span class="ko-only">월간 MA 기준. MA-12 ≈ 일간 MA-264, MA-60 ≈ 일간 MA-1320.</span>
 </p>
 <p id="forecastNote" class="source-note" style="display:none; font-style:italic;">
-  <span class="en-only">* Forecast based on Shinhan Securities report (2025-08-19, Kim Sung-hwan &amp; Oh Han-bi). Personal interpretation only — not investment advice.</span>
-  <span class="ko-only">* 본 내용은 신한투자증권 리포트(2025.08.19, 담당: 김성환·오한비) 분석을 기반으로 한 개인적 해석이며 투자 권유가 아닙니다.</span>
+  <span class="en-only">* S&P 500 estimates based on Shinhan Securities 2026.05 report. Not a direct Shinhan forecast — personal interpretation only. Not investment advice.</span>
+  <span class="ko-only">* 신한투자증권 2026.05 보고서 기반 S&P 500 추정 (나스닥 예측을 S&P 500으로 해석). 개인적 해석이며 투자 권유가 아닙니다.</span>
 </p>
 
 <div id="detailPanel">
@@ -352,7 +352,7 @@ const channelPrice = (intercept, mn) => Math.exp(intercept + SLOPE * mn);
 
 // ── Marker data ──
 const PEAKS = [
-  {date:'1929-08',price:31.3,    en:'Roaring 20s Peak',          ko:'광란의 20년대 버블 정점',  enDesc:'Speculative bubble peak. Black Monday in October (-13% single day) triggered the Great Depression. S&P fell -86% over 3 years.',                                                                         koDesc:'투기 버블 절정. 10월 블랙먼데이(-13% 단일일)로 대공황 시작. 이후 3년간 -86%.'},
+  {date:'1929-08',price:31.3,    en:'Roaring 20s Peak',          ko:'광란의 20년대 버블 정점',  enDesc:'Peak of the Roaring 20s speculative bubble driven by euphoria over autos, electricity, and radio. Margin lending fueled extreme overvaluation. Black Monday in Oct 1929 (-13% single day) began a 3-year, -86% collapse into the Great Depression: 24% unemployment, GDP down 30%. AI cycle parallel: collective optimism over new technology + expanding leverage.',                                                                         koDesc:'광란의 20년대 투기 버블의 절정. 자동차·전기·라디오 등 신기술에 대한 낙관이 극에 달했고, 마진 대출(신용매수)이 시장을 과열시켰다. 1929년 10월 블랙먼데이(-13% 단일일)를 시작으로 3년간 -86% 폭락. 실업률 24%, GDP 30% 감소의 대공황으로 이어졌다. AI 사이클과의 유사점: 신기술 혁명에 대한 집단적 낙관 + 레버리지 확대.'},
   {date:'1934-02',price:11.0,    en:'New Deal Bounce',             ko:'뉴딜 1차 반등 고점',       enDesc:'Rally on FDR\'s gold standard abandonment and New Deal hopes, but unsustainable. Declined again.',                                                                                                           koDesc:'금본위제 폐지+뉴딜 기대감으로 반등했으나 지속 불가. 이후 재하락.'},
   {date:'1937-03',price:18.7,    en:'New Deal Recovery Peak',      ko:'뉴딜 회복 정점',           enDesc:'FDR\'s pivot to balanced budgets + Fed tightening caused -50% crash into 1938. Textbook policy error.',                                                                                                     koDesc:'루즈벨트 균형재정 전환+연준 긴축으로 1938년까지 -50% 폭락. 정책 실수의 교과서.'},
   {date:'1938-12',price:13.8,    en:'Munich Agreement Relief',     ko:'뮌헨협정 안도 반등',       enDesc:'Peace deal with Hitler boosted hopes. WWII outbreak caused renewed decline.',                                                                                                                                koDesc:'히틀러와의 협정으로 전쟁 회피 기대감. 그러나 2차대전 발발로 다시 하락.'},
@@ -371,15 +371,15 @@ const PEAKS = [
   {date:'1987-08',price:336.8,   en:'Reagan Bull Zenith',          ko:'레이건 강세장 절정',       enDesc:'5-year, 3× rally then overheated. October Black Monday: -22% single day, largest single-day loss ever.',                                                                                                     koDesc:'5년간 3배 급등 후 과열. 10월 블랙먼데이 하루 -22%, 역대 최대 단일일 낙폭.'},
   {date:'1990-07',price:368.9,   en:'Pre-Gulf War High',           ko:'걸프전 직전 고점',         enDesc:'Iraq invaded Kuwait (Aug) causing plunge. S&L crisis also hit.',                                                                                                                                             koDesc:'이라크 쿠웨이트 침공(8월)으로 급락. S&L 위기 동반.'},
   {date:'1994-02',price:482.5,   en:'Pre-Greenspan Tightening',    ko:'그린스펀 긴축 직전 고점',  enDesc:'Bond market massacre began. Greenspan\'s surprise rate hike series.',                                                                                                                                         koDesc:'채권시장 대학살 시작. 그린스펀 갑작스러운 금리 인상 시리즈.'},
-  {date:'2000-03',price:1527.5,  en:'Dot-com Bubble Peak',         ko:'닷컴 버블 정점',           enDesc:'Internet revolution euphoria at maximum. Companies with infinite PER valued at trillions. Upper channel touch. Then -49%.',                                                                                    koDesc:'인터넷 혁명 기대감 극대화. PER 무한대 기업들 시총 수조달러. 추세 채널 상단 터치. 이후 -49%.'},
+  {date:'2000-03',price:1527.5,  en:'Dot-com Bubble Peak',         ko:'닷컴 버블 정점',           enDesc:'Internet revolution expectations at maximum — companies with infinite P/E ratios held trillions in market cap. Fed rate hikes and Japan recession news triggered the sell-off. S&P 500 fell -49%, Nasdaq -78% over 3 years. The only historical case of precisely touching the upper trend channel before collapse. Structurally the closest precedent to the current AI cycle.',                                                                                    koDesc:'인터넷 혁명 기대감이 극대화된 닷컴 버블 정점. PER이 무한대인 기업들의 시가총액이 수조 달러에 달했다. 연준의 연속 금리 인상과 일본 경기침체 뉴스가 매도 촉발. 이후 S&P 500은 -49%, 나스닥은 -78% 폭락하며 3년간 약세장이 지속됐다. 추세 채널 상단을 정확히 터치한 후 붕괴한 역사적 사례. 현재 AI 사이클과 구조적으로 가장 유사한 선례.'},
   {date:'2007-10',price:1565.2,  en:'Subprime Bubble Peak',        ko:'서브프라임 버블 정점',     enDesc:'MBS/CDO credit bubble peak. Lehman Brothers failure (2008-09) caused -57%.',                                                                                                                                  koDesc:'MBS·CDO 신용버블 절정. 리먼 브라더스 파산(2008-09)으로 -57%.'},
   {date:'2020-02',price:3386.2,  en:'Pre-COVID Peak',              ko:'코로나 직전 고점',         enDesc:'Longest bull market (11 yrs) ended. COVID-19 caused fastest crash ever (-34% in 33 days).',                                                                                                                  koDesc:'역대 최장 강세장(11년) 마지막. 코로나19로 33일만에 -34%, 역대 최단 폭락.'},
-  {date:'2022-01',price:4797.0,  en:'ZIRP Bubble Peak',            ko:'제로금리 유동성 버블 정점',enDesc:'COVID liquidity + meme stocks + crypto bubble peak. Fed rapid tightening caused -25%.',                                                                                                                        koDesc:'코로나 유동성+밈주식+암호화폐 버블 정점. 연준 급격 긴축으로 -25%.'},
-  {date:'2024-11',price:5910.0,  en:'AI+Trump Rally Peak',         ko:'AI+트럼프 랠리 고점',      enDesc:'Trump re-election + AI infrastructure boom. Near upper channel. Currently correcting.',                                                                                                                       koDesc:'트럼프 재선+AI 인프라 투자 붐. 추세 채널 상단 근접. 현재 조정 중.'},
+  {date:'2022-01',price:4797.0,  en:'ZIRP Bubble Peak',            ko:'제로금리 유동성 버블 정점',enDesc:'Peak of the zero-rate liquidity bubble. Massive COVID QE simultaneously inflated stocks, crypto, NFTs, and metaverse assets. The ARKK ETF epitomized loss-making growth stock mania. The Fed responded late with 4 consecutive 75bp hikes — S&P 500 fell -25%, Nasdaq -33%. A textbook case of how quantitative easing eventually deflates.',                                                                                                                        koDesc:'제로금리 유동성 버블의 정점. 코로나 QE로 풀린 천문학적 유동성이 주식·코인·NFT·메타버스를 동시에 부풀렸다. ARKK ETF가 상징하는 적자 성장주 버블. 연준이 뒤늦게 4연속 0.75%p 인상에 나서며 S&P 500 -25%, 나스닥 -33% 조정. 버블 붕괴의 교과서적 사례.'},
+  {date:'2024-11',price:5910.0,  en:'AI+Trump Rally Peak',         ko:'AI+트럼프 랠리 고점',      enDesc:'Rally peak combining Trump re-election and the AI infrastructure investment boom. Nasdaq gained +150% in 2 years since ChatGPT launched (Nov 2022). AI semiconductors (NVDA), B2B software, and power infrastructure led the market. Per Shinhan Securities analysis, this was T+2Y in the AI cycle — with potentially 2–3 more years before the historical peak zone (T+5Y ≈ late 2027).',                                                                                                                       koDesc:'트럼프 재선 + AI 인프라 투자 붐이 겹친 랠리의 고점. ChatGPT 출시(2022.11) 이후 2년간 나스닥 +150% 상승. AI 반도체(NVDA), B2B 소프트웨어, 전력 인프라 섹터가 시장을 주도했다. 신한투자증권 분석 기준 T+2년 구간으로, 닷컴·FANG 사이클과 비교 시 아직 정점(T+5 ≈ 2027년 하반기)까지 2-3년의 여력이 남아있는 시점이었다.'},
 ].map(m => ({...m, type:'peak'}));
 
 const TROUGHS = [
-  {date:'1932-05',price:4.4,    en:'Great Depression Bottom',     ko:'대공황 절대 바닥',         enDesc:'24% unemployment, GDP -30%, thousands of bank failures. FDR\'s election started recovery. Channel lower anchor point.',                                                                                      koDesc:'실업률 24%, GDP -30%, 은행 수천 개 파산. 루즈벨트 당선(11월)으로 회복 시작. 추세 채널 하단 기준점.'},
+  {date:'1932-05',price:4.4,    en:'Great Depression Bottom',     ko:'대공황 절대 바닥',         enDesc:'The absolute bottom of the Great Depression. Unemployment at 24%, GDP down 30%, thousands of bank failures. An -86% drawdown from the 1929 peak — the largest in history. FDR\'s election (Nov 1932) and the New Deal provided the catalyst for recovery. This bottom became the defining anchor point for the lower trend channel line, which held for 90+ years.',                                                                                      koDesc:'대공황의 절대 바닥. 실업률 24%, GDP -30%, 은행 수천 개 파산. 1929년 고점 대비 -86%로 역사상 최대 하락폭. 루즈벨트 당선(1932.11)과 뉴딜 정책이 회복의 계기가 됐다. 이 바닥이 추세 채널 하단의 기준점이 됐으며, 이후 90년간 채널 내에서 움직였다.'},
   {date:'1938-03',price:9.5,    en:'Depression Relapse',          ko:'공황 속 공황 바닥',        enDesc:'FDR\'s austerity error + Fed tightening sent economy back into recession. Policy reversal led to recovery.',                                                                                                  koDesc:'루즈벨트 긴축 실수+연준 긴축으로 경기 재추락. 정책 반전 후 회복.'},
   {date:'1942-04',price:7.5,    en:'WWII Darkest Hour',           ko:'2차대전 최악의 시기',      enDesc:'Defeat streak after Pearl Harbor. Fear peaked just before Midway Battle. War production boom followed.',                                                                                                       koDesc:'진주만(1941-12) 이후 태평양 전선 연패. 미드웨이 해전 직전 공포 정점. 이후 전시 생산 붐.'},
   {date:'1946-10',price:15.1,   en:'Post-war Inflation Shock',    ko:'전후 인플레이션 쇼크',     enDesc:'Price controls lifted causing inflation surge. Nationwide strikes. Truman approval at lowest.',                                                                                                                koDesc:'가격 통제 해제로 인플레이션 폭등. 전국 파업 동시다발. 트루먼 지지율 최저.'},
@@ -390,16 +390,16 @@ const TROUGHS = [
   {date:'1962-06',price:52.3,   en:'Kennedy Slide Bottom',        ko:'케네디 슬라이드',          enDesc:'Cuban Missile Crisis fear (-28%). Nuclear war panic at peak.',                                                                                                                                                 koDesc:'쿠바 미사일 위기 전야 패닉 매도(-28%). 핵전쟁 공포 정점.'},
   {date:'1966-10',price:73.2,   en:'Vietnam War Costs Shock',     ko:'베트남 전비 쇼크',         enDesc:'Inflation pressure + Fed tightening start. LBJ stimulus reversed decline.',                                                                                                                                   koDesc:'인플레이션 압력+연준 긴축 시작. 존슨 경기 부양책으로 회복.'},
   {date:'1970-06',price:69.3,   en:'Vietnam Escalation Bottom',   ko:'베트남 캄보디아 확전',     enDesc:"Nixon's Cambodia bombing sparked anti-war protests. Recession alongside.",                                                                                                                                     koDesc:'닉슨 캄보디아 폭격 발표로 반전 시위 폭발. 경기침체 동반.'},
-  {date:'1974-09',price:62.3,   en:'Oil Shock + Watergate Bottom',ko:'오일쇼크+워터게이트 바닥', enDesc:'Oil Shock #1 + Nixon resignation (Aug). Worst stagflation. Channel lower touch. Start of great bull.',                                                                                                         koDesc:'1차 오일쇼크+닉슨 사임(8월). 스태그플레이션 최악. 추세 채널 하단 터치. 이후 대강세장 출발점.'},
+  {date:'1974-09',price:62.3,   en:'Oil Shock + Watergate Bottom',ko:'오일쇼크+워터게이트 바닥', enDesc:'Double shock: Oil Crisis #1 plus Nixon\'s Watergate resignation (Aug 1974). Worst phase of stagflation — inflation rising while the economy contracted. Market fell -48% from peak. After precisely touching the lower trend channel, the Volcker-Reagan era great bull market began. Sideways consolidation continued until the 1982 breakout.',                                                                                                         koDesc:'1차 오일쇼크 + 닉슨 워터게이트 사임(1974.8)의 이중 충격. 스태그플레이션(물가 상승 + 경기 침체)의 최악 구간. 주가는 고점 대비 -48% 하락. 추세 채널 하단에 정확히 닿은 후 볼커-레이건 시대의 대강세장이 시작됐다. 이후 1982년까지 박스권이 이어졌다.'},
   {date:'1978-03',price:86.9,   en:'Carter Stagflation Low',      ko:'카터 스태그플레이션',      enDesc:'Just before Oil Shock #2. Iranian Revolution (1979) spiked oil again.',                                                                                                                                       koDesc:'2차 오일쇼크 직전 바닥. 이란 혁명(1979)으로 유가 재폭등.'},
   {date:'1982-08',price:102.4,  en:'Volcker Tightening Bottom',   ko:'볼커 긴축 최종 바닥',      enDesc:'20% peak rates. Mexico default fueled debt crisis fear. Rate declines + Reagan tax cuts launched 1980-90s great bull.',                                                                                        koDesc:'기준금리 20% 정점. 멕시코 디폴트로 채무 위기 공포. 이후 금리 하락+레이건 감세로 80-90년대 대강세장.'},
   {date:'1987-12',price:223.9,  en:'Post-Black Monday Bottom',    ko:'블랙먼데이 이후 바닥',     enDesc:"October's -22% single-day shock then further decline. Fed liquidity injected for quick recovery.",                                                                                                             koDesc:'10월 단일일 -22% 충격 후 추가 하락. 연준 유동성 공급으로 빠른 회복.'},
   {date:'1990-10',price:295.5,  en:'Gulf War Fear Bottom',        ko:'걸프전 공포 바닥',         enDesc:'Iraq Kuwait occupation + S&L crisis. Gulf War\'s quick end (100-hr war) caused sharp bounce.',                                                                                                                  koDesc:'이라크 쿠웨이트 점령+S&L 위기. 걸프전 단기 종결(100시간 전쟁)로 급반등.'},
   {date:'1998-10',price:923.0,  en:'LTCM Collapse Bottom',        ko:'LTCM 붕괴 바닥',           enDesc:'Russia default → LTCM implosion → financial system crisis. Greenspan cut rates 3× in emergency.',                                                                                                              koDesc:'러시아 디폴트→헤지펀드 LTCM 붕괴→금융시스템 위기. 그린스펀 3연속 긴급 금리 인하.'},
   {date:'2002-09',price:800.6,  en:'Dot-com Bust Bottom',         ko:'닷컴 붕괴 최종 바닥',      enDesc:'Bubble burst (-49%) + 9/11 shock + Iraq war uncertainty. S&P 500 halved in 2.5 years.',                                                                                                                        koDesc:'버블 붕괴(-49%)+9/11 충격+이라크전 불안. S&P 500 실질 2.5년 만에 반토막.'},
-  {date:'2009-03',price:677.0,  en:'Financial Crisis Bottom',     ko:'리먼 사태 바닥',           enDesc:"Financial system near-collapse. Bernanke's unlimited QE. Then history's longest bull (11 yrs, +400%). Channel lower touch.",                                                                                   koDesc:'금융시스템 붕괴 직전. 버냉키 무제한 QE 선언. 이후 역대 최장·최대 강세장(11년, +400%). 추세 채널 하단 터치.'},
+  {date:'2009-03',price:677.0,  en:'Financial Crisis Bottom',     ko:'리먼 사태 바닥',           enDesc:"Bottom of the global financial crisis triggered by Lehman Brothers' collapse (Sep 2008). The financial system was brought to the brink of total failure. S&P 500 fell -57% from peak. Bernanke's announcement of unlimited QE was the turning point. This became the launchpad for the longest bull market in history (11 years, +400%), with a precise touch of the lower trend channel.",                                                                                   koDesc:'리먼 브라더스 파산(2008.9)으로 시작된 글로벌 금융위기의 바닥. 금융 시스템 붕괴 직전까지 몰린 시점. S&P 500은 고점 대비 -57%. 버냉키의 무제한 QE 선언이 반전의 계기. 이후 역사상 최장 강세장(11년, +400%)의 출발점이 됐으며, 추세 채널 하단을 정확히 터치했다.'},
   {date:'2020-03',price:2237.4, en:'COVID Panic Bottom',          ko:'코로나 패닉 바닥',         enDesc:'Global lockdowns. Fed unlimited QE + $2.2T stimulus. V-shaped recovery after 33-day crash.',                                                                                                                   koDesc:'전 세계 봉쇄령. 연준 무제한 QE+미 정부 $2.2조 부양. 33일 폭락 후 V자 반등.'},
-  {date:'2022-10',price:3577.0, en:'Fed Tightening Bottom',       ko:'연준 급긴축 바닥',         enDesc:'9% inflation → Fed: 4× consecutive 75bp hikes. AI boom (ChatGPT Nov 2022) sparked rapid recovery.',                                                                                                           koDesc:'인플레이션 9%→연준 4연속 0.75%p 인상. 이후 AI 붐(ChatGPT 출시 2022-11)으로 급반등.'},
+  {date:'2022-10',price:3577.0, en:'Fed Tightening Bottom',       ko:'연준 급긴축 바닥',         enDesc:'Bottom caused by the Fed\'s 4 consecutive 75bp rate hikes responding to 9% inflation — the most aggressive tightening in 40 years. Simultaneously, ChatGPT launched in November 2022, marking the dawn of the AI revolution. This trough is T=0 for the current AI bull market. Per Shinhan Securities analysis, the potential bubble peak zone is late 2027 (T+5Y).',                                                                                                           koDesc:'연준의 4연속 0.75%p 금리 인상으로 인한 바닥. 인플레이션 9%에 대응한 역대급 긴축. 동시에 ChatGPT가 2022년 11월 출시되며 AI 혁명의 서막이 열렸다. 이 바닥이 현재 AI 강세장의 T=0 기준점. 신한투자증권 분석에 따르면 T+5년인 2027년 하반기가 잠재적 버블 정점 구간.'},
 ].map(m => ({...m, type:'trough'}));
 
 const ALL_MARKERS = [...PEAKS, ...TROUGHS].sort((a,b) => a.date.localeCompare(b.date));
@@ -447,7 +447,7 @@ function updateMaDatasets() {
 
 // ── Forecast data (nominal S&P 500, based on Shinhan Securities 2025-08-19) ──
 const FORECAST_POINTS = [
-  {date:'2026-05', price:5700},
+  {date:'2026-05', price:5260},
   {date:'2026-12', price:6800},
   {date:'2027-06', price:8000},
   {date:'2027-10', price:9200},
@@ -455,12 +455,12 @@ const FORECAST_POINTS = [
   {date:'2028-12', price:6500},
 ];
 const FORECAST_BULL = [
-  {date:'2026-05', price:5700},
+  {date:'2026-05', price:5260},
   {date:'2027-08', price:10500},
   {date:'2028-12', price:8500},
 ];
 const FORECAST_BEAR = [
-  {date:'2026-05', price:5700},
+  {date:'2026-05', price:5260},
   {date:'2027-03', price:7200},
   {date:'2028-12', price:5000},
 ];
@@ -544,11 +544,11 @@ function computeRealChannelParams() {
     const idx = dates.indexOf(dateStr);
     return (idx >= 0 && realPrices[idx] > 0) ? [idx, Math.log(realPrices[idx])] : null;
   }
-  // Upper anchors: major channel-top touches in real terms
-  const upperPts = ['1956-03', '2000-03'].map(logReal).filter(Boolean);
+  // Upper anchor: 2000-03 dot-com peak — single anchor ensures exact touch
+  const upperPts = ['2000-03'].map(logReal).filter(Boolean);
   // Lower anchors: major channel-bottom touches in real terms
   const lowerPts = ['1932-05', '1974-09', '2009-03'].map(logReal).filter(Boolean);
-  if (upperPts.length < 2 || lowerPts.length < 2) return null;
+  if (upperPts.length < 1 || lowerPts.length < 2) return null;
 
   // Least-squares slope from lower anchors (more points → more stable)
   function lsSlope(pts) {
@@ -587,6 +587,14 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
     realPrices = prices.map((p, i) => p * CPI_BASE / getMonthCPI(dates[i]));
     realChannelParams = computeRealChannelParams();
     ALL_MARKERS.forEach(m => { m.idx = dates.indexOf(m.date); });
+    // Anchor forecast arrays to the last actual data point so the dashed line
+    // starts exactly where the solid line ends. isAnchor marks it as real data
+    // (not an estimate) so the tooltip shows the actual price without "(est.)".
+    const lastActual = prices[prices.length - 1];
+    const lastDate   = dates[dates.length - 1];
+    FORECAST_POINTS[0] = { date: lastDate, price: lastActual, isAnchor: true };
+    FORECAST_BULL[0]   = { date: lastDate, price: lastActual };
+    FORECAST_BEAR[0]   = { date: lastDate, price: lastActual };
     try {
       initChart();
       initRsiChart();
@@ -1021,13 +1029,9 @@ function initChart() {
           callbacks: {
             title: items => fmtDate(dates[Math.round(items[0].parsed.x)] || '1927-01'),
             label: item => {
-              if (item.datasetIndex === 0) {
-                const val = item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1});
-                return showReal ? `S&P 500 (Real 2025$): ${val}` : `S&P 500: ${val}`;
-              }
-              const labels = ['', 'MA-12 (1Y)', 'MA-60 (5Y)', 'MA-120 (10Y)'];
+              if (item.datasetIndex !== 0) return null;
               const val = item.parsed.y.toLocaleString(undefined, {maximumFractionDigits:1});
-              return `${labels[item.datasetIndex]}: ${val}`;
+              return showReal ? `S&P 500 (Real 2025$): ${val}` : `S&P 500: ${val}`;
             },
             afterLabel: item => {
               const idx = Math.round(item.parsed.x);
@@ -1088,8 +1092,19 @@ function initChart() {
 
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
-    const found = detectMarker(e.clientX - rect.left, e.clientY - rect.top);
-    if (found) openPanel(found);
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const found = detectMarker(mx, my);
+    if (found) { openPanel(found); return; }
+    // Click on price line (within 20px of line) → open market status panel
+    const idx = Math.round(chart.scales.x.getValueForPixel(mx));
+    if (idx >= 0 && idx < dates.length) {
+      const dp = getDisplayPrices();
+      const price = dp[idx];
+      if (price) {
+        const lineY = chart.scales.y.getPixelForValue(price);
+        if (Math.abs(my - lineY) < 20) openLinePanel(idx);
+      }
+    }
   });
 }
 
@@ -1123,11 +1138,14 @@ function showTooltip(m, mx, my) {
   const tt = document.getElementById('markerTooltip');
   const lang = currentLang();
   document.getElementById('ttDate').textContent = fmtDate(m.date);
-  if (m.isForecast) {
+  if (m.isForecast && m.isAnchor) {
+    document.getElementById('ttPrice').textContent = m.price.toLocaleString(undefined, {maximumFractionDigits: 1});
+    document.getElementById('ttTitle').textContent = 'S&P 500';
+  } else if (m.isForecast) {
     document.getElementById('ttPrice').textContent = m.price.toLocaleString() + ' (est.)';
     document.getElementById('ttTitle').textContent = lang === 'ko'
-      ? '신한투자증권 예측 (2025.08)'
-      : 'Shinhan Forecast (2025.08)';
+      ? '신한투자증권 2026.05 보고서 기반 S&P 500 추정'
+      : 'S&P 500 estimate based on Shinhan Securities (2026.05)';
   } else {
     const dp = getDisplayPrices();
     const displayPrice = dp[m.idx] ?? m.price;
@@ -1152,8 +1170,8 @@ function hideTooltip() {
 function openPanel(m) {
   const lang = currentLang();
   document.getElementById('dpType').textContent  = m.type === 'peak'
-    ? (lang === 'ko' ? '▲ 고점 (PEAK)' : '▲ PEAK')
-    : (lang === 'ko' ? '▼ 저점 (TROUGH)' : '▼ TROUGH');
+    ? (lang === 'ko' ? '🔴 고점 (PEAK)' : '🔴 PEAK')
+    : (lang === 'ko' ? '🔵 저점 (TROUGH)' : '🔵 TROUGH');
   document.getElementById('dpType').style.color  = m.type === 'peak' ? '#f85149' : '#3B8BD4';
   document.getElementById('dpDate').textContent  = fmtDate(m.date);
   const dp = getDisplayPrices();
@@ -1161,6 +1179,51 @@ function openPanel(m) {
   document.getElementById('dpPrice').textContent = displayPrice.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
   document.getElementById('dpTitle').textContent = lang === 'ko' ? m.ko : m.en;
   document.getElementById('dpDesc').textContent  = lang === 'ko' ? m.koDesc : m.enDesc;
+  document.getElementById('detailPanel').classList.add('open');
+}
+
+function openLinePanel(idx) {
+  const lang = currentLang();
+  const date = dates[idx];
+  if (!date) return;
+  const dp = getDisplayPrices();
+  const price = dp[idx];
+  if (!price) return;
+
+  // Phase context
+  const ph = getPhaseForIdx(idx);
+  const phStr = ph ? (lang === 'ko' ? ph.ko : ph.en) : '';
+  const phDates = ph ? (ph.from.slice(0,4) === ph.to.slice(0,4)
+    ? ph.from.slice(0,4)
+    : `${ph.from.slice(0,4)}–${ph.to.slice(0,4)}`) : '';
+  const phLabel = ph ? `${phDates}  ${phStr}` : '';
+
+  // Distance from channel center
+  const cp = showReal
+    ? realChannelParams
+    : { slope: SLOPE, upperInt: UPPER_INT, lowerInt: LOWER_INT };
+  let channelStr = '';
+  if (cp) {
+    const centerInt = (cp.upperInt + cp.lowerInt) / 2;
+    const centerPrice = Math.exp(centerInt + cp.slope * idx);
+    const pct = ((price / centerPrice) - 1) * 100;
+    const sign = pct >= 0 ? '+' : '';
+    channelStr = lang === 'ko'
+      ? `채널 중심선 대비 ${sign}${pct.toFixed(1)}%`
+      : `${sign}${pct.toFixed(1)}% vs channel center`;
+  }
+
+  // RSI at that index
+  const {rsiVals} = getRsiDatasets();
+  const rsiVal = rsiVals[idx];
+  const rsiStr = (rsiVal !== null && !isNaN(rsiVal)) ? `RSI(14): ${rsiVal.toFixed(1)}` : '';
+
+  document.getElementById('dpType').textContent = lang === 'ko' ? '📊 시장 현황' : '📊 Market Status';
+  document.getElementById('dpType').style.color = 'var(--text-secondary)';
+  document.getElementById('dpDate').textContent = fmtDate(date);
+  document.getElementById('dpPrice').textContent = price.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
+  document.getElementById('dpTitle').textContent = phLabel;
+  document.getElementById('dpDesc').textContent = [channelStr, rsiStr].filter(Boolean).join('   ·   ');
   document.getElementById('detailPanel').classList.add('open');
 }
 
@@ -1247,28 +1310,40 @@ function updateOverlay(ch) {
     const fxPx = ds => xS.getPixelForValue(dateToIdx(ds));
     const fyPx = price => yS.getPixelForValue(price);
 
-    // Uncertainty band polygon (bounded by bull and bear scenarios)
-    const upperPts = FORECAST_BULL.map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
-    const lowerPts = [...FORECAST_BEAR].reverse().map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
-    html += `<polygon points="${upperPts} ${lowerPts}" fill="rgba(255,165,0,0.08)"/>`;
+    // Anchor: exact canvas pixel of the last actual data point.
+    // Using xS.getPixelForValue(lastIdx) directly matches how Chart.js renders
+    // the actual line — avoids any canvas↔SVG sub-pixel mismatch from the
+    // dateToIdx→getPixelForValue indirect path.
+    const lastIdx = dates.length - 1;
+    const anchorX = xS.getPixelForValue(lastIdx);
+    const anchorY = yS.getPixelForValue(prices[lastIdx]);
 
-    // Bull scenario line
-    const bullD = FORECAST_BULL.map((p,i) => `${i?'L':'M'}${fxPx(p.date)},${fyPx(p.price)}`).join('');
+    // Uncertainty band polygon — anchor start/end, skip index-0 of each array
+    const bullPts  = FORECAST_BULL.slice(1).map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
+    const bearRevPts = [...FORECAST_BEAR.slice(1)].reverse().map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
+    html += `<polygon points="${anchorX},${anchorY} ${bullPts} ${bearRevPts} ${anchorX},${anchorY}" fill="rgba(255,165,0,0.08)"/>`;
+
+    // Bull scenario line — M at anchor, L to forecast nodes
+    let bullD = `M${anchorX},${anchorY}`;
+    FORECAST_BULL.slice(1).forEach(p => { bullD += `L${fxPx(p.date)},${fyPx(p.price)}`; });
     html += `<path d="${bullD}" fill="none" stroke="rgba(255,100,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
 
-    // Bear scenario line
-    const bearD = FORECAST_BEAR.map((p,i) => `${i?'L':'M'}${fxPx(p.date)},${fyPx(p.price)}`).join('');
+    // Bear scenario line — M at anchor, L to forecast nodes
+    let bearD = `M${anchorX},${anchorY}`;
+    FORECAST_BEAR.slice(1).forEach(p => { bearD += `L${fxPx(p.date)},${fyPx(p.price)}`; });
     html += `<path d="${bearD}" fill="none" stroke="rgba(100,180,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
 
-    // Central forecast line
-    const fcastD = FORECAST_POINTS.map((p,i) => `${i?'L':'M'}${fxPx(p.date)},${fyPx(p.price)}`).join('');
+    // Central forecast line — M at anchor guarantees seamless connection
+    let fcastD = `M${anchorX},${anchorY}`;
+    FORECAST_POINTS.slice(1).forEach(p => { fcastD += `L${fxPx(p.date)},${fyPx(p.price)}`; });
     html += `<path d="${fcastD}" fill="none" stroke="rgba(255,165,0,0.85)" stroke-width="2" stroke-dasharray="8,4"/>`;
 
-    // Forecast data point dots
-    for (const p of FORECAST_POINTS) {
+    // Forecast dots: first at anchor pixel, rest at their date positions
+    html += `<circle cx="${anchorX}" cy="${anchorY}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;
+    FORECAST_POINTS.slice(1).forEach(p => {
       const px2 = fxPx(p.date), py2 = fyPx(p.price);
       html += `<circle cx="${px2}" cy="${py2}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;
-    }
+    });
   }
 
   html += '</g>';

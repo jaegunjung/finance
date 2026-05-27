@@ -89,9 +89,6 @@ title: Bitcoin Long-Term Trend
     <button id="rainbowToggle" class="ctrl-btn active" onclick="toggleRainbow()">
       <span class="en-only">🌈 Rainbow</span><span class="ko-only">🌈 레인보우</span>
     </button>
-    <button id="btcForecastToggle" class="ctrl-btn active" onclick="toggleBtcForecast()">
-      <span class="en-only">Forecast On</span><span class="ko-only">예측 표시 중</span>
-    </button>
   </div>
 </div>
 
@@ -128,14 +125,6 @@ title: Bitcoin Long-Term Trend
   <span class="en-only">Initial data from local database · Daily updates via CoinGecko API</span>
   <span class="ko-only">초기 데이터: 로컬 DB · 일별 업데이트: CoinGecko API</span>
 </p>
-<div id="btcForecastLegend" class="forecast-legend">
-  <span><span style="color:rgba(255,165,0,0.9); letter-spacing:-2px;">─ ─ ─</span>&nbsp;
-    <span class="en-only">Base case</span><span class="ko-only">기준 시나리오</span></span>
-  <span><span style="color:rgba(255,100,100,0.65);">─ ─</span>&nbsp;
-    <span class="en-only">Bull case</span><span class="ko-only">강세 시나리오</span></span>
-  <span><span style="color:rgba(100,180,100,0.65);">─ ─</span>&nbsp;
-    <span class="en-only">Bear case</span><span class="ko-only">약세 시나리오</span></span>
-</div>
 <div id="rainbowLegend" class="rainbow-legend" style="margin-top:6px;">
   <span><span class="swatch" style="background:#ff0000"></span><span class="en-only">Maximum Bubble</span><span class="ko-only">버블 최고조</span></span>
   <span><span class="swatch" style="background:#ff4500"></span><span class="en-only">Sell. Seriously.</span><span class="ko-only">진심으로 매도</span></span>
@@ -147,11 +136,8 @@ title: Bitcoin Long-Term Trend
   <span><span class="swatch" style="background:#1e90ff"></span>BUY!</span>
   <span><span class="swatch" style="background:#8a2be2"></span><span class="en-only">Fire sale!</span><span class="ko-only">불타는 세일!</span></span>
 </div>
-<p class="source-note" style="font-style:italic;">
-  <span class="en-only">* Bitcoin forecast based on halving cycle patterns and Power Law regression. Generated 2026-05-24. Extremely speculative. NOT investment advice.</span>
-  <span class="ko-only">* 비트코인 예측은 반감기 사이클 패턴과 Power Law 회귀 기반. 생성일: 2026-05-24. 매우 투기적 예측. 투자 권유 아님.</span>
-</p>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
@@ -218,31 +204,11 @@ const BTC_TROUGHS = [
 
 const BTC_MARKERS = [...BTC_PEAKS,...BTC_TROUGHS].sort((a,b)=>a.date.localeCompare(b.date));
 
-// ── Forecast data ──
-const BTC_FORECAST = [
-  {date:'2026-05',price:103000},
-  {date:'2026-09',price:130000},
-  {date:'2026-12',price:150000},
-  {date:'2027-06',price:180000},
-  {date:'2027-12',price:160000},
-  {date:'2028-12',price:120000},
-];
-const BTC_BULL = [
-  {date:'2026-05',price:103000},
-  {date:'2026-10',price:280000},
-  {date:'2028-12',price:200000},
-];
-const BTC_BEAR = [
-  {date:'2026-05',price:103000},
-  {date:'2026-05',price:103000}, // peak already passed
-  {date:'2028-12',price:60000},
-];
-
 // ── Rainbow chart bands (Power Law) ──
 // log10(price) = 5.84 * log10(daysSinceGenesis) - 17.01 = center
-// Each band = 0.47 log10 units wide
+// Bands spaced 0.2 log10 apart; offset units: -4..+4 → -0.8..+0.8 log10
 const PL_A = 5.84, PL_B = -17.01;
-const BAND_HALF = 0.47; // half-width per band in log10 price
+const BAND_HALF = 0.1; // half-width per band in log10 price (0.05 each side)
 const RAINBOW_BANDS = [
   {label:'Maximum Bubble',color:'rgba(255,0,0,0.35)',   offset: 4},
   {label:'Sell. Seriously.',color:'rgba(255,69,0,0.3)', offset: 3},
@@ -260,8 +226,11 @@ function plPrice(daysSinceGenesis, offsetBands) {
 }
 
 function daysSinceGenesis(dateStr) {
-  const [y,m] = dateStr.split('-').map(Number);
-  const d = new Date(y, m-1, 15);
+  // Accepts YYYY-MM-DD or YYYY-MM (uses day 15 for monthly)
+  const parts = dateStr.split('-').map(Number);
+  const d = parts.length >= 3
+    ? new Date(parts[0], parts[1]-1, parts[2])
+    : new Date(parts[0], parts[1]-1, 15);
   return Math.max(1, Math.round((d - GENESIS) / 86400000));
 }
 
@@ -272,7 +241,7 @@ const fmtBtcDate = d => { const [y,m] = d.split('-').map(Number); return `${MONT
 // ── State ──
 let btcChart, btcRsiChart;
 let btcDates = [], btcPrices = [];
-let showRainbow = true, showBtcForecast = true;
+let showRainbow = true;
 let showBtcMA = {12:true,24:true,48:true};
 let btcSharedCrossIdx = null;
 
@@ -309,8 +278,12 @@ function computeBtcEMA(arr, period) {
   return ema;
 }
 
+// MA period mapping: button label (months) → trading days for daily data
+const MA_DAYS = {12: 365, 24: 730, 48: 1460};
+
 function getBtcMaData(period) {
-  return computeBtcSMA(btcPrices, period).map((v,i)=>v===null?null:{x:i,y:v});
+  const days = MA_DAYS[period] || period;
+  return computeBtcSMA(btcPrices, days).map((v,i)=>v===null?null:{x:i,y:v});
 }
 
 function toggleBtcMA(period) {
@@ -329,17 +302,12 @@ function toggleRainbow() {
   updateBtcOverlay(btcChart);
 }
 
-function toggleBtcForecast() {
-  showBtcForecast = !showBtcForecast;
-  const btn = document.getElementById('btcForecastToggle');
-  btn.classList.toggle('active', showBtcForecast);
-  btn.querySelector('.en-only').textContent = showBtcForecast ? 'Forecast On' : 'Forecast Off';
-  btn.querySelector('.ko-only').textContent = showBtcForecast ? '예측 표시 중' : '예측 없음';
-  document.getElementById('btcForecastLegend').style.display = showBtcForecast ? 'flex' : 'none';
-  updateBtcOverlay(btcChart);
-}
-
 function btcDateToIdx(dateStr) {
+  // For YYYY-MM dates (forecast/halvings), find first day of that month in daily array
+  if (dateStr.length === 7) {
+    const idx = btcDates.findIndex(d => d.slice(0, 7) === dateStr);
+    return idx;
+  }
   return btcDates.indexOf(dateStr);
 }
 
@@ -397,18 +365,6 @@ function detectBtcMarker(mx, my) {
     const px=xS.getPixelForValue(m.idx), py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
     if (px<ca.left-5||px>ca.right+5) continue;
     if (Math.abs(mx-px)<10&&Math.abs(my-py)<10) return m;
-  }
-  return null;
-}
-
-function detectBtcForecastPoint(mx, my) {
-  if (!showBtcForecast || !btcChart) return null;
-  const xS=btcChart.scales.x, yS=btcChart.scales.y, ca=btcChart.chartArea;
-  for (const p of BTC_FORECAST) {
-    const idx = btcDateToIdx(p.date); if (idx<0) continue;
-    const px=xS.getPixelForValue(idx), py=yS.getPixelForValue(p.price);
-    if (px<ca.left-5||px>ca.right+5) continue;
-    if (Math.abs(mx-px)<10&&Math.abs(my-py)<10) return {...p,isForecast:true};
   }
   return null;
 }
@@ -498,29 +454,17 @@ function updateBtcOverlay(ch) {
     else html+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
   }
 
-  // Forecast overlay
-  if (showBtcForecast) {
-    const fxPx=ds=>{const i=btcDateToIdx(ds);return i>=0?xS.getPixelForValue(i):null;};
-    const fyPx=price=>yS.getPixelForValue(price);
-    const upperPts=BTC_BULL.map(p=>{const px=fxPx(p.date);return px!=null?`${px},${fyPx(p.price)}`:null;}).filter(Boolean).join(' ');
-    const lowerPts=[...BTC_BEAR].reverse().map(p=>{const px=fxPx(p.date);return px!=null?`${px},${fyPx(p.price)}`:null;}).filter(Boolean).join(' ');
-    html+=`<polygon points="${upperPts} ${lowerPts}" fill="rgba(255,165,0,0.07)"/>`;
-    const bullD=BTC_BULL.map((p,i)=>{const px=fxPx(p.date);return px!=null?`${i?'L':'M'}${px},${fyPx(p.price)}`:null;}).filter(Boolean).join('');
-    if(bullD) html+=`<path d="${bullD}" fill="none" stroke="rgba(255,100,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
-    const bearD=BTC_BEAR.map((p,i)=>{const px=fxPx(p.date);return px!=null?`${i?'L':'M'}${px},${fyPx(p.price)}`:null;}).filter(Boolean).join('');
-    if(bearD) html+=`<path d="${bearD}" fill="none" stroke="rgba(100,180,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
-    const fcastD=BTC_FORECAST.map((p,i)=>{const px=fxPx(p.date);return px!=null?`${i?'L':'M'}${px},${fyPx(p.price)}`:null;}).filter(Boolean).join('');
-    if(fcastD) html+=`<path d="${fcastD}" fill="none" stroke="rgba(255,165,0,0.85)" stroke-width="2" stroke-dasharray="8,4"/>`;
-    for(const p of BTC_FORECAST){const px=fxPx(p.date);if(px!=null)html+=`<circle cx="${px}" cy="${fyPx(p.price)}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;}
-  }
-
   html+='</g>';
   svg.innerHTML=html;
 }
 
 function initBtcChart() {
-  // Assign marker indices
-  BTC_MARKERS.forEach(m => { m.idx = btcDates.indexOf(m.date); });
+  // Assign marker indices — markers have YYYY-MM dates, find first day of that month in daily array
+  BTC_MARKERS.forEach(m => {
+    const prefix = m.date; // YYYY-MM
+    let idx = btcDates.findIndex(d => d.slice(0, 7) === prefix);
+    m.idx = idx;
+  });
 
   const canvas=document.getElementById('btcChart');
   const ctx=canvas.getContext('2d');
@@ -553,12 +497,24 @@ function initBtcChart() {
       responsive:true,maintainAspectRatio:false,animation:false,
       scales:{
         x:{type:'linear',min:0,max:btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
-           ticks:{color:'#8b949e',font:{size:11},stepSize:12,maxTicksLimit:25,
+           ticks:{color:'#8b949e',font:{size:11},maxTicksLimit:12,
                   callback:(val)=>{
                     const i=Math.round(val);if(i<0)return'';
-                    if(i<btcDates.length)return btcDates[i].slice(0,4);
-                    // extrapolate year for forecast region (data starts 2010-07, offset=6)
-                    return String(2010+Math.floor((6+i)/12));
+                    if(i<btcDates.length){
+                      const d=btcDates[i];
+                      // Show year label on Jan 1 (daily data)
+                      if(d&&(d.slice(5)==='01-01'||d.slice(5,7)==='01'))return d.slice(0,4);
+                      return'';
+                    }
+                    // Forecast region: extrapolate from last date
+                    if(btcDates.length>0){
+                      const last=new Date(btcDates[btcDates.length-1]);
+                      const extra=i-btcDates.length+1;
+                      const yr=last.getFullYear()+Math.floor((last.getMonth()+extra)/12);
+                      const m=(last.getMonth()+extra)%12;
+                      return m===0?String(yr):'';
+                    }
+                    return'';
                   }
            }},
         y:{type:'logarithmic',grid:{color:'rgba(48,54,61,0.8)'},
@@ -567,16 +523,21 @@ function initBtcChart() {
            }}
       },
       plugins:{
+        decimation:{enabled:true,algorithm:'lttb',samples:800},
         legend:{display:false},
         tooltip:{
           mode:'index',intersect:false,
           backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,
           titleColor:'#e6edf3',bodyColor:'#8b949e',padding:10,displayColors:false,
           callbacks:{
-            title:items=>fmtBtcDate(btcDates[Math.round(items[0].parsed.x)]||'2010-01'),
+            title:items=>{
+              const i=Math.round(items[0].parsed.x);
+              const d=btcDates[i]||'2010-01-01';
+              return d.slice(0,10);
+            },
             label:item=>{
               if(item.datasetIndex===0){return'BTC: $'+item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0});}
-              const lbls=['','MA-12','MA-24','MA-48 (4Y halving)'];
+              const lbls=['','MA-365d (1Y)','MA-730d (2Y)','MA-1460d (4Y halving)'];
               return`${lbls[item.datasetIndex]}: $${item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0})}`;
             }
           }
@@ -601,7 +562,7 @@ function initBtcChart() {
     const mx=e.clientX-rect.left, my=e.clientY-rect.top;
     crossX=mx; crossY=my;
     btcSharedCrossIdx=Math.round(btcChart.scales.x.getValueForPixel(mx));
-    const found=detectBtcMarker(mx,my)||detectBtcForecastPoint(mx,my);
+    const found=detectBtcMarker(mx,my);
     canvas.style.cursor=found?'pointer':'default';
     if(found)showBtcTooltip(found,mx,my);else hideBtcTooltip();
     btcChart.draw();
@@ -620,10 +581,6 @@ function initBtcChart() {
       alert(`${fmtBtcDate(found.date)}\n$${(btcPrices[found.idx]??found.price).toLocaleString()}\n\n${lang==='ko'?found.koDesc:found.enDesc}`);
     }
   });
-}
-
-function getBtcMaData(period){
-  return computeBtcSMA(btcPrices,period).map((v,i)=>({x:i,y:v===null?NaN:v}));
 }
 
 function initBtcRsiChart(){
@@ -730,92 +687,118 @@ function showBtcError(msg) {
   if (el) el.textContent = msg;
 }
 
-function updateDataSourceNote(source, dateRange) {
+function updateDataSourceNote(source, csvEndDate, apiStartDate) {
   const el = document.getElementById('btcDataSource');
   if (!el) return;
   const isKo = document.documentElement.classList.contains('ko-mode');
   if (source === 'csv') {
-    el.textContent = isKo
-      ? `데이터: 로컬 CSV (일별) · ${dateRange}`
-      : `Data: Local CSV (daily) · ${dateRange}`;
+    const csvFirst = btcDates[0] || '';
+    let note = isKo
+      ? `데이터: CSV (${csvFirst} ~ ${csvEndDate})`
+      : `Data: CSV (${csvFirst} ~ ${csvEndDate})`;
+    if (apiStartDate) {
+      const today = new Date().toISOString().slice(0,10);
+      note += isKo
+        ? ` + CoinGecko API (${apiStartDate} ~ 오늘)`
+        : ` + CoinGecko API (${apiStartDate} ~ today)`;
+    }
+    el.textContent = note;
   } else if (source === 'api') {
-    el.textContent = isKo ? '데이터: CoinGecko API' : 'Data: CoinGecko API';
+    el.textContent = isKo ? '데이터: CoinGecko API (월별)' : 'Data: CoinGecko API (monthly)';
   } else {
     el.textContent = isKo ? '데이터: 내장 앵커 가격' : 'Data: Hardcoded anchors';
   }
 }
 
-// Parse daily CSV and aggregate to monthly averages
+// Parse daily CSV → returns { dates: ['YYYY-MM-DD',...], prices: [...] }
 function parseDailyCsv(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return null;
-  const header = lines[0].split(',');
-  const dateIdx = header.indexOf('date');
-  const priceIdx = header.indexOf('open_price_usd');
-  if (dateIdx < 0 || priceIdx < 0) return null;
-  const monthly = {};
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',');
-    const d = cols[dateIdx]?.trim();
-    const p = parseFloat(cols[priceIdx]);
+  const result = Papa.parse(text.trim(), {header: true, skipEmptyLines: true});
+  if (!result.data || result.data.length === 0) return null;
+  const rows = result.data;
+  const dates = [], prices = [];
+  for (const row of rows) {
+    const d = (row.date || '').trim();
+    const p = parseFloat(row.open_price_usd);
     if (!d || isNaN(p) || p <= 0) continue;
-    const key = d.slice(0, 7); // YYYY-MM
-    if (!monthly[key]) monthly[key] = [];
-    monthly[key].push(p);
+    dates.push(d);
+    prices.push(p);
   }
-  const keys = Object.keys(monthly).sort();
-  if (keys.length === 0) return null;
-  // Convert to format compatible with CoinGecko response
-  const prices = keys.map(k => {
-    const avg = monthly[k].reduce((s, v) => s + v, 0) / monthly[k].length;
-    const [y, m] = k.split('-').map(Number);
-    return [new Date(y, m - 1, 15).getTime(), avg];
-  });
-  return { prices };
+  if (dates.length === 0) return null;
+  return { dates, prices };
 }
 
 async function loadBtcData(){
-  let apiData = null;
   let dataSource = 'hardcoded';
-  let csvDateRange = '';
+  let csvEndDate = '', apiStartDate = '';
 
-  // 1. Try local CSV first
+  // 1. Try local daily CSV
   try {
     const csvUrl = '{{ "/crypto/data/btc_daily.csv" | relative_url }}';
     const r = await fetch(csvUrl);
     if (r.ok) {
       const text = await r.text();
       const parsed = parseDailyCsv(text);
-      if (parsed && parsed.prices.length > 0) {
-        apiData = parsed;
+      if (parsed && parsed.dates.length > 0) {
+        btcDates = parsed.dates;
+        btcPrices = parsed.prices;
         dataSource = 'csv';
-        const first = parsed.prices[0];
-        const last = parsed.prices[parsed.prices.length - 1];
-        const fmt = ts => new Date(ts).toISOString().slice(0, 7);
-        csvDateRange = `${fmt(first[0])} – ${fmt(last[0])}`;
-        console.log('BTC data loaded from CSV:', parsed.prices.length, 'monthly points');
+        csvEndDate = parsed.dates[parsed.dates.length - 1];
+        console.log('BTC daily CSV loaded:', parsed.dates.length, 'days, last:', csvEndDate);
       }
     }
   } catch(e) { console.log('CSV unavailable:', e.message); }
 
-  // 2. Fall back to CoinGecko API
-  if (!apiData) {
+  // 2. If no CSV, fall back to CoinGecko monthly API → build from anchors
+  if (dataSource === 'hardcoded') {
     try {
       const r = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=monthly',
         {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined});
-      if (r.ok) { apiData = await r.json(); dataSource = 'api'; }
-    } catch(e) { console.log('CoinGecko unavailable, using hardcoded anchors'); }
+      if (r.ok) {
+        const json = await r.json();
+        buildBtcData(json);
+        dataSource = 'api';
+      }
+    } catch(e) { console.log('CoinGecko unavailable'); }
+    if (dataSource === 'hardcoded') buildBtcData(null);
   }
 
+  // 3. Append recent daily data from CoinGecko to fill gap after CSV end date
+  if (dataSource === 'csv' && btcDates.length > 0) {
+    try {
+      const apiR = await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30&interval=daily',
+        {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined});
+      if (apiR.ok) {
+        const json = await apiR.json();
+        const lastDate = btcDates[btcDates.length - 1];
+        let appended = 0;
+        for (const [ts, price] of json.prices) {
+          const d = new Date(ts);
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          if (dateStr > lastDate && price > 0) {
+            btcDates.push(dateStr);
+            btcPrices.push(price);
+            appended++;
+            if (!apiStartDate) apiStartDate = dateStr;
+          }
+        }
+        if (appended > 0) console.log('Appended', appended, 'days from CoinGecko API');
+      }
+    } catch(e) { console.log('CoinGecko gap-fill unavailable:', e.message); }
+  }
+
+  // Filter to 2012-01-01 and later
+  const startDate = '2012-01-01';
+  const startIdx = btcDates.findIndex(d => d >= startDate);
+  if (startIdx > 0) { btcDates = btcDates.slice(startIdx); btcPrices = btcPrices.slice(startIdx); }
+
   try {
-    buildBtcData(apiData);
     if (btcDates.length === 0) throw new Error('No price data');
     initBtcChart();
     initBtcRsiChart();
     const loader = document.getElementById('btcChartLoading');
     if (loader) loader.style.display = 'none';
-    updateDataSourceNote(dataSource, csvDateRange);
-    console.log('BTC chart loaded from:', dataSource);
+    updateDataSourceNote(dataSource, csvEndDate, apiStartDate);
+    console.log('BTC chart loaded from:', dataSource, 'total points:', btcDates.length);
   } catch(e) {
     showBtcError('Chart error: ' + e.message);
     console.error(e);

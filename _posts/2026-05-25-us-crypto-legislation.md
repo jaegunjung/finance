@@ -13,12 +13,12 @@ tags: [crypto, bitcoin, regulation, GENIUS, CLARITY, ARMA, legislation]
 <iframe
   src="{{ '/crypto/btc-mini-chart.html' | relative_url }}"
   width="100%"
-  height="300px"
+  height="280px"
   frameborder="0"
   style="border-radius:8px; margin-bottom:24px; border:1px solid #30363d; display:block;">
 </iframe>
 
-<div class="ko-only" markdown="1">
+<div class="lang-ko" markdown="1">
 
 ## 1. GENIUS Act — 스테이블코인의 법적 기반을 세우다
 
@@ -97,7 +97,7 @@ tags: [crypto, bitcoin, regulation, GENIUS, CLARITY, ARMA, legislation]
 
 </div>
 
-<div class="en-only" markdown="1">
+<div class="lang-en" markdown="1">
 
 ## 1. GENIUS Act — Stablecoins Are Now Legal
 

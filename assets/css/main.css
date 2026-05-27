@@ -269,3 +269,9 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
 .ko-only { display: none !important; }
 html.ko-mode .ko-only { display: revert !important; }
 html.ko-mode .en-only { display: none !important; }
+
+/* lang-ko / lang-en class system (mirrors ko-mode toggle) */
+.lang-ko { display: none; }
+html.ko-mode .lang-ko { display: block; }
+html.ko-mode .lang-en { display: none; }
+.lang-en { display: block; }

@@ -45,8 +45,8 @@ excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사
 </div>
 
 <p style="background:rgba(59,139,212,0.08);border-left:3px solid #3B8BD4;padding:12px 16px;border-radius:0 6px 6px 0;margin:20px 0;font-size:0.875rem;line-height:1.7;">
-  <span class="en-only">▶ <strong>May 2026 Update:</strong> Nine months have passed since this report was published in August 2025. The AI cycle has advanced from T+2.5Y (just past the first price correction) to T+3.5Y. Both the dot-com bubble and FANG cycle showed brief consolidation at this stage before further advances. Additionally, the White House officially announced a July 4 target for the Clarity Act (May 6, 2026), and ARMA was introduced bipartisanly on May 21. These institutional developments were not present when the report was published — they represent additional bullish catalysts.</span>
-  <span class="ko-only">▶ <strong>2026년 5월 업데이트:</strong> 위 보고서가 발간된 2025년 8월 이후 9개월이 지났다. AI 사이클은 그림 1(좌측 차트)에서 T+2.5년(1차 가격 조정 직후)에 위치했으나, 현재는 T+3.5년으로 이동했다. 닷컴 버블과 FANG 사이클 모두 이 구간에서 잠시 숨고르기 후 추가 상승했다. 또한 백악관은 2026년 5월 6일 Clarity Act의 7월 4일 서명을 공식 목표로 발표했으며, ARMA(미국 비트코인 전략비축법)도 5월 21일 초당적으로 발의됐다. 이러한 제도적 진전은 보고서 발간 당시에는 존재하지 않았던 추가적인 강세 촉매다.</span>
+  <span class="en-only">▶ <strong>May 2026 Update:</strong> Nine months have passed since this report was published in August 2025. The AI cycle has advanced from T+2.5Y (just past the first price correction) to T+3.5Y. Both the dot-com bubble and FANG cycle showed brief consolidation at this stage before further advances.</span>
+  <span class="ko-only">▶ <strong>2026년 5월 업데이트:</strong> 위 보고서가 발간된 2025년 8월 이후 9개월이 지났다. AI 사이클은 그림 1(좌측 차트)에서 T+2.5년(1차 가격 조정 직후)에 위치했으나, 현재는 T+3.5년으로 이동했다. 닷컴 버블과 FANG 사이클 모두 이 구간에서 잠시 숨고르기 후 추가 상승했다.</span>
 </p>
 
 <div class="ref-chart-block">
@@ -94,9 +94,8 @@ excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사
 
 ## 현황 요약 (2026년 5월)
 
-- **S&P 500**: 연초 대비 +8%, 현재 ~5,700. AI 강세장 **T+3.5년** (기산점: 2022년 10월).
+- **S&P 500**: 연초 대비 -6%, 현재 ~5,260. AI 강세장 **T+3.5년** (기산점: 2022년 10월).
 - **비트코인**: ~$103,000, 레인보우 차트 기준 "BUY" 구간.
-- **크립토 입법**: Clarity Act 7월 4일 서명 목표 — 통과 여부가 향후 6주의 최대 변수.
 
 신한투자증권 2025년 8월 19일 리포트(담당: 김성환·오한비)가 제시한 두 가지 역사적 패턴은 2026년 5월 현재도 여전히 유효하다. 다만 시간이 경과하면서 각 패턴의 의미가 더욱 선명해졌다. **이 글은 공개 정보 기반의 개인적 해석이며 투자 권유가 아닙니다.**
 
@@ -128,34 +127,22 @@ excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사
 
 연준이 2026년 6월에 추가 인하를 단행한다면, 새로운 17~24개월 창이 시작된다 → 정점 **2027년 11월~2028년 6월**. 이는 버블 사이클 5년 시계와 거의 일치한다.
 
-**핵심 시나리오**: 2026년 중반 중간 조정 → AI·크립토 입법 모멘텀으로 최종 가속 → 2027년 하반기 정점.
-
-## 2026년 신규 변수: 크립토 입법
-
-버블 사이클 프레임에는 없었던 변수가 추가됐다. 미국 크립토 입법이 임박했다.
-
-- **Clarity Act**: 상원 은행위원회 5월 14일 마크업 통과. 백악관 Patrick Witt, 5월 6일 컨센서스 마이애미에서 **7월 4일 서명 목표** 공식 발표.
-- **ARMA**: 5월 21일 양당 공동 발의. 비트코인 전략 비축을 법률로 고착화.
-- Polymarket 예측: Clarity Act 2026년 내 서명 **61%** (4월 47% → 상승 중).
-
-Clarity Act 통과 = 기관 크립토 채택 확실성 → **비트코인·이더리움·토크나이제이션 플레이 강세** 촉매. 실패 시 = 불확실성 지속, 2028년까지 지연 가능성.
-
-11월 중간선거(민주당 하원 탈환 예측 확률 84%)가 실제로 발생하면, 7월 4일 이전 서명이 사실상 마지막 기회다.
+**핵심 시나리오**: 2026년 중반 중간 조정 → AI 모멘텀으로 최종 가속 → 2027년 하반기 정점.
 
 ## 중심 시나리오 (명목 S&P 500)
 
 | 시기 | 지수 수준 | 비고 |
 |---|---|---|
-| 2026년 5월 | ~5,700 | 현재 (T+3.5년) |
+| 2026년 5월 | ~5,260 | 현재 (T+3.5년) |
 | 2026년 12월 | ~6,800 | 중간 조정 후 랠리 재개 |
 | 2027년 6월 | ~8,000 | 정점 전 가속 |
 | 2027년 10월 | ~9,000~9,500 | 버블 사이클 T+5 정점 |
 | 2028년 3월 | ~8,500 | 정점 후 조정 시작 |
 | 2028년 12월 | ~6,500 | 약세장 저점 |
 
-**강세 시나리오**: Clarity Act 통과 + AI 기업이익 가속 → 2027년 8월 ~10,500.
+**강세 시나리오**: AI 기업이익 가속 → 2027년 8월 ~10,500.
 
-**약세 시나리오**: 랠리 창 소진 + Clarity Act 실패 → 2027년 1분기 ~7,200 정점, 이후 급락.
+**약세 시나리오**: 랠리 창 소진 → 2027년 1분기 ~7,200 정점, 이후 급락.
 
 ## 추세 채널과의 관계
 
@@ -173,9 +160,8 @@ Clarity Act 통과 = 기관 크립토 채택 확실성 → **비트코인·이�
 
 ## Status Summary (May 2026)
 
-- **S&P 500**: +8% YTD, currently ~5,700. AI bull market at **T+3.5 years** (from Oct 2022 bottom).
+- **S&P 500**: -6% YTD, currently ~5,260. AI bull market at **T+3.5 years** (from Oct 2022 bottom).
 - **Bitcoin**: ~$103,000, in the "BUY" zone on the rainbow chart.
-- **Crypto legislation**: Clarity Act targeting July 4 signing — the biggest variable for the next 6 weeks.
 
 The two historical patterns identified in the Shinhan Securities report (Aug 19, 2025, analysts Kim Sung-hwan & Oh Han-bi) remain valid as of May 2026. With more time elapsed, each pattern's signal has sharpened. **Personal interpretation only — not investment advice.**
 
@@ -207,32 +193,22 @@ The Fed began cutting in September 2024. Historical post-cut equity rallies last
 
 If the Fed cuts again in June 2026, a fresh 17–24 month window starts → peak **Nov 2027–Jun 2028**, closely aligning with the bubble cycle clock.
 
-**Central scenario**: mid-2026 correction → final acceleration on AI + crypto legislation tailwinds → late-2027 peak.
-
-## 2026 Wildcard: Crypto Legislation
-
-A variable the original bubble cycle framework didn't include: US crypto legislation is imminent.
-
-- **Clarity Act**: Senate Banking Committee markup passed May 14. White House crypto adviser Patrick Witt announced **July 4 signing target** at Consensus Miami (May 6).
-- **ARMA**: Introduced May 21, bipartisan, would codify the Bitcoin Strategic Reserve into law.
-- Polymarket: **61%** chance Clarity Act signed in 2026 (up from 47% in April).
-
-Clarity Act passing = institutional certainty catalyst → **bullish for BTC, ETH, tokenization plays**. Failure = regulatory uncertainty persists, timeline pushed to 2028. With November midterms likely flipping the House to Democrats (84% probability on prediction markets), July 4 is effectively the last window.
+**Central scenario**: mid-2026 correction → final acceleration on AI tailwinds → late-2027 peak.
 
 ## Central Forecast (Nominal S&P 500)
 
 | Date | Level | Notes |
 |---|---|---|
-| May 2026 | ~5,700 | Current (T+3.5yr) |
+| May 2026 | ~5,260 | Current (T+3.5yr) |
 | Dec 2026 | ~6,800 | Post-correction rally resumes |
 | Jun 2027 | ~8,000 | Pre-peak acceleration |
 | Oct 2027 | ~9,000–9,500 | Bubble cycle T+5 peak |
 | Mar 2028 | ~8,500 | Post-peak correction begins |
 | Dec 2028 | ~6,500 | Bear market trough |
 
-**Bull scenario**: Clarity Act passes + AI earnings acceleration → peak ~10,500 by August 2027.
+**Bull scenario**: AI earnings acceleration → peak ~10,500 by August 2027.
 
-**Bear scenario**: post-cut window expires + Clarity Act fails → peak ~7,200 in Q1 2027, sharper reversal.
+**Bear scenario**: post-cut window expires → peak ~7,200 in Q1 2027, sharper reversal.
 
 ## Trend Channel Context
 
