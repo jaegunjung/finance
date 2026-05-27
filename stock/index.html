@@ -414,7 +414,7 @@ const fmtDate = d => { const [y,m] = d.split('-').map(Number); return `${MONTH_N
 // ── State ──
 let chart, rsiChart, cagrChart, dates = [], prices = [], realPrices = [];
 let sharedCrossIdx = null; // shared x-index for crosshair sync between main and RSI chart
-let showReal = true, showPhases = false, showForecast = true;
+let showReal = false, showPhases = false, showForecast = true;
 let realChannelParams = null;
 let showMA = { 12: true, 60: true, 120: true };
 let _openPanelMarker = null;
@@ -1268,6 +1268,70 @@ const MARKER_IMGS = {
               'Federal Reserve — 2022 rate hike cycle · Wikimedia'],
 };
 
+// Phase images keyed by phase.from date
+const PHASE_IMGS = {
+  '1929-09': ['Crowd_outside_nyse.jpg',
+              'Wall St. panic, Oct 1929 — Great Crash · Wikimedia Commons'],
+  '1932-06': ['FDR_in_1933.jpg',
+              'President Roosevelt — New Deal bull market · NARA / Wikimedia'],
+  '1937-03': ['FDR_in_1933.jpg',
+              'Roosevelt Recession, 1937–38 · NARA / Wikimedia'],
+  '1938-04': ['MunichAgreement.jpg',
+              'Munich Agreement, Sep 1938 — pre-WWII rally · Wikimedia'],
+  '1940-05': ['Attack_on_Pearl_Harbor_Japanese_planes_view.jpg',
+              'WWII bear market — Pearl Harbor, Dec 1941 · U.S. Navy'],
+  '1942-04': ['Attack_on_Pearl_Harbor_Japanese_planes_view.jpg',
+              'War Production Bull — WWII mobilization era · U.S. Navy'],
+  '1946-05': ['C-54landingattemplehof.jpg',
+              'Postwar bear — Berlin Airlift era, 1948 · USAF / Wikimedia'],
+  '1949-06': ['LevittownPA.jpg',
+              'Golden Age bull — postwar suburban boom · Wikimedia Commons'],
+  '1956-08': ['Dwight_D._Eisenhower,_official_photo_portrait,_May_29,_1959.jpg',
+              'Suez Crisis bear, 1956 · White House / Wikimedia'],
+  '1957-10': ['Sputnik_asm.jpg',
+              'JFK growth bull — Sputnik shock, Oct 1957 · NASA / Wikimedia'],
+  '1961-12': ['John_F._Kennedy,_White_House_photo_portrait,_looking_up.jpg',
+              'Kennedy Slide, 1962 — Cuban Missile Crisis · White House / Wikimedia'],
+  '1962-06': ['John_F._Kennedy,_White_House_photo_portrait,_looking_up.jpg',
+              'Great Society bull — Kennedy boom years · White House / Wikimedia'],
+  '1966-02': ['Vietnam_War_Protest_in_DC,_1967.gif',
+              'Vietnam bear market, 1966 · Wikimedia Commons'],
+  '1966-10': ['Richard_Nixon_presidential_portrait.jpg',
+              'Late 60s bull market · White House / Wikimedia'],
+  '1968-12': ['Richard_Nixon_presidential_portrait.jpg',
+              'Nixon bear — stagflation begins · White House / Wikimedia'],
+  '1970-06': ['Richard_M._Nixon_meeting_with_Apollo_13_astronauts_in_Hawaii._-_NARA_-_194314.jpg',
+              'Nixon bull — Apollo era, 1970 · NARA / Wikimedia'],
+  '1973-01': ['Nixon_leaving_whitehouse.jpg',
+              'Oil Shock bear — Nixon departs, Aug 1974 · Wikimedia'],
+  '1974-09': ['Gerald_Ford_presidential_portrait.jpg',
+              'Recovery bull — Ford/Carter era · White House / Wikimedia'],
+  '1980-11': ['Portrait_of_Paul_A._Volcker_by_Luis_Alvarez_Roure.jpg',
+              'Volcker bear — Fed tightening, 1980–82 · Wikimedia'],
+  '1982-08': ['Official_Portrait_of_President_Reagan_1981.jpg',
+              'Reagan bull market, 1982–87 · White House / Wikimedia'],
+  '1987-08': ['Black_Monday_Dow_Jones.svg',
+              'Black Monday — Dow Jones crash, Oct 19, 1987 · Wikimedia'],
+  '1987-12': ['Alan_Greenspan_color_photo_portrait.jpg',
+              '90s boom — Greenspan era · Federal Reserve / Wikimedia'],
+  '2000-03': ['September_11_Photo_Montage.jpg',
+              'Dot-com bust — Sept 11, 2001 · Wikimedia Commons'],
+  '2002-09': ['Lehman_Brothers_Times_Square_by_David_Shankbone.jpg',
+              'Housing bull — Lehman Brothers HQ · D. Shankbone / Wikimedia CC-BY'],
+  '2007-10': ['Marriner_S._Eccles_Federal_Reserve_Board_Building.jpg',
+              'Financial crisis — Federal Reserve, Washington D.C. · Wikimedia'],
+  '2009-03': ['Marriner_S._Eccles_Federal_Reserve_Board_Building.jpg',
+              'QE bull — Fed quantitative easing era · Wikimedia'],
+  '2020-02': ['Novel_Coronavirus_SARS-CoV-2.jpg',
+              'COVID crash — SARS-CoV-2 · NIAID-RML / Wikimedia CC-BY'],
+  '2020-04': ['Novel_Coronavirus_SARS-CoV-2.jpg',
+              'COVID recovery bull — pandemic era · NIAID-RML / Wikimedia CC-BY'],
+  '2022-01': ['Marriner_S._Eccles_Federal_Reserve_Board_Building.jpg',
+              'Fed tightening bear — rate hike cycle 2022 · Wikimedia'],
+  '2022-10': ['Donald_Trump_official_portrait.jpg',
+              'AI bull market — Trump era · White House / Wikimedia'],
+};
+
 function openPanel(m) {
   _openPanelMarker = m;
   const lang = currentLang();
@@ -1299,6 +1363,7 @@ function openPanel(m) {
 }
 
 function openLinePanel(idx) {
+  _openPanelMarker = null;
   const lang = currentLang();
   const date = dates[idx];
   if (!date) return;
@@ -1340,6 +1405,20 @@ function openLinePanel(idx) {
   document.getElementById('dpPrice').textContent = price.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
   document.getElementById('dpTitle').textContent = phLabel;
   document.getElementById('dpDesc').textContent = [channelStr, rsiStr].filter(Boolean).join('   ·   ');
+  const phImgEntry = ph ? PHASE_IMGS[ph.from] : null;
+  const fig = document.getElementById('dpFigure');
+  const imgEl = document.getElementById('dpImg');
+  const capEl = document.getElementById('dpCaption');
+  if (phImgEntry) {
+    fig.style.display = '';
+    imgEl.onerror = () => { fig.style.display = 'none'; };
+    imgEl.src = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(phImgEntry[0]);
+    capEl.textContent = phImgEntry[1];
+  } else {
+    fig.style.display = 'none';
+    imgEl.src = '';
+    capEl.textContent = '';
+  }
   document.getElementById('detailPanel').classList.add('open');
 }
 
