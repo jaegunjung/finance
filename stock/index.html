@@ -173,6 +173,10 @@ title: S&P 500 Chart
   <div class="dp-price" id="dpPrice"></div>
   <h3 id="dpTitle"></h3>
   <p id="dpDesc"></p>
+  <figure id="dpFigure" style="margin:16px 0 0;display:none;">
+    <img id="dpImg" style="width:100%;border-radius:6px;display:block;" alt="" loading="lazy">
+    <figcaption id="dpCaption" style="font-size:0.67rem;color:var(--text-muted);margin-top:5px;line-height:1.4;"></figcaption>
+  </figure>
 </div>
 
 <!-- ANALYSIS CARDS -->
@@ -413,6 +417,7 @@ let sharedCrossIdx = null; // shared x-index for crosshair sync between main and
 let showReal = true, showPhases = false, showForecast = true;
 let realChannelParams = null;
 let showMA = { 12: true, 60: true, 120: true };
+let _openPanelMarker = null;
 
 function computeSMA(arr, period) {
   return arr.map((_, i) => {
@@ -1168,7 +1173,25 @@ function hideTooltip() {
   document.getElementById('markerTooltip').style.display = 'none';
 }
 
+const MARKER_IMGS = {
+  '1929-08': ['Crowd_outside_nyse.jpg',           'Wall St. panic, Oct 1929 · Wikimedia Commons'],
+  '1932-05': ['Migrantmother02.jpg',               '"Migrant Mother" · Dorothea Lange, 1936 · Library of Congress'],
+  '1937-03': ['FDR_in_1933.jpg',                   'President Franklin D. Roosevelt · NARA / Wikimedia'],
+  '1942-04': ['Attack_on_Pearl_Harbor_Japanese_planes_view.jpg', 'Attack on Pearl Harbor, Dec 7, 1941 · U.S. Navy'],
+  '1966-02': ['Lyndon_Johnson_signing_Medicare_bill_with_Harry_Truman,_July_30,_1965.jpg', 'LBJ signing Medicare bill, Jul 30, 1965 · LBJ Library'],
+  '1974-09': ['Nixon_departs_the_White_House.jpg', 'Nixon departs the White House, Aug 9, 1974 · NARA'],
+  '1987-08': ['Blackmonday_chart.jpg',             'Black Monday crash, NYSE Oct 19, 1987'],
+  '2000-03': ['Nasdaq_Composite_dot-com_bubble.png','Nasdaq Composite during dot-com bubble · Wikimedia'],
+  '2002-09': ['September_11_Photo_Montage.jpg',    'September 11, 2001 · Wikimedia Commons'],
+  '2007-10': ['Lehman_Brothers_Times_Sq_by_David_Shankbone.jpg', 'Lehman Brothers HQ, NYC · D. Shankbone / Wikimedia CC-BY'],
+  '2009-03': ['Marriner_S._Eccles_Federal_Reserve_Board_Building.jpg', 'Federal Reserve Building, Washington D.C. · Wikimedia'],
+  '2020-03': ['COVID-19_Curve_Flattening_measures.png', 'COVID-19 pandemic, 2020 · Wikimedia Commons'],
+  '2022-10': ['Eccles_Building_exterior.jpg',      'Marriner S. Eccles Federal Reserve Building · Wikimedia'],
+  '2024-11': ['Donald_Trump_official_portrait.jpg','President Trump · White House / Wikimedia'],
+};
+
 function openPanel(m) {
+  _openPanelMarker = m;
   const lang = currentLang();
   document.getElementById('dpType').textContent  = m.type === 'peak'
     ? (lang === 'ko' ? '🔴 고점 (PEAK)' : '🔴 PEAK')
@@ -1180,6 +1203,20 @@ function openPanel(m) {
   document.getElementById('dpPrice').textContent = displayPrice.toLocaleString(undefined, {maximumFractionDigits:1}) + (showReal ? ' (Real 2025$)' : '');
   document.getElementById('dpTitle').textContent = lang === 'ko' ? m.ko : m.en;
   document.getElementById('dpDesc').textContent  = lang === 'ko' ? m.koDesc : m.enDesc;
+  const imgEntry = MARKER_IMGS[m.date];
+  const fig = document.getElementById('dpFigure');
+  const imgEl = document.getElementById('dpImg');
+  const capEl = document.getElementById('dpCaption');
+  if (imgEntry) {
+    fig.style.display = '';
+    imgEl.onerror = () => { fig.style.display = 'none'; };
+    imgEl.src = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(imgEntry[0]);
+    capEl.textContent = imgEntry[1];
+  } else {
+    fig.style.display = 'none';
+    imgEl.src = '';
+    capEl.textContent = '';
+  }
   document.getElementById('detailPanel').classList.add('open');
 }
 
@@ -1412,4 +1449,17 @@ function initCagrChart() {
   document.getElementById('cagrChart').style.touchAction = 'pan-y';
   updateCagrChart(showReal);
 }
+
+// Re-render detail panel when language is toggled while it's open
+(function() {
+  const orig = window.setLang;
+  if (!orig) return;
+  window.setLang = function(l) {
+    orig(l);
+    const panel = document.getElementById('detailPanel');
+    if (_openPanelMarker && panel && panel.classList.contains('open')) {
+      openPanel(_openPanelMarker);
+    }
+  };
+})();
 </script>
