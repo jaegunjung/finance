@@ -1034,6 +1034,7 @@ function initChart() {
               return showReal ? `S&P 500 (Real 2025$): ${val}` : `S&P 500: ${val}`;
             },
             afterLabel: item => {
+              if (item.datasetIndex !== 0) return null;
               const idx = Math.round(item.parsed.x);
               const ph = getPhaseForIdx(idx);
               if (!ph) return '';
