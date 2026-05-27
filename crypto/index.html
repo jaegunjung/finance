@@ -283,7 +283,7 @@ const MA_DAYS = {12: 365, 24: 730, 48: 1460};
 
 function getBtcMaData(period) {
   const days = MA_DAYS[period] || period;
-  return computeBtcSMA(btcPrices, days).map((v,i)=>v===null?null:{x:i,y:v});
+  return computeBtcSMA(btcPrices, days).map((v,i)=>({x:i,y:v===null?NaN:v}));
 }
 
 function toggleBtcMA(period) {
