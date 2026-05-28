@@ -418,6 +418,7 @@ let showReal = false, showPhases = false, showForecast = true;
 let realChannelParams = null;
 let showMA = { 12: true, 60: true, 120: true };
 let _openPanelMarker = null;
+let _openLinePanelIdx = null;
 
 function computeSMA(arr, period) {
   return arr.map((_, i) => {
@@ -1340,6 +1341,7 @@ const PHASE_IMGS = {
 
 function openPanel(m) {
   _openPanelMarker = m;
+  _openLinePanelIdx = null;
   const lang = currentLang();
   document.getElementById('dpType').textContent  = m.type === 'peak'
     ? (lang === 'ko' ? '🔴 고점 (PEAK)' : '🔴 PEAK')
@@ -1370,6 +1372,7 @@ function openPanel(m) {
 
 function openLinePanel(idx) {
   _openPanelMarker = null;
+  _openLinePanelIdx = idx;
   const lang = currentLang();
   const date = dates[idx];
   if (!date) return;
@@ -1430,6 +1433,8 @@ function openLinePanel(idx) {
 
 document.getElementById('dpClose').addEventListener('click', () => {
   document.getElementById('detailPanel').classList.remove('open');
+  _openPanelMarker = null;
+  _openLinePanelIdx = null;
 });
 
 // ── SVG channel overlay (phases + channel lines + markers) ──
@@ -1620,9 +1625,9 @@ function initCagrChart() {
   window.setLang = function(l) {
     orig(l);
     const panel = document.getElementById('detailPanel');
-    if (_openPanelMarker && panel && panel.classList.contains('open')) {
-      openPanel(_openPanelMarker);
-    }
+    if (!panel || !panel.classList.contains('open')) return;
+    if (_openPanelMarker) openPanel(_openPanelMarker);
+    else if (_openLinePanelIdx != null) openLinePanel(_openLinePanelIdx);
   };
 })();
 </script>

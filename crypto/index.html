@@ -1201,4 +1201,17 @@ async function loadBtcData(){
 }
 
 loadBtcData();
+
+// Re-render BTC detail panel when language is toggled while it's open
+(function() {
+  const orig = window.setLang;
+  if (!orig) return;
+  window.setLang = function(l) {
+    orig(l);
+    const panel = document.getElementById('btcDetailPanel');
+    if (_openBtcPanelMarker && panel && panel.classList.contains('open')) {
+      openBtcPanel(_openBtcPanelMarker);
+    }
+  };
+})();
 </script>
