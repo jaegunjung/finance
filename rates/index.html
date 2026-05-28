@@ -138,7 +138,7 @@ function toggleLayer(key) {
   if (!ratesChart) return;
   if (key === 'sp500') {
     ratesChart.data.datasets[0].hidden = !showLayer.sp500;
-    if (showLayer.sp500) scheduleYSync(ratesChart.scales.x.min, ratesChart.scales.x.max);
+    if (showLayer.sp500) _setYBounds(ratesChart.scales.x.min, ratesChart.scales.x.max);
   }
   if (key === 'fed')   { ratesChart.data.datasets[1].hidden = !showLayer.fed; }
   if (key === 'dgs10') { ratesChart.data.datasets[2].hidden = !showLayer.dgs10; }
@@ -146,24 +146,22 @@ function toggleLayer(key) {
   ratesChart.update('none');
 }
 
-// ── Y-axis sync: defer to next animation frame to avoid nested Chart.js updates ──
-function scheduleYSync(fromIdx, toIdx) {
-  requestAnimationFrame(() => {
-    if (!ratesChart || !showLayer.sp500 || !ratesSp500.length) return;
-    const fi = Math.max(0, Math.round(fromIdx ?? 0));
-    const ti = Math.min(ratesSp500.length - 1, Math.round(toIdx ?? ratesSp500.length - 1));
-    const visible = ratesSp500.slice(fi, ti + 1).filter(v => !isNaN(v) && v > 0);
-    if (visible.length < 2) return;
-    const minP = Math.min(...visible), maxP = Math.max(...visible);
-    const yMin = minP / 1.5, yMax = maxP * 1.15;
-    ratesChart.options.scales.yLeft.min = yMin;
-    ratesChart.options.scales.yLeft.max = yMax;
-    if (ratesChart.scales.yLeft) {
-      ratesChart.scales.yLeft.options.min = yMin;
-      ratesChart.scales.yLeft.options.max = yMax;
-    }
-    ratesChart.update('none');
-  });
+// ── Set yLeft bounds synchronously (no update — caller must trigger update) ──
+// Call this BEFORE zoomScale/resetZoom so the single internal update applies both axes.
+function _setYBounds(fromIdx, toIdx) {
+  if (!ratesChart || !showLayer.sp500 || !ratesSp500.length) return;
+  const fi = Math.max(0, Math.round(fromIdx ?? 0));
+  const ti = Math.min(ratesSp500.length - 1, Math.round(toIdx ?? ratesSp500.length - 1));
+  const visible = ratesSp500.slice(fi, ti + 1).filter(v => !isNaN(v) && v > 0);
+  if (visible.length < 2) return;
+  const yMin = Math.min(...visible) / 1.5;
+  const yMax = Math.max(...visible) * 1.15;
+  ratesChart.options.scales.yLeft.min = yMin;
+  ratesChart.options.scales.yLeft.max = yMax;
+  if (ratesChart.scales.yLeft) {
+    ratesChart.scales.yLeft.options.min = yMin;
+    ratesChart.scales.yLeft.options.max = yMax;
+  }
 }
 
 // ── Parse FRED CSV ──
@@ -272,7 +270,7 @@ function applyRatesCustomRange() {
   let fi = 0; for (let i=0; i<ratesDates.length; i++) { if(ratesDates[i]>=from){fi=i;break;} }
   let ti = ratesDates.length-1; for (let i=ratesDates.length-1; i>=0; i--) { if(ratesDates[i]<=to){ti=i;break;} }
   if (fi > ti) return;
-  scheduleYSync(fi, ti);
+  _setYBounds(fi, ti);
   ratesChart.zoomScale('x', {min:fi, max:ti}, 'none');
   updateInversionOverlay(ratesChart);
 }
@@ -318,9 +316,9 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
         legend:{display:false},
         zoom:{
           zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',
-            onZoom:({chart:c})=>{updateInversionOverlay(c); scheduleYSync(c.scales.x.min, c.scales.x.max);}},
+            onZoom:({chart:c})=>{updateInversionOverlay(c); _setYBounds(c.scales.x.min,c.scales.x.max); setTimeout(()=>c.update('none'),0);}},
           pan:{enabled:true,mode:'x',
-            onPan:({chart:c})=>{updateInversionOverlay(c); scheduleYSync(c.scales.x.min, c.scales.x.max);}}
+            onPan:({chart:c})=>{updateInversionOverlay(c); _setYBounds(c.scales.x.min,c.scales.x.max); setTimeout(()=>c.update('none'),0);}}
         },
         tooltip:{
           backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,
@@ -373,43 +371,14 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
 
   Chart.register({ id:'ratesOverlaySync', afterRender(c){if(c.canvas.id==='ratesChart')updateInversionOverlay(c);} });
 
-  // Dynamic tick generation for yLeft: narrow ranges get linear ticks, wide ranges get 1-2-5 log ticks.
-  Chart.register({
-    id: 'ratesYTicks',
-    afterBuildTicks(scale) {
-      if (scale.chart.canvas.id !== 'ratesChart' || scale.id !== 'yLeft') return;
-      const { min, max } = scale;
-      if (!min || !max || min <= 0 || max <= 0) return;
-      const ticks = [];
-      const ratio = max / min;
-      if (ratio >= 3) {
-        // Wide range: 1-2-5 × decade ticks
-        const lo = Math.floor(Math.log10(min)), hi = Math.ceil(Math.log10(max));
-        for (let d = lo - 1; d <= hi + 1; d++) {
-          for (const b of [1, 2, 5]) {
-            const v = b * Math.pow(10, d);
-            if (v >= min * 0.99 && v <= max * 1.01) ticks.push({ value: v });
-          }
-        }
-      } else {
-        // Narrow range: ~5 evenly-spaced "nice" linear ticks
-        const rawStep = (max - min) / 5;
-        const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
-        const step = Math.ceil(rawStep / mag) * mag;
-        let v = Math.ceil(min / step) * step;
-        while (v <= max * 1.01) { ticks.push({ value: v }); v += step; }
-      }
-      if (ticks.length > 0) scale.ticks = ticks;
-    }
-  });
-
   updateInversionOverlay(ratesChart);
-  scheduleYSync(0, n - 1); // Initial Y-axis sync after first render
+  _setYBounds(0, n - 1);
+  ratesChart.update('none'); // Apply initial Y bounds
 
   document.getElementById('ratesChart').addEventListener('dblclick',()=>{
+    _setYBounds(0, n - 1);
     ratesChart.resetZoom();
     updateInversionOverlay(ratesChart);
-    scheduleYSync(0, n - 1);
   });
 
   // Range preset buttons
@@ -421,7 +390,7 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
       if (!ratesChart) return;
       const years=parseInt(btn.dataset.years), mx=n-1;
       const rng=years?{min:Math.max(0,mx-years*252),max:mx}:{min:0,max:mx};
-      scheduleYSync(rng.min, rng.max);
+      _setYBounds(rng.min, rng.max);   // Set BEFORE zoomScale → single update applies both
       ratesChart.zoomScale('x',rng,'none');
       updateInversionOverlay(ratesChart);
     });
