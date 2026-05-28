@@ -1,0 +1,41 @@
+name: Update Macro Data (FRED)
+
+on:
+  schedule:
+    - cron: '0 2 * * 2-6'  # Mon–Fri UTC 02:00 (EST 21:00, after Fed releases)
+  workflow_dispatch:        # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  update-macro:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Update FRED macro data
+        run: python scripts/update_macro.py
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/data/macro/
+          if git diff --staged --quiet; then
+            echo "No data changes to commit."
+          else
+            git commit -m "Auto-update FRED macro data [$(date +%Y-%m-%d)] [skip ci]"
+            git push
+          fi

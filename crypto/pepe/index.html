@@ -1,0 +1,262 @@
+---
+layout: default
+title: PEPE Chart
+---
+<style>
+.range-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.range-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.range-btn.active { background:var(--accent-blue); color:#fff; border-color:var(--accent-blue); }
+.ctrl-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.ctrl-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.ctrl-btn.active { background:var(--accent-green); color:#fff; border-color:var(--accent-green); }
+#pepeChartContainer { position:relative; width:100%; height:440px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px 8px 0 0; overflow:hidden; }
+#pepeChart { position:absolute; top:0; left:0; width:100%; height:100%; }
+#pepeRsiContainer { position:relative; width:100%; height:130px; background:var(--bg-card); border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px; overflow:hidden; }
+#pepeRsiChart { position:absolute; top:0; left:0; width:100%; height:100%; }
+#pepeRsiLabel { position:absolute; top:6px; left:10px; font-size:0.72rem; color:var(--text-muted); pointer-events:none; z-index:5; }
+.chart-hint { color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; }
+.source-note { color:var(--text-muted); font-size:0.73rem; margin-top:4px; margin-bottom:20px; }
+.section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:8px; }
+</style>
+
+<div style="padding:28px 0 8px;">
+  <h1>
+    <span class="en-only">PEPE — Meme Coin Chart</span>
+    <span class="ko-only">PEPE — 밈코인 차트</span>
+  </h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">2023–2026 · Log Scale · MA-12 / MA-24 / MA-48</span>
+    <span class="ko-only">2023–2026 · 로그 스케일 · MA-12 / MA-24 / MA-48</span>
+  </p>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 10px; align-items:center;">
+  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+    <button class="range-btn" data-days="90">3M</button>
+    <button class="range-btn" data-days="180">6M</button>
+    <button class="range-btn" data-days="365">1Y</button>
+    <button class="range-btn active" data-days="0">All</button>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+    <button id="pepeMa12" class="ctrl-btn active" onclick="togglePepeMA(12)">MA-12</button>
+    <button id="pepeMa24" class="ctrl-btn active" onclick="togglePepeMA(24)">MA-24</button>
+    <button id="pepeMa48" class="ctrl-btn" onclick="togglePepeMA(48)">MA-48</button>
+  </div>
+</div>
+
+<div id="pepeChartContainer">
+  <div id="pepeLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+    <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
+  </div>
+  <canvas id="pepeChart" style="touch-action:pan-y;"></canvas>
+</div>
+<div id="pepeRsiContainer">
+  <canvas id="pepeRsiChart" style="touch-action:pan-y;"></canvas>
+  <div id="pepeRsiLabel">RSI(14): —</div>
+</div>
+
+<p class="chart-hint" style="margin-top:8px;">
+  <span class="en-only">Scroll to zoom · Drag to pan · Double-click to reset</span>
+  <span class="ko-only">스크롤 줌 · 드래그 패닝 · 더블클릭 초기화</span>
+</p>
+<p class="source-note">
+  <span class="en-only">Data: pepe_daily.csv (CoinGecko history) + live CoinGecko API gap-fill · Updated daily</span>
+  <span class="ko-only">데이터: pepe_daily.csv + CoinGecko API 보완 · 매일 업데이트</span>
+</p>
+
+<div class="card">
+  <div class="section-label">
+    <span class="en-only">About PEPE</span><span class="ko-only">PEPE 소개</span>
+  </div>
+  <div class="en-only">
+    <h2>The Frog That Became a Crypto Phenomenon</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      PEPE launched in April 2023 as an ERC-20 meme coin based on the Pepe the Frog internet meme, with no utility, team allocation, or VC backing.
+      Within weeks it reached a $1.6B market cap. Unlike BTC/ETH, PEPE has <strong style="color:var(--text-primary)">no fundamental value anchor</strong> — price is driven entirely by social sentiment and speculative momentum.
+      Chart signals like MA crossovers and RSI extremes have shown unusually strong predictive power for meme coins due to their momentum-driven nature.
+      <strong style="color:var(--accent-red)">High volatility · High risk · For educational tracking only.</strong>
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>크립토 현상이 된 개구리</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      PEPE는 2023년 4월 인터넷 밈 "Pepe the Frog"를 기반으로 출시된 ERC-20 밈코인으로, 실용적 가치·팀 배분·VC 투자 없이 시작했습니다.
+      수 주 만에 시가총액 16억 달러에 달했습니다. BTC/ETH와 달리 PEPE는 <strong style="color:var(--text-primary)">펀더멘털 가치 기반이 없습니다</strong> — 가격은 전적으로 소셜 센티멘트와 투기적 모멘텀으로 결정됩니다.
+      밈코인은 모멘텀 기반 특성상 MA 교차, RSI 극단값이 비교적 유효한 신호를 보여주는 경향이 있습니다.
+      <strong style="color:var(--accent-red)">극도의 변동성 · 고위험 · 교육적 목적으로만 참고하세요.</strong>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script>
+let pepeDates=[], pepePrices=[];
+let pepeChart=null, pepeRsiChart=null;
+let pepeShowMA={12:true, 24:true, 48:false};
+let pepeCrossIdx=null;
+
+const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtD(d){const[y,m,dy]=d.split('-').map(Number);return dy?`${MN[m-1]} ${dy}, ${y}`:`${MN[m-1]} ${y}`;}
+function fmtPepe(p){
+  if(p<0.000001) return '$'+p.toExponential(3);
+  if(p<0.001) return '$'+p.toFixed(7);
+  if(p<1) return '$'+p.toFixed(4);
+  return '$'+p.toLocaleString(undefined,{maximumFractionDigits:4});
+}
+
+function smaPepe(arr,p){return arr.map((_,i)=>{if(i<p-1)return NaN; let s=0;for(let j=i-p+1;j<=i;j++)s+=arr[j];return s/p;});}
+function rsiPepe(arr,p=14){
+  const r=Array(arr.length).fill(null);
+  if(arr.length<p+1)return r;
+  let ag=0,al=0;
+  for(let i=1;i<=p;i++){const d=arr[i]-arr[i-1];if(d>0)ag+=d;else al-=d;}
+  ag/=p;al/=p;
+  r[p]=al===0?100:100-100/(1+ag/al);
+  for(let i=p+1;i<arr.length;i++){
+    const d=arr[i]-arr[i-1],g=d>0?d:0,l=d<0?-d:0;
+    ag=(ag*(p-1)+g)/p;al=(al*(p-1)+l)/p;
+    r[i]=al===0?100:100-100/(1+ag/al);
+  }
+  return r;
+}
+
+function togglePepeMA(p){
+  pepeShowMA[p]=!pepeShowMA[p];
+  document.getElementById(`pepeMa${p}`).classList.toggle('active',pepeShowMA[p]);
+  if(!pepeChart)return;
+  const idx={12:1,24:2,48:3}[p];
+  pepeChart.data.datasets[idx].hidden=!pepeShowMA[p];
+  pepeChart.update('none');
+}
+
+function updatePepeRsiLabel(idx){
+  const el=document.getElementById('pepeRsiLabel');
+  if(!el||!pepeRsiChart)return;
+  const rv=pepeRsiChart.data.datasets[0].data[idx]?.y;
+  el.textContent=`RSI(14): ${rv!=null&&!isNaN(rv)?rv.toFixed(1):'—'}`;
+}
+
+function initPepeChart(){
+  const ma12=smaPepe(pepePrices,12).map((v,i)=>({x:i,y:isNaN(v)?NaN:v}));
+  const ma24=smaPepe(pepePrices,24).map((v,i)=>({x:i,y:isNaN(v)?NaN:v}));
+  const ma48=smaPepe(pepePrices,48).map((v,i)=>({x:i,y:isNaN(v)?NaN:v}));
+
+  pepeChart=new Chart(document.getElementById('pepeChart').getContext('2d'),{
+    type:'line',
+    data:{datasets:[
+      {data:pepePrices.map((p,i)=>({x:i,y:p})), label:'PEPE', borderColor:'rgba(63,185,80,0.9)', borderWidth:1.5, pointRadius:0, tension:0, fill:true, backgroundColor:'rgba(63,185,80,0.05)', parsing:false},
+      {data:ma12, label:'MA-12', borderColor:'rgba(255,200,0,0.8)', borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false, spanGaps:true},
+      {data:ma24, label:'MA-24', borderColor:'rgba(255,130,0,0.8)', borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false, spanGaps:true},
+      {data:ma48, label:'MA-48', borderColor:'rgba(248,81,73,0.75)', borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false, spanGaps:true, hidden:true},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        zoom:{
+          zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',
+            onZoom:({chart:c})=>{if(pepeRsiChart)pepeRsiChart.zoomScale('x',c.scales.x,'none');}},
+          pan:{enabled:true,mode:'x',
+            onPan:({chart:c})=>{if(pepeRsiChart)pepeRsiChart.zoomScale('x',c.scales.x,'none');}}
+        },
+        tooltip:{
+          backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,
+          titleColor:'#e6edf3',bodyColor:'#8b949e',padding:8,displayColors:false,
+          callbacks:{
+            title:items=>fmtD(pepeDates[items[0].dataIndex]||''),
+            label:item=>isNaN(item.parsed.y)?null:`${item.dataset.label}: ${fmtPepe(item.parsed.y)}`
+          }
+        }
+      },
+      scales:{
+        x:{type:'linear',min:0,max:pepePrices.length-1,grid:{color:'rgba(48,54,61,0.8)'},
+          ticks:{color:'#8b949e',font:{size:10},maxTicksLimit:8,
+            callback(_,i){if(!pepeDates[i])return''; const yr=pepeDates[i].slice(0,4),mo=pepeDates[i].slice(5,7); return(i===0||pepeDates[i-1]?.slice(5,7)!==mo)?`${yr}-${mo}`:'';}
+          }},
+        y:{type:'logarithmic',grid:{color:'rgba(48,54,61,0.8)'},
+          ticks:{color:'#8b949e',font:{size:10},
+            callback:v=>{const sig=v.toPrecision(2); return sig===v.toString()||parseFloat(sig)===v?fmtPepe(v):undefined;}
+          }}
+      },
+      onHover:(_,elems)=>{if(elems.length){pepeCrossIdx=elems[0].index;updatePepeRsiLabel(pepeCrossIdx);if(pepeRsiChart)pepeRsiChart.update('none');}}
+    }
+  });
+
+  document.getElementById('pepeChart').addEventListener('dblclick',()=>{
+    pepeChart.resetZoom();
+    if(pepeRsiChart)pepeRsiChart.zoomScale('x',{min:0,max:pepePrices.length-1},'none');
+  });
+
+  document.querySelectorAll('.range-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const days=parseInt(btn.dataset.days), mx=pepePrices.length-1;
+      const rng=days?{min:Math.max(0,mx-days),max:mx}:{min:0,max:mx};
+      pepeChart.zoomScale('x',rng,'none');
+      if(pepeRsiChart)pepeRsiChart.zoomScale('x',rng,'none');
+    });
+  });
+
+  const rsiVals=rsiPepe(pepePrices,14);
+  const rsiData=rsiVals.map((v,i)=>({x:i,y:v===null?NaN:v}));
+  pepeRsiChart=new Chart(document.getElementById('pepeRsiChart').getContext('2d'),{
+    type:'line',
+    data:{datasets:[{data:rsiData,label:'RSI',borderColor:'#c792ea',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,fill:false}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      scales:{
+        x:{type:'linear',min:0,max:pepePrices.length-1,grid:{color:'rgba(48,54,61,0.8)'},ticks:{display:false}},
+        y:{type:'linear',min:0,max:100,grid:{color:'rgba(48,54,61,0.8)'},ticks:{color:'#8b949e',font:{size:10},callback:v=>[0,30,70,100].includes(v)?v:''}}
+      },
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e',padding:8,displayColors:false,
+          callbacks:{title:items=>fmtD(pepeDates[items[0].dataIndex]||''),label:item=>isNaN(item.parsed.y)?null:`RSI: ${item.parsed.y.toFixed(1)}`}}},
+      onHover:(_,elems)=>{if(elems.length){pepeCrossIdx=elems[0].index;updatePepeRsiLabel(pepeCrossIdx);if(pepeChart)pepeChart.update('none');}}
+    }
+  });
+  updatePepeRsiLabel(null);
+}
+
+async function loadPepeData(){
+  const src=document.getElementById('pepeLoading');
+  try {
+    const r=await fetch('{{ "/crypto/data/pepe_daily.csv" | relative_url }}');
+    if(r.ok){
+      const text=await r.text();
+      const lines=text.trim().split('\n');
+      const h=lines[0].split(',').map(s=>s.trim());
+      const di=h.indexOf('date'), pi=h.indexOf('price_usd');
+      if(di>=0&&pi>=0){
+        for(let i=1;i<lines.length;i++){
+          const c=lines[i].split(',');
+          const d=c[di]?.trim(), p=parseFloat(c[pi]);
+          if(d&&!isNaN(p)&&p>0){pepeDates.push(d);pepePrices.push(p);}
+        }
+      }
+    }
+  } catch(e){}
+
+  try {
+    const days=pepeDates.length>0?30:730;
+    const r=await fetch(`https://api.coingecko.com/api/v3/coins/pepe/market_chart?vs_currency=usd&days=${days}&interval=daily`);
+    if(r.ok){
+      const json=await r.json();
+      const last=pepeDates.length?pepeDates[pepeDates.length-1]:'';
+      for(const[ts,p] of json.prices){
+        const dt=new Date(ts);
+        const s=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+        if(s>last&&p>0){pepeDates.push(s);pepePrices.push(p);}
+      }
+    }
+  } catch(e){}
+
+  if(pepePrices.length===0){if(src)src.textContent='Data unavailable';return;}
+  initPepeChart();
+  if(src)src.style.display='none';
+}
+
+loadPepeData();
+</script>

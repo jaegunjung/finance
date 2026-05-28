@@ -1,0 +1,415 @@
+---
+layout: default
+title: Ethereum Long-Term Trend
+---
+<style>
+.range-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.range-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.range-btn.active { background:var(--accent-blue); color:#fff; border-color:var(--accent-blue); }
+.ctrl-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.ctrl-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.ctrl-btn.active { background:var(--accent-green); color:#fff; border-color:var(--accent-green); }
+#ethChartContainer { position:relative; width:100%; height:480px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px 8px 0 0; overflow:hidden; }
+#ethChart { position:absolute; top:0; left:0; width:100%; height:100%; }
+#ethSvg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+#ethRsiContainer { position:relative; width:100%; height:140px; background:var(--bg-card); border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px; overflow:hidden; }
+#ethRsiChart { position:absolute; top:0; left:0; width:100%; height:100%; }
+#ethRsiLabel { position:absolute; top:6px; left:10px; font-size:0.72rem; color:var(--text-muted); pointer-events:none; z-index:5; }
+.rainbow-legend { display:flex; flex-wrap:wrap; gap:6px; font-size:0.72rem; margin:4px 0; }
+.rainbow-legend span { display:flex; align-items:center; gap:4px; }
+.rainbow-legend .swatch { width:12px; height:12px; border-radius:2px; display:inline-block; }
+.chart-hint { color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; }
+.source-note { color:var(--text-muted); font-size:0.73rem; margin-top:4px; margin-bottom:20px; }
+.section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:8px; }
+</style>
+
+<div style="padding:28px 0 8px;">
+  <h1>
+    <span class="en-only">Ethereum Long-Term Trend</span>
+    <span class="ko-only">이더리움 장기 추세 차트</span>
+  </h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">2015–2026 · Log Scale · Rainbow Chart · Major Upgrade Events</span>
+    <span class="ko-only">2015–2026 · 로그 스케일 · 레인보우 차트 · 주요 업그레이드 이벤트</span>
+  </p>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 10px; align-items:center;">
+  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+    <button class="range-btn" data-days="365">1Y</button>
+    <button class="range-btn" data-days="730">2Y</button>
+    <button class="range-btn" data-days="1825">5Y</button>
+    <button class="range-btn active" data-days="0">All</button>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+    <button id="ethMa30"  class="ctrl-btn active" onclick="toggleEthMA(30)">MA-30</button>
+    <button id="ethMa90"  class="ctrl-btn active" onclick="toggleEthMA(90)">MA-90</button>
+    <button id="ethMa365" class="ctrl-btn" onclick="toggleEthMA(365)">MA-365</button>
+    <button id="ethUpgBtn" class="ctrl-btn active" onclick="toggleUpgrades()">
+      <span class="en-only">Upgrades</span><span class="ko-only">업그레이드</span>
+    </button>
+  </div>
+</div>
+
+<div id="ethChartContainer">
+  <div id="ethLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+    <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
+  </div>
+  <canvas id="ethChart" style="touch-action:pan-y;"></canvas>
+  <svg id="ethSvg"></svg>
+</div>
+<div id="ethRsiContainer">
+  <canvas id="ethRsiChart" style="touch-action:pan-y;"></canvas>
+  <div id="ethRsiLabel">RSI(14): —</div>
+</div>
+
+<div class="rainbow-legend" id="ethRainbowLegend"></div>
+
+<p class="chart-hint">
+  <span class="en-only">Scroll to zoom · Drag to pan · Double-click to reset</span>
+  <span class="ko-only">스크롤 줌 · 드래그 패닝 · 더블클릭 초기화</span>
+</p>
+<p class="source-note">
+  <span class="en-only">Data: eth_daily.csv (CoinGecko history) + live CoinGecko API gap-fill · Updated daily</span>
+  <span class="ko-only">데이터: eth_daily.csv + CoinGecko API 보완 · 매일 업데이트</span>
+</p>
+
+<div class="card">
+  <div class="section-label">
+    <span class="en-only">Ethereum Upgrade Timeline</span>
+    <span class="ko-only">이더리움 주요 업그레이드 일지</span>
+  </div>
+  <div class="en-only">
+    <h2>From PoW to PoS: The Road to Ethereum 2.0</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      Unlike Bitcoin's fixed protocol, Ethereum evolves via hard forks.
+      <strong style="color:var(--text-primary)">The Merge (Sep 2022)</strong> was the most significant — switching from proof-of-work to proof-of-stake, reducing energy consumption by ~99.95% and cutting ETH issuance by ~90%.
+      <strong style="color:var(--text-primary)">London (Aug 2021)</strong> introduced EIP-1559, making ETH deflationary by burning base fees.
+      <strong style="color:var(--text-primary)">Dencun (Mar 2024)</strong> added EIP-4844 (proto-danksharding), drastically reducing Layer 2 fees and enabling Ethereum's scaling roadmap.
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>PoW에서 PoS로: 이더리움 2.0의 여정</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      비트코인과 달리 이더리움은 하드포크를 통해 지속적으로 진화합니다.
+      가장 중요한 업그레이드는 <strong style="color:var(--text-primary)">더 머지(2022.9)</strong>로, 작업증명(PoW)에서 지분증명(PoS)으로 전환해 에너지 소비를 ~99.95% 줄이고 ETH 신규 발행량을 ~90% 감축했습니다.
+      <strong style="color:var(--text-primary)">런던(2021.8)</strong>은 EIP-1559를 도입해 기본 수수료를 소각함으로써 ETH를 디플레이션 자산으로 전환했습니다.
+      <strong style="color:var(--text-primary)">덴쿤(2024.3)</strong>은 EIP-4844(프로토-댕크샤딩)로 레이어 2 수수료를 획기적으로 낮춰 이더리움 확장성 로드맵을 가속화했습니다.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script>
+const ETH_UPGRADES = [
+  { date:'2016-06-17', en:'The DAO Hack', ko:'DAO 해킹',
+    enDesc:'~$60M ETH stolen via re-entrancy vulnerability. Hard fork to recover funds — led to the ETH/ETC split.',
+    koDesc:'재진입 취약점으로 약 600억 달러 상당의 ETH 탈취. 복구 하드포크 결정으로 ETH/ETC 분열.' },
+  { date:'2021-08-05', en:'London / EIP-1559', ko:'런던 / EIP-1559',
+    enDesc:'Base fee burning introduced. ETH becomes deflationary during high demand periods. Gas price volatility reduced.',
+    koDesc:'기본 수수료 소각 도입. 고수요 시 ETH가 디플레이션 자산으로 전환. 가스비 변동성 감소.' },
+  { date:'2022-09-15', en:'The Merge', ko:'더 머지',
+    enDesc:'Proof-of-Work → Proof-of-Stake. Energy use cut by ~99.95%. ETH issuance reduced ~90%. "Triple halving" in economic terms.',
+    koDesc:'작업증명 → 지분증명 전환. 에너지 사용 ~99.95% 감소. ETH 발행량 ~90% 축소. 경제적 "트리플 반감기".' },
+  { date:'2023-04-12', en:'Shanghai / Shapella', ko:'상하이 / 샤펠라',
+    enDesc:'Staking withdrawals enabled. ~18M staked ETH became liquid. Removed the key uncertainty around ETH staking.',
+    koDesc:'스테이킹 출금 허용. 약 1,800만 ETH 유동화. 스테이킹의 핵심 불확실성 해소.' },
+  { date:'2024-03-13', en:'Dencun / EIP-4844', ko:'덴쿤 / EIP-4844',
+    enDesc:'Proto-danksharding (blobs). L2 transaction costs drop 80–99%. Unlocks Ethereum\'s mass-adoption scaling roadmap.',
+    koDesc:'프로토-댕크샤딩(블롭). L2 거래 비용 80~99% 감소. 이더리움 대규모 확장 로드맵 실현.' },
+];
+
+const RAINBOW_BANDS = [
+  { label:'Maximum Bubble',  labelKo:'최대 버블',     color:'rgba(255,50,50,0.65)',   sigma: 3.0 },
+  { label:'Sell Seriously',  labelKo:'강력 매도 구간', color:'rgba(255,120,50,0.65)',  sigma: 2.0 },
+  { label:'FOMO Zone',       labelKo:'과열 구간',      color:'rgba(255,200,0,0.55)',   sigma: 1.0 },
+  { label:'Fair Value',      labelKo:'적정 가치',      color:'rgba(100,200,100,0.40)', sigma: 0.0 },
+  { label:'Accumulate',      labelKo:'매수 구간',      color:'rgba(0,180,180,0.45)',   sigma:-1.0 },
+  { label:'BUY!',            labelKo:'저평가',         color:'rgba(0,120,255,0.55)',   sigma:-2.0 },
+  { label:'Fire Sale',       labelKo:'극단적 저평가',  color:'rgba(80,50,200,0.6)',    sigma:-3.0 },
+];
+
+let ethDates = [], ethPrices = [];
+let ethChart = null, ethRsiChart = null;
+let ethChannel = null;
+let ethShowMA = { 30: true, 90: true, 365: false };
+let ethShowUpgrades = true;
+let ethCrossIdx = null;
+
+function ethCurrentLang() {
+  return document.documentElement.classList.contains('ko-mode') ? 'ko' : 'en';
+}
+const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtD(d) { const [y,m,dy]=d.split('-').map(Number); return dy ? `${MN[m-1]} ${dy}, ${y}` : `${MN[m-1]} ${y}`; }
+function fmtP(p) { return p>=1000 ? '$'+p.toLocaleString(undefined,{maximumFractionDigits:0}) : '$'+p.toLocaleString(undefined,{maximumFractionDigits:2}); }
+
+// ── Log-linear regression ──
+function computeEthChannel(prices) {
+  const n = prices.length;
+  const logP = prices.map(p => Math.log(Math.max(p, 1e-10)));
+  let sx=0, sy=0, sxx=0, sxy=0;
+  for (let i=0; i<n; i++) { sx+=i; sy+=logP[i]; sxx+=i*i; sxy+=i*logP[i]; }
+  const slope = (n*sxy - sx*sy) / (n*sxx - sx*sx);
+  const center = (sy - slope*sx) / n;
+  let ss = 0;
+  for (let i=0; i<n; i++) { const r=logP[i]-(center+slope*i); ss+=r*r; }
+  const sigma = Math.sqrt(ss/n);
+  return { slope, center, sigma };
+}
+
+// ── SMA & RSI ──
+function sma(arr, p) {
+  return arr.map((_, i) => {
+    if (i < p-1) return NaN;
+    let s=0; for (let j=i-p+1;j<=i;j++) s+=arr[j]; return s/p;
+  });
+}
+function rsi(arr, p=14) {
+  const r = Array(arr.length).fill(null);
+  if (arr.length < p+1) return r;
+  let ag=0, al=0;
+  for (let i=1;i<=p;i++) { const d=arr[i]-arr[i-1]; if(d>0)ag+=d; else al-=d; }
+  ag/=p; al/=p;
+  r[p] = al===0 ? 100 : 100 - 100/(1+ag/al);
+  for (let i=p+1;i<arr.length;i++) {
+    const d=arr[i]-arr[i-1], g=d>0?d:0, l=d<0?-d:0;
+    ag=(ag*(p-1)+g)/p; al=(al*(p-1)+l)/p;
+    r[i] = al===0 ? 100 : 100 - 100/(1+ag/al);
+  }
+  return r;
+}
+
+function toggleEthMA(p) {
+  ethShowMA[p] = !ethShowMA[p];
+  document.getElementById(`ethMa${p}`).classList.toggle('active', ethShowMA[p]);
+  if (!ethChart) return;
+  const dsIdx = {30:1, 90:2, 365:3}[p];
+  ethChart.data.datasets[dsIdx].hidden = !ethShowMA[p];
+  ethChart.update('none');
+}
+function toggleUpgrades() {
+  ethShowUpgrades = !ethShowUpgrades;
+  document.getElementById('ethUpgBtn').classList.toggle('active', ethShowUpgrades);
+  updateEthOverlay(ethChart);
+}
+
+// ── Upgrade date → nearest index ──
+function dateToIdx(dateStr) {
+  let lo = 0, hi = ethDates.length - 1;
+  while (lo < hi) {
+    const mid = (lo+hi) >> 1;
+    if (ethDates[mid] < dateStr) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+// ── SVG overlay ──
+function updateEthOverlay(ch) {
+  const svg = document.getElementById('ethSvg');
+  if (!ch?.chartArea || !ethChannel) return;
+  const ca = ch.chartArea, xS = ch.scales.x, yS = ch.scales.y;
+  const cp = ethChannel;
+  const mn0 = xS.getValueForPixel(ca.left), mn1 = xS.getValueForPixel(ca.right);
+  const x0 = ca.left, x1 = ca.right;
+  const py = (sigma, mn) => yS.getPixelForValue(Math.exp(cp.center + sigma*cp.sigma + cp.slope*mn));
+
+  let html = `<defs><clipPath id="ethca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs><g clip-path="url(#ethca)">`;
+
+  // Rainbow bands
+  for (let i=0; i<RAINBOW_BANDS.length-1; i++) {
+    const b0=RAINBOW_BANDS[i], b1=RAINBOW_BANDS[i+1];
+    const t0=py(b0.sigma,mn0), t1=py(b0.sigma,mn1);
+    const b_0=py(b1.sigma,mn0), b_1=py(b1.sigma,mn1);
+    html += `<polygon points="${x0},${t0} ${x1},${t1} ${x1},${b_1} ${x0},${b_0}" fill="${b0.color}"/>`;
+  }
+  // Top cap
+  const topBand=RAINBOW_BANDS[0];
+  const t0=py(topBand.sigma,mn0), t1=py(topBand.sigma,mn1);
+  html += `<polygon points="${x0},${ca.top} ${x1},${ca.top} ${x1},${t1} ${x0},${t0}" fill="${topBand.color}" opacity="0.4"/>`;
+
+  // Upgrade vertical lines
+  if (ethShowUpgrades) {
+    for (const upg of ETH_UPGRADES) {
+      const idx = dateToIdx(upg.date);
+      const px = xS.getPixelForValue(idx);
+      if (px < ca.left || px > ca.right) continue;
+      html += `<line x1="${px}" y1="${ca.top}" x2="${px}" y2="${ca.bottom}" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+      const isKo = ethCurrentLang() === 'ko';
+      const label = isKo ? upg.ko : upg.en;
+      html += `<text x="${px+4}" y="${ca.top+14}" fill="rgba(255,255,255,0.55)" font-size="9" font-family="system-ui">${label}</text>`;
+    }
+  }
+
+  html += '</g>';
+  svg.innerHTML = html;
+}
+
+// ── Rainbow legend ──
+function buildLegend() {
+  const isKo = ethCurrentLang() === 'ko';
+  const el = document.getElementById('ethRainbowLegend');
+  el.innerHTML = RAINBOW_BANDS.map(b =>
+    `<span><span class="swatch" style="background:${b.color}"></span>${isKo ? b.labelKo : b.label}</span>`
+  ).join('');
+}
+
+// ── Chart init ──
+function initEthChart() {
+  const ma30  = sma(ethPrices, 30).map((v,i) => ({x:i, y:isNaN(v)?NaN:v}));
+  const ma90  = sma(ethPrices, 90).map((v,i) => ({x:i, y:isNaN(v)?NaN:v}));
+  const ma365 = sma(ethPrices,365).map((v,i) => ({x:i, y:isNaN(v)?NaN:v}));
+
+  ethChart = new Chart(document.getElementById('ethChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      datasets: [
+        { data: ethPrices.map((p,i)=>({x:i,y:p})), label:'ETH', borderColor:'rgba(98,126,234,0.9)', borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false },
+        { data: ma30,  label:'MA-30',  borderColor:'rgba(63,185,80,0.8)',  borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false, spanGaps:true },
+        { data: ma90,  label:'MA-90',  borderColor:'rgba(255,152,0,0.8)',  borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false, spanGaps:true },
+        { data: ma365, label:'MA-365', borderColor:'rgba(248,81,73,0.75)', borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false, spanGaps:true, hidden:true },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{mode:'index', intersect:false},
+      plugins: {
+        legend:{display:false},
+        zoom:{
+          zoom:{wheel:{enabled:true}, pinch:{enabled:true}, mode:'x',
+            onZoom:({chart:c})=>{updateEthOverlay(c); if(ethRsiChart) ethRsiChart.zoomScale('x',c.scales.x,'none');}},
+          pan:{enabled:true, mode:'x',
+            onPan:({chart:c})=>{updateEthOverlay(c); if(ethRsiChart) ethRsiChart.zoomScale('x',c.scales.x,'none');}}
+        },
+        tooltip:{
+          backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
+          titleColor:'#e6edf3', bodyColor:'#8b949e', padding:8, displayColors:false,
+          callbacks:{
+            title: items => fmtD(ethDates[items[0].dataIndex]||''),
+            label: item => isNaN(item.parsed.y) ? null : `${item.dataset.label}: ${fmtP(item.parsed.y)}`
+          }
+        }
+      },
+      scales:{
+        x:{type:'linear', min:0, max:ethPrices.length-1, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{color:'#8b949e', font:{size:10}, maxTicksLimit:8,
+          callback(_, i) {
+            if (!ethDates[i]) return '';
+            const yr = ethDates[i].slice(0,4);
+            return (i===0 || ethDates[i-1]?.slice(0,4) !== yr) ? yr : '';
+          }
+        }},
+        y:{type:'logarithmic', grid:{color:'rgba(48,54,61,0.8)'}, ticks:{color:'#8b949e', font:{size:10},
+          callback:v=>[1,2,5,10,20,50,100,200,500,1000,2000,5000,10000].includes(v)?fmtP(v):undefined}}
+      },
+      onHover:(_, elems, ch) => {
+        if (elems.length) { ethCrossIdx=elems[0].index; updateEthRsiLabel(ethCrossIdx); if(ethRsiChart) ethRsiChart.update('none'); }
+      }
+    }
+  });
+  updateEthOverlay(ethChart);
+  buildLegend();
+
+  document.getElementById('ethChart').addEventListener('dblclick', () => {
+    ethChart.resetZoom();
+    if(ethRsiChart) ethRsiChart.zoomScale('x',{min:0,max:ethPrices.length-1},'none');
+    updateEthOverlay(ethChart);
+  });
+
+  // Sync overlay on render
+  Chart.register({ id:'ethOverlaySync', afterRender(c){if(c.canvas.id==='ethChart') updateEthOverlay(c);} });
+
+  // Range buttons
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const days = parseInt(btn.dataset.days);
+      const mx = ethPrices.length-1;
+      const rng = days ? {min:Math.max(0,mx-days), max:mx} : {min:0, max:mx};
+      ethChart.zoomScale('x', rng, 'none');
+      if(ethRsiChart) ethRsiChart.zoomScale('x', rng, 'none');
+      updateEthOverlay(ethChart);
+    });
+  });
+}
+
+function updateEthRsiLabel(idx) {
+  const el = document.getElementById('ethRsiLabel');
+  if (!el || !ethRsiChart) return;
+  const rv = ethRsiChart.data.datasets[0].data[idx]?.y;
+  el.textContent = `RSI(14): ${rv!=null&&!isNaN(rv)?rv.toFixed(1):'—'}`;
+}
+
+function initEthRsiChart() {
+  const rsiVals = rsi(ethPrices, 14);
+  const rsiData = rsiVals.map((v,i)=>({x:i, y:v===null?NaN:v}));
+  ethRsiChart = new Chart(document.getElementById('ethRsiChart').getContext('2d'), {
+    type:'line',
+    data:{datasets:[{data:rsiData, label:'RSI', borderColor:'#c792ea', borderWidth:1.5, pointRadius:0, tension:0, parsing:false, fill:false}]},
+    options:{responsive:true, maintainAspectRatio:false, animation:false,
+      scales:{
+        x:{type:'linear', min:0, max:ethPrices.length-1, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{display:false}},
+        y:{type:'linear', min:0, max:100, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{color:'#8b949e', font:{size:10}, callback:v=>[0,30,70,100].includes(v)?v:''}}
+      },
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1, titleColor:'#e6edf3', bodyColor:'#8b949e', padding:8, displayColors:false,
+          callbacks:{title:items=>fmtD(ethDates[items[0].dataIndex]||''), label:item=>isNaN(item.parsed.y)?null:`RSI: ${item.parsed.y.toFixed(1)}`}}},
+      onHover:(_, elems)=>{ if(elems.length){ethCrossIdx=elems[0].index; updateEthRsiLabel(ethCrossIdx); if(ethChart)ethChart.update('none');} }
+    }
+  });
+  updateEthRsiLabel(null);
+}
+
+// ── Load data ──
+async function loadEthData() {
+  const src = document.getElementById('ethLoading');
+  // 1. CSV
+  try {
+    const r = await fetch('{{ "/crypto/data/eth_daily.csv" | relative_url }}');
+    if (r.ok) {
+      const text = await r.text();
+      const lines = text.trim().split('\n');
+      const h = lines[0].split(',').map(s=>s.trim());
+      const di = h.indexOf('date'), pi = h.indexOf('price_usd');
+      if (di>=0 && pi>=0) {
+        for (let i=1; i<lines.length; i++) {
+          const c=lines[i].split(',');
+          const d=c[di]?.trim(), p=parseFloat(c[pi]);
+          if(d&&!isNaN(p)&&p>0){ethDates.push(d); ethPrices.push(p);}
+        }
+      }
+    }
+  } catch(e) {}
+
+  // 2. CoinGecko gap-fill
+  try {
+    const days = ethDates.length > 0 ? 30 : 365;
+    const r = await fetch(`https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=${days}&interval=daily`);
+    if (r.ok) {
+      const json = await r.json();
+      const last = ethDates.length ? ethDates[ethDates.length-1] : '';
+      for (const [ts, p] of json.prices) {
+        const dt = new Date(ts);
+        const s = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+        if (s > last && p > 0) { ethDates.push(s); ethPrices.push(p); }
+      }
+    }
+  } catch(e) {}
+
+  if (ethPrices.length === 0) { if(src) src.textContent='Data unavailable'; return; }
+  ethChannel = computeEthChannel(ethPrices);
+  initEthChart();
+  initEthRsiChart();
+  if (src) src.style.display = 'none';
+}
+
+loadEthData();
+
+(function(){
+  const orig = window.setLang;
+  if (!orig) return;
+  window.setLang = function(l) { orig(l); buildLegend(); };
+})();
+</script>

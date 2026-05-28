@@ -1,0 +1,363 @@
+---
+layout: default
+title: Interest Rates vs S&P 500
+---
+<style>
+.range-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.range-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.range-btn.active { background:var(--accent-blue); color:#fff; border-color:var(--accent-blue); }
+.ctrl-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.ctrl-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.ctrl-btn.active { background:var(--accent-green); color:#fff; border-color:var(--accent-green); }
+#ratesChartContainer { position:relative; width:100%; height:520px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+#ratesChart { position:absolute; top:0; left:0; width:100%; height:100%; }
+#ratesSvg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+.chart-hint { color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; }
+.source-note { color:var(--text-muted); font-size:0.73rem; margin-top:4px; margin-bottom:20px; }
+.section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:8px; }
+.legend-row { display:flex; flex-wrap:wrap; gap:12px; font-size:0.78rem; margin:8px 0; }
+.legend-row span { display:flex; align-items:center; gap:6px; }
+.legend-swatch { display:inline-block; width:20px; height:3px; border-radius:2px; }
+</style>
+
+<div style="padding:28px 0 8px;">
+  <h1>
+    <span class="en-only">Interest Rates vs S&amp;P 500</span>
+    <span class="ko-only">금리 vs S&amp;P 500</span>
+  </h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">Fed Funds Rate · 10-Year Treasury · S&amp;P 500 · Rate Inversion Zones</span>
+    <span class="ko-only">미 연방 기준금리 · 10년물 국채 금리 · S&amp;P 500 · 금리 역전 구간</span>
+  </p>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 10px; align-items:center;">
+  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+    <button class="range-btn" data-years="10">10Y</button>
+    <button class="range-btn" data-years="20">20Y</button>
+    <button class="range-btn" data-years="30">30Y</button>
+    <button class="range-btn" data-years="50">50Y</button>
+    <button class="range-btn active" data-years="0">All</button>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+    <button id="btnSP500" class="ctrl-btn active" onclick="toggleLayer('sp500')">S&amp;P 500</button>
+    <button id="btnFed"   class="ctrl-btn active" onclick="toggleLayer('fed')">
+      <span class="en-only">Fed Funds</span><span class="ko-only">기준금리</span>
+    </button>
+    <button id="btnDgs10" class="ctrl-btn active" onclick="toggleLayer('dgs10')">
+      <span class="en-only">10Y Treasury</span><span class="ko-only">10년물 국채</span>
+    </button>
+    <button id="btnInv" class="ctrl-btn active" onclick="toggleLayer('inv')">
+      <span class="en-only">Inversion Zone</span><span class="ko-only">역전 구간</span>
+    </button>
+  </div>
+</div>
+
+<div id="ratesChartContainer">
+  <div id="ratesLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+    <span class="en-only">Loading FRED data…</span><span class="ko-only">FRED 데이터 로딩 중…</span>
+  </div>
+  <canvas id="ratesChart" style="touch-action:pan-y;"></canvas>
+  <svg id="ratesSvg"></svg>
+</div>
+
+<div class="legend-row" id="ratesLegend">
+  <span><span class="legend-swatch" style="background:#58a6ff;"></span>
+    <span class="en-only">S&amp;P 500 (log, left axis)</span><span class="ko-only">S&amp;P 500 (로그, 왼쪽 축)</span></span>
+  <span><span class="legend-swatch" style="background:rgba(255,152,0,0.9); height:2px; border-top:2px dashed rgba(255,152,0,0.9)"></span>
+    <span class="en-only">Fed Funds Rate (right axis, inverted)</span><span class="ko-only">기준금리 (우측 축, 역전)</span></span>
+  <span><span class="legend-swatch" style="background:#f85149;"></span>
+    <span class="en-only">10Y Treasury (right axis, inverted)</span><span class="ko-only">10년물 국채 (우측 축, 역전)</span></span>
+  <span><span class="legend-swatch" style="background:rgba(248,81,73,0.2); width:14px; height:14px; border-radius:2px;"></span>
+    <span class="en-only">Rate inversion (Fed &gt; 10Y)</span><span class="ko-only">금리 역전 (기준금리 &gt; 10년물)</span></span>
+</div>
+
+<p class="chart-hint">
+  <span class="en-only">Scroll to zoom · Drag to pan · Hover for values · Double-click to reset · Right Y-axis is inverted (rate ↑ = bond price ↓)</span>
+  <span class="ko-only">스크롤 줌 · 드래그 패닝 · 호버 값 확인 · 더블클릭 초기화 · 우축 역전됨 (금리↑ = 채권가격↓)</span>
+</p>
+<p class="source-note">
+  <span class="en-only">Data: FRED (Federal Reserve Economic Data) — FEDFUNDS, DGS10 · S&amp;P 500: Alpha Vantage / macrotrends · Updated weekdays via GitHub Actions</span>
+  <span class="ko-only">데이터: FRED (미 연방준비제도 경제 데이터) — FEDFUNDS, DGS10 · S&amp;P 500: Alpha Vantage / macrotrends · 평일 자동 업데이트</span>
+</p>
+
+<div class="card">
+  <div class="section-label">
+    <span class="en-only">Why Inversion Matters</span><span class="ko-only">금리 역전이 중요한 이유</span>
+  </div>
+  <div class="en-only">
+    <h2>The Yield Curve as a Recession Predictor</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      A <strong style="color:var(--text-primary)">yield curve inversion</strong> (Fed Funds Rate > 10Y Treasury yield) has preceded every US recession since the 1960s — typically with a 12–18 month lead.
+      When short-term rates exceed long-term rates, banks' lending margins compress, credit creation slows, and economic contraction follows.
+      The <strong style="color:var(--text-primary)">right Y-axis is intentionally inverted</strong> on this chart: as rates rise, the axis goes <em>down</em>, because higher rates act as gravity on asset prices — especially long-duration assets like equities.
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>경기침체 예측지표로서의 수익률 곡선</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      <strong style="color:var(--text-primary)">장단기 금리 역전</strong>(기준금리 > 10년물 국채금리)은 1960년대 이후 모든 미국 경기침체에 12~18개월 앞서 발생했습니다.
+      단기금리가 장기금리를 초과하면 은행 대출 마진이 축소되고, 신용 창출이 둔화되며, 경제 수축이 뒤따릅니다.
+      이 차트에서 <strong style="color:var(--text-primary)">우측 Y축은 의도적으로 역전</strong>되어 있습니다: 금리가 오를수록 축은 <em>아래로</em> 내려가는데, 이는 높은 금리가 자산 가격에 중력처럼 작용하기 때문입니다 — 특히 주식 같은 장기 자산에.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script>
+let ratesChart = null;
+let showLayer = { sp500: true, fed: true, dgs10: true, inv: true };
+
+function toggleLayer(key) {
+  showLayer[key] = !showLayer[key];
+  const ids = { sp500:'btnSP500', fed:'btnFed', dgs10:'btnDgs10', inv:'btnInv' };
+  document.getElementById(ids[key]).classList.toggle('active', showLayer[key]);
+  if (!ratesChart) return;
+  if (key === 'sp500') { ratesChart.data.datasets[0].hidden = !showLayer.sp500; }
+  if (key === 'fed')   { ratesChart.data.datasets[1].hidden = !showLayer.fed; }
+  if (key === 'dgs10') { ratesChart.data.datasets[2].hidden = !showLayer.dgs10; }
+  if (key === 'inv')   { updateInversionOverlay(ratesChart); }
+  ratesChart.update('none');
+}
+
+// ── Parse FRED CSV (observation_date or DATE column, "." = missing) ──
+function parseFredCsv(text) {
+  const result = {};
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return result;
+  const header = lines[0].split(',').map(s => s.trim());
+  // Support both 'observation_date' (FRED download) and 'DATE' (legacy)
+  const dateIdx = header.findIndex(h => h === 'observation_date' || h === 'DATE');
+  const valIdx  = header.length > 1 ? 1 : -1;  // value is always second column
+  if (dateIdx < 0 || valIdx < 0) return result;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    const date = cols[dateIdx]?.trim();
+    const val  = cols[valIdx]?.trim();
+    if (!date || !val || val === '.') continue;
+    const v = parseFloat(val);
+    if (!isNaN(v)) result[date] = v;
+  }
+  return result;
+}
+
+// ── Inversion overlay ──
+function updateInversionOverlay(ch) {
+  const svg = document.getElementById('ratesSvg');
+  if (!ch?.chartArea) { svg.innerHTML=''; return; }
+  if (!showLayer.inv) { svg.innerHTML=''; return; }
+  const ca = ch.chartArea, xS = ch.scales.x, yS = ch.scales.y;
+  const ds1 = ch.data.datasets[1].data;  // fed funds
+  const ds2 = ch.data.datasets[2].data;  // dgs10
+
+  let html = `<defs><clipPath id="rca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs><g clip-path="url(#rca)">`;
+
+  // Shade regions where fed > dgs10
+  let inInversion = false, invStart = -1;
+  const n = Math.min(ds1.length, ds2.length);
+  for (let i = 0; i < n; i++) {
+    const fedV = ds1[i]?.y, dgsV = ds2[i]?.y;
+    if (fedV == null || isNaN(fedV) || dgsV == null || isNaN(dgsV)) continue;
+    const isInv = fedV > dgsV;
+    if (isInv && !inInversion) { inInversion = true; invStart = i; }
+    else if (!isInv && inInversion) {
+      // Draw shaded block
+      const px0 = xS.getPixelForValue(invStart);
+      const px1 = xS.getPixelForValue(i);
+      html += `<rect x="${px0}" y="${ca.top}" width="${px1-px0}" height="${ca.bottom-ca.top}" fill="rgba(248,81,73,0.12)"/>`;
+      inInversion = false;
+    }
+  }
+  if (inInversion) {
+    const px0 = xS.getPixelForValue(invStart);
+    html += `<rect x="${px0}" y="${ca.top}" width="${ca.right-px0}" height="${ca.bottom-ca.top}" fill="rgba(248,81,73,0.12)"/>`;
+  }
+
+  html += '</g>';
+  svg.innerHTML = html;
+}
+
+// ── Build aligned date series ──
+function buildSeries(spMap, fedMap, dgsMap) {
+  // Collect all dates from all sources
+  const allDates = new Set([...Object.keys(spMap), ...Object.keys(fedMap), ...Object.keys(dgsMap)]);
+  const sorted = [...allDates].sort();
+
+  // Forward-fill rates (monthly FEDFUNDS → fill to daily)
+  let lastFed = null, lastDgs = null;
+  const dates = [], sp500Vals = [], fedVals = [], dgsVals = [];
+
+  for (const d of sorted) {
+    if (fedMap[d] != null) lastFed = fedMap[d];
+    if (dgsMap[d] != null) lastDgs = dgsMap[d];
+    const sp = spMap[d];
+    if (sp == null) continue;  // only emit dates with SP500 data
+    dates.push(d);
+    sp500Vals.push(sp);
+    fedVals.push(lastFed ?? NaN);
+    dgsVals.push(lastDgs ?? NaN);
+  }
+  return { dates, sp500Vals, fedVals, dgsVals };
+}
+
+function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
+  const n = dates.length;
+  const spData  = sp500Vals.map((v,i) => ({x:i, y:isNaN(v)?NaN:v}));
+  const fedData = fedVals.map((v,i)  => ({x:i, y:isNaN(v)?NaN:v}));
+  const dgsData = dgsVals.map((v,i)  => ({x:i, y:isNaN(v)?NaN:v}));
+
+  ratesChart = new Chart(document.getElementById('ratesChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      datasets: [
+        { data: spData,  label:'S&P 500',     borderColor:'#58a6ff',            borderWidth:1.5, pointRadius:0, tension:0, parsing:false, fill:false, yAxisID:'yLeft' },
+        { data: fedData, label:'Fed Funds %',  borderColor:'rgba(255,152,0,0.9)',borderWidth:1.5, borderDash:[6,3], pointRadius:0, tension:0, parsing:false, fill:false, yAxisID:'yRight', spanGaps:true },
+        { data: dgsData, label:'10Y Treasury %',borderColor:'#f85149',           borderWidth:1.5, pointRadius:0, tension:0, parsing:false, fill:false, yAxisID:'yRight', spanGaps:true },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{mode:'index', intersect:false},
+      plugins: {
+        legend:{display:false},
+        zoom:{
+          zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',
+            onZoom:({chart:c})=>{updateInversionOverlay(c);}},
+          pan:{enabled:true,mode:'x',
+            onPan:({chart:c})=>{updateInversionOverlay(c);}}
+        },
+        tooltip:{
+          backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,
+          titleColor:'#e6edf3',bodyColor:'#8b949e',padding:8,displayColors:true,
+          callbacks:{
+            title: items => {
+              const i = items[0].dataIndex;
+              return dates[i] ?? '';
+            },
+            label: item => {
+              if (isNaN(item.parsed.y)) return null;
+              const v = item.parsed.y;
+              if (item.datasetIndex === 0) return `S&P 500: $${v.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+              return `${item.dataset.label}: ${v.toFixed(2)}%`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          type:'linear', min:0, max:n-1,
+          grid:{color:'rgba(48,54,61,0.8)'},
+          ticks:{color:'#8b949e', font:{size:10}, maxTicksLimit:10,
+            callback(_,i){
+              if(!dates[i])return'';
+              const yr=dates[i].slice(0,4);
+              return(i===0||dates[i-1]?.slice(0,4)!==yr)?yr:'';
+            }
+          }
+        },
+        yLeft:{
+          type:'logarithmic', position:'left',
+          grid:{color:'rgba(48,54,61,0.8)'},
+          ticks:{color:'#58a6ff', font:{size:10},
+            callback:v=>[10,20,50,100,200,500,1000,2000,5000,10000].includes(v)?'$'+v.toLocaleString():undefined}
+        },
+        yRight:{
+          type:'linear', position:'right', reverse:true,
+          grid:{drawOnChartArea:false},
+          ticks:{color:'#f85149', font:{size:10}, callback:v=>`${v}%`}
+        }
+      },
+      onHover:(_,elems,ch)=>{ if(elems.length) updateInversionOverlay(ch); }
+    }
+  });
+
+  Chart.register({ id:'ratesOverlaySync', afterRender(c){if(c.canvas.id==='ratesChart')updateInversionOverlay(c);} });
+  updateInversionOverlay(ratesChart);
+
+  document.getElementById('ratesChart').addEventListener('dblclick',()=>{
+    ratesChart.resetZoom();
+    updateInversionOverlay(ratesChart);
+  });
+
+  // Range buttons
+  document.querySelectorAll('.range-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const years=parseInt(btn.dataset.years), mx=n-1;
+      const rng=years?{min:Math.max(0,mx-years*252),max:mx}:{min:0,max:mx};
+      ratesChart.zoomScale('x',rng,'none');
+      updateInversionOverlay(ratesChart);
+    });
+  });
+}
+
+// ── Load data ──
+async function loadRatesData() {
+  const loadEl = document.getElementById('ratesLoading');
+  const errors = [];
+
+  // Load FRED CSVs and GSPC/SPY with Promise.allSettled
+  const [fedRes, dgsRes, gspcRes, spyRes] = await Promise.allSettled([
+    fetch('{{ "/assets/data/macro/FEDFUNDS.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('FEDFUNDS missing')),
+    fetch('{{ "/assets/data/macro/DGS10.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('DGS10 missing')),
+    fetch('{{ "/assets/data/stocks/GSPC.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('GSPC missing')),
+    fetch('{{ "/assets/data/stocks/SPY.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('SPY missing')),
+  ]);
+
+  if (fedRes.status === 'rejected') errors.push('FEDFUNDS.csv');
+  if (dgsRes.status === 'rejected') errors.push('DGS10.csv');
+  if (gspcRes.status === 'rejected' && spyRes.status === 'rejected') errors.push('GSPC/SPY CSV');
+
+  if (errors.length >= 2) {
+    if (loadEl) loadEl.textContent = 'Missing data: ' + errors.join(', ') + '. Run FRED update script first.';
+    return;
+  }
+
+  const fedMap  = fedRes.status  === 'fulfilled' ? parseFredCsv(fedRes.value)  : {};
+  const dgsMap  = dgsRes.status  === 'fulfilled' ? parseFredCsv(dgsRes.value)  : {};
+
+  // Parse GSPC and SPY stock CSVs
+  function parseStockCsv(text, priceCol = 'adj_close_price_usd') {
+    const map = {};
+    const lines = text.trim().split('\n');
+    const h = lines[0].split(',').map(s=>s.trim());
+    const di = h.indexOf('date'), pi = h.indexOf(priceCol);
+    if (di < 0 || pi < 0) return map;
+    for (let i = 1; i < lines.length; i++) {
+      const c = lines[i].split(',');
+      const d = c[di]?.trim(), p = parseFloat(c[pi]);
+      if (d && !isNaN(p) && p > 0) map[d] = p;
+    }
+    return map;
+  }
+
+  const gspcMap = gspcRes.status === 'fulfilled' ? parseStockCsv(gspcRes.value) : {};
+  const spyMap  = spyRes.status  === 'fulfilled' ? parseStockCsv(spyRes.value)  : {};
+
+  // Splice SPY + GSPC: compute ratio from overlap period
+  let spMap = { ...gspcMap };
+  const overlapDates = Object.keys(gspcMap).filter(d => spyMap[d] != null);
+  if (overlapDates.length > 0) {
+    const ratio = overlapDates.reduce((s,d) => s + gspcMap[d] / spyMap[d], 0) / overlapDates.length;
+    const gspcStart = Object.keys(gspcMap).sort()[0];
+    for (const d of Object.keys(spyMap)) {
+      if (d < gspcStart) spMap[d] = spyMap[d] * ratio;
+    }
+  }
+
+  const { dates, sp500Vals, fedVals, dgsVals } = buildSeries(spMap, fedMap, dgsMap);
+
+  if (dates.length === 0) {
+    if (loadEl) loadEl.textContent = 'No overlapping data found between sources.';
+    return;
+  }
+
+  initRatesChart(dates, sp500Vals, fedVals, dgsVals);
+  if (loadEl) loadEl.style.display = 'none';
+}
+
+loadRatesData();
+</script>

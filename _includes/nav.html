@@ -3,10 +3,41 @@
   <button class="nav-hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
   <ul class="nav-links">
     <li><a href="{{ '/blog/' | relative_url }}" {% if page.url contains '/blog' %}class="active"{% endif %}>Blog</a></li>
-    <li><a href="{{ '/stock/' | relative_url }}" {% if page.url contains '/stock' %}class="active"{% endif %}>
-      <span class="en-only">Stock</span><span class="ko-only">주식</span></a></li>
-    <li><a href="{{ '/crypto/' | relative_url }}" {% if page.url contains '/crypto' %}class="active"{% endif %}>
-      <span class="en-only">Crypto</span><span class="ko-only">크립토</span></a></li>
+
+    <li class="nav-dropdown">
+      <a href="{{ '/stock/' | relative_url }}" {% if page.url contains '/stock' %}class="active"{% endif %}>
+        <span class="en-only">Stock</span><span class="ko-only">주식</span> <span class="nav-caret">▾</span>
+      </a>
+      <ul class="nav-submenu">
+        <li><a href="{{ '/stock/' | relative_url }}">S&amp;P 500 (^GSPC)</a></li>
+        <li><a href="{{ '/stock/dji/' | relative_url }}">Dow Jones (^DJI)</a></li>
+        <li class="submenu-divider"></li>
+        <li><a href="{{ '/stock/qqq/' | relative_url }}">QQQ (Nasdaq-100)</a></li>
+        <li><a href="{{ '/stock/vfiax/' | relative_url }}">VFIAX (S&amp;P 500 Fund)</a></li>
+        <li class="submenu-divider"></li>
+        <li><a href="{{ '/stock/aapl/' | relative_url }}">AAPL · Apple</a></li>
+        <li><a href="{{ '/stock/nvda/' | relative_url }}">NVDA · NVIDIA</a></li>
+        <li><a href="{{ '/stock/meta/' | relative_url }}">META · Meta</a></li>
+        <li><a href="{{ '/stock/goog/' | relative_url }}">GOOG · Alphabet</a></li>
+        <li><a href="{{ '/stock/amzn/' | relative_url }}">AMZN · Amazon</a></li>
+        <li><a href="{{ '/stock/tsla/' | relative_url }}">TSLA · Tesla</a></li>
+        <li><a href="{{ '/stock/envx/' | relative_url }}">ENVX · Enovix</a></li>
+      </ul>
+    </li>
+
+    <li class="nav-dropdown">
+      <a href="{{ '/crypto/' | relative_url }}" {% if page.url contains '/crypto' %}class="active"{% endif %}>
+        <span class="en-only">Crypto</span><span class="ko-only">크립토</span> <span class="nav-caret">▾</span>
+      </a>
+      <ul class="nav-submenu">
+        <li><a href="{{ '/crypto/' | relative_url }}">BTC · Bitcoin</a></li>
+        <li><a href="{{ '/crypto/eth/' | relative_url }}">ETH · Ethereum</a></li>
+        <li><a href="{{ '/crypto/pepe/' | relative_url }}">PEPE · Pepe</a></li>
+      </ul>
+    </li>
+
+    <li><a href="{{ '/rates/' | relative_url }}" {% if page.url contains '/rates' %}class="active"{% endif %}>
+      <span class="en-only">Rates</span><span class="ko-only">금리</span></a></li>
     <li><a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>About</a></li>
     <li class="lang-toggle-item">
       <button id="langToggleBtn" class="lang-btn" onclick="toggleLang()">한</button>
