@@ -136,13 +136,7 @@ function toggleLayer(key) {
   const ids = { sp500:'btnSP500', fed:'btnFed', dgs10:'btnDgs10', inv:'btnInv' };
   document.getElementById(ids[key]).classList.toggle('active', showLayer[key]);
   if (!ratesChart) return;
-  if (key === 'sp500') {
-    ratesChart.data.datasets[0].hidden = !showLayer.sp500;
-    if (showLayer.sp500) {
-      const xMin = ratesChart.scales.x.min, xMax = ratesChart.scales.x.max;
-      updateRatesYAxis(xMin, xMax);
-    }
-  }
+  if (key === 'sp500') { ratesChart.data.datasets[0].hidden = !showLayer.sp500; }
   if (key === 'fed')   { ratesChart.data.datasets[1].hidden = !showLayer.fed; }
   if (key === 'dgs10') { ratesChart.data.datasets[2].hidden = !showLayer.dgs10; }
   if (key === 'inv')   { updateInversionOverlay(ratesChart); }
@@ -257,20 +251,6 @@ function applyRatesCustomRange() {
   if (fi > ti) return;
   ratesChart.zoomScale('x', {min:fi, max:ti}, 'none');
   updateInversionOverlay(ratesChart);
-  updateRatesYAxis(fi, ti);
-}
-
-// ── Dynamic left Y-axis (SP500) based on visible range ──
-function updateRatesYAxis(fromIdx, toIdx) {
-  if (!ratesChart || !showLayer.sp500) return;
-  const fi = Math.max(0, Math.round(fromIdx));
-  const ti = Math.min(ratesSp500.length - 1, Math.round(toIdx));
-  const visible = ratesSp500.slice(fi, ti + 1).filter(v => !isNaN(v) && v > 0);
-  if (visible.length < 2) return;
-  const minP = Math.min(...visible);
-  const maxP = Math.max(...visible);
-  // Use zoomScale (same mechanism as x-axis zoom) — avoids zoom plugin conflict
-  ratesChart.zoomScale('yLeft', { min: minP / 1.2, max: maxP * 1.2 }, 'none');
 }
 
 // ── Download CSV ──
@@ -314,9 +294,9 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
         legend:{display:false},
         zoom:{
           zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',
-            onZoom:({chart:c})=>{updateInversionOverlay(c); updateRatesYAxis(c.scales.x.min, c.scales.x.max);}},
+            onZoom:({chart:c})=>{updateInversionOverlay(c);}},
           pan:{enabled:true,mode:'x',
-            onPan:({chart:c})=>{updateInversionOverlay(c); updateRatesYAxis(c.scales.x.min, c.scales.x.max);}}
+            onPan:({chart:c})=>{updateInversionOverlay(c);}}
         },
         tooltip:{
           backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,
@@ -348,7 +328,20 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
           type:'logarithmic', position:'left',
           grid:{color:'rgba(48,54,61,0.8)'},
           ticks:{color:'#58a6ff', font:{size:10},
-            callback:v=>[10,20,50,100,200,500,1000,2000,5000,10000].includes(v)?'$'+v.toLocaleString():undefined}
+            callback:v=>[10,20,50,100,200,500,1000,2000,5000,10000].includes(v)?'$'+v.toLocaleString():undefined},
+          afterDataLimits(scale) {
+            if (!showLayer.sp500 || !ratesSp500.length) return;
+            const xScale = scale.chart?.scales?.x;
+            if (!xScale) return;
+            const fi = Math.max(0, Math.round(xScale.min ?? 0));
+            const ti = Math.min(ratesSp500.length - 1, Math.round(xScale.max ?? ratesSp500.length - 1));
+            const visible = ratesSp500.slice(fi, ti + 1).filter(v => !isNaN(v) && v > 0);
+            if (visible.length < 2) return;
+            const minP = Math.min(...visible);
+            const maxP = Math.max(...visible);
+            scale.min = minP / 1.2;
+            scale.max = maxP * 1.2;
+          }
         },
         yRight:{
           type:'linear', position:'right', reverse:true,
@@ -366,7 +359,6 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
   document.getElementById('ratesChart').addEventListener('dblclick',()=>{
     ratesChart.resetZoom();
     updateInversionOverlay(ratesChart);
-    updateRatesYAxis(0, n - 1);
   });
 
   // Range preset buttons
@@ -380,12 +372,8 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
       const rng=years?{min:Math.max(0,mx-years*252),max:mx}:{min:0,max:mx};
       ratesChart.zoomScale('x',rng,'none');
       updateInversionOverlay(ratesChart);
-      updateRatesYAxis(rng.min, rng.max);
     });
   });
-
-  // Set initial y-axis range based on full data
-  updateRatesYAxis(0, n - 1);
 
   // Enable download + custom range hints
   document.getElementById('ratesDownloadBtn').style.display = '';
