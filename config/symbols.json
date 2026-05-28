@@ -1,0 +1,4 @@
+{
+  "stocks": ["^GSPC", "^DJI", "SPY", "DIA", "AMZN", "ENVX", "AAPL", "VFIAX", "TSLA", "QQQ", "META", "GOOG", "NVDA"],
+  "csv_output_dir": "assets/data/stocks"
+}
