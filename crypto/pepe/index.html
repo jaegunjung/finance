@@ -240,7 +240,7 @@ async function loadPepeData(){
   } catch(e){}
 
   try {
-    const days=pepeDates.length>0?30:730;
+    const days=pepeDates.length>0?30:'max';
     const r=await fetch(`https://api.coingecko.com/api/v3/coins/pepe/market_chart?vs_currency=usd&days=${days}&interval=daily`);
     if(r.ok){
       const json=await r.json();

@@ -181,7 +181,7 @@ function updateInversionOverlay(ch) {
 
 // ── Build aligned date series ──
 function buildSeries(spMap, fedMap, dgsMap) {
-  // Collect all dates from all sources
+  const hasSpData = Object.keys(spMap).length > 0;
   const allDates = new Set([...Object.keys(spMap), ...Object.keys(fedMap), ...Object.keys(dgsMap)]);
   const sorted = [...allDates].sort();
 
@@ -193,9 +193,12 @@ function buildSeries(spMap, fedMap, dgsMap) {
     if (fedMap[d] != null) lastFed = fedMap[d];
     if (dgsMap[d] != null) lastDgs = dgsMap[d];
     const sp = spMap[d];
-    if (sp == null) continue;  // only emit dates with SP500 data
+    // When stock data exists, only emit dates that have SP500 values
+    if (hasSpData && sp == null) continue;
+    // When no stock data, emit every date that has at least one rate value
+    if (!hasSpData && lastFed == null && lastDgs == null) continue;
     dates.push(d);
-    sp500Vals.push(sp);
+    sp500Vals.push(sp ?? NaN);
     fedVals.push(lastFed ?? NaN);
     dgsVals.push(lastDgs ?? NaN);
   }
@@ -336,6 +339,12 @@ async function loadRatesData() {
 
   const gspcMap = gspcRes.status === 'fulfilled' ? parseStockCsv(gspcRes.value) : {};
   const spyMap  = spyRes.status  === 'fulfilled' ? parseStockCsv(spyRes.value)  : {};
+
+  // If no stock data at all, auto-hide the S&P 500 layer
+  if (Object.keys(gspcMap).length === 0 && Object.keys(spyMap).length === 0) {
+    showLayer.sp500 = false;
+    document.getElementById('btnSP500').classList.remove('active');
+  }
 
   // Splice SPY + GSPC: compute ratio from overlap period
   let spMap = { ...gspcMap };

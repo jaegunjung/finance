@@ -5,24 +5,28 @@ title: Home
 <div class="hero">
   <h1>JJ Financial Analysis</h1>
   <p>
-    <span class="en-only">S&amp;P 500 · Bitcoin · Market History · Investment Insights</span>
-    <span class="ko-only">S&amp;P 500 · 비트코인 · 시장 역사 · 투자 인사이트</span>
+    <span class="en-only">S&amp;P 500 · Bitcoin · Stocks · Crypto · Rates · Investment Insights</span>
+    <span class="ko-only">S&amp;P 500 · 비트코인 · 주식 · 크립토 · 금리 · 투자 인사이트</span>
   </p>
 </div>
 
+<p class="section-title">
+  <span class="en-only">Featured Charts</span>
+  <span class="ko-only">주요 차트</span>
+</p>
 <div class="grid-2">
   <div class="feature-card">
     <a href="{{ '/stock/' | relative_url }}">
       <h3>📈 <span class="en-only">S&amp;P 500 Long-Term Chart</span><span class="ko-only">S&amp;P 500 장기 추세 차트</span></h3>
       <p>
-        <span class="en-only">1927–present monthly data. Log scale · Trend channel · Peaks &amp; troughs · RSI · MA overlays · Real/nominal toggle · Forecast.</span>
-        <span class="ko-only">1927년~현재 월봉. 로그 스케일 · 추세 채널 · 고점·저점 · RSI · MA 오버레이 · 실질/명목 토글 · 예측.</span>
+        <span class="en-only">1927–present monthly data. Log scale · Trend channel · Peaks &amp; troughs · RSI · Forecast.</span>
+        <span class="ko-only">1927년~현재 월봉. 로그 스케일 · 추세 채널 · 고점·저점 · RSI · 예측.</span>
       </p>
     </a>
   </div>
   <div class="feature-card">
     <a href="{{ '/crypto/' | relative_url }}">
-      <h3>📈 <span class="en-only">Bitcoin Long-Term Chart</span><span class="ko-only">비트코인 장기 추세 차트</span></h3>
+      <h3>₿ <span class="en-only">Bitcoin Long-Term Chart</span><span class="ko-only">비트코인 장기 추세 차트</span></h3>
       <p>
         <span class="en-only">Log-scale analysis · Rainbow chart · Halving cycles · RSI · Forecast.</span>
         <span class="ko-only">로그 스케일 분석 · 레인보우 차트 · 반감기 사이클 · RSI · 예측.</span>
@@ -31,13 +35,102 @@ title: Home
   </div>
 </div>
 
-<div class="grid-2" style="margin-top:0;">
+<p class="section-title">
+  <span class="en-only">Stocks &amp; ETFs</span>
+  <span class="ko-only">주식 &amp; ETF</span>
+</p>
+<div class="grid-4">
+  <div class="mini-card">
+    <a href="{{ '/stock/dji/' | relative_url }}">
+      <div class="mc-symbol">^DJI</div>
+      <div class="mc-name"><span class="en-only">Dow Jones</span><span class="ko-only">다우존스</span></div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/qqq/' | relative_url }}">
+      <div class="mc-symbol">QQQ</div>
+      <div class="mc-name"><span class="en-only">Nasdaq-100 ETF</span><span class="ko-only">나스닥-100 ETF</span></div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/vfiax/' | relative_url }}">
+      <div class="mc-symbol">VFIAX</div>
+      <div class="mc-name"><span class="en-only">S&amp;P 500 Fund</span><span class="ko-only">S&amp;P 500 펀드</span></div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/aapl/' | relative_url }}">
+      <div class="mc-symbol">AAPL</div>
+      <div class="mc-name">Apple</div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/nvda/' | relative_url }}">
+      <div class="mc-symbol">NVDA</div>
+      <div class="mc-name">NVIDIA</div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/meta/' | relative_url }}">
+      <div class="mc-symbol">META</div>
+      <div class="mc-name">Meta</div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/goog/' | relative_url }}">
+      <div class="mc-symbol">GOOG</div>
+      <div class="mc-name">Alphabet</div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/amzn/' | relative_url }}">
+      <div class="mc-symbol">AMZN</div>
+      <div class="mc-name">Amazon</div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/tsla/' | relative_url }}">
+      <div class="mc-symbol">TSLA</div>
+      <div class="mc-name">Tesla</div>
+    </a>
+  </div>
+  <div class="mini-card">
+    <a href="{{ '/stock/envx/' | relative_url }}">
+      <div class="mc-symbol">ENVX</div>
+      <div class="mc-name">Enovix</div>
+    </a>
+  </div>
+</div>
+
+<p class="section-title">
+  <span class="en-only">Crypto &amp; Macro</span>
+  <span class="ko-only">크립토 &amp; 거시경제</span>
+</p>
+<div class="grid-3">
   <div class="feature-card">
-    <a href="{{ '/blog/' | relative_url }}">
-      <h3>📝 <span class="en-only">Analysis Blog</span><span class="ko-only">분석 블로그</span></h3>
+    <a href="{{ '/crypto/eth/' | relative_url }}">
+      <h3>Ξ <span class="en-only">Ethereum</span><span class="ko-only">이더리움</span></h3>
       <p>
-        <span class="en-only">Deep dives into trend channel interpretation, growth rate phases, crypto legislation, and market positioning.</span>
-        <span class="ko-only">추세 채널 해석, 성장 기울기 분석, 크립토 입법, 시장 위치 진단 등 심층 분석 아티클.</span>
+        <span class="en-only">Log scale · MA overlays · RSI</span>
+        <span class="ko-only">로그 스케일 · 이동평균 · RSI</span>
+      </p>
+    </a>
+  </div>
+  <div class="feature-card">
+    <a href="{{ '/crypto/pepe/' | relative_url }}">
+      <h3>🐸 PEPE</h3>
+      <p>
+        <span class="en-only">Meme coin · Log scale · MA-12/24/48 · RSI</span>
+        <span class="ko-only">밈코인 · 로그 스케일 · MA-12/24/48 · RSI</span>
+      </p>
+    </a>
+  </div>
+  <div class="feature-card">
+    <a href="{{ '/rates/' | relative_url }}">
+      <h3>📊 <span class="en-only">Interest Rates vs S&amp;P 500</span><span class="ko-only">금리 vs S&amp;P 500</span></h3>
+      <p>
+        <span class="en-only">Fed Funds · 10Y Treasury · Inversion zones · Macro context</span>
+        <span class="ko-only">기준금리 · 10년물 국채 · 금리 역전 구간 · 거시적 맥락</span>
       </p>
     </a>
   </div>

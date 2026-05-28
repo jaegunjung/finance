@@ -641,33 +641,72 @@ document.querySelectorAll('.range-btn').forEach(btn => {
   });
 });
 
-// ── CSV load and bootstrap ──
-fetch(CSV_URL)
-  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-  .then(text => {
-    const lines = text.trim().split('\n');
-    const header = lines[0].split(',').map(s => s.trim());
-    const dateIdx  = header.indexOf('date');
-    const priceIdx = header.indexOf('adj_close_price_usd');
-    if (dateIdx < 0 || priceIdx < 0) throw new Error('Missing columns: ' + header.join(','));
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',');
-      const d = cols[dateIdx]?.trim();
-      const p = parseFloat(cols[priceIdx]);
-      if (d && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+// ── CSV load and bootstrap (with Yahoo Finance fallback) ──
+const YF_SYMBOL_MAP = { 'DJI': '^DJI', 'GSPC': '^GSPC' };
+const yahooSym = YF_SYMBOL_MAP[SYMBOL] || SYMBOL;
+
+async function loadData() {
+  const loader = document.getElementById('chartLoading');
+  let loaded = false;
+
+  // 1. Try CSV first
+  try {
+    const r = await fetch(CSV_URL);
+    if (r.ok) {
+      const text = await r.text();
+      const lines = text.trim().split('\n');
+      const header = lines[0].split(',').map(s => s.trim());
+      const dateIdx  = header.indexOf('date');
+      const priceIdx = header.indexOf('adj_close_price_usd');
+      if (dateIdx >= 0 && priceIdx >= 0) {
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          const d = cols[dateIdx]?.trim();
+          const p = parseFloat(cols[priceIdx]);
+          if (d && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+        }
+        loaded = prices.length > 0;
+      }
     }
-    if (prices.length === 0) throw new Error('No valid rows in CSV');
+  } catch(e) {}
 
-    channelParams = computeChannel(prices);
-    markers       = detectMarkers(prices, dates);
+  // 2. Fallback: Yahoo Finance public API
+  if (!loaded) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=max&interval=1d`;
+      const r = await fetch(url);
+      if (r.ok) {
+        const json = await r.json();
+        const result = json.chart?.result?.[0];
+        if (result) {
+          const timestamps = result.timestamp || [];
+          const adjCloseArr = result.indicators?.adjclose?.[0]?.adjclose;
+          const closeArr    = result.indicators?.quote?.[0]?.close;
+          const priceArr    = adjCloseArr || closeArr;
+          if (priceArr) {
+            for (let i = 0; i < timestamps.length; i++) {
+              const dt = new Date(timestamps[i] * 1000);
+              const d = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+              const p = priceArr[i];
+              if (d && p != null && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+            }
+            loaded = prices.length > 0;
+          }
+        }
+      }
+    } catch(e) {}
+  }
 
-    initChart();
-    initRsiChart();
+  if (!loaded) { showError('Data unavailable'); return; }
 
-    const loader = document.getElementById('chartLoading');
-    if (loader) loader.style.display = 'none';
-  })
-  .catch(e => { showError('Load failed: ' + e.message); console.error(e); });
+  channelParams = computeChannel(prices);
+  markers       = detectMarkers(prices, dates);
+  initChart();
+  initRsiChart();
+  if (loader) loader.style.display = 'none';
+}
+
+loadData();
 
 // ── Lang toggle hook: re-render open panel ──
 (function() {
