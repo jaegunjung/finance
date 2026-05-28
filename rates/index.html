@@ -317,10 +317,13 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
           type:'linear', min:0, max:n-1,
           grid:{color:'rgba(48,54,61,0.8)'},
           ticks:{color:'#8b949e', font:{size:10}, maxTicksLimit:10,
-            callback(_,i){
-              if(!dates[i])return'';
-              const yr=dates[i].slice(0,4);
-              return(i===0||dates[i-1]?.slice(0,4)!==yr)?yr:'';
+            callback(val, i, ticks){
+              const idx = Math.round(val);
+              if(!dates[idx]) return '';
+              const yr = dates[idx].slice(0,4);
+              if(i === 0) return yr;
+              const prevIdx = Math.round(ticks[i-1]?.value ?? -1);
+              return (!dates[prevIdx] || dates[prevIdx].slice(0,4) !== yr) ? yr : '';
             }
           }
         },
@@ -388,9 +391,10 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
 async function loadRatesData() {
   const loadEl = document.getElementById('ratesLoading');
 
-  const [fedRes, dgsRes, sp500Res, gspcRes, spyRes] = await Promise.allSettled([
+  const [fedRes, dgsRes, monthlyRes, sp500Res, gspcRes, spyRes] = await Promise.allSettled([
     fetch('{{ "/assets/data/macro/FEDFUNDS.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('FEDFUNDS missing')),
     fetch('{{ "/assets/data/macro/DGS10.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('DGS10 missing')),
+    fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
     fetch('{{ "/assets/data/macro/SP500.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
     fetch('{{ "/assets/data/stocks/GSPC.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
     fetch('{{ "/assets/data/stocks/SPY.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
@@ -404,41 +408,59 @@ async function loadRatesData() {
   const fedMap = fedRes.status === 'fulfilled' ? parseFredCsv(fedRes.value) : {};
   const dgsMap = dgsRes.status === 'fulfilled' ? parseFredCsv(dgsRes.value) : {};
 
-  // Primary: FRED SP500 daily series (macro/SP500.csv)
-  let spMap = sp500Res.status === 'fulfilled' ? parseFredCsv(sp500Res.value) : {};
-
-  // Fallback: Alpha Vantage stock CSVs (GSPC + SPY splice)
-  if (Object.keys(spMap).length === 0) {
-    function parseStockCsv(text) {
-      const map = {};
-      const lines = text.trim().split('\n');
-      const h = lines[0].split(',').map(s=>s.trim());
-      const di = h.indexOf('date');
-      const pi = h.indexOf('adj_close_price_usd') >= 0 ? h.indexOf('adj_close_price_usd')
-               : h.indexOf('close_price_usd') >= 0    ? h.indexOf('close_price_usd')
-               : h.indexOf('open_price_usd');
-      if (di < 0 || pi < 0) return map;
-      for (let i = 1; i < lines.length; i++) {
-        const c = lines[i].split(',');
-        const d = c[di]?.trim(), p = parseFloat(c[pi]);
-        if (d && !isNaN(p) && p > 0) map[d] = p;
-      }
-      return map;
+  // Parse monthly CSV (date: YYYY-MM → store as YYYY-MM-01)
+  function parseMonthlySp(text) {
+    const map = {};
+    const lines = text.trim().split('\n').slice(1);
+    for (const line of lines) {
+      const parts = line.split(',');
+      if (parts.length < 2) continue;
+      const d = parts[0].trim(), p = parseFloat(parts[1]);
+      if (d && !isNaN(p) && p > 0) map[d + '-01'] = p;
     }
+    return map;
+  }
 
+  // Parse daily stock CSV (adj close preferred)
+  function parseStockCsv(text) {
+    const map = {};
+    const lines = text.trim().split('\n');
+    const h = lines[0].split(',').map(s=>s.trim());
+    const di = h.indexOf('date');
+    const pi = h.indexOf('adj_close_price_usd') >= 0 ? h.indexOf('adj_close_price_usd')
+             : h.indexOf('close_price_usd') >= 0    ? h.indexOf('close_price_usd')
+             : h.indexOf('open_price_usd');
+    if (di < 0 || pi < 0) return map;
+    for (let i = 1; i < lines.length; i++) {
+      const c = lines[i].split(',');
+      const d = c[di]?.trim(), p = parseFloat(c[pi]);
+      if (d && !isNaN(p) && p > 0) map[d] = p;
+    }
+    return map;
+  }
+
+  // Layer SP500 sources: monthly (1927-present) as base, daily overrides recent ~10Y
+  const spMonthlyMap = monthlyRes.status === 'fulfilled' ? parseMonthlySp(monthlyRes.value) : {};
+  const spDailyMap   = sp500Res.status   === 'fulfilled' ? parseFredCsv(sp500Res.value) : {};
+
+  // If daily FRED SP500 missing, try stock CSVs
+  let spStockMap = {};
+  if (Object.keys(spDailyMap).length === 0) {
     const gspcMap = gspcRes.status === 'fulfilled' ? parseStockCsv(gspcRes.value) : {};
     const spyMap  = spyRes.status  === 'fulfilled' ? parseStockCsv(spyRes.value)  : {};
-
-    spMap = { ...gspcMap };
+    spStockMap = { ...gspcMap };
     const overlapDates = Object.keys(gspcMap).filter(d => spyMap[d] != null);
     if (overlapDates.length > 0) {
       const ratio = overlapDates.reduce((s,d) => s + gspcMap[d] / spyMap[d], 0) / overlapDates.length;
       const gspcStart = Object.keys(gspcMap).sort()[0];
       for (const d of Object.keys(spyMap)) {
-        if (d < gspcStart) spMap[d] = spyMap[d] * ratio;
+        if (d < gspcStart) spStockMap[d] = spyMap[d] * ratio;
       }
     }
   }
+
+  // Merge: monthly base → stock CSV → daily FRED (each layer overrides previous)
+  const spMap = { ...spMonthlyMap, ...spStockMap, ...spDailyMap };
 
   // Auto-hide S&P 500 layer if no data available from any source
   if (Object.keys(spMap).length === 0) {
