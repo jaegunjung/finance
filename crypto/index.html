@@ -58,6 +58,24 @@ title: Bitcoin Long-Term Trend
 }
 .rainbow-legend span { display:flex; align-items:center; gap:4px; }
 .rainbow-legend .swatch { width:12px; height:12px; border-radius:2px; display:inline-block; }
+
+#btcDetailPanel {
+  position: fixed; top: 52px; right: 0; bottom: 0; width: 300px;
+  background: var(--bg-secondary); border-left: 1px solid var(--border);
+  transform: translateX(100%); transition: transform 0.25s ease;
+  z-index: 200; overflow-y: auto; padding: 20px;
+}
+#btcDetailPanel.open { transform: translateX(0); }
+#btcDetailPanel .dp-close {
+  position: absolute; top: 12px; right: 12px; background: none; border: none;
+  color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
+}
+#btcDetailPanel .dp-close:hover { color: var(--text-primary); }
+#btcDetailPanel .dp-type { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+#btcDetailPanel .dp-date { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
+#btcDetailPanel .dp-price { color: var(--text-primary); font-size: 1.4rem; font-weight: 500; margin-bottom: 16px; }
+#btcDetailPanel h3 { font-size: 0.95rem; margin-bottom: 10px; line-height: 1.4; }
+#btcDetailPanel p { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; }
 </style>
 
 <div style="padding: 28px 0 8px;">
@@ -108,6 +126,19 @@ title: Bitcoin Long-Term Trend
 <div id="btcRsiContainer">
   <canvas id="btcRsiChart" style="touch-action:pan-y;"></canvas>
   <div id="btcRsiLabel">RSI(14): —&nbsp;&nbsp;Signal: —</div>
+</div>
+
+<div id="btcDetailPanel">
+  <button class="dp-close" id="btcDpClose">✕</button>
+  <div class="dp-type" id="btcDpType"></div>
+  <div class="dp-date" id="btcDpDate"></div>
+  <div class="dp-price" id="btcDpPrice"></div>
+  <h3 id="btcDpTitle"></h3>
+  <p id="btcDpDesc"></p>
+  <figure id="btcDpFigure" style="margin:16px 0 0;display:none;">
+    <img id="btcDpImg" style="width:100%;border-radius:6px;display:block;" alt="" loading="lazy">
+    <figcaption id="btcDpCaption" style="font-size:0.67rem;color:var(--text-muted);margin-top:5px;line-height:1.4;"></figcaption>
+  </figure>
 </div>
 
 <p class="chart-hint">
@@ -170,39 +201,68 @@ const HALVINGS = [
 
 // ── Bitcoin market peaks ──
 const BTC_PEAKS = [
-  {date:'2011-06',price:29.6,en:'First major bubble',ko:'첫 버블',
-   enDesc:'First major bubble. Mt.Gox era. Crashed -93% to $2.',koDesc:'첫 대형 버블. 마운트곡스 시대. -93% 폭락, $2까지.'},
-  {date:'2013-12',price:1163,en:'China adoption peak',ko:'중국 채택 정점',
-   enDesc:'China adoption peak. PBoC ban triggered -87% crash.',koDesc:'중국 수용 정점. 인민은행 금지로 -87% 폭락.'},
-  {date:'2017-12',price:19783,en:'Retail FOMO peak',ko:'개인 FOMO 정점',
-   enDesc:'Retail FOMO peak. Futures launch. CME listing = institutional sell signal.',koDesc:'개인 투자자 FOMO 최고조. 선물 출시. CME 상장 = 기관 매도 신호.'},
-  {date:'2021-04',price:63000,en:'Coinbase IPO euphoria',ko:'코인베이스 상장 기대',
-   enDesc:'Coinbase IPO euphoria + Tesla/institutional adoption narrative.',koDesc:'코인베이스 IPO 기대감 + 테슬라·기관 채택 내러티브.'},
-  {date:'2021-11',price:68789,en:'All-time high $69K',ko:'역대 최고점 $69K',
-   enDesc:'All-time high $69K. NFT/metaverse peak. Luna/LUNA still alive.',koDesc:'역대 최고점 $69K. NFT·메타버스 버블 정점. 루나/테라 붕괴 직전.'},
-  {date:'2024-03',price:73750,en:'ETF approval euphoria',ko:'ETF 승인 기대감',
-   enDesc:'ETF approval euphoria. Pre-halving run.',koDesc:'비트코인 현물 ETF 승인 기대감. 반감기 전 선행 상승.'},
-  {date:'2025-01',price:109000,en:'Trump rally ATH $109K',ko:'트럼프 랠리 ATH $109K',
-   enDesc:'Post-election Trump rally. Bitcoin Strategic Reserve narrative. ATH $109K.',koDesc:'트럼프 당선 후 랠리. 비트코인 전략 비축 내러티브. 역대 최고 $109K.'},
+  {date:'2011-06',price:29.6,en:'First Major Bubble',ko:'첫 버블 정점',
+   enDesc:'Bitcoin hit $29.60 in June 2011 — a near-infinite gain from its sub-cent origins in 2009. The primary driver was speculative excitement around Mt.Gox (then handling 70% of global BTC trading) and a TIME Magazine feature article in April 2011. Silk Road, the dark-web marketplace, launched in February 2011 and gave Bitcoin its first real use case beyond speculation. Wikileaks\'s use of Bitcoin after payment processors blocked donations (2010) highlighted censorship-resistant money. Global interest rates were near zero post-financial crisis, pushing risk appetite high. The crash to $2 was triggered by a Mt.Gox hack in June 2011 that exposed 60,000 user credentials and shattered confidence in the nascent ecosystem.',
+   koDesc:'2011년 6월 비트코인은 $29.60까지 급등했다. 2009년 센트 미만이었던 가격에서 사실상 무한대에 가까운 상승이었다. 주요 동력은 당시 전 세계 BTC 거래의 70%를 처리하던 마운트곡스에 대한 투기적 기대와 2011년 4월 TIME 매거진 특집 기사였다. 2011년 2월 출범한 다크웹 마켓플레이스 실크로드가 투기 외 첫 실제 사용 사례를 제공했다. 위키리크스가 결제 차단(2010) 이후 비트코인을 채택하며 검열 저항 화폐로 부각됐다. 글로벌 저금리 환경이 위험 자산 선호를 높였다. 2011년 6월 마운트곡스 해킹으로 6만 명의 사용자 정보가 유출되며 초기 생태계 신뢰가 붕괴되고 폭락이 시작됐다.'},
+  {date:'2013-12',price:1163,en:'China Adoption Peak',ko:'중국 채택 정점',
+   enDesc:'Bitcoin surged to $1,163 in late 2013 on an extraordinary wave of Chinese retail adoption. China\'s largest search engine Baidu began accepting Bitcoin in October 2013, and state broadcaster CCTV ran positive feature coverage, driving mass retail buying. The FBI\'s seizure of Silk Road in October paradoxically legitimized Bitcoin by proving it was a real market independent of the dark web. Exchange volume was dominated by Chinese yuan pairs. Bitcoin ATMs began appearing worldwide, and mainstream media began covering Bitcoin seriously for the first time. The People\'s Bank of China\'s December 2013 guidance restricting banks from handling Bitcoin ended the cycle, but the peak itself was driven entirely by genuine adoption momentum.',
+   koDesc:'2013년 말 비트코인은 중국 소매 투자자들의 폭발적 수용으로 $1,163까지 급등했다. 중국 최대 검색엔진 바이두(百度)가 2013년 10월 비트코인 결제를 수용했고, 국영방송 CCTV가 긍정적 특집 보도를 내보내며 대규모 소매 매수가 쏟아졌다. FBI의 실크로드 압수(10월)는 오히려 비트코인이 다크웹과 독립된 실제 시장임을 입증해 역설적으로 정당성을 높였다. 전체 거래량에서 위안화 페어가 지배적이었다. 비트코인 ATM이 전 세계 주요 도시에 등장하기 시작했고 주류 언론이 처음으로 진지하게 비트코인을 다뤘다. 인민은행(PBOC)이 12월 은행의 비트코인 거래를 제한하는 가이드라인을 발표하며 상승 사이클이 마무리됐다.'},
+  {date:'2017-12',price:19783,en:'Retail FOMO Peak',ko:'개인 FOMO 정점',
+   enDesc:'Bitcoin rose from $1,000 in January 2017 to nearly $20,000 by December — a 20× gain in one year. Key catalysts included Japan legalizing Bitcoin as a payment method (April 2017), the ICO (Initial Coin Offering) boom driving altcoin fever, and aggressive retail buying from South Korean and Japanese investors. The CME and CBOE launched Bitcoin futures on December 10 and 18, 2017. Paradoxically, futures allowed institutional investors to short Bitcoin for the first time, and the price peaked almost exactly at launch. Google Trends for "Bitcoin" hit all-time highs. US CPI was only 2.1% and the Fed funds rate just 1.5% — cheap money inflated all risk assets. The SEC began cracking down on ICOs in early 2018, triggering the bear market.',
+   koDesc:'2017년 비트코인은 1월 $1,000에서 12월 약 $20,000까지 연간 20배 상승했다. 일본의 비트코인 결제 수단 합법화(2017.4), ICO 붐에 따른 알트코인 열풍, 한국·일본 소매 투자자들의 공격적 매수가 핵심 동력이었다. 2017년 12월 10일(CBOE)과 18일(CME) 비트코인 선물이 출시됐다. 역설적으로 선물 출시로 기관 투자자들이 처음으로 비트코인을 공매도할 수 있게 됐고, 가격은 거의 정확히 이 시점에 고점을 찍었다. "비트코인" 구글 트렌드가 사상 최고를 기록했다. CPI 2.1%·금리 1.5%의 저금리 환경이 위험 자산 선호를 부추겼다. 2018년 초 SEC의 ICO 단속이 약세장의 도화선이 됐다.'},
+  {date:'2021-04',price:63000,en:'Coinbase IPO Euphoria',ko:'코인베이스 IPO 기대 정점',
+   enDesc:'Bitcoin reached nearly $65,000 in April 2021, coinciding with Coinbase\'s Nasdaq direct listing (April 14, 2021) — the first major crypto exchange IPO, valued at ~$86 billion on day one. Tesla had announced a $1.5B Bitcoin purchase in February 2021, and companies like MicroStrategy and Square added Bitcoin to balance sheets. The Fed maintained near-zero rates with $120B/month QE. Fidelity, Morgan Stanley, and Goldman Sachs began offering Bitcoin to clients. The narrative shifted from "internet money" to "digital gold" and "inflation hedge." The pullback was triggered by Tesla suspending Bitcoin payments citing environmental concerns, and China\'s intensified mining bans through May-June 2021.',
+   koDesc:'2021년 4월 비트코인은 약 $65,000에 달하며 해당 사이클의 첫 역대 최고점을 기록했다. 2021년 4월 14일 미국 최대 암호화폐 거래소 코인베이스가 나스닥에 직상장(COIN)하며 첫날 시가총액 약 860억 달러를 기록한 것과 때를 같이 했다. 2021년 2월 테슬라가 15억 달러 비트코인을 매수했고, 마이크로스트레티지·스퀘어 등 기업들도 비트코인을 재무 자산으로 편입했다. 연준은 제로금리와 월 1,200억 달러 QE를 유지했다. 피델리티·모건스탠리·골드만삭스가 고객에게 비트코인 투자를 제공하기 시작했다. 비트코인 서사가 "인터넷 화폐"에서 "디지털 금"·"인플레이션 헤지"로 전환됐다. 이후 테슬라의 환경 이슈 결제 중단과 중국의 채굴 금지 강화로 조정이 시작됐다.'},
+  {date:'2021-11',price:68789,en:'All-Time High $69K',ko:'역대 최고점 $69K',
+   enDesc:'Bitcoin hit its all-time high of $68,789 on November 10, 2021. The ProShares Bitcoin futures ETF (BITO) launched on October 19 to massive demand — $1B in trading volume on day one. El Salvador made Bitcoin legal tender in September 2021. NFT trading on OpenSea surged to $3.4B/month. Meta announced its metaverse pivot in October. DeFi TVL hit $250B and the LUNA/Terra ecosystem was growing strongly. US CPI surpassed 6%, making Bitcoin\'s "inflation hedge" narrative peak-resonant. The reversal came when the Fed signaled aggressive rate hikes in November 2021, and the Terraform/LUNA ecosystem collapse in May 2022 deepened the bear market.',
+   koDesc:'2021년 11월 10일 비트코인은 $68,789의 사상 최고가를 기록했다. 10월 19일 미국 첫 비트코인 선물 ETF인 ProShares BITO가 상장 첫날 거래량 10억 달러를 기록하며 출시됐다. 2021년 9월 엘살바도르가 세계 최초로 비트코인을 법정화폐로 채택했다. NFT 플랫폼 OpenSea의 월 거래량이 34억 달러로 폭증했다. 메타(전 페이스북)가 메타버스 전환을 선언했다. DeFi TVL이 2,500억 달러를 돌파하고 루나/테라 생태계가 급성장했다. CPI가 6%를 넘어서며 "인플레이션 헤지" 내러티브가 정점에 달했다. 2021년 11월 연준의 공격적 금리 인상 신호가 반전의 도화선이 됐고, 2022년 5월 테라/루나 붕괴가 약세장을 심화시켰다.'},
+  {date:'2024-03',price:73750,en:'Spot ETF Launch Peak',ko:'현물 ETF 출시 정점',
+   enDesc:'Bitcoin hit $73,750 on March 14, 2024 — a new all-time high driven by the landmark approval of spot Bitcoin ETFs by the US SEC on January 11, 2024. BlackRock\'s iShares Bitcoin Trust (IBIT) attracted $10B in AUM in just 7 weeks — the fastest ETF launch in history. The fourth Bitcoin halving (reducing block rewards to 3.125 BTC) was anticipated for April 2024, and historical pre-halving run-ups were playing out. Institutional demand from pension funds and wealth managers reached Bitcoin for the first time via regulated vehicles. The Fed was signaling rate cuts, adding macro fuel. The pullback was driven by profit-taking and post-halving demand uncertainty.',
+   koDesc:'2024년 3월 14일 비트코인은 $73,750의 신고점을 기록했다. 2024년 1월 11일 미국 SEC의 비트코인 현물 ETF 승인이 결정적 동력이었다. 블랙록(IBIT)·피델리티(FBTC) 등 11개 현물 ETF가 동시 출시됐다. 블랙록 IBIT는 출시 7주 만에 운용자산 100억 달러를 돌파하며 ETF 역사상 가장 빠른 성장을 기록했다. 4차 반감기(블록 보상 →3.125 BTC)가 2024년 4월 예정되어 역사적 반감기 전 상승 패턴이 작동했다. 연금펀드와 자산운용사를 통한 기관 수요가 처음으로 직접 유입됐다. 연준의 금리 인하 신호도 거시적 상승 동력으로 작용했다.'},
+  {date:'2025-01',price:109000,en:'Trump Rally ATH $109K',ko:'트럼프 랠리 ATH $109K',
+   enDesc:'Bitcoin hit an all-time high of $109,000 on January 19, 2025 — the day before Donald Trump\'s inauguration as the 47th US President. Trump had campaigned on making America "the crypto capital of the planet" and his team signaled a US Strategic Bitcoin Reserve. The appointment of crypto-friendly figures including Paul Atkins as SEC chair and David Sacks as AI/Crypto Czar boosted confidence in a regulatory regime change. Spot Bitcoin ETF AUM grew to over $120B by January 2025. The total crypto market cap exceeded $3.5 trillion. The Trump family\'s own crypto ventures (World Liberty Financial) and NFT collections added speculative fuel.',
+   koDesc:'2025년 1월 19일 비트코인은 역대 최고가 $109,000을 기록했다. 트럼프의 47대 대통령 취임 전날이었다. 트럼프는 미국을 "지구상 암호화폐 수도"로 만들겠다고 공약했고, 인수팀은 미국 전략적 비트코인 비축 창설을 시사했다. 폴 앳킨스 SEC 의장·데이비드 샥스 AI/암호화폐 책임자 등 친암호화폐 인사 등용이 규제 환경 개선 기대를 높였다. 비트코인 현물 ETF 운용자산은 1,200억 달러를 돌파했다. 전체 암호화폐 시가총액이 3.5조 달러를 넘어섰다. 트럼프 가족의 자체 암호화폐 사업(World Liberty Financial)과 NFT 컬렉션도 투기적 열기를 더했다.'},
 ].map(m=>({...m,type:'peak'}));
 
 // ── Bitcoin market troughs ──
 const BTC_TROUGHS = [
-  {date:'2011-11',price:2.0,en:'Mt.Gox hack fears',ko:'마운트곡스 해킹 공포',
-   enDesc:'Mt.Gox hack fears. 93% drawdown from June peak.',koDesc:'마운트곡스 해킹 공포. 6월 고점 대비 -93%.'},
-  {date:'2015-01',price:172,en:'Mt.Gox bankruptcy',ko:'마운트곡스 파산',
-   enDesc:'Mt.Gox bankruptcy. Silk Road seizure. Regulatory uncertainty peak.',koDesc:'마운트곡스 파산. 실크로드 압수. 규제 불확실성 극대화.'},
-  {date:'2018-12',price:3122,en:'Bear market bottom',ko:'약세장 바닥',
-   enDesc:'Bear market bottom. BCH hash war. -84% from ATH.',koDesc:'약세장 바닥. BCH 해시워. 역대 최고점 대비 -84%.'},
-  {date:'2020-03',price:4106,en:'COVID crash',ko:'코로나 폭락',
-   enDesc:'COVID crash. Liquidity crisis. $3,800 in 24 hours.',koDesc:'코로나 폭락. 유동성 위기. 24시간 만에 $3,800.'},
-  {date:'2022-11',price:15476,en:'FTX collapse',ko:'FTX 파산',
-   enDesc:'FTX collapse. Contagion fear. $15,476 bottom.',koDesc:'FTX 파산. 연쇄 전이 공포. $15,476 바닥.'},
-  {date:'2024-08',price:58000,en:'Yen carry unwind',ko:'엔 캐리 청산',
-   enDesc:'Yen carry trade unwind. Mt.Gox repayments. German govt selling.',koDesc:'엔화 캐리트레이드 청산. 마운트곡스 상환. 독일 정부 매도.'},
+  {date:'2011-11',price:2.0,en:'Mt.Gox Hack Crash',ko:'마운트곡스 해킹 붕괴',
+   enDesc:'Bitcoin collapsed to $2.00 by November 2011 — a 93% drawdown from the June peak. The cause was the June 2011 Mt.Gox security breach where hackers stole 2,643 BTC and temporarily drove the exchange price to $0.01 in a flash crash. Confidence in the nascent infrastructure was shattered. Mt.Gox suspended trading and the incident exposed how fragile the ecosystem was. A series of subsequent exchange hacks and scams further eroded trust. With no institutional support and essentially zero market depth, Bitcoin was widely written off as a failed experiment by mainstream media. The recovery would take nearly two years.',
+   koDesc:'2011년 11월 비트코인은 $2.00까지 폭락하며 6월 고점 대비 93% 하락을 기록했다. 2011년 6월 마운트곡스 보안 침해 사건이 주된 원인이었다. 해커들이 2,643 BTC를 탈취했고, 일시적으로 거래소 가격을 $0.01로 플래시 크래시시켰다. 초기 인프라에 대한 신뢰가 산산조각 났다. 마운트곡스는 거래를 중단했고, 이 사건은 생태계의 취약성을 적나라하게 드러냈다. 이후 잇따른 거래소 해킹과 사기 사건들이 신뢰를 더욱 침식시켰다. 기관 지지도, 시장 뎁스도 전무한 상황에서 주류 언론은 비트코인을 실패한 실험으로 낙인찍었다. 회복까지 거의 2년이 걸렸다.'},
+  {date:'2015-01',price:172,en:'Mt.Gox Bankruptcy Bottom',ko:'마운트곡스 파산 바닥',
+   enDesc:'Bitcoin bottomed at $172 in January 2015, completing an 87% decline from the December 2013 peak. Mt.Gox — once handling 70% of global BTC volume — filed for bankruptcy in February 2014 after revealing 850,000 BTC (~$480M) had been stolen over years. The FBI seized Silk Road in October 2013 and arrested its founder Ross Ulbricht. Regulatory crackdowns spread globally — China, India, and Thailand issued Bitcoin bans or warnings. Despite the bearish environment, the foundation of the modern crypto ecosystem was quietly being built: Ethereum was proposed in late 2013, early Bitcoin ATMs and payment processors were developing, and blockchain technology began attracting enterprise attention.',
+   koDesc:'2015년 1월 비트코인은 $172에서 바닥을 형성하며 2013년 12월 고점 대비 87% 하락을 완성했다. 세계 최대 비트코인 거래소 마운트곡스(전 세계 거래량 70% 처리)가 수년간의 해킹으로 85만 BTC(약 4.8억 달러)를 도난당했음을 인정하며 2014년 2월 파산 신청을 했다. FBI는 실크로드를 압수하고 운영자 로스 울브리히트를 체포했다. 중국·인도·태국 등이 비트코인 경고 또는 금지를 발표하며 글로벌 규제 압박이 확산됐다. 그러나 이 암울한 시기에 현대 암호화폐 생태계의 기반이 조용히 구축되고 있었다. 이더리움이 2013년 말 제안됐고, 비트코인 ATM과 결제 프로세서가 발전했으며 블록체인 기술이 기업의 주목을 받기 시작했다.'},
+  {date:'2018-12',price:3122,en:'ICO Bust Bottom',ko:'ICO 버블 붕괴 바닥',
+   enDesc:'Bitcoin reached its 2018 cycle bottom at $3,122 in December, completing an 84% crash from the $19,783 December 2017 peak. The bear market was driven by the collapse of the 2017 ICO bubble — most tokens fell 95-99% as the SEC issued guidance that many ICOs were unregistered securities. The November 2018 Bitcoin Cash hash war between Craig Wright (BSV) and Roger Ver (BCH-ABC) caused massive selling as miners liquidated BTC to fund the conflict. The US Fed raised rates throughout 2018, draining risk appetite. Despite the collapse, institutional infrastructure was being built: Fidelity Digital Assets launched, Bakkt began developing regulated futures, and the SEC reviewed multiple Bitcoin ETF applications.',
+   koDesc:'2018년 12월 비트코인은 $3,122까지 하락하며 2017년 12월 고점 $19,783 대비 84% 폭락을 완성했다. 2017년 ICO 버블 붕괴가 약세장을 가속시켰다. 대부분의 토큰이 95-99% 하락했고, SEC가 많은 ICO를 미등록 유가증권으로 규정하는 지침을 발표했다. 2018년 11월 크레이그 라이트(BSV)와 로저 버(BCH-ABC) 간의 비트코인캐시 해시 전쟁이 발생했고, 채굴자들이 자금 마련을 위해 BTC를 대규모로 매도했다. 연준은 2018년 내내 금리를 인상했다. 그러나 이 약세장 동안 피델리티 디지털 애셋 출범, Bakkt 규제 선물 개발, 비트코인 ETF 신청 등 기관 인프라가 조용히 구축되고 있었다.'},
+  {date:'2020-03',price:4106,en:'COVID Crash',ko:'코로나 폭락 바닥',
+   enDesc:'Bitcoin crashed to $3,867 on March 13, 2020 — a -50% single-day decline, one of the most violent in its history. As COVID-19 spread globally and markets collapsed, Bitcoin was sold alongside all risk assets as investors fled to cash. The "digital gold/safe haven" narrative was briefly shattered. BitMEX and Bitfinex saw mass cascading liquidations of leveraged longs. However, the Fed announced unlimited QE and near-zero rates by March 15, and Bitcoin began recovering within weeks. This crash marked the start of the most explosive bull market in Bitcoin\'s history, with prices rising 20× over the next 20 months.',
+   koDesc:'2020년 3월 13일 비트코인은 $3,867까지 폭락하며 24시간 기준 -50%라는 역사상 가장 폭력적인 일일 하락 중 하나를 기록했다. COVID-19가 전 세계로 확산되고 금융 시장이 붕괴되면서 비트코인도 모든 위험 자산과 함께 매도됐다. "디지털 금/안전 자산" 내러티브가 일시 붕괴됐다. 비트멕스와 비트파이넥스에서 레버리지 롱 포지션의 연쇄 청산이 발생했다. 그러나 3월 15일 연준이 무제한 QE와 제로금리를 선언하자 비트코인은 수 주 내에 회복세로 돌아섰다. 이 폭락은 역사상 가장 폭발적인 강세장의 서막이었으며, 이후 20개월간 비트코인은 20배 상승했다.'},
+  {date:'2022-11',price:15476,en:'FTX Collapse',ko:'FTX 파산 바닥',
+   enDesc:'Bitcoin crashed to $15,476 in November 2022 following the implosion of FTX — the world\'s second-largest exchange — in crypto\'s "Lehman Brothers moment." FTX founder Sam Bankman-Fried allegedly misappropriated $8 billion in customer funds by lending them to his trading firm Alameda Research. CoinDesk\'s November 2 reporting on Alameda\'s balance sheet triggered a bank run; Binance\'s CZ announced he would sell all FTT tokens; within 9 days FTX filed for bankruptcy. Contagion spread to BlockFi, Genesis, and other lenders. SBF was arrested in December 2022 and later convicted. The broader macro environment — the Fed raising rates from 0% to 4.5% in 2022 and CPI peaking at 9.1% — provided no relief.',
+   koDesc:'2022년 11월 비트코인은 $15,476까지 폭락했다. 세계 2위 암호화폐 거래소 FTX의 붕괴가 직접적 원인이었다. 창업자 샘 뱅크먼-프리드는 80억 달러의 고객 자금을 자신의 트레이딩 회사 알라메다 리서치에 빌려준 혐의를 받았다. 11월 2일 코인데스크의 알라메다 재무 보도 → CZ의 FTT 전량 매도 발표 → 뱅크런 → 11월 11일 파산 신청으로 불과 9일 만에 모든 것이 무너졌다. BlockFi·Genesis 등으로 연쇄 도산이 이어졌다. SBF는 12월 체포됐고 이후 유죄 판결을 받았다. 2022년 연준 금리 0%→4.5% 인상과 CPI 9.1% 등 거시 환경도 위험 자산에 전혀 도움이 되지 않았다.'},
+  {date:'2024-08',price:58000,en:'Yen Carry Trade Unwind',ko:'엔 캐리 청산 급락',
+   enDesc:'Bitcoin fell to approximately $49,221 on August 5, 2024 — "Black Monday" for crypto markets — before recovering above $58,000 by month-end. The catalyst was the Bank of Japan\'s unexpected rate hike to 0.25% on July 31, triggering massive global unwinding of yen carry trades (borrowing cheap yen to buy higher-yielding assets). The yen strengthened sharply from 160 to 142 per dollar, forcing simultaneous liquidation of leveraged positions. Mt.Gox creditors had begun receiving ~$9B in Bitcoin repayments in July after a decade-long legal battle. The German government had been selling 50,000 seized BTC through June-July 2024. Despite the correction, Bitcoin remained well above its 2022 lows, supported by spot ETF demand.',
+   koDesc:'2024년 8월 5일 비트코인은 암호화폐 시장의 "블랙 먼데이"로 불리는 $49,221까지 폭락했다가 월말에 $58,000 이상으로 회복됐다. 촉발 원인은 7월 31일 일본은행(BOJ)의 예상 밖 0.25% 금리 인상이었다. 저금리 엔화를 빌려 비트코인 등 고수익 자산에 투자하던 엔 캐리트레이드가 전 세계적으로 대규모로 청산됐다. 엔화가 달러 대비 160엔에서 142엔으로 급등하며 레버리지 포지션들이 동시에 청산됐다. 마운트곡스 채권자들이 10년간의 법적 분쟁 끝에 2024년 7월부터 약 90억 달러 상당의 비트코인 상환을 받기 시작해 매도 압력이 발생했다. 독일 정부도 6~7월 압수한 5만 BTC를 매도했다. 그러나 현물 ETF 수요가 구조적 지지를 제공해 2022년 저점을 훨씬 웃도는 수준을 유지했다.'},
 ].map(m=>({...m,type:'trough'}));
 
 const BTC_MARKERS = [...BTC_PEAKS,...BTC_TROUGHS].sort((a,b)=>a.date.localeCompare(b.date));
+
+const BTC_MARKER_IMGS = {
+  '2011-06': ['Bitcoin.svg', 'Bitcoin — first major bubble, Jun 2011 · Wikimedia Commons'],
+  '2013-12': ['Bitcoin.svg', 'Bitcoin — China adoption peak, Dec 2013 · Wikimedia Commons'],
+  '2017-12': ['Bitcoin.svg', 'Bitcoin — retail FOMO peak, Dec 2017 · Wikimedia Commons'],
+  '2021-04': ['Bitcoin.svg', 'Bitcoin — Coinbase IPO era, Apr 2021 · Wikimedia Commons'],
+  '2021-11': ['Bitcoin.svg', 'Bitcoin all-time high $69K, Nov 2021 · Wikimedia Commons'],
+  '2024-03': ['Bitcoin.svg', 'Bitcoin — spot ETF launch, Mar 2024 · Wikimedia Commons'],
+  '2025-01': ['Donald_Trump_official_portrait.jpg', 'President Trump · White House / Wikimedia'],
+  '2011-11': ['Bitcoin.svg', 'Bitcoin — Mt.Gox hack crash, Nov 2011 · Wikimedia Commons'],
+  '2015-01': ['Bitcoin.svg', 'Bitcoin — Mt.Gox bankruptcy bottom, Jan 2015 · Wikimedia Commons'],
+  '2018-12': ['Marriner_S._Eccles_Federal_Reserve_Board_Building.jpg', 'Fed tightening — 2018 bear market · Wikimedia'],
+  '2020-03': ['Novel_Coronavirus_SARS-CoV-2.jpg', 'SARS-CoV-2 · NIAID-RML / Wikimedia CC-BY'],
+  '2022-11': ['FTX_logo.svg', "FTX collapse — crypto's Lehman moment · Wikimedia"],
+  '2024-08': ['Yen_sign.svg', 'Yen carry trade unwind, Aug 2024 · Wikimedia Commons'],
+};
 
 // ── Rainbow chart bands (Power Law) ──
 // log10(price) = 5.84 * log10(daysSinceGenesis) - 17.01 = center
@@ -244,6 +304,7 @@ let btcDates = [], btcPrices = [];
 let showRainbow = true;
 let showBtcMA = {12:true,24:true,48:true};
 let btcSharedCrossIdx = null;
+let _openBtcPanelMarker = null;
 
 function computeBtcSMA(arr, period) {
   return arr.map((_,i) => {
@@ -458,12 +519,50 @@ function updateBtcOverlay(ch) {
   svg.innerHTML=html;
 }
 
+function openBtcPanel(m) {
+  _openBtcPanelMarker = m;
+  const lang = document.documentElement.classList.contains('ko-mode') ? 'ko' : 'en';
+  const typeEl = document.getElementById('btcDpType');
+  typeEl.textContent = m.type === 'peak'
+    ? (lang === 'ko' ? '🔴 고점 (PEAK)' : '🔴 PEAK')
+    : (lang === 'ko' ? '🔵 저점 (TROUGH)' : '🔵 TROUGH');
+  typeEl.style.color = m.type === 'peak' ? '#f85149' : '#3B8BD4';
+  document.getElementById('btcDpDate').textContent = fmtBtcDate(m.date);
+  document.getElementById('btcDpPrice').textContent =
+    '$' + (btcPrices[m.idx] ?? m.price).toLocaleString(undefined, {maximumFractionDigits: 0});
+  document.getElementById('btcDpTitle').textContent = lang === 'ko' ? m.ko : m.en;
+  document.getElementById('btcDpDesc').textContent = lang === 'ko' ? m.koDesc : m.enDesc;
+  const imgEntry = BTC_MARKER_IMGS[m.date];
+  const fig = document.getElementById('btcDpFigure');
+  const imgEl = document.getElementById('btcDpImg');
+  const capEl = document.getElementById('btcDpCaption');
+  if (imgEntry) {
+    fig.style.display = '';
+    imgEl.onerror = () => { fig.style.display = 'none'; };
+    imgEl.src = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(imgEntry[0]);
+    capEl.textContent = imgEntry[1];
+  } else {
+    fig.style.display = 'none';
+    imgEl.src = '';
+    capEl.textContent = '';
+  }
+  document.getElementById('btcDetailPanel').classList.add('open');
+}
+
 function initBtcChart() {
-  // Assign marker indices — markers have YYYY-MM dates, find first day of that month in daily array
+  // Assign marker indices — find actual max price day (peaks) or min price day (troughs) within the month
   BTC_MARKERS.forEach(m => {
-    const prefix = m.date; // YYYY-MM
-    let idx = btcDates.findIndex(d => d.slice(0, 7) === prefix);
-    m.idx = idx;
+    const prefix = m.date;
+    const monthIndices = [];
+    for (let i = 0; i < btcDates.length; i++) {
+      if (btcDates[i].slice(0, 7) === prefix) monthIndices.push(i);
+    }
+    if (monthIndices.length === 0) { m.idx = -1; return; }
+    if (m.type === 'peak') {
+      m.idx = monthIndices.reduce((best, i) => btcPrices[i] > btcPrices[best] ? i : best, monthIndices[0]);
+    } else {
+      m.idx = monthIndices.reduce((best, i) => btcPrices[i] < btcPrices[best] ? i : best, monthIndices[0]);
+    }
   });
 
   const canvas=document.getElementById('btcChart');
@@ -578,10 +677,12 @@ function initBtcChart() {
   canvas.addEventListener('click',e=>{
     const rect=canvas.getBoundingClientRect();
     const found=detectBtcMarker(e.clientX-rect.left,e.clientY-rect.top);
-    if(found){
-      const lang=document.documentElement.classList.contains('ko-mode')?'ko':'en';
-      alert(`${fmtBtcDate(found.date)}\n$${(btcPrices[found.idx]??found.price).toLocaleString()}\n\n${lang==='ko'?found.koDesc:found.enDesc}`);
-    }
+    if(found) openBtcPanel(found);
+  });
+
+  document.getElementById('btcDpClose').addEventListener('click', () => {
+    document.getElementById('btcDetailPanel').classList.remove('open');
+    _openBtcPanelMarker = null;
   });
 }
 
