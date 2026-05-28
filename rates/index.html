@@ -136,11 +136,34 @@ function toggleLayer(key) {
   const ids = { sp500:'btnSP500', fed:'btnFed', dgs10:'btnDgs10', inv:'btnInv' };
   document.getElementById(ids[key]).classList.toggle('active', showLayer[key]);
   if (!ratesChart) return;
-  if (key === 'sp500') { ratesChart.data.datasets[0].hidden = !showLayer.sp500; }
+  if (key === 'sp500') {
+    ratesChart.data.datasets[0].hidden = !showLayer.sp500;
+    if (showLayer.sp500) scheduleYSync(ratesChart.scales.x.min, ratesChart.scales.x.max);
+  }
   if (key === 'fed')   { ratesChart.data.datasets[1].hidden = !showLayer.fed; }
   if (key === 'dgs10') { ratesChart.data.datasets[2].hidden = !showLayer.dgs10; }
   if (key === 'inv')   { updateInversionOverlay(ratesChart); }
   ratesChart.update('none');
+}
+
+// ── Y-axis sync: defer to next animation frame to avoid nested Chart.js updates ──
+function scheduleYSync(fromIdx, toIdx) {
+  requestAnimationFrame(() => {
+    if (!ratesChart || !showLayer.sp500 || !ratesSp500.length) return;
+    const fi = Math.max(0, Math.round(fromIdx ?? 0));
+    const ti = Math.min(ratesSp500.length - 1, Math.round(toIdx ?? ratesSp500.length - 1));
+    const visible = ratesSp500.slice(fi, ti + 1).filter(v => !isNaN(v) && v > 0);
+    if (visible.length < 2) return;
+    const minP = Math.min(...visible), maxP = Math.max(...visible);
+    const yMin = minP / 1.5, yMax = maxP * 1.15;
+    ratesChart.options.scales.yLeft.min = yMin;
+    ratesChart.options.scales.yLeft.max = yMax;
+    if (ratesChart.scales.yLeft) {
+      ratesChart.scales.yLeft.options.min = yMin;
+      ratesChart.scales.yLeft.options.max = yMax;
+    }
+    ratesChart.update('none');
+  });
 }
 
 // ── Parse FRED CSV ──
@@ -249,6 +272,7 @@ function applyRatesCustomRange() {
   let fi = 0; for (let i=0; i<ratesDates.length; i++) { if(ratesDates[i]>=from){fi=i;break;} }
   let ti = ratesDates.length-1; for (let i=ratesDates.length-1; i>=0; i--) { if(ratesDates[i]<=to){ti=i;break;} }
   if (fi > ti) return;
+  scheduleYSync(fi, ti);
   ratesChart.zoomScale('x', {min:fi, max:ti}, 'none');
   updateInversionOverlay(ratesChart);
 }
@@ -294,9 +318,9 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
         legend:{display:false},
         zoom:{
           zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x',
-            onZoom:({chart:c})=>{updateInversionOverlay(c);}},
+            onZoom:({chart:c})=>{updateInversionOverlay(c); scheduleYSync(c.scales.x.min, c.scales.x.max);}},
           pan:{enabled:true,mode:'x',
-            onPan:({chart:c})=>{updateInversionOverlay(c);}}
+            onPan:({chart:c})=>{updateInversionOverlay(c); scheduleYSync(c.scales.x.min, c.scales.x.max);}}
         },
         tooltip:{
           backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,
@@ -332,14 +356,8 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
           grid:{color:'rgba(48,54,61,0.8)'},
           ticks:{color:'#58a6ff', font:{size:10},
             callback(v) {
-              // Show only "clean" values — powers of 10 and 2×/5× multiples
-              const mag = Math.pow(10, Math.floor(Math.log10(v)));
-              const r = v / mag;
-              if (Math.abs(r - 1) < 0.01 || Math.abs(r - 2) < 0.01 || Math.abs(r - 2.5) < 0.01 ||
-                  Math.abs(r - 5) < 0.01 || Math.abs(r - 7.5) < 0.01) {
-                return '$' + Math.round(v).toLocaleString();
-              }
-              return undefined;
+              if (!v || v <= 0) return undefined;
+              return '$' + Math.round(v).toLocaleString();
             }
           }
         },
@@ -385,37 +403,13 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
     }
   });
 
-  // afterUpdate: x-scale is fully computed here, so min/max are correct.
-  // We apply yLeft bounds then call update('none') once more.
-  // Infinite-loop guard: skip if bounds haven't changed from last application.
-  let _yLastMin = null, _yLastMax = null;
-  Chart.register({
-    id: 'ratesYAxisSync',
-    afterUpdate(chart) {
-      if (chart.canvas.id !== 'ratesChart') return;
-      if (!showLayer.sp500 || !ratesSp500.length) return;
-      const fi = Math.max(0, Math.round(chart.scales.x.min));
-      const ti = Math.min(ratesSp500.length - 1, Math.round(chart.scales.x.max));
-      const visible = ratesSp500.slice(fi, ti + 1).filter(v => !isNaN(v) && v > 0);
-      if (visible.length < 2) return;
-      const newMin = Math.min(...visible) / 1.5;
-      const newMax = Math.max(...visible) * 1.15;
-      if (newMin === _yLastMin && newMax === _yLastMax) return;
-      _yLastMin = newMin;
-      _yLastMax = newMax;
-      // Set on both the config options AND the live scale options (may differ in Chart.js 4)
-      chart.options.scales.yLeft.min = newMin;
-      chart.options.scales.yLeft.max = newMax;
-      const yScale = chart.scales.yLeft;
-      if (yScale) { yScale.options.min = newMin; yScale.options.max = newMax; }
-      chart.update('none');
-    }
-  });
   updateInversionOverlay(ratesChart);
+  scheduleYSync(0, n - 1); // Initial Y-axis sync after first render
 
   document.getElementById('ratesChart').addEventListener('dblclick',()=>{
     ratesChart.resetZoom();
     updateInversionOverlay(ratesChart);
+    scheduleYSync(0, n - 1);
   });
 
   // Range preset buttons
@@ -427,6 +421,7 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
       if (!ratesChart) return;
       const years=parseInt(btn.dataset.years), mx=n-1;
       const rng=years?{min:Math.max(0,mx-years*252),max:mx}:{min:0,max:mx};
+      scheduleYSync(rng.min, rng.max);
       ratesChart.zoomScale('x',rng,'none');
       updateInversionOverlay(ratesChart);
     });
