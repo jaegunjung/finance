@@ -33,14 +33,6 @@ layout: default
 #stockChart { position: absolute; top:0; left:0; width:100%; height:100%; }
 #channelSvg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
 
-#markerTooltip {
-  position: absolute; display: none; pointer-events: none; z-index: 10;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
-  padding: 8px 12px; min-width: 160px;
-}
-#markerTooltip .tt-date { font-weight: 600; color: var(--text-primary); font-size: 0.875rem; }
-#markerTooltip .tt-price { color: var(--text-secondary); font-size: 0.8rem; margin: 2px 0; }
-#markerTooltip .tt-title { color: var(--text-secondary); font-size: 0.8rem; }
 
 #rsiContainer {
   position: relative; width: 100%; height: 140px;
@@ -53,23 +45,6 @@ layout: default
   pointer-events: none; z-index: 5; line-height: 1.6;
 }
 
-#detailPanel {
-  position: fixed; top: 52px; right: 0; bottom: 0; width: 300px;
-  background: var(--bg-secondary); border-left: 1px solid var(--border);
-  transform: translateX(100%); transition: transform 0.25s ease;
-  z-index: 200; overflow-y: auto; padding: 20px;
-}
-#detailPanel.open { transform: translateX(0); }
-#detailPanel .dp-close {
-  position: absolute; top: 12px; right: 12px; background: none; border: none;
-  color: var(--text-secondary); font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
-}
-#detailPanel .dp-close:hover { color: var(--text-primary); }
-#detailPanel .dp-type { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
-#detailPanel .dp-date { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 4px; }
-#detailPanel .dp-price { color: var(--text-primary); font-size: 1.4rem; font-weight: 500; margin-bottom: 16px; }
-#detailPanel h3 { font-size: 0.95rem; margin-bottom: 10px; line-height: 1.4; }
-#detailPanel p { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6; }
 
 .chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 4px; }
 .section-label {
@@ -124,11 +99,6 @@ layout: default
   </div>
   <canvas id="stockChart" style="touch-action:pan-y;"></canvas>
   <svg id="channelSvg"></svg>
-  <div id="markerTooltip">
-    <div class="tt-date" id="ttDate"></div>
-    <div class="tt-price" id="ttPrice"></div>
-    <div class="tt-title" id="ttTitle"></div>
-  </div>
 </div>
 
 <div id="rsiContainer">
@@ -137,22 +107,14 @@ layout: default
 </div>
 
 <p class="chart-hint" style="margin-top:8px;">
-  <span class="en-only">Scroll to zoom · Drag to pan · Hover/click markers · Double-click to reset</span>
-  <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</span>
+  <span class="en-only">Scroll to zoom · Drag to pan · Double-click to reset</span>
+  <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 더블클릭으로 초기화</span>
 </p>
 <p class="source-note">
   <span class="en-only">{{ page.source_en | default: "Data: Alpha Vantage (TIME_SERIES_DAILY_ADJUSTED) · Updated weekdays via GitHub Actions" }}</span>
   <span class="ko-only">{{ page.source_ko | default: "데이터: Alpha Vantage (수정 주가) · 평일 자동 업데이트" }}</span>
 </p>
 
-<div id="detailPanel">
-  <button class="dp-close" id="dpClose">✕</button>
-  <div class="dp-type" id="dpType"></div>
-  <div class="dp-date" id="dpDate"></div>
-  <div class="dp-price" id="dpPrice"></div>
-  <h3 id="dpTitle"></h3>
-  <p id="dpDesc"></p>
-</div>
 
 <div class="card">
   <div class="section-label">
@@ -195,10 +157,22 @@ const TITLE_KO = '{{ page.title_ko }}';
 let chart = null, rsiChart = null;
 let dates = [], prices = [];
 let channelParams = null;
-let markers = [];
 let showMA = { 20: true, 50: true, 200: true };
 let sharedCrossIdx = null;
-let _openMarker = null;
+
+// ── Stock split adjustments (pre-split prices ÷ factor for historical continuity) ──
+const STOCK_SPLITS = {
+  'NVDA': [{ date: '2024-06-10', factor: 10 }]
+};
+function applySplitAdj(symbol, priceArr, dateArr) {
+  const splits = STOCK_SPLITS[symbol];
+  if (!splits) return;
+  for (const { date, factor } of splits) {
+    for (let i = 0; i < dateArr.length; i++) {
+      if (dateArr[i] < date) priceArr[i] /= factor;
+    }
+  }
+}
 
 // ── Helpers ──
 function currentLang() {
@@ -233,63 +207,6 @@ function computeChannel(priceArr) {
   }
   const sigma = Math.sqrt(ssResid / n);
   return { slope, center: intercept, upper: intercept + 2*sigma, lower: intercept - 2*sigma };
-}
-
-// ── Auto-detect peaks & troughs ──
-function detectMarkers(priceArr, dateArr, threshold = 0.20) {
-  const n = priceArr.length;
-  if (n < 60) return [];
-
-  // Fixed 60-day local window — point must be the highest/lowest within ±60 days
-  const halfWin = Math.min(60, Math.floor(n / 4));
-  const candidates = [];
-  for (let i = halfWin; i < n - halfWin; i++) {
-    let isPeak = true, isTrough = true;
-    for (let j = i - halfWin; j <= i + halfWin; j++) {
-      if (j === i) continue;
-      if (priceArr[j] >= priceArr[i]) isPeak = false;
-      if (priceArr[j] <= priceArr[i]) isTrough = false;
-    }
-    if (isPeak)   candidates.push({ idx: i, price: priceArr[i], date: dateArr[i], type: 'peak' });
-    if (isTrough) candidates.push({ idx: i, price: priceArr[i], date: dateArr[i], type: 'trough' });
-  }
-
-  // Zigzag: alternate peak/trough, keep most extreme when same type consecutive
-  const zigzag = [];
-  for (const c of candidates) {
-    if (zigzag.length === 0) {
-      zigzag.push(c);
-    } else {
-      const last = zigzag[zigzag.length - 1];
-      if (last.type === c.type) {
-        if (c.type === 'peak'   && c.price > last.price) zigzag[zigzag.length - 1] = c;
-        if (c.type === 'trough' && c.price < last.price) zigzag[zigzag.length - 1] = c;
-      } else {
-        const chg = Math.abs(c.price / last.price - 1);
-        if (chg >= threshold) zigzag.push(c);
-        else if (c.type === 'peak'   && c.price > last.price) zigzag[zigzag.length - 1] = c;
-        else if (c.type === 'trough' && c.price < last.price) zigzag[zigzag.length - 1] = c;
-      }
-    }
-  }
-
-  // Enforce 180-day minimum gap: merge markers that are too close
-  const result = [];
-  for (const m of zigzag) {
-    if (result.length === 0) {
-      result.push(m);
-    } else {
-      const last = result[result.length - 1];
-      if (m.idx - last.idx < 180) {
-        // Too close — keep the more extreme one
-        if (m.type === 'peak'   && m.price > last.price) result[result.length - 1] = m;
-        if (m.type === 'trough' && m.price < last.price) result[result.length - 1] = m;
-      } else {
-        result.push(m);
-      }
-    }
-  }
-  return result;
 }
 
 // ── MA ──
@@ -378,90 +295,9 @@ function updateOverlay(ch) {
   html += `<line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="6 4"/>`;
   html += `<line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="2 4"/>`;
 
-  for (const m of markers) {
-    const px = xS.getPixelForValue(m.idx);
-    const py = yS.getPixelForValue(prices[m.idx]);
-    if (px < ca.left-6 || px > ca.right+6 || py < ca.top-6 || py > ca.bottom+6) continue;
-    if (m.type === 'peak') {
-      html += `<polygon data-midx="${m.idx}" points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85" style="cursor:pointer"/>`;
-    } else {
-      html += `<polygon data-midx="${m.idx}" points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85" style="cursor:pointer"/>`;
-    }
-  }
   html += '</g>';
   svg.innerHTML = html;
-
-  svg.querySelectorAll('[data-midx]').forEach(el => {
-    const mIdx = parseInt(el.dataset.midx);
-    const m = markers.find(x => x.idx === mIdx);
-    if (!m) return;
-    el.addEventListener('mouseover', e => showMarkerTooltip(m, e));
-    el.addEventListener('mousemove', e => moveMarkerTooltip(e));
-    el.addEventListener('mouseout',  () => hideMarkerTooltip());
-    el.addEventListener('click', () => openPanel(m));
-  });
 }
-
-// ── Marker tooltip ──
-function showMarkerTooltip(m, e) {
-  const tt = document.getElementById('markerTooltip');
-  document.getElementById('ttDate').textContent  = fmtDate(m.date);
-  document.getElementById('ttPrice').textContent = fmtPrice(m.price);
-  document.getElementById('ttTitle').textContent = m.type === 'peak' ? '▲ Peak' : '▼ Trough';
-  tt.style.display = 'block';
-  moveMarkerTooltip(e);
-}
-function moveMarkerTooltip(e) {
-  const tt = document.getElementById('markerTooltip');
-  const container = document.getElementById('chartContainer');
-  const rect = container.getBoundingClientRect();
-  let left = e.clientX - rect.left + 12;
-  let top  = e.clientY - rect.top  - 10;
-  if (left + 180 > rect.width) left = e.clientX - rect.left - 180;
-  tt.style.left = left + 'px';
-  tt.style.top  = top  + 'px';
-}
-function hideMarkerTooltip() {
-  document.getElementById('markerTooltip').style.display = 'none';
-}
-
-// ── Detail panel ──
-function openPanel(m) {
-  _openMarker = m;
-  const lang = currentLang();
-  const isKo = lang === 'ko';
-  document.getElementById('dpType').textContent  = m.type === 'peak'
-    ? (isKo ? '🔴 고점 (PEAK)' : '🔴 PEAK')
-    : (isKo ? '🔵 저점 (TROUGH)' : '🔵 TROUGH');
-  document.getElementById('dpType').style.color  = m.type === 'peak' ? '#f85149' : '#3B8BD4';
-  document.getElementById('dpDate').textContent  = fmtDate(m.date);
-  document.getElementById('dpPrice').textContent = fmtPrice(m.price);
-  const prev = getPrevMarker(m);
-  let changeStr = '';
-  if (prev) {
-    const pct = ((m.price / prev.price) - 1) * 100;
-    const sign = pct >= 0 ? '+' : '';
-    changeStr = isKo
-      ? `이전 ${prev.type === 'peak' ? '고점' : '저점'} 대비 ${sign}${pct.toFixed(1)}%`
-      : `${sign}${pct.toFixed(1)}% from prior ${prev.type}`;
-  }
-  document.getElementById('dpTitle').textContent = isKo
-    ? (m.type === 'peak' ? `${SYMBOL} 역사적 고점` : `${SYMBOL} 역사적 저점`)
-    : (m.type === 'peak' ? `${SYMBOL} Historical Peak` : `${SYMBOL} Historical Trough`);
-  document.getElementById('dpDesc').textContent = changeStr;
-  document.getElementById('detailPanel').classList.add('open');
-}
-
-function getPrevMarker(m) {
-  const sorted = [...markers].sort((a,b)=>a.idx-b.idx);
-  const i = sorted.findIndex(x=>x.idx===m.idx);
-  return i > 0 ? sorted[i-1] : null;
-}
-
-document.getElementById('dpClose').addEventListener('click', () => {
-  document.getElementById('detailPanel').classList.remove('open');
-  _openMarker = null;
-});
 
 // ── RSI label update ──
 function updateRsiLabel(idx) {
@@ -792,8 +628,8 @@ async function loadData() {
     return;
   }
 
+  applySplitAdj(SYMBOL, prices, dates);
   channelParams = computeChannel(prices);
-  markers       = detectMarkers(prices, dates);
   initChart();
   initRsiChart();
   if (loader) loader.style.display = 'none';
@@ -811,14 +647,4 @@ async function loadData() {
 
 loadData();
 
-// ── Lang toggle hook ──
-(function() {
-  const orig = window.setLang;
-  if (!orig) return;
-  window.setLang = function(l) {
-    orig(l);
-    const panel = document.getElementById('detailPanel');
-    if (_openMarker && panel?.classList.contains('open')) openPanel(_openMarker);
-  };
-})();
 </script>
