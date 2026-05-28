@@ -49,11 +49,11 @@ def read_last_date(symbol: str) -> str:
     return rows[-1]['date'].strip() if rows else START
 
 
-def fetch_adjusted(symbol: str) -> dict:
+def fetch_adjusted(symbol: str, full: bool = False) -> dict:
     params = {
         'function': 'TIME_SERIES_DAILY_ADJUSTED',
         'symbol': symbol,
-        'outputsize': 'compact',
+        'outputsize': 'full' if full else 'compact',
         'apikey': API_KEY,
     }
     for attempt in range(3):
@@ -117,7 +117,9 @@ def main():
         last_date = read_last_date(symbol)
         print(f'[{symbol}] last date: {last_date}', flush=True)
 
-        ts = fetch_adjusted(symbol)
+        # Use outputsize=full on initial fetch (CSV missing) to get full history
+        initial = not csv_path(symbol).exists()
+        ts = fetch_adjusted(symbol, full=initial)
         if not ts:
             print(f'  [{symbol}] skipped (no data)', flush=True)
             # Alpha Vantage free tier: 25 req/day, ~5 req/min — pace requests

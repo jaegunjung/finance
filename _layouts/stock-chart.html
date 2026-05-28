@@ -764,7 +764,10 @@ async function loadData() {
   }
 
   if (!loaded) {
-    showError('Data unavailable — check back after next daily sync');
+    const isKo = document.documentElement.classList.contains('ko-mode');
+    showError(isKo
+      ? '데이터 동기화 대기 중 — GitHub Actions → Update Stock Daily Data → Run workflow'
+      : 'Data pending sync — GitHub Actions → Update Stock Daily Data → Run workflow');
     return;
   }
 

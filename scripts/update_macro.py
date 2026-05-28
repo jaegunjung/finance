@@ -23,6 +23,7 @@ FRED_API_KEY = os.environ.get('FRED_API_KEY')
 FRED_SERIES = {
     'FEDFUNDS': Path('assets/data/macro/FEDFUNDS.csv'),
     'DGS10':    Path('assets/data/macro/DGS10.csv'),
+    'SP500':    Path('assets/data/macro/SP500.csv'),
 }
 
 if not FRED_API_KEY:

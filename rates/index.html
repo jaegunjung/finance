@@ -375,9 +375,10 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
 async function loadRatesData() {
   const loadEl = document.getElementById('ratesLoading');
 
-  const [fedRes, dgsRes, gspcRes, spyRes] = await Promise.allSettled([
+  const [fedRes, dgsRes, sp500Res, gspcRes, spyRes] = await Promise.allSettled([
     fetch('{{ "/assets/data/macro/FEDFUNDS.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('FEDFUNDS missing')),
     fetch('{{ "/assets/data/macro/DGS10.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject('DGS10 missing')),
+    fetch('{{ "/assets/data/macro/SP500.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
     fetch('{{ "/assets/data/stocks/GSPC.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
     fetch('{{ "/assets/data/stocks/SPY.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
   ]);
@@ -390,68 +391,43 @@ async function loadRatesData() {
   const fedMap = fedRes.status === 'fulfilled' ? parseFredCsv(fedRes.value) : {};
   const dgsMap = dgsRes.status === 'fulfilled' ? parseFredCsv(dgsRes.value) : {};
 
-  function parseStockCsv(text) {
-    const map = {};
-    const lines = text.trim().split('\n');
-    const h = lines[0].split(',').map(s=>s.trim());
-    const di = h.indexOf('date');
-    const pi = h.indexOf('adj_close_price_usd') >= 0 ? h.indexOf('adj_close_price_usd')
-             : h.indexOf('close_price_usd') >= 0    ? h.indexOf('close_price_usd')
-             : h.indexOf('open_price_usd');
-    if (di < 0 || pi < 0) return map;
-    for (let i = 1; i < lines.length; i++) {
-      const c = lines[i].split(',');
-      const d = c[di]?.trim(), p = parseFloat(c[pi]);
-      if (d && !isNaN(p) && p > 0) map[d] = p;
-    }
-    return map;
-  }
+  // Primary: FRED SP500 daily series (macro/SP500.csv)
+  let spMap = sp500Res.status === 'fulfilled' ? parseFredCsv(sp500Res.value) : {};
 
-  const gspcMap = gspcRes.status === 'fulfilled' ? parseStockCsv(gspcRes.value) : {};
-  const spyMap  = spyRes.status  === 'fulfilled' ? parseStockCsv(spyRes.value)  : {};
-
-  // Splice SPY + GSPC with ratio adjustment
-  let spMap = { ...gspcMap };
-  const overlapDates = Object.keys(gspcMap).filter(d => spyMap[d] != null);
-  if (overlapDates.length > 0) {
-    const ratio = overlapDates.reduce((s,d) => s + gspcMap[d] / spyMap[d], 0) / overlapDates.length;
-    const gspcStart = Object.keys(gspcMap).sort()[0];
-    for (const d of Object.keys(spyMap)) {
-      if (d < gspcStart) spMap[d] = spyMap[d] * ratio;
-    }
-  }
-
-  // Yahoo Finance fallback for S&P 500 if no stock CSVs
+  // Fallback: Alpha Vantage stock CSVs (GSPC + SPY splice)
   if (Object.keys(spMap).length === 0) {
-    const yfUrls = [
-      'https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=max&interval=1mo',
-      'https://query2.finance.yahoo.com/v8/finance/chart/%5EGSPC?range=max&interval=1mo',
-    ];
-    for (const url of yfUrls) {
-      if (Object.keys(spMap).length > 0) break;
-      try {
-        const r = await fetch(url, { mode: 'cors' });
-        if (r.ok) {
-          const json = await r.json();
-          const result = json.chart?.result?.[0];
-          if (result) {
-            const timestamps = result.timestamp || [];
-            const closeArr = result.indicators?.quote?.[0]?.close;
-            if (closeArr) {
-              for (let i = 0; i < timestamps.length; i++) {
-                const dt = new Date(timestamps[i] * 1000);
-                const d = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-                const p = closeArr[i];
-                if (d && p != null && !isNaN(p) && p > 0) spMap[d] = p;
-              }
-            }
-          }
-        }
-      } catch(e) {}
+    function parseStockCsv(text) {
+      const map = {};
+      const lines = text.trim().split('\n');
+      const h = lines[0].split(',').map(s=>s.trim());
+      const di = h.indexOf('date');
+      const pi = h.indexOf('adj_close_price_usd') >= 0 ? h.indexOf('adj_close_price_usd')
+               : h.indexOf('close_price_usd') >= 0    ? h.indexOf('close_price_usd')
+               : h.indexOf('open_price_usd');
+      if (di < 0 || pi < 0) return map;
+      for (let i = 1; i < lines.length; i++) {
+        const c = lines[i].split(',');
+        const d = c[di]?.trim(), p = parseFloat(c[pi]);
+        if (d && !isNaN(p) && p > 0) map[d] = p;
+      }
+      return map;
+    }
+
+    const gspcMap = gspcRes.status === 'fulfilled' ? parseStockCsv(gspcRes.value) : {};
+    const spyMap  = spyRes.status  === 'fulfilled' ? parseStockCsv(spyRes.value)  : {};
+
+    spMap = { ...gspcMap };
+    const overlapDates = Object.keys(gspcMap).filter(d => spyMap[d] != null);
+    if (overlapDates.length > 0) {
+      const ratio = overlapDates.reduce((s,d) => s + gspcMap[d] / spyMap[d], 0) / overlapDates.length;
+      const gspcStart = Object.keys(gspcMap).sort()[0];
+      for (const d of Object.keys(spyMap)) {
+        if (d < gspcStart) spMap[d] = spyMap[d] * ratio;
+      }
     }
   }
 
-  // Auto-hide S&P 500 layer if no data available
+  // Auto-hide S&P 500 layer if no data available from any source
   if (Object.keys(spMap).length === 0) {
     showLayer.sp500 = false;
     document.getElementById('btnSP500').classList.remove('active');
