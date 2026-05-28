@@ -331,7 +331,17 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
           type:'logarithmic', position:'left',
           grid:{color:'rgba(48,54,61,0.8)'},
           ticks:{color:'#58a6ff', font:{size:10},
-            callback:v=>[10,20,50,100,200,500,1000,2000,5000,10000].includes(v)?'$'+v.toLocaleString():undefined}
+            callback(v) {
+              // Show only "clean" values — powers of 10 and 2×/5× multiples
+              const mag = Math.pow(10, Math.floor(Math.log10(v)));
+              const r = v / mag;
+              if (Math.abs(r - 1) < 0.01 || Math.abs(r - 2) < 0.01 || Math.abs(r - 2.5) < 0.01 ||
+                  Math.abs(r - 5) < 0.01 || Math.abs(r - 7.5) < 0.01) {
+                return '$' + Math.round(v).toLocaleString();
+              }
+              return undefined;
+            }
+          }
         },
         yRight:{
           type:'linear', position:'right', reverse:true,
@@ -344,6 +354,36 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
   });
 
   Chart.register({ id:'ratesOverlaySync', afterRender(c){if(c.canvas.id==='ratesChart')updateInversionOverlay(c);} });
+
+  // Dynamic tick generation for yLeft: narrow ranges get linear ticks, wide ranges get 1-2-5 log ticks.
+  Chart.register({
+    id: 'ratesYTicks',
+    afterBuildTicks(scale) {
+      if (scale.chart.canvas.id !== 'ratesChart' || scale.id !== 'yLeft') return;
+      const { min, max } = scale;
+      if (!min || !max || min <= 0 || max <= 0) return;
+      const ticks = [];
+      const ratio = max / min;
+      if (ratio >= 3) {
+        // Wide range: 1-2-5 × decade ticks
+        const lo = Math.floor(Math.log10(min)), hi = Math.ceil(Math.log10(max));
+        for (let d = lo - 1; d <= hi + 1; d++) {
+          for (const b of [1, 2, 5]) {
+            const v = b * Math.pow(10, d);
+            if (v >= min * 0.99 && v <= max * 1.01) ticks.push({ value: v });
+          }
+        }
+      } else {
+        // Narrow range: ~5 evenly-spaced "nice" linear ticks
+        const rawStep = (max - min) / 5;
+        const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+        const step = Math.ceil(rawStep / mag) * mag;
+        let v = Math.ceil(min / step) * step;
+        while (v <= max * 1.01) { ticks.push({ value: v }); v += step; }
+      }
+      if (ticks.length > 0) scale.ticks = ticks;
+    }
+  });
 
   // afterUpdate: x-scale is fully computed here, so min/max are correct.
   // We apply yLeft bounds then call update('none') once more.
@@ -363,8 +403,11 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
       if (newMin === _yLastMin && newMax === _yLastMax) return;
       _yLastMin = newMin;
       _yLastMax = newMax;
+      // Set on both the config options AND the live scale options (may differ in Chart.js 4)
       chart.options.scales.yLeft.min = newMin;
       chart.options.scales.yLeft.max = newMax;
+      const yScale = chart.scales.yLeft;
+      if (yScale) { yScale.options.min = newMin; yScale.options.max = newMax; }
       chart.update('none');
     }
   });
@@ -450,11 +493,10 @@ async function loadRatesData() {
     return map;
   }
 
-  // Layer SP500 sources: monthly (1927-present) as base, daily overrides recent ~10Y
   const spMonthlyMap = monthlyRes.status === 'fulfilled' ? parseMonthlySp(monthlyRes.value) : {};
   const spDailyMap   = sp500Res.status   === 'fulfilled' ? parseFredCsv(sp500Res.value) : {};
 
-  // If daily FRED SP500 missing, try stock CSVs
+  // Stock CSV fallback when FRED daily SP500 missing
   let spStockMap = {};
   if (Object.keys(spDailyMap).length === 0) {
     const gspcMap = gspcRes.status === 'fulfilled' ? parseStockCsv(gspcRes.value) : {};
@@ -470,7 +512,18 @@ async function loadRatesData() {
     }
   }
 
-  // Merge: monthly base → stock CSV → daily FRED (each layer overrides previous)
+  // Trim monthly data: only use for dates BEFORE daily coverage begins.
+  // This prevents weekend/holiday spikes where monthly YYYY-MM-01 values
+  // conflict with surrounding daily values (monthly is a period average, not spot price).
+  const dailyCoverageStart = Object.keys({ ...spStockMap, ...spDailyMap }).sort()[0];
+  if (dailyCoverageStart) {
+    const cutoffMonth = dailyCoverageStart.slice(0, 7) + '-01'; // YYYY-MM-01 of that month
+    for (const key of Object.keys(spMonthlyMap)) {
+      if (key >= cutoffMonth) delete spMonthlyMap[key];
+    }
+  }
+
+  // Merge: monthly (pre-daily era) → stock CSV → daily FRED
   const spMap = { ...spMonthlyMap, ...spStockMap, ...spDailyMap };
 
   // Auto-hide S&P 500 layer if no data available from any source
