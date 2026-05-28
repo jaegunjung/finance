@@ -9,6 +9,8 @@ title: PEPE Chart
 .ctrl-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
 .ctrl-btn:hover { background:var(--bg-card); color:var(--text-primary); }
 .ctrl-btn.active { background:var(--accent-green); color:#fff; border-color:var(--accent-green); }
+.date-input { background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:3px 8px; font-size:0.79rem; }
+.date-input::-webkit-calendar-picker-indicator { filter:invert(0.6); cursor:pointer; }
 #pepeChartContainer { position:relative; width:100%; height:440px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px 8px 0 0; overflow:hidden; }
 #pepeChart { position:absolute; top:0; left:0; width:100%; height:100%; }
 #pepeRsiContainer { position:relative; width:100%; height:130px; background:var(--bg-card); border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px; overflow:hidden; }
@@ -25,23 +27,35 @@ title: PEPE Chart
     <span class="ko-only">PEPE — 밈코인 차트</span>
   </h1>
   <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
-    <span class="en-only">2023–2026 · Log Scale · MA-12 / MA-24 / MA-48</span>
-    <span class="ko-only">2023–2026 · 로그 스케일 · MA-12 / MA-24 / MA-48</span>
+    <span class="en-only">2023–present · Log Scale · MA-12 / MA-24 / MA-48</span>
+    <span class="ko-only">2023~현재 · 로그 스케일 · MA-12 / MA-24 / MA-48</span>
   </p>
 </div>
 
-<div style="display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 10px; align-items:center;">
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 6px; align-items:center;">
   <div style="display:flex; gap:6px; flex-wrap:wrap;">
     <button class="range-btn" data-days="90">3M</button>
     <button class="range-btn" data-days="180">6M</button>
     <button class="range-btn" data-days="365">1Y</button>
     <button class="range-btn active" data-days="0">All</button>
+    <button class="range-btn" id="pepeCustomBtn" onclick="togglePepeCustom()">
+      <span class="en-only">Custom</span><span class="ko-only">직접 설정</span>
+    </button>
   </div>
-  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
     <button id="pepeMa12" class="ctrl-btn active" onclick="togglePepeMA(12)">MA-12</button>
     <button id="pepeMa24" class="ctrl-btn active" onclick="togglePepeMA(24)">MA-24</button>
     <button id="pepeMa48" class="ctrl-btn" onclick="togglePepeMA(48)">MA-48</button>
+    <button class="ctrl-btn" id="pepeDownloadBtn" onclick="downloadPepeCsv()" style="display:none;">↓ CSV</button>
   </div>
+</div>
+
+<div id="pepeCustomRangeRow" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; align-items:center; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; font-size:0.8rem; color:var(--text-secondary);">
+  <span class="en-only">From</span><span class="ko-only">시작</span>
+  <input type="date" id="pepeDateFrom" class="date-input" onchange="applyPepeCustomRange()">
+  <span style="color:var(--text-muted);">—</span>
+  <input type="date" id="pepeDateTo" class="date-input" onchange="applyPepeCustomRange()">
+  <span id="pepeValidRangeHint" style="color:var(--text-muted); font-size:0.74rem; margin-left:4px;"></span>
 </div>
 
 <div id="pepeChartContainer">
@@ -60,7 +74,7 @@ title: PEPE Chart
   <span class="ko-only">스크롤 줌 · 드래그 패닝 · 더블클릭 초기화</span>
 </p>
 <p class="source-note">
-  <span class="en-only">Data: pepe_daily.csv (CoinGecko history) + live CoinGecko API gap-fill · Updated daily</span>
+  <span class="en-only">Data: pepe_daily.csv (CoinGecko) + live CoinGecko API fill · Updated daily</span>
   <span class="ko-only">데이터: pepe_daily.csv + CoinGecko API 보완 · 매일 업데이트</span>
 </p>
 
@@ -126,9 +140,54 @@ function togglePepeMA(p){
   pepeShowMA[p]=!pepeShowMA[p];
   document.getElementById(`pepeMa${p}`).classList.toggle('active',pepeShowMA[p]);
   if(!pepeChart)return;
-  const idx={12:1,24:2,48:3}[p];
-  pepeChart.data.datasets[idx].hidden=!pepeShowMA[p];
+  pepeChart.data.datasets[{12:1,24:2,48:3}[p]].hidden=!pepeShowMA[p];
   pepeChart.update('none');
+}
+
+function togglePepeCustom() {
+  const row = document.getElementById('pepeCustomRangeRow');
+  const btn = document.getElementById('pepeCustomBtn');
+  const showing = row.style.display !== 'none';
+  if (!showing && pepeDates.length > 0) {
+    document.querySelectorAll('[data-days]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    row.style.display = 'flex';
+    const f = document.getElementById('pepeDateFrom'), t = document.getElementById('pepeDateTo');
+    f.min = pepeDates[0]; f.max = pepeDates[pepeDates.length-1];
+    t.min = pepeDates[0]; t.max = pepeDates[pepeDates.length-1];
+    if (!f.value) f.value = pepeDates[0];
+    if (!t.value) t.value = pepeDates[pepeDates.length-1];
+    document.getElementById('pepeValidRangeHint').textContent = `(${pepeDates[0]} – ${pepeDates[pepeDates.length-1]})`;
+  } else {
+    row.style.display = 'none';
+    btn.classList.remove('active');
+  }
+}
+
+function applyPepeCustomRange() {
+  const from = document.getElementById('pepeDateFrom').value;
+  const to   = document.getElementById('pepeDateTo').value;
+  if (!from || !to || !pepeChart) return;
+  let fi = 0; for (let i=0; i<pepeDates.length; i++) { if(pepeDates[i]>=from){fi=i;break;} }
+  let ti = pepeDates.length-1; for (let i=pepeDates.length-1; i>=0; i--) { if(pepeDates[i]<=to){ti=i;break;} }
+  if (fi > ti) return;
+  pepeChart.zoomScale('x', {min:fi, max:ti}, 'none');
+  if (pepeRsiChart) pepeRsiChart.zoomScale('x', {min:fi, max:ti}, 'none');
+}
+
+function downloadPepeCsv() {
+  const ma12=smaPepe(pepePrices,12), ma24=smaPepe(pepePrices,24), ma48=smaPepe(pepePrices,48);
+  const rsi=rsiPepe(pepePrices,14);
+  const v = n => (n == null || isNaN(n)) ? '' : Number(n).toFixed(8);
+  let csv = 'date,price_usd,ma12,ma24,ma48,rsi14\n';
+  for (let i=0; i<pepeDates.length; i++) {
+    csv += `${pepeDates[i]},${pepePrices[i].toFixed(8)},${v(ma12[i])},${v(ma24[i])},${v(ma48[i])},${v(rsi[i])}\n`;
+  }
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], {type:'text/csv'})),
+    download: 'PEPE_daily.csv'
+  });
+  a.click();
 }
 
 function updatePepeRsiLabel(idx){
@@ -190,10 +249,12 @@ function initPepeChart(){
     if(pepeRsiChart)pepeRsiChart.zoomScale('x',{min:0,max:pepePrices.length-1},'none');
   });
 
-  document.querySelectorAll('.range-btn').forEach(btn=>{
+  document.querySelectorAll('[data-days]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
+      document.getElementById('pepeCustomRangeRow').style.display = 'none';
+      if (!pepeChart) return;
       const days=parseInt(btn.dataset.days), mx=pepePrices.length-1;
       const rng=days?{min:Math.max(0,mx-days),max:mx}:{min:0,max:mx};
       pepeChart.zoomScale('x',rng,'none');
@@ -222,40 +283,59 @@ function initPepeChart(){
 
 async function loadPepeData(){
   const src=document.getElementById('pepeLoading');
+  const priceMap = {};
+
+  // Step 1: Load CSV (supports both price_usd and open_price_usd)
   try {
     const r=await fetch('{{ "/crypto/data/pepe_daily.csv" | relative_url }}');
     if(r.ok){
       const text=await r.text();
       const lines=text.trim().split('\n');
       const h=lines[0].split(',').map(s=>s.trim());
-      const di=h.indexOf('date'), pi=h.indexOf('price_usd');
+      const di=h.indexOf('date');
+      const pi=h.indexOf('open_price_usd')>=0 ? h.indexOf('open_price_usd') : h.indexOf('price_usd');
       if(di>=0&&pi>=0){
         for(let i=1;i<lines.length;i++){
           const c=lines[i].split(',');
           const d=c[di]?.trim(), p=parseFloat(c[pi]);
-          if(d&&!isNaN(p)&&p>0){pepeDates.push(d);pepePrices.push(p);}
+          if(d&&!isNaN(p)&&p>0) priceMap[d]=p;
         }
       }
     }
   } catch(e){}
 
+  // Step 2: CoinGecko — fetch full history if CSV doesn't cover PEPE launch (Apr 2023)
+  const csvDates = Object.keys(priceMap).sort();
+  const needsFullHistory = csvDates.length === 0 || csvDates[0] > '2023-06-01';
+  const days = needsFullHistory ? 'max' : 30;
+
   try {
-    const days=pepeDates.length>0?30:'max';
-    const r=await fetch(`https://api.coingecko.com/api/v3/coins/pepe/market_chart?vs_currency=usd&days=${days}&interval=daily`);
+    const r=await fetch(`https://api.coingecko.com/api/v3/coins/pepe/market_chart?vs_currency=usd&days=${days}`);
     if(r.ok){
       const json=await r.json();
-      const last=pepeDates.length?pepeDates[pepeDates.length-1]:'';
-      for(const[ts,p] of json.prices){
+      for(const[ts,p] of (json.prices||[])){
         const dt=new Date(ts);
-        const s=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-        if(s>last&&p>0){pepeDates.push(s);pepePrices.push(p);}
+        const s=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+        if(!priceMap[s]&&p>0) priceMap[s]=p;
       }
     }
   } catch(e){}
 
+  // Rebuild sorted arrays
+  const allDates = Object.keys(priceMap).sort();
+  for (const d of allDates) { pepeDates.push(d); pepePrices.push(priceMap[d]); }
+
   if(pepePrices.length===0){if(src)src.textContent='Data unavailable';return;}
   initPepeChart();
   if(src)src.style.display='none';
+
+  // Enable download + custom range hints
+  document.getElementById('pepeDownloadBtn').style.display = '';
+  const f = document.getElementById('pepeDateFrom'), t = document.getElementById('pepeDateTo');
+  f.min = pepeDates[0]; f.max = pepeDates[pepeDates.length-1];
+  t.min = pepeDates[0]; t.max = pepeDates[pepeDates.length-1];
+  f.value = pepeDates[0]; t.value = pepeDates[pepeDates.length-1];
+  document.getElementById('pepeValidRangeHint').textContent = `(${pepeDates[0]} – ${pepeDates[pepeDates.length-1]})`;
 }
 
 loadPepeData();

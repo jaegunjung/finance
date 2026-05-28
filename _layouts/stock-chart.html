@@ -2,7 +2,6 @@
 layout: default
 ---
 <style>
-.range-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 .range-btn {
   padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
   background: none; color: var(--text-secondary); font-size: 0.8rem;
@@ -18,6 +17,13 @@ layout: default
 }
 .ctrl-btn:hover { background: var(--bg-card); color: var(--text-primary); }
 .ctrl-btn.active { background: var(--accent-green); color: #fff; border-color: var(--accent-green); }
+
+.date-input {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); padding: 3px 8px;
+  font-size: 0.79rem; cursor: pointer;
+}
+.date-input::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
 
 #chartContainer {
   position: relative; width: 100%; height: 480px;
@@ -81,19 +87,35 @@ layout: default
   </p>
 </div>
 
-<div style="display:flex; flex-wrap:wrap; gap:8px; margin: 16px 0 10px; align-items:center;">
-  <div class="range-row">
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin: 16px 0 6px; align-items:center;">
+  <div class="range-row" style="display:flex; gap:6px; flex-wrap:wrap;">
     <button class="range-btn" data-days="252">1Y</button>
     <button class="range-btn" data-days="504">2Y</button>
     <button class="range-btn" data-days="1260">5Y</button>
     <button class="range-btn" data-days="2520">10Y</button>
     <button class="range-btn active" data-days="0">All</button>
+    <button class="range-btn" id="customRangeBtn" onclick="toggleCustomRange()">
+      <span class="en-only">Custom</span><span class="ko-only">직접 설정</span>
+    </button>
   </div>
-  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+  <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
     <button id="ma20Btn"  class="ctrl-btn active" onclick="toggleMA(20)">MA-20</button>
     <button id="ma50Btn"  class="ctrl-btn active" onclick="toggleMA(50)">MA-50</button>
     <button id="ma200Btn" class="ctrl-btn active" onclick="toggleMA(200)">MA-200</button>
+    <button class="ctrl-btn" id="downloadBtn" onclick="downloadCsv()" style="display:none;">
+      ↓ <span class="en-only">CSV</span><span class="ko-only">CSV</span>
+    </button>
   </div>
+</div>
+
+<div id="customRangeRow" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; align-items:center; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px;">
+  <span style="color:var(--text-secondary); font-size:0.79rem;">
+    <span class="en-only">From</span><span class="ko-only">시작</span>
+  </span>
+  <input type="date" id="dateFrom" class="date-input" onchange="applyCustomRange()">
+  <span style="color:var(--text-muted);">—</span>
+  <input type="date" id="dateTo" class="date-input" onchange="applyCustomRange()">
+  <span id="validRangeHint" style="color:var(--text-muted); font-size:0.74rem; margin-left:4px;"></span>
 </div>
 
 <div id="chartContainer">
@@ -213,12 +235,10 @@ function computeChannel(priceArr) {
   return { slope, center: intercept, upper: intercept + 2*sigma, lower: intercept - 2*sigma };
 }
 
-// ── Auto-detect peaks & troughs (zigzag, 20% threshold) ──
+// ── Auto-detect peaks & troughs ──
 function detectMarkers(priceArr, dateArr, threshold = 0.20) {
   const n = priceArr.length;
   if (n < 10) return [];
-
-  // Rolling window extrema: ±halfWin days
   const halfWin = Math.min(126, Math.floor(n / 8));
   const candidates = [];
   for (let i = halfWin; i < n - halfWin; i++) {
@@ -231,8 +251,6 @@ function detectMarkers(priceArr, dateArr, threshold = 0.20) {
     if (isPeak)   candidates.push({ idx: i, price: priceArr[i], date: dateArr[i], type: 'peak' });
     if (isTrough) candidates.push({ idx: i, price: priceArr[i], date: dateArr[i], type: 'trough' });
   }
-
-  // Zigzag filter: alternate peak/trough, keep only significant swings
   const result = [];
   for (const c of candidates) {
     if (result.length === 0) {
@@ -240,7 +258,6 @@ function detectMarkers(priceArr, dateArr, threshold = 0.20) {
     } else {
       const last = result[result.length - 1];
       if (last.type === c.type) {
-        // Same type — replace if more extreme
         if (c.type === 'peak'   && c.price > last.price) result[result.length - 1] = c;
         if (c.type === 'trough' && c.price < last.price) result[result.length - 1] = c;
       } else {
@@ -329,7 +346,6 @@ function updateOverlay(ch) {
 
   let html = `<defs><clipPath id="ca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs><g clip-path="url(#ca)">`;
 
-  // Channel band
   const mn0 = xS.getValueForPixel(ca.left), mn1 = xS.getValueForPixel(ca.right);
   const x0 = ca.left, x1 = ca.right;
   const cy = (int, mn) => yS.getPixelForValue(Math.exp(int + cp.slope * mn));
@@ -341,7 +357,6 @@ function updateOverlay(ch) {
   html += `<line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="6 4"/>`;
   html += `<line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="2 4"/>`;
 
-  // Markers
   for (const m of markers) {
     const px = xS.getPixelForValue(m.idx);
     const py = yS.getPixelForValue(prices[m.idx]);
@@ -355,7 +370,6 @@ function updateOverlay(ch) {
   html += '</g>';
   svg.innerHTML = html;
 
-  // Re-attach marker events after innerHTML update
   svg.querySelectorAll('[data-midx]').forEach(el => {
     const mIdx = parseInt(el.dataset.midx);
     const m = markers.find(x => x.idx === mIdx);
@@ -401,7 +415,6 @@ function openPanel(m) {
   document.getElementById('dpType').style.color  = m.type === 'peak' ? '#f85149' : '#3B8BD4';
   document.getElementById('dpDate').textContent  = fmtDate(m.date);
   document.getElementById('dpPrice').textContent = fmtPrice(m.price);
-
   const prev = getPrevMarker(m);
   let changeStr = '';
   if (prev) {
@@ -444,12 +457,67 @@ function updateRsiLabel(idx) {
 function xTickCallback(_, i, ticks) {
   if (!dates[i]) return '';
   const d = dates[i];
-  const yr = d.slice(0, 4), mo = d.slice(5, 7);
+  const yr = d.slice(0, 4);
   if (i === 0) return yr;
   const prev = dates[i-1];
   if (!prev) return '';
   if (prev.slice(0, 4) !== yr) return yr;
   return '';
+}
+
+// ── Custom date range ──
+function toggleCustomRange() {
+  const row = document.getElementById('customRangeRow');
+  const btn = document.getElementById('customRangeBtn');
+  const showing = row.style.display !== 'none';
+  if (!showing && dates.length > 0) {
+    document.querySelectorAll('[data-days]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    row.style.display = 'flex';
+    const fromInput = document.getElementById('dateFrom');
+    const toInput   = document.getElementById('dateTo');
+    fromInput.min = dates[0]; fromInput.max = dates[dates.length-1];
+    toInput.min   = dates[0]; toInput.max   = dates[dates.length-1];
+    if (!fromInput.value) fromInput.value = dates[0];
+    if (!toInput.value)   toInput.value   = dates[dates.length-1];
+    document.getElementById('validRangeHint').textContent =
+      `(${dates[0]} – ${dates[dates.length-1]})`;
+  } else {
+    row.style.display = 'none';
+    btn.classList.remove('active');
+  }
+}
+
+function applyCustomRange() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  if (!from || !to || !chart) return;
+  let fromIdx = 0;
+  for (let i = 0; i < dates.length; i++) { if (dates[i] >= from) { fromIdx = i; break; } }
+  let toIdx = dates.length - 1;
+  for (let i = dates.length - 1; i >= 0; i--) { if (dates[i] <= to) { toIdx = i; break; } }
+  if (fromIdx > toIdx) return;
+  chart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
+  if (rsiChart) rsiChart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
+  updateOverlay(chart);
+}
+
+// ── Download CSV ──
+function downloadCsv() {
+  const ma20  = computeSMA(prices, 20);
+  const ma50  = computeSMA(prices, 50);
+  const ma200 = computeSMA(prices, 200);
+  const rsi14 = computeRSI(prices, 14);
+  let csv = 'date,price,ma20,ma50,ma200,rsi14\n';
+  for (let i = 0; i < dates.length; i++) {
+    const v = n => (n == null || isNaN(n)) ? '' : Number(n).toFixed(4);
+    csv += `${dates[i]},${prices[i].toFixed(4)},${v(ma20[i])},${v(ma50[i])},${v(ma200[i])},${v(rsi14[i])}\n`;
+  }
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+    download: `${SYMBOL}_daily.csv`
+  });
+  a.click();
 }
 
 // ── Main chart init ──
@@ -508,8 +576,7 @@ function initChart() {
             title: items => fmtDate(dates[items[0].dataIndex] ?? ''),
             label: item => {
               if (isNaN(item.parsed.y)) return null;
-              const label = item.dataset.label;
-              return `${label}: ${fmtPrice(item.parsed.y)}`;
+              return `${item.dataset.label}: ${fmtPrice(item.parsed.y)}`;
             }
           }
         }
@@ -552,10 +619,6 @@ function initChart() {
   chart.update();
   updateOverlay(chart);
 
-  // Trigger overlay on each render
-  const origDraw = Chart.registry.plugins.get('stockCrosshair')?.afterDraw;
-  chart.options.plugins.stockCrosshair = {};
-  // Use afterRender to keep overlay in sync
   const afterRenderPlugin = {
     id: 'overlaySync',
     afterRender(c) { updateOverlay(c); }
@@ -596,10 +659,7 @@ function initRsiChart() {
         y: {
           type:'linear', min:0, max:100,
           grid: { color:'rgba(48,54,61,0.8)' },
-          ticks: {
-            color:'#8b949e', font:{size:10},
-            callback: v => [0,30,70,100].includes(v) ? v : ''
-          }
+          ticks: { color:'#8b949e', font:{size:10}, callback: v => [0,30,70,100].includes(v) ? v : '' }
         }
       },
       plugins: {
@@ -610,12 +670,6 @@ function initRsiChart() {
           callbacks: {
             title: items => fmtDate(dates[items[0].dataIndex] ?? ''),
             label: item => isNaN(item.parsed.y) ? null : `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`
-          }
-        },
-        annotation: {
-          annotations: {
-            ob: { type:'line', yMin:70, yMax:70, borderColor:'rgba(248,81,73,0.35)', borderWidth:1, borderDash:[4,4] },
-            os: { type:'line', yMin:30, yMax:30, borderColor:'rgba(88,166,255,0.35)', borderWidth:1, borderDash:[4,4] },
           }
         }
       },
@@ -628,10 +682,12 @@ function initRsiChart() {
 }
 
 // ── Range buttons ──
-document.querySelectorAll('.range-btn').forEach(btn => {
+document.querySelectorAll('[data-days]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    document.getElementById('customRangeRow').style.display = 'none';
+    if (!chart) return;
     const days = parseInt(btn.dataset.days);
     const max = prices.length - 1;
     const range = days ? { min: Math.max(0, max - days), max } : { min: 0, max };
@@ -649,7 +705,7 @@ async function loadData() {
   const loader = document.getElementById('chartLoading');
   let loaded = false;
 
-  // 1. Try CSV first
+  // 1. Try CSV (adj_close_price_usd preferred; fall back to close or open)
   try {
     const r = await fetch(CSV_URL);
     if (r.ok) {
@@ -657,7 +713,11 @@ async function loadData() {
       const lines = text.trim().split('\n');
       const header = lines[0].split(',').map(s => s.trim());
       const dateIdx  = header.indexOf('date');
-      const priceIdx = header.indexOf('adj_close_price_usd');
+      const priceIdx = header.indexOf('adj_close_price_usd') >= 0
+        ? header.indexOf('adj_close_price_usd')
+        : header.indexOf('close_price_usd') >= 0
+          ? header.indexOf('close_price_usd')
+          : header.indexOf('open_price_usd');
       if (dateIdx >= 0 && priceIdx >= 0) {
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(',');
@@ -670,45 +730,64 @@ async function loadData() {
     }
   } catch(e) {}
 
-  // 2. Fallback: Yahoo Finance public API
+  // 2. Fallback: Yahoo Finance public API (query1 then query2)
   if (!loaded) {
-    try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=max&interval=1d`;
-      const r = await fetch(url);
-      if (r.ok) {
-        const json = await r.json();
-        const result = json.chart?.result?.[0];
-        if (result) {
-          const timestamps = result.timestamp || [];
-          const adjCloseArr = result.indicators?.adjclose?.[0]?.adjclose;
-          const closeArr    = result.indicators?.quote?.[0]?.close;
-          const priceArr    = adjCloseArr || closeArr;
-          if (priceArr) {
-            for (let i = 0; i < timestamps.length; i++) {
-              const dt = new Date(timestamps[i] * 1000);
-              const d = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
-              const p = priceArr[i];
-              if (d && p != null && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+    const yfUrls = [
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=max&interval=1d`,
+      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?range=max&interval=1d`,
+    ];
+    for (const url of yfUrls) {
+      if (loaded) break;
+      try {
+        const r = await fetch(url, { mode: 'cors' });
+        if (r.ok) {
+          const json = await r.json();
+          const result = json.chart?.result?.[0];
+          if (result) {
+            const timestamps = result.timestamp || [];
+            const adjCloseArr = result.indicators?.adjclose?.[0]?.adjclose;
+            const closeArr    = result.indicators?.quote?.[0]?.close;
+            const priceArr    = adjCloseArr || closeArr;
+            if (priceArr) {
+              for (let i = 0; i < timestamps.length; i++) {
+                const dt = new Date(timestamps[i] * 1000);
+                const d = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+                const p = priceArr[i];
+                if (d && p != null && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+              }
+              loaded = prices.length > 0;
             }
-            loaded = prices.length > 0;
           }
         }
-      }
-    } catch(e) {}
+      } catch(e) {}
+    }
   }
 
-  if (!loaded) { showError('Data unavailable'); return; }
+  if (!loaded) {
+    showError('Data unavailable — check back after next daily sync');
+    return;
+  }
 
   channelParams = computeChannel(prices);
   markers       = detectMarkers(prices, dates);
   initChart();
   initRsiChart();
   if (loader) loader.style.display = 'none';
+
+  // Enable download + custom range
+  document.getElementById('downloadBtn').style.display = '';
+  const fromInput = document.getElementById('dateFrom');
+  const toInput   = document.getElementById('dateTo');
+  fromInput.min = dates[0]; fromInput.max = dates[dates.length-1];
+  toInput.min   = dates[0]; toInput.max   = dates[dates.length-1];
+  fromInput.value = dates[0];
+  toInput.value   = dates[dates.length-1];
+  document.getElementById('validRangeHint').textContent = `(${dates[0]} – ${dates[dates.length-1]})`;
 }
 
 loadData();
 
-// ── Lang toggle hook: re-render open panel ──
+// ── Lang toggle hook ──
 (function() {
   const orig = window.setLang;
   if (!orig) return;
