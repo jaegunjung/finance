@@ -141,7 +141,6 @@ function toggleLayer(key) {
     if (showLayer.sp500) {
       const xMin = ratesChart.scales.x.min, xMax = ratesChart.scales.x.max;
       updateRatesYAxis(xMin, xMax);
-      return; // updateRatesYAxis already calls update()
     }
   }
   if (key === 'fed')   { ratesChart.data.datasets[1].hidden = !showLayer.fed; }
@@ -270,10 +269,8 @@ function updateRatesYAxis(fromIdx, toIdx) {
   if (visible.length < 2) return;
   const minP = Math.min(...visible);
   const maxP = Math.max(...visible);
-  // Log-uniform padding: ~20% ratio on each side
-  ratesChart.options.scales.yLeft.min = minP / 1.2;
-  ratesChart.options.scales.yLeft.max = maxP * 1.2;
-  ratesChart.update('none');
+  // Use zoomScale (same mechanism as x-axis zoom) — avoids zoom plugin conflict
+  ratesChart.zoomScale('yLeft', { min: minP / 1.2, max: maxP * 1.2 }, 'none');
 }
 
 // ── Download CSV ──
