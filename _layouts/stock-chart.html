@@ -238,8 +238,10 @@ function computeChannel(priceArr) {
 // ── Auto-detect peaks & troughs ──
 function detectMarkers(priceArr, dateArr, threshold = 0.20) {
   const n = priceArr.length;
-  if (n < 10) return [];
-  const halfWin = Math.min(126, Math.floor(n / 8));
+  if (n < 60) return [];
+
+  // Fixed 60-day local window — point must be the highest/lowest within ±60 days
+  const halfWin = Math.min(60, Math.floor(n / 4));
   const candidates = [];
   for (let i = halfWin; i < n - halfWin; i++) {
     let isPeak = true, isTrough = true;
@@ -251,20 +253,39 @@ function detectMarkers(priceArr, dateArr, threshold = 0.20) {
     if (isPeak)   candidates.push({ idx: i, price: priceArr[i], date: dateArr[i], type: 'peak' });
     if (isTrough) candidates.push({ idx: i, price: priceArr[i], date: dateArr[i], type: 'trough' });
   }
-  const result = [];
+
+  // Zigzag: alternate peak/trough, keep most extreme when same type consecutive
+  const zigzag = [];
   for (const c of candidates) {
-    if (result.length === 0) {
-      result.push(c);
+    if (zigzag.length === 0) {
+      zigzag.push(c);
     } else {
-      const last = result[result.length - 1];
+      const last = zigzag[zigzag.length - 1];
       if (last.type === c.type) {
-        if (c.type === 'peak'   && c.price > last.price) result[result.length - 1] = c;
-        if (c.type === 'trough' && c.price < last.price) result[result.length - 1] = c;
+        if (c.type === 'peak'   && c.price > last.price) zigzag[zigzag.length - 1] = c;
+        if (c.type === 'trough' && c.price < last.price) zigzag[zigzag.length - 1] = c;
       } else {
         const chg = Math.abs(c.price / last.price - 1);
-        if (chg >= threshold) result.push(c);
-        else if (c.type === 'peak' && c.price > last.price) result[result.length - 1] = c;
-        else if (c.type === 'trough' && c.price < last.price) result[result.length - 1] = c;
+        if (chg >= threshold) zigzag.push(c);
+        else if (c.type === 'peak'   && c.price > last.price) zigzag[zigzag.length - 1] = c;
+        else if (c.type === 'trough' && c.price < last.price) zigzag[zigzag.length - 1] = c;
+      }
+    }
+  }
+
+  // Enforce 180-day minimum gap: merge markers that are too close
+  const result = [];
+  for (const m of zigzag) {
+    if (result.length === 0) {
+      result.push(m);
+    } else {
+      const last = result[result.length - 1];
+      if (m.idx - last.idx < 180) {
+        // Too close — keep the more extreme one
+        if (m.type === 'peak'   && m.price > last.price) result[result.length - 1] = m;
+        if (m.type === 'trough' && m.price < last.price) result[result.length - 1] = m;
+      } else {
+        result.push(m);
       }
     }
   }
@@ -621,7 +642,7 @@ function initChart() {
 
   const afterRenderPlugin = {
     id: 'overlaySync',
-    afterRender(c) { updateOverlay(c); }
+    afterRender(c) { if (c === chart) updateOverlay(c); }
   };
   Chart.register(afterRenderPlugin);
 }
