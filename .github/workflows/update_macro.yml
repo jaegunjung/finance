@@ -2,11 +2,14 @@ name: Update Macro Data (FRED)
 
 on:
   schedule:
-    - cron: '0 2 * * 2-6'  # Mon–Fri UTC 02:00 (EST 21:00, after Fed releases)
-  workflow_dispatch:        # Allow manual trigger
+    - cron: '0 2 * * 2-6'  # Mon–Fri UTC 02:00
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   update-macro:
@@ -36,6 +39,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No data changes to commit."
           else
-            git commit -m "Auto-update FRED macro data [$(date +%Y-%m-%d)] [skip ci]"
+            git commit -m "Auto-update FRED macro data [$(date +%Y-%m-%d)]"
             git push
           fi

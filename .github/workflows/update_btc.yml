@@ -2,11 +2,14 @@ name: Update BTC Daily Data
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Daily at UTC 00:00 (EST 19:00, after market close)
-  workflow_dispatch:       # Allow manual trigger
+    - cron: '0 0 * * *'  # Daily at UTC 00:00
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   update-btc:
@@ -34,6 +37,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No data changes to commit."
           else
-            git commit -m "Auto-update BTC daily data [$(date +%Y-%m-%d)] [skip ci]"
+            git commit -m "Auto-update BTC daily data [$(date +%Y-%m-%d)]"
             git push
           fi

@@ -3,10 +3,13 @@ name: Update ETH Daily Data
 on:
   schedule:
     - cron: '30 0 * * *'  # Daily at UTC 00:30
-  workflow_dispatch:        # Allow manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   update-eth:
@@ -34,6 +37,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No data changes to commit."
           else
-            git commit -m "Auto-update ETH daily data [$(date +%Y-%m-%d)] [skip ci]"
+            git commit -m "Auto-update ETH daily data [$(date +%Y-%m-%d)]"
             git push
           fi
