@@ -253,17 +253,38 @@ title: Home
   const CSV_BASE = '{{ "/assets/data/stocks/" | relative_url }}';
   const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
+  // Stocks with full history
   const STOCKS = [
-    { sym:'DJI',   name:'Dow Jones (^DJI)',     group:'Indices' },
-    { sym:'QQQ',   name:'QQQ',                  group:'Indices' },
-    { sym:'VFIAX', name:'VFIAX',                group:'Indices' },
-    { sym:'AAPL',  name:'Apple (AAPL)',          group:'Big Tech' },
-    { sym:'NVDA',  name:'NVIDIA (NVDA)',         group:'Big Tech' },
-    { sym:'META',  name:'Meta (META)',           group:'Big Tech' },
-    { sym:'GOOG',  name:'Alphabet (GOOG)',       group:'Big Tech' },
-    { sym:'AMZN',  name:'Amazon (AMZN)',         group:'Big Tech' },
-    { sym:'TSLA',  name:'Tesla (TSLA)',          group:'Big Tech' },
-    { sym:'ENVX',  name:'Enovix (ENVX)',         group:'Battery'  },
+    { sym:'DJI',   name:'Dow Jones (^DJI)'   },
+    { sym:'QQQ',   name:'QQQ'                },
+    { sym:'VFIAX', name:'VFIAX'              },
+    { sym:'AAPL',  name:'Apple (AAPL)'       },
+    { sym:'NVDA',  name:'NVIDIA (NVDA)'      },
+    { sym:'META',  name:'Meta (META)'        },
+    { sym:'GOOG',  name:'Alphabet (GOOG)'    },
+    { sym:'AMZN',  name:'Amazon (AMZN)'      },
+    { sym:'TSLA',  name:'Tesla (TSLA)'       },
+    { sym:'ENVX',  name:'Enovix (ENVX)'      },
+  ];
+
+  // AI CapEx: show 2026 only
+  const AI_CAPEX = [
+    { sym:'MU',   name:'Micron (MU)'           },
+    { sym:'WDC',  name:'Western Digital (WDC)' },
+    { sym:'STX',  name:'Seagate (STX)'         },
+    { sym:'CIEN', name:'Ciena (CIEN)'          },
+    { sym:'LITE', name:'Lumentum (LITE)'       },
+    { sym:'BE',   name:'Bloom Energy (BE)'     },
+    { sym:'DRAM', name:'DRAM ETF (DRAM)'       },
+    { sym:'AIPO', name:'AIPO'                  },
+    { sym:'SOXX', name:'Semiconductor (SOXX)'  },
+    { sym:'EWY',  name:'South Korea (EWY)'     },
+    { sym:'WGMI', name:'Bitcoin Miners (WGMI)' },
+  ];
+
+  const ALL_STOCKS = [
+    ...STOCKS.map(s => ({ ...s, only2026: false })),
+    ...AI_CAPEX.map(s => ({ ...s, only2026: true })),
   ];
 
   const SPLITS = { NVDA: [{ date:'2024-06-10', factor:10 }] };
@@ -303,42 +324,53 @@ title: Home
     if (!data) return null;
     const { dates, prices } = data;
     const today = new Date().toISOString().slice(0, 10);
-    const prevEnd = `${year - 1}-12-31`;
-    const currEnd = year === 2026 ? today : `${year}-12-31`;
-    let prevP = null, currP = null;
+    const prevEnd  = `${year - 1}-12-31`;
+    const currEnd  = year === 2026 ? today : `${year}-12-31`;
+    const yearStart = `${year}-01-01`;
+
+    // Find end-of-previous-year price (backwards search)
+    let prevP = null;
     for (let i = dates.length - 1; i >= 0; i--) {
-      if (dates[i] <= prevEnd && prevP == null) prevP = prices[i];
-      if (dates[i] <= currEnd && currP == null) currP = prices[i];
-      if (prevP != null && currP != null) break;
+      if (dates[i] <= prevEnd) { prevP = prices[i]; break; }
     }
+    // Fallback: use first price in current year (handles IPO stocks like ENVX)
+    if (!prevP) {
+      for (let i = 0; i < dates.length; i++) {
+        if (dates[i] >= yearStart) { prevP = prices[i]; break; }
+      }
+    }
+
+    // Find end-of-current-year (or latest available) price
+    let currP = null;
+    for (let i = dates.length - 1; i >= 0; i--) {
+      if (dates[i] <= currEnd) { currP = prices[i]; break; }
+    }
+
     if (!prevP || !currP) return null;
     return (currP / prevP - 1) * 100;
   }
 
-  // Cell color: per-column relative heat map
   function cellStyle(val, colVals) {
-    if (val == null) return { bg: 'transparent', color: 'var(--text-muted)' };
+    if (val == null) return { bg:'transparent', color:'var(--text-muted)', shadow:'none' };
     const pos = colVals.filter(v => v != null && v > 0);
     const neg = colVals.filter(v => v != null && v < 0);
     const maxPos = pos.length ? Math.max(...pos) : 1;
     const minNeg = neg.length ? Math.min(...neg) : -1;
     if (val >= 0) {
       const t = maxPos > 0 ? Math.min(1, val / maxPos) : 0;
-      const l = Math.round(13 + 22 * t);
-      const s = Math.round(70 * t);
-      return { bg: `hsl(120,${s}%,${l}%)`, color: t > 0.25 ? '#e6edf3' : 'var(--text-secondary)',
-               shadow: `inset 0 1px rgba(255,255,255,${0.05 + 0.1*t}), inset 0 -1px rgba(0,0,0,${0.1+0.15*t})` };
+      const l = Math.round(13 + 22 * t), s = Math.round(70 * t);
+      return { bg:`hsl(120,${s}%,${l}%)`, color: t > 0.25 ? '#e6edf3' : 'var(--text-secondary)',
+               shadow:`inset 0 1px rgba(255,255,255,${0.05+0.1*t}), inset 0 -1px rgba(0,0,0,${0.1+0.15*t})` };
     } else {
-      const t = minNeg < 0 ? Math.min(1, Math.abs(val) / Math.abs(minNeg)) : 0;
-      const l = Math.round(13 + 22 * t);
-      const s = Math.round(70 * t);
-      return { bg: `hsl(0,${s}%,${l}%)`, color: t > 0.25 ? '#e6edf3' : 'var(--text-secondary)',
-               shadow: `inset 0 1px rgba(255,255,255,${0.05 + 0.1*t}), inset 0 -1px rgba(0,0,0,${0.1+0.15*t})` };
+      const t = minNeg < 0 ? Math.min(1, Math.abs(val)/Math.abs(minNeg)) : 0;
+      const l = Math.round(13 + 22 * t), s = Math.round(70 * t);
+      return { bg:`hsl(0,${s}%,${l}%)`, color: t > 0.25 ? '#e6edf3' : 'var(--text-secondary)',
+               shadow:`inset 0 1px rgba(255,255,255,${0.05+0.1*t}), inset 0 -1px rgba(0,0,0,${0.1+0.15*t})` };
     }
   }
 
-  let tableData = []; // { sym, name, group, returns: [r2020,...r2026] }
-  let sortCol = 6; // 2026 index
+  let tableData = [];
+  let sortCol = 6;  // default: 2026 (index 6)
   let sortAsc = false;
 
   function renderTable() {
@@ -350,24 +382,24 @@ title: Home
       return sortAsc ? av - bv : bv - av;
     });
 
-    // Per-column values for color scale
+    // Color scale uses only non-null values per column
     const colVals = YEARS.map((_, ci) => sorted.map(r => r.returns[ci]).filter(v => v != null));
 
     const tbody = document.getElementById('returnsBody');
     tbody.innerHTML = '';
     for (const row of sorted) {
       const tr = document.createElement('tr');
-      // Name cell
       const td0 = document.createElement('td');
       td0.style.cssText = 'padding:5px 10px; color:var(--text-primary); font-weight:500; white-space:nowrap; position:sticky; left:0; background:var(--bg-card); z-index:1; border-bottom:1px solid var(--border);';
       td0.textContent = row.name;
       tr.appendChild(td0);
-      // Year cells
       row.returns.forEach((val, ci) => {
         const td = document.createElement('td');
-        const { bg, color, shadow } = cellStyle(val, colVals[ci]);
-        td.style.cssText = `padding:5px 8px; text-align:right; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; background:${bg}; color:${color}; box-shadow:${shadow || 'none'};`;
-        td.textContent = val != null ? (val >= 0 ? '+' : '') + val.toFixed(1) + '%' : '—';
+        // For only2026 rows: show '—' with no color for non-2026 columns
+        const show = (!row.only2026 || ci === 6);
+        const { bg, color, shadow } = show ? cellStyle(val, colVals[ci]) : { bg:'transparent', color:'var(--text-muted)', shadow:'none' };
+        td.style.cssText = `padding:5px 8px; text-align:right; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; background:${bg}; color:${color}; box-shadow:${shadow};`;
+        td.textContent = (show && val != null) ? (val >= 0 ? '+' : '') + val.toFixed(1) + '%' : '—';
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -376,10 +408,11 @@ title: Home
 
   function buildHeader() {
     const head = document.getElementById('returnsHead');
+    // ── FIX: clear existing year headers before rebuilding ──
+    while (head.children.length > 1) head.removeChild(head.lastChild);
     YEARS.forEach((yr, ci) => {
       const th = document.createElement('th');
       th.style.cssText = 'padding:8px 8px; color:var(--text-secondary); font-weight:600; cursor:pointer; text-align:right; user-select:none; white-space:nowrap;';
-      th.dataset.col = ci;
       const isSort = ci === sortCol;
       const arrow = isSort ? (sortAsc ? ' ▲' : ' ▼') : ' ↕';
       th.innerHTML = `${yr}<span style="opacity:${isSort?0.9:0.35}; font-size:0.7em;">${arrow}</span>`;
@@ -395,10 +428,10 @@ title: Home
 
   async function init() {
     buildHeader();
-    const results = await Promise.all(STOCKS.map(s => loadCsv(s.sym)));
-    tableData = STOCKS.map((s, i) => ({
-      sym: s.sym, name: s.name, group: s.group,
-      returns: YEARS.map(yr => yearReturn(results[i], yr))
+    const results = await Promise.all(ALL_STOCKS.map(s => loadCsv(s.sym)));
+    tableData = ALL_STOCKS.map((s, i) => ({
+      sym: s.sym, name: s.name, only2026: s.only2026,
+      returns: YEARS.map(yr => (s.only2026 && yr !== 2026) ? null : yearReturn(results[i], yr))
     }));
     renderTable();
   }
