@@ -3,22 +3,21 @@ layout: default
 ---
 <article>
   <div style="padding: 32px 0 16px;">
-    <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+    <div class="post-meta" style="display:block; margin-bottom:10px; line-height:1.8;">
       {% if page.categories %}
         {% for cat in page.categories %}
           <span class="badge badge-{{ cat }}">{{ cat }}</span>
         {% endfor %}
       {% endif %}
-      <span style="color:var(--text-muted); font-size:0.8rem;">
+      <span style="color:var(--text-muted); font-size:0.82rem; margin-left:4px;">
         <span class="en-only">{{ page.date | date: "%B %d, %Y" }}</span>
         <span class="ko-only">{{ page.date | date: "%Y년 %m월 %d일" }}</span>
-      </span>
-      <span class="reading-time" style="font-size:0.8rem;">
-        <span class="en-only">· {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}{% if mins < 1 %}1{% else %}{{ mins }}{% endif %} min read</span>
-        <span class="ko-only">· {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}{% if mins < 1 %}1{% else %}{{ mins }}{% endif %}분 읽기</span>
+        · {% assign words = content | number_of_words %}{% assign mins = words | divided_by: 200 %}
+        <span class="en-only">{% if mins < 1 %}1{% else %}{{ mins }}{% endif %} min read</span>
+        <span class="ko-only">{% if mins < 1 %}1{% else %}{{ mins }}{% endif %}분 읽기</span>
       </span>
     </div>
-    <h1 style="font-size:1.6rem; margin-bottom:0;">
+    <h1 class="post-title" style="font-size:1.6rem; margin-top:0; margin-bottom:0;">
       {% if page.title_en or page.title_ko %}
         <span class="en-only">{{ page.title_en | default: page.title }}</span>
         <span class="ko-only">{{ page.title_ko | default: page.title }}</span>
