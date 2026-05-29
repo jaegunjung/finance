@@ -35,6 +35,28 @@ title: Home
   </div>
 </div>
 
+<!-- ── Annual Returns Table ── -->
+<p class="section-title" style="margin-top:28px;">
+  <span class="en-only">Annual Returns (%)</span>
+  <span class="ko-only">연간 수익률 (%)</span>
+</p>
+<div style="overflow-x:auto; margin-bottom:8px;">
+  <table id="returnsTable" style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:520px;">
+    <thead>
+      <tr id="returnsHead" style="background:var(--bg-secondary);">
+        <th style="text-align:left; padding:8px 10px; color:var(--text-secondary); font-weight:600; cursor:default; min-width:130px; position:sticky; left:0; background:var(--bg-secondary); z-index:1;">
+          <span class="en-only">Symbol</span><span class="ko-only">종목</span>
+        </th>
+      </tr>
+    </thead>
+    <tbody id="returnsBody"></tbody>
+  </table>
+</div>
+<p style="color:var(--text-muted); font-size:0.72rem; margin-bottom:20px;">
+  <span class="en-only">Click column header to sort. 2026 = YTD. Colors per-column relative scale.</span>
+  <span class="ko-only">컬럼 헤더 클릭으로 정렬. 2026 = 연초 이후 수익률. 색상은 컬럼별 상대 스케일.</span>
+</p>
+
 <!-- ── Indices ── -->
 <p class="section-title" style="margin-top:28px;">
   <span class="en-only">Indices &amp; Funds</span>
@@ -124,18 +146,19 @@ title: Home
   <span class="en-only">AI CapEx</span>
   <span class="ko-only">AI 자본지출</span>
 </p>
-<div class="grid-4">
-  <div class="mini-card"><a href="{{ '/stock/mu/' | relative_url }}"><div class="mc-symbol">MU</div><div class="mc-name">Micron Technology</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/wdc/' | relative_url }}"><div class="mc-symbol">WDC</div><div class="mc-name">Western Digital</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/stx/' | relative_url }}"><div class="mc-symbol">STX</div><div class="mc-name">Seagate Technology</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/cien/' | relative_url }}"><div class="mc-symbol">CIEN</div><div class="mc-name">Ciena Corp.</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/lite/' | relative_url }}"><div class="mc-symbol">LITE</div><div class="mc-name">Lumentum Holdings</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/be/' | relative_url }}"><div class="mc-symbol">BE</div><div class="mc-name">Bloom Energy</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/dram/' | relative_url }}"><div class="mc-symbol">DRAM</div><div class="mc-name">DRAM Memory ETF</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/aipo/' | relative_url }}"><div class="mc-symbol">AIPO</div><div class="mc-name">AIPO</div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/soxx/' | relative_url }}"><div class="mc-symbol">SOXX</div><div class="mc-name"><span class="en-only">Semiconductor ETF</span><span class="ko-only">반도체 ETF</span></div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/ewy/' | relative_url }}"><div class="mc-symbol">EWY</div><div class="mc-name"><span class="en-only">South Korea ETF</span><span class="ko-only">한국 ETF</span></div></a></div>
-  <div class="mini-card"><a href="{{ '/stock/wgmi/' | relative_url }}"><div class="mc-symbol">WGMI</div><div class="mc-name">Bitcoin Miners ETF</div></a></div>
+<div class="grid-2">
+  <div class="feature-card">
+    <a href="{{ '/stock/aicapex-stocks/' | relative_url }}">
+      <h3>🖥️ <span class="en-only">Individual Stocks</span><span class="ko-only">개별주</span></h3>
+      <p style="font-size:0.82rem;">MU · WDC · STX · CIEN · LITE · BE</p>
+    </a>
+  </div>
+  <div class="feature-card">
+    <a href="{{ '/stock/aicapex-etf/' | relative_url }}">
+      <h3>📦 <span class="en-only">ETFs</span><span class="ko-only">ETF</span></h3>
+      <p style="font-size:0.82rem;">DRAM · AIPO · SOXX · EWY · WGMI</p>
+    </a>
+  </div>
 </div>
 
 <!-- ── Pharmaceutical ── -->
@@ -224,3 +247,162 @@ title: Home
     {% endfor %}
   </ul>
 </div>
+
+<script>
+(function() {
+  const CSV_BASE = '{{ "/assets/data/stocks/" | relative_url }}';
+  const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
+
+  const STOCKS = [
+    { sym:'DJI',   name:'Dow Jones (^DJI)',     group:'Indices' },
+    { sym:'QQQ',   name:'QQQ',                  group:'Indices' },
+    { sym:'VFIAX', name:'VFIAX',                group:'Indices' },
+    { sym:'AAPL',  name:'Apple (AAPL)',          group:'Big Tech' },
+    { sym:'NVDA',  name:'NVIDIA (NVDA)',         group:'Big Tech' },
+    { sym:'META',  name:'Meta (META)',           group:'Big Tech' },
+    { sym:'GOOG',  name:'Alphabet (GOOG)',       group:'Big Tech' },
+    { sym:'AMZN',  name:'Amazon (AMZN)',         group:'Big Tech' },
+    { sym:'TSLA',  name:'Tesla (TSLA)',          group:'Big Tech' },
+    { sym:'ENVX',  name:'Enovix (ENVX)',         group:'Battery'  },
+  ];
+
+  const SPLITS = { NVDA: [{ date:'2024-06-10', factor:10 }] };
+
+  function applySplits(sym, dates, prices) {
+    const splits = SPLITS[sym];
+    if (!splits) return;
+    for (const { date, factor } of splits)
+      for (let i = 0; i < dates.length; i++)
+        if (dates[i] < date) prices[i] /= factor;
+  }
+
+  async function loadCsv(sym) {
+    try {
+      const r = await fetch(CSV_BASE + sym + '.csv');
+      if (!r.ok) return null;
+      const text = await r.text();
+      const lines = text.trim().split('\n');
+      const h = lines[0].split(',').map(s => s.trim());
+      const di = h.indexOf('date');
+      const pi = h.indexOf('adj_close_price_usd') >= 0 ? h.indexOf('adj_close_price_usd')
+                : h.indexOf('close_price_usd') >= 0    ? h.indexOf('close_price_usd')
+                : h.indexOf('open_price_usd');
+      if (di < 0 || pi < 0) return null;
+      const dates = [], prices = [];
+      for (let i = 1; i < lines.length; i++) {
+        const c = lines[i].split(',');
+        const d = c[di]?.trim(), p = parseFloat(c[pi]);
+        if (d && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+      }
+      applySplits(sym, dates, prices);
+      return { dates, prices };
+    } catch(e) { return null; }
+  }
+
+  function yearReturn(data, year) {
+    if (!data) return null;
+    const { dates, prices } = data;
+    const today = new Date().toISOString().slice(0, 10);
+    const prevEnd = `${year - 1}-12-31`;
+    const currEnd = year === 2026 ? today : `${year}-12-31`;
+    let prevP = null, currP = null;
+    for (let i = dates.length - 1; i >= 0; i--) {
+      if (dates[i] <= prevEnd && prevP == null) prevP = prices[i];
+      if (dates[i] <= currEnd && currP == null) currP = prices[i];
+      if (prevP != null && currP != null) break;
+    }
+    if (!prevP || !currP) return null;
+    return (currP / prevP - 1) * 100;
+  }
+
+  // Cell color: per-column relative heat map
+  function cellStyle(val, colVals) {
+    if (val == null) return { bg: 'transparent', color: 'var(--text-muted)' };
+    const pos = colVals.filter(v => v != null && v > 0);
+    const neg = colVals.filter(v => v != null && v < 0);
+    const maxPos = pos.length ? Math.max(...pos) : 1;
+    const minNeg = neg.length ? Math.min(...neg) : -1;
+    if (val >= 0) {
+      const t = maxPos > 0 ? Math.min(1, val / maxPos) : 0;
+      const l = Math.round(13 + 22 * t);
+      const s = Math.round(70 * t);
+      return { bg: `hsl(120,${s}%,${l}%)`, color: t > 0.25 ? '#e6edf3' : 'var(--text-secondary)',
+               shadow: `inset 0 1px rgba(255,255,255,${0.05 + 0.1*t}), inset 0 -1px rgba(0,0,0,${0.1+0.15*t})` };
+    } else {
+      const t = minNeg < 0 ? Math.min(1, Math.abs(val) / Math.abs(minNeg)) : 0;
+      const l = Math.round(13 + 22 * t);
+      const s = Math.round(70 * t);
+      return { bg: `hsl(0,${s}%,${l}%)`, color: t > 0.25 ? '#e6edf3' : 'var(--text-secondary)',
+               shadow: `inset 0 1px rgba(255,255,255,${0.05 + 0.1*t}), inset 0 -1px rgba(0,0,0,${0.1+0.15*t})` };
+    }
+  }
+
+  let tableData = []; // { sym, name, group, returns: [r2020,...r2026] }
+  let sortCol = 6; // 2026 index
+  let sortAsc = false;
+
+  function renderTable() {
+    const sorted = [...tableData].sort((a, b) => {
+      const av = a.returns[sortCol], bv = b.returns[sortCol];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return sortAsc ? av - bv : bv - av;
+    });
+
+    // Per-column values for color scale
+    const colVals = YEARS.map((_, ci) => sorted.map(r => r.returns[ci]).filter(v => v != null));
+
+    const tbody = document.getElementById('returnsBody');
+    tbody.innerHTML = '';
+    for (const row of sorted) {
+      const tr = document.createElement('tr');
+      // Name cell
+      const td0 = document.createElement('td');
+      td0.style.cssText = 'padding:5px 10px; color:var(--text-primary); font-weight:500; white-space:nowrap; position:sticky; left:0; background:var(--bg-card); z-index:1; border-bottom:1px solid var(--border);';
+      td0.textContent = row.name;
+      tr.appendChild(td0);
+      // Year cells
+      row.returns.forEach((val, ci) => {
+        const td = document.createElement('td');
+        const { bg, color, shadow } = cellStyle(val, colVals[ci]);
+        td.style.cssText = `padding:5px 8px; text-align:right; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; background:${bg}; color:${color}; box-shadow:${shadow || 'none'};`;
+        td.textContent = val != null ? (val >= 0 ? '+' : '') + val.toFixed(1) + '%' : '—';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    }
+  }
+
+  function buildHeader() {
+    const head = document.getElementById('returnsHead');
+    YEARS.forEach((yr, ci) => {
+      const th = document.createElement('th');
+      th.style.cssText = 'padding:8px 8px; color:var(--text-secondary); font-weight:600; cursor:pointer; text-align:right; user-select:none; white-space:nowrap;';
+      th.dataset.col = ci;
+      const isSort = ci === sortCol;
+      const arrow = isSort ? (sortAsc ? ' ▲' : ' ▼') : ' ↕';
+      th.innerHTML = `${yr}<span style="opacity:${isSort?0.9:0.35}; font-size:0.7em;">${arrow}</span>`;
+      th.addEventListener('click', () => {
+        if (sortCol === ci) sortAsc = !sortAsc;
+        else { sortCol = ci; sortAsc = false; }
+        buildHeader();
+        renderTable();
+      });
+      head.appendChild(th);
+    });
+  }
+
+  async function init() {
+    buildHeader();
+    const results = await Promise.all(STOCKS.map(s => loadCsv(s.sym)));
+    tableData = STOCKS.map((s, i) => ({
+      sym: s.sym, name: s.name, group: s.group,
+      returns: YEARS.map(yr => yearReturn(results[i], yr))
+    }));
+    renderTable();
+  }
+
+  init();
+})();
+</script>

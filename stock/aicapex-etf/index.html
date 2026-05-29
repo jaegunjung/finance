@@ -1,0 +1,462 @@
+---
+layout: default
+title: AI CapEx — ETF Comparison
+---
+<style>
+.range-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.range-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.range-btn.active { background:var(--accent-blue); color:#fff; border-color:var(--accent-blue); }
+.date-input { background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:3px 8px; font-size:0.79rem; }
+.date-input::-webkit-calendar-picker-indicator { filter:invert(0.6); cursor:pointer; }
+.sym-btn { padding:5px 14px; border-radius:20px; border:2px solid; background:none; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.15s; opacity:0.45; }
+.sym-btn.active { opacity:1; }
+.sym-btn.selected { box-shadow:0 0 0 2px #fff4, inset 0 0 0 999px rgba(255,255,255,0.08); }
+#compareContainer { position:relative; width:100%; height:420px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:6px; }
+#compareChart { position:absolute; top:0; left:0; width:100%; height:100%; }
+#detailSection { margin-top:24px; padding-top:16px; border-top:1px solid var(--border); }
+#detailChartBox { position:relative; width:100%; height:320px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:6px; }
+#detailPriceChart { position:absolute; top:0; left:0; width:100%; height:100%; }
+.chart-hint { color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; }
+.legend-row { display:flex; flex-wrap:wrap; gap:12px; font-size:0.78rem; margin:6px 0 12px; }
+.legend-item { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+</style>
+
+<div style="padding:28px 0 8px;">
+  <h1>
+    <span class="en-only">AI CapEx — ETF Comparison</span>
+    <span class="ko-only">AI 자본지출 — ETF 비교</span>
+  </h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">Normalized performance · All series start at 0% · No trend lines</span>
+    <span class="ko-only">정규화 수익률 · 모든 종목 0% 기준 시작 · 추세선 없음</span>
+  </p>
+</div>
+
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 8px; align-items:center;">
+  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+    <button class="range-btn" data-months="1">1M</button>
+    <button class="range-btn" data-months="3">3M</button>
+    <button class="range-btn" data-months="6">6M</button>
+    <button class="range-btn active" data-months="12">1Y</button>
+    <button class="range-btn" id="cmpCustomBtn" onclick="toggleCmpCustom()">
+      <span class="en-only">Custom</span><span class="ko-only">직접 설정</span>
+    </button>
+  </div>
+</div>
+
+<div id="cmpCustomRow" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; align-items:center; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; font-size:0.8rem; color:var(--text-secondary);">
+  <span class="en-only">From</span><span class="ko-only">시작</span>
+  <input type="date" id="cmpFrom" class="date-input" onchange="applyCustomRange()">
+  <span style="color:var(--text-muted);">—</span>
+  <input type="date" id="cmpTo" class="date-input" onchange="applyCustomRange()">
+  <span id="cmpRangeHint" style="color:var(--text-muted); font-size:0.74rem; margin-left:4px;"></span>
+</div>
+
+<div id="symToggles" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
+
+<div id="compareContainer">
+  <div id="cmpLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+    <span class="en-only">Loading data…</span><span class="ko-only">데이터 로딩 중…</span>
+  </div>
+  <canvas id="compareChart" style="touch-action:pan-y;"></canvas>
+</div>
+
+<p class="chart-hint">
+  <span class="en-only">Scroll to zoom · Drag to pan · Click symbol button to view details below · Double-click to reset</span>
+  <span class="ko-only">스크롤 줌 · 드래그 패닝 · 심볼 버튼 클릭 시 아래 상세 차트 표시 · 더블클릭 초기화</span>
+</p>
+
+<!-- Individual detail section -->
+<div id="detailSection">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+    <h2 style="margin:0; font-size:1.05rem;" id="detailTitle">SOXX — iShares Semiconductor ETF</h2>
+    <a id="detailLink" href="" style="font-size:0.8rem; color:var(--accent-blue);">
+      <span class="en-only">Full chart →</span><span class="ko-only">전체 차트 →</span>
+    </a>
+  </div>
+  <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+    <button class="range-btn" data-detail-days="252">1Y</button>
+    <button class="range-btn" data-detail-days="1260">5Y</button>
+    <button class="range-btn active" data-detail-days="0">All</button>
+    <button class="range-btn" id="ma20Btn" onclick="toggleDetailMA(20)" style="border-radius:20px; border:1px solid var(--border); background:rgba(63,185,80,0.2); color:rgba(63,185,80,1); font-size:0.8rem; padding:4px 12px; cursor:pointer;">MA-20</button>
+    <button class="range-btn" id="ma50Btn" onclick="toggleDetailMA(50)" style="border-radius:20px; border:1px solid var(--border); background:rgba(255,152,0,0.2); color:rgba(255,152,0,1); font-size:0.8rem; padding:4px 12px; cursor:pointer;">MA-50</button>
+    <button class="range-btn" id="ma200Btn" onclick="toggleDetailMA(200)" style="border-radius:20px; border:1px solid var(--border); background:rgba(248,81,73,0.2); color:rgba(248,81,73,1); font-size:0.8rem; padding:4px 12px; cursor:pointer;">MA-200</button>
+  </div>
+  <div id="detailChartBox">
+    <canvas id="detailPriceChart" style="touch-action:pan-y;"></canvas>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script>
+const CSV_BASE = '{{ "/assets/data/stocks/" | relative_url }}';
+
+const SYMBOLS = ['SOXX','EWY','DRAM','AIPO','WGMI'];
+const COLORS = { SOXX:'#58a6ff', EWY:'#3fb950', DRAM:'#f0883e', AIPO:'#bc8cff', WGMI:'#ff7b72' };
+const NAMES  = {
+  SOXX:'iShares Semiconductor ETF',
+  EWY:'iShares MSCI South Korea',
+  DRAM:'DRAM Memory ETF',
+  AIPO:'AIPO',
+  WGMI:'Bitcoin Miners ETF'
+};
+
+// ── State ──
+const allData = {};       // sym → {dates, prices}
+let activeSyms = new Set(SYMBOLS);
+let selectedSym = 'SOXX';
+let rangeMonths = 12;
+let customFrom = '', customTo = '';
+let compareChart = null, detailChart = null;
+let detailShowMA = { 20: true, 50: true, 200: true };
+
+// ── Load CSVs ──
+async function loadSym(sym) {
+  try {
+    const r = await fetch(CSV_BASE + sym + '.csv');
+    if (!r.ok) return;
+    const text = await r.text();
+    const lines = text.trim().split('\n');
+    const h = lines[0].split(',').map(s => s.trim());
+    const di = h.indexOf('date');
+    const pi = h.indexOf('adj_close_price_usd') >= 0 ? h.indexOf('adj_close_price_usd')
+              : h.indexOf('close_price_usd') >= 0    ? h.indexOf('close_price_usd')
+              : h.indexOf('open_price_usd');
+    if (di < 0 || pi < 0) return;
+    const dates = [], prices = [];
+    for (let i = 1; i < lines.length; i++) {
+      const c = lines[i].split(',');
+      const d = c[di]?.trim(), p = parseFloat(c[pi]);
+      if (d && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+    }
+    allData[sym] = { dates, prices };
+  } catch(e) {}
+}
+
+// ── Build compare data ──
+function buildCompareData() {
+  // Determine end date and start date
+  const latestDates = SYMBOLS.filter(s => allData[s]?.dates.length)
+                             .map(s => allData[s].dates[allData[s].dates.length - 1]);
+  const endDate = customTo || (latestDates.sort().pop() ?? '');
+  let startDate = customFrom;
+  if (!startDate && endDate) {
+    const d = new Date(endDate);
+    d.setMonth(d.getMonth() - rangeMonths);
+    startDate = d.toISOString().slice(0, 10);
+  }
+
+  // Build unified date set in range
+  const dateSet = new Set();
+  for (const sym of SYMBOLS) {
+    if (!allData[sym]) continue;
+    for (const d of allData[sym].dates) {
+      if (d >= startDate && d <= endDate) dateSet.add(d);
+    }
+  }
+  const dates = [...dateSet].sort();
+
+  // Normalize each symbol from its first data point in range
+  const series = {};
+  for (const sym of SYMBOLS) {
+    if (!allData[sym]) continue;
+    const { dates: sd, prices: sp } = allData[sym];
+    // Find first date >= startDate
+    let startIdx = sd.findIndex(d => d >= startDate);
+    if (startIdx < 0) continue;
+    const basePrice = sp[startIdx];
+    const priceMap = {};
+    for (let i = 0; i < sd.length; i++) priceMap[sd[i]] = sp[i];
+    series[sym] = dates.map(d => {
+      const p = priceMap[d];
+      return p != null ? (p / basePrice - 1) * 100 : NaN;
+    });
+  }
+  return { dates, series };
+}
+
+// ── Render comparison chart ──
+function renderCompare() {
+  const { dates, series } = buildCompareData();
+  const ctx = document.getElementById('compareChart').getContext('2d');
+
+  const datasets = SYMBOLS.filter(s => activeSyms.has(s) && series[s]).map(sym => ({
+    label: sym,
+    data: series[sym].map((v, i) => ({ x: i, y: isNaN(v) ? NaN : v })),
+    borderColor: COLORS[sym],
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0,
+    fill: false,
+    parsing: false,
+    spanGaps: false,
+    hidden: false,
+  }));
+
+  const fmtDate = d => {
+    if (!d) return '';
+    const [y, m] = d.split('-');
+    return `${y}-${m}`;
+  };
+
+  if (compareChart) compareChart.destroy();
+  compareChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        zoom: {
+          zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' },
+          pan: { enabled: true, mode: 'x' }
+        },
+        tooltip: {
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8, displayColors: true,
+          callbacks: {
+            title: items => {
+              const idx = items[0].dataIndex;
+              return dates[idx] ?? '';
+            },
+            label: item => {
+              if (isNaN(item.parsed.y)) return null;
+              const sign = item.parsed.y >= 0 ? '+' : '';
+              return `${item.dataset.label}: ${sign}${item.parsed.y.toFixed(1)}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear', min: 0, max: Math.max(0, dates.length - 1),
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: {
+            color: '#8b949e', font: { size: 10 }, maxTicksLimit: 10,
+            callback(val, i, ticks) {
+              const idx = Math.round(val);
+              if (!dates[idx]) return '';
+              const ym = dates[idx].slice(0, 7);
+              if (i === 0) return ym;
+              const prevIdx = Math.round(ticks[i-1]?.value ?? -1);
+              return (!dates[prevIdx] || dates[prevIdx].slice(0, 7) !== ym) ? ym : '';
+            }
+          }
+        },
+        y: {
+          type: 'linear',
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: {
+            color: '#8b949e', font: { size: 10 },
+            callback: v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%'
+          }
+        }
+      }
+    }
+  });
+
+  document.getElementById('compareChart').addEventListener('dblclick', () => compareChart.resetZoom());
+  document.getElementById('cmpLoading').style.display = 'none';
+
+  // Update custom range hints
+  if (dates.length > 0) {
+    const f = document.getElementById('cmpFrom');
+    const t = document.getElementById('cmpTo');
+    f.min = dates[0]; f.max = dates[dates.length - 1];
+    t.min = dates[0]; t.max = dates[dates.length - 1];
+    if (!f.value) f.value = dates[0];
+    if (!t.value) t.value = dates[dates.length - 1];
+    document.getElementById('cmpRangeHint').textContent = `(${dates[0]} – ${dates[dates.length - 1]})`;
+  }
+}
+
+// ── Render detail (individual price chart) ──
+function computeSMA(arr, p) {
+  return arr.map((_, i) => {
+    if (i < p - 1) return NaN;
+    let s = 0; for (let j = i - p + 1; j <= i; j++) s += arr[j]; return s / p;
+  });
+}
+function fmtPx(p) {
+  return p >= 1000 ? '$' + p.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                   : '$' + p.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDt(d) { const [y,m,dy]=d.split('-').map(Number); return `${MN[m-1]} ${dy}, ${y}`; }
+
+function renderDetail(sym) {
+  if (!allData[sym]) return;
+  selectedSym = sym;
+
+  // Update header
+  document.getElementById('detailTitle').textContent = `${sym} — ${NAMES[sym]}`;
+  const link = document.getElementById('detailLink');
+  link.href = '{{ "/" | relative_url }}stock/' + sym.toLowerCase() + '/';
+
+  // Highlight selected symbol button
+  document.querySelectorAll('.sym-btn').forEach(b => b.classList.toggle('selected', b.dataset.sym === sym));
+
+  const { dates, prices } = allData[sym];
+
+  const ma20  = computeSMA(prices, 20).map((v, i) => ({ x: i, y: isNaN(v) ? NaN : v }));
+  const ma50  = computeSMA(prices, 50).map((v, i) => ({ x: i, y: isNaN(v) ? NaN : v }));
+  const ma200 = computeSMA(prices, 200).map((v, i) => ({ x: i, y: isNaN(v) ? NaN : v }));
+
+  const ctx = document.getElementById('detailPriceChart').getContext('2d');
+  if (detailChart) detailChart.destroy();
+
+  detailChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        { data: prices.map((p, i) => ({ x: i, y: p })), label: sym,
+          borderColor: COLORS[sym] || '#58a6ff', borderWidth: 1.5,
+          pointRadius: 0, tension: 0, fill: true,
+          backgroundColor: (COLORS[sym] || '#58a6ff') + '10', parsing: false },
+        { data: ma20,  label: 'MA-20',  borderColor: 'rgba(63,185,80,0.8)',  borderWidth: 1.2, pointRadius: 0, tension: 0, fill: false, parsing: false, spanGaps: true, hidden: !detailShowMA[20] },
+        { data: ma50,  label: 'MA-50',  borderColor: 'rgba(255,152,0,0.8)',  borderWidth: 1.2, pointRadius: 0, tension: 0, fill: false, parsing: false, spanGaps: true, hidden: !detailShowMA[50] },
+        { data: ma200, label: 'MA-200', borderColor: 'rgba(248,81,73,0.75)', borderWidth: 1.2, pointRadius: 0, tension: 0, fill: false, parsing: false, spanGaps: true, hidden: !detailShowMA[200] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        zoom: {
+          zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' },
+          pan: { enabled: true, mode: 'x' }
+        },
+        tooltip: {
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8, displayColors: false,
+          callbacks: {
+            title: items => fmtDt(dates[items[0].dataIndex] ?? ''),
+            label: item => isNaN(item.parsed.y) ? null : `${item.dataset.label}: ${fmtPx(item.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: { type: 'linear', min: 0, max: prices.length - 1,
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: { color: '#8b949e', font: { size: 10 }, maxTicksLimit: 8,
+            callback(val, i, ticks) {
+              const idx = Math.round(val);
+              if (!dates[idx]) return '';
+              const yr = dates[idx].slice(0, 4);
+              if (i === 0) return yr;
+              const prev = Math.round(ticks[i-1]?.value ?? -1);
+              return (!dates[prev] || dates[prev].slice(0, 4) !== yr) ? yr : '';
+            }
+          }
+        },
+        y: { type: 'logarithmic',
+          grid: { color: 'rgba(48,54,61,0.8)' },
+          ticks: { color: '#8b949e', font: { size: 10 },
+            callback: v => { const p=[1,2,5,10,20,50,100,200,500,1000,2000]; return p.includes(v)?fmtPx(v):undefined; }
+          }
+        }
+      },
+      onHover: (_, elems) => { if (elems.length && detailChart) detailChart.update('none'); }
+    }
+  });
+
+  document.getElementById('detailPriceChart').addEventListener('dblclick', () => detailChart.resetZoom());
+
+  // Bind detail range buttons
+  document.querySelectorAll('[data-detail-days]').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('[data-detail-days]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (!detailChart) return;
+      const days = parseInt(btn.dataset.detailDays);
+      const mx = prices.length - 1;
+      const rng = days ? { min: Math.max(0, mx - days), max: mx } : { min: 0, max: mx };
+      detailChart.zoomScale('x', rng, 'none');
+    };
+  });
+}
+
+function toggleDetailMA(p) {
+  detailShowMA[p] = !detailShowMA[p];
+  if (!detailChart) return;
+  const dsIdx = { 20: 1, 50: 2, 200: 3 }[p];
+  detailChart.data.datasets[dsIdx].hidden = !detailShowMA[p];
+  detailChart.update('none');
+}
+
+// ── Controls ──
+function toggleCmpCustom() {
+  const row = document.getElementById('cmpCustomRow');
+  const btn = document.getElementById('cmpCustomBtn');
+  const showing = row.style.display !== 'none';
+  if (!showing) {
+    document.querySelectorAll('[data-months]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    row.style.display = 'flex';
+  } else {
+    row.style.display = 'none';
+    btn.classList.remove('active');
+  }
+}
+
+function applyCustomRange() {
+  customFrom = document.getElementById('cmpFrom').value;
+  customTo   = document.getElementById('cmpTo').value;
+  if (customFrom && customTo) renderCompare();
+}
+
+document.querySelectorAll('[data-months]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-months]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('cmpCustomRow').style.display = 'none';
+    document.getElementById('cmpCustomBtn').classList.remove('active');
+    rangeMonths = parseInt(btn.dataset.months);
+    customFrom = ''; customTo = '';
+    renderCompare();
+  });
+});
+
+// ── Build symbol toggle buttons ──
+function buildToggles() {
+  const container = document.getElementById('symToggles');
+  for (const sym of SYMBOLS) {
+    const btn = document.createElement('button');
+    btn.className = 'sym-btn active';
+    btn.dataset.sym = sym;
+    btn.style.borderColor = COLORS[sym];
+    btn.style.color = COLORS[sym];
+    btn.innerHTML = `<span>${sym}</span> <small style="font-weight:400; opacity:0.7">${NAMES[sym]}</small>`;
+    btn.addEventListener('click', () => {
+      if (activeSyms.has(sym)) {
+        if (activeSyms.size <= 1) return; // keep at least one
+        activeSyms.delete(sym);
+        btn.classList.remove('active');
+      } else {
+        activeSyms.add(sym);
+        btn.classList.add('active');
+      }
+      // Selected symbol for detail
+      selectedSym = sym;
+      renderCompare();
+      if (allData[sym]) renderDetail(sym);
+    });
+    btn.addEventListener('dblclick', e => { e.stopPropagation(); renderDetail(sym); });
+    container.appendChild(btn);
+  }
+}
+
+// ── Init ──
+async function init() {
+  buildToggles();
+  await Promise.all(SYMBOLS.map(loadSym));
+  renderCompare();
+  renderDetail('SOXX');
+}
+init();
+</script>
