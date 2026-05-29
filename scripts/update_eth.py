@@ -24,7 +24,11 @@ def read_date_range() -> tuple[str, str]:
         rows = list(csv.DictReader(f))
     if not rows:
         return ETH_GENESIS, ETH_GENESIS
-    return rows[0]['date'].strip(), rows[-1]['date'].strip()
+    print(f'CSV headers: {list(rows[0].keys())}', flush=True)
+    date_col = next((c for c in rows[0].keys() if c.strip().lower() == 'date'), None)
+    if date_col is None:
+        raise KeyError(f'No date column found. Available columns: {list(rows[0].keys())}')
+    return rows[0][date_col].strip(), rows[-1][date_col].strip()
 
 
 def fetch_daily(days) -> dict:
