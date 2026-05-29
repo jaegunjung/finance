@@ -1,0 +1,223 @@
+<style>
+/* ── Comments Section ───────────────────────────────────── */
+#comments-section {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+#comments-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+}
+
+/* Login box */
+.cmt-login-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  max-width: 480px;
+}
+.cmt-login-msg {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0 0 14px;
+}
+.cmt-login-row { margin-bottom: 10px; }
+.cmt-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.cmt-divider::before, .cmt-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.cmt-email-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cmt-magic-msg {
+  font-size: 0.82rem;
+  margin: 8px 0 0;
+}
+
+/* Inputs */
+.cmt-input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  padding: 7px 10px;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.cmt-input:focus { border-color: var(--accent-blue); }
+.cmt-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-family: inherit;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s;
+  line-height: 1.6;
+}
+.cmt-textarea:focus { border-color: var(--accent-blue); }
+
+/* Buttons */
+.cmt-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.cmt-btn:hover { background: var(--bg-card); border-color: var(--accent-blue); color: var(--accent-blue); }
+.cmt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cmt-btn-google {
+  background: #fff;
+  color: #3c4043;
+  border-color: #dadce0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+.cmt-btn-google:hover { background: #f8f9fa; border-color: #c6c6c6; color: #3c4043; }
+.cmt-btn-email { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.cmt-btn-email:hover { opacity: 0.88; color: #fff; border-color: var(--accent-blue); }
+.cmt-btn-submit {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+  font-weight: 500;
+}
+.cmt-btn-submit:hover { opacity: 0.88; color: #fff; }
+.cmt-btn-logout {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  margin-left: auto;
+}
+.cmt-btn-delete {
+  font-size: 0.73rem;
+  padding: 2px 8px;
+  color: var(--accent-red, #f85149);
+  border-color: transparent;
+  background: transparent;
+  margin-left: auto;
+}
+.cmt-btn-delete:hover { background: rgba(248,81,73,0.12); border-color: transparent; color: #f85149; }
+
+/* User bar */
+.cmt-user-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cmt-avatar-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cmt-user-name { font-size: 0.85rem; color: var(--text-primary); flex: 1; }
+
+/* Form */
+.cmt-form { margin-bottom: 24px; }
+.cmt-form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.cmt-char { font-size: 0.75rem; color: var(--text-muted); }
+.cmt-error { color: var(--accent-red, #f85149); font-size: 0.82rem; margin-top: 6px; }
+
+/* Comment list */
+.cmt-loading, .cmt-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 12px 0;
+}
+.cmt-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cmt-item:last-child { border-bottom: none; }
+.cmt-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cmt-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-blue), #3fb950);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cmt-item-author { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.cmt-item-date { font-size: 0.75rem; color: var(--text-muted); }
+.cmt-item-body {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  padding-left: 40px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+</style>
+
+<section id="comments-section">
+  <h2>
+    <span class="en-only">Comments</span>
+    <span class="ko-only">댓글</span>
+  </h2>
+  <div id="auth-container"></div>
+  <div id="comment-form-container"></div>
+  <div id="comments-list"></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="{{ '/assets/js/comments.js' | relative_url }}"></script>
