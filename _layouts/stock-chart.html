@@ -197,6 +197,8 @@ let chart = null, rsiChart = null, volumeChart = null;
 let dates = [], prices = [], volumes = [];
 let channelParams = null;
 let zigzagPivots = [], majorPivots = [];
+let predictionInfo = null;   // { idx, dateStr, price, calDays }
+let futureMax = 0;           // x-axis max including future prediction area
 let showMA = { 20: true, 50: true, 200: true };
 let sharedCrossIdx = null;
 
@@ -379,42 +381,48 @@ function updateOverlay(ch) {
     drawArrows(majPeaks,   true,  8, 'rgba(255,130,130,0.95)', 'rgba(255,180,180,1.0)', 'arr-r-s', 'arr-r');
     drawArrows(majTroughs, false, 8, 'rgba(88,166,255,0.95)',  'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
 
-    // ── Next major peak prediction ──
-    if (majPeaks.length >= 2) {
-      const ivals   = majPeaks.slice(1).map((p,i) => p.idx - majPeaks[i].idx);
-      const avgIdx  = ivals.reduce((a,b)=>a+b,0) / ivals.length;
-      const last    = majPeaks[majPeaks.length - 1];
-      const predIdx = last.idx + avgIdx;
-      const calDays = Math.round(avgIdx / 252 * 365);
-      let predDate = new Date(new Date(last.date).getTime() + calDays * 86400000);
-      // Advance to the next future cycle if prediction already passed
-      const today = new Date();
-      while (predDate < today) predDate = new Date(predDate.getTime() + calDays * 86400000);
-      const predStr  = predDate.getFullYear() + '-' + String(predDate.getMonth()+1).padStart(2,'0');
+    // Prediction arrow: dashed from last major peak toward predictionInfo
+    if (predictionInfo && majPeaks.length >= 1) {
+      const last = majPeaks[majPeaks.length - 1];
       const predColor = 'rgba(255,210,55,0.90)';
-      // Recompute predIdx based on possibly-advanced predDate
-      const predCalDaysAdv = Math.round((predDate - new Date(last.date)) / 86400000);
-      const predIdxAdv = last.idx + Math.round(predCalDaysAdv / 365 * 252);
       const xLast = xS.getPixelForValue(last.idx);
-      const xPred = xS.getPixelForValue(predIdxAdv);
-      const xClamp = Math.min(xPred, ca.right);
-
-      // Dashed arrow from last major peak to predicted position
-      if (xLast >= ca.left && xClamp - xLast > 8) {
-        html += `<line x1="${xLast+4}" y1="${ca.top+8}" x2="${xClamp-4}" y2="${ca.top+8}" stroke="${predColor}" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-gold)"/>`;
-        const mx = (xLast + xClamp) / 2;
-        html += `<text x="${mx}" y="${ca.top+4}" fill="${predColor}" font-size="10" text-anchor="middle" font-family="monospace" font-weight="700">${fmtInterval(calDays)}</text>`;
+      const xPred = xS.getPixelForValue(predictionInfo.idx);
+      if (xLast >= ca.left && xPred >= ca.left && xPred - xLast > 8) {
+        const mx = (xLast + xPred) / 2;
+        html += `<line x1="${xLast+4}" y1="${ca.top+8}" x2="${xPred-4}" y2="${ca.top+8}" stroke="${predColor}" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-gold)"/>`;
+        html += `<text x="${mx}" y="${ca.top+4}" fill="${predColor}" font-size="10" text-anchor="middle" font-family="monospace" font-weight="700">${fmtInterval(predictionInfo.calDays)}</text>`;
       }
-      // Vertical dashed line at predicted date
-      html += `<line x1="${xClamp}" y1="${ca.top}" x2="${xClamp}" y2="${ca.bottom}" stroke="${predColor}" stroke-width="1.2" stroke-dasharray="5 3"/>`;
-      // Label
-      const anchor = xPred > ca.right ? 'end' : 'middle';
-      const prefix = xPred > ca.right ? '▶ ' : '▲ ';
-      html += `<text x="${xClamp-(xPred>ca.right?4:0)}" y="${ca.top+20}" fill="${predColor}" font-size="9" text-anchor="${anchor}" font-family="monospace" font-weight="700">${prefix}est.${predStr}</text>`;
     }
   }
 
   html += '</g>';
+
+  // ── Prediction marker (separate group, within chart x-range now) ──
+  if (predictionInfo) {
+    const { idx, dateStr, priceUpper, priceCenter, calDays } = predictionInfo;
+    const xPred = xS.getPixelForValue(idx);
+    const predColor = 'rgba(255,210,55,0.90)';
+    if (xPred >= ca.left && xPred <= ca.right) {
+      // Vertical dashed line
+      html += `<line x1="${xPred}" y1="${ca.top}" x2="${xPred}" y2="${ca.bottom}" stroke="${predColor}" stroke-width="1.2" stroke-dasharray="5 3"/>`;
+      // Diamond at center channel price
+      const yCtr = yS.getPixelForValue(priceCenter);
+      if (yCtr >= ca.top && yCtr <= ca.bottom) {
+        const s = 6;
+        html += `<path d="M${xPred},${yCtr-s} L${xPred+s},${yCtr} L${xPred},${yCtr+s} L${xPred-s},${yCtr} Z" fill="${predColor}" opacity="0.85"/>`;
+        html += `<text x="${xPred+9}" y="${yCtr-2}" fill="${predColor}" font-size="10" font-family="monospace" font-weight="600">~${fmtPrice(priceCenter)}</text>`;
+        // Upper channel (optimistic)
+        const yUpr = yS.getPixelForValue(priceUpper);
+        if (yUpr >= ca.top && yUpr <= ca.bottom) {
+          html += `<line x1="${xPred-4}" y1="${yUpr}" x2="${xPred+4}" y2="${yUpr}" stroke="${predColor}" stroke-width="1" opacity="0.6"/>`;
+          html += `<text x="${xPred+9}" y="${yUpr-2}" fill="${predColor}" font-size="9" font-family="monospace" opacity="0.7">(opt. ~${fmtPrice(priceUpper)})</text>`;
+        }
+      }
+      // Date label at top
+      html += `<text x="${xPred}" y="${ca.top+14}" fill="${predColor}" font-size="10" text-anchor="middle" font-family="monospace" font-weight="700">▲ ${dateStr}</text>`;
+    }
+  }
+
   svg.innerHTML = html;
 }
 
@@ -482,6 +490,27 @@ function detectZigzag(pricesArr, datesArr, deviation = 0.40) {
   }
   // Do NOT add final unconfirmed pivot — only confirmed reversals count
   return pivots;
+}
+
+function computePrediction() {
+  const majPeaks = majorPivots.filter(p => p.type === 'peak');
+  if (majPeaks.length < 2 || !channelParams) return null;
+  const ivals  = majPeaks.slice(1).map((p, i) => p.idx - majPeaks[i].idx);
+  const avgIdx = ivals.reduce((a, b) => a + b, 0) / ivals.length;
+  const last   = majPeaks[majPeaks.length - 1];
+  const calDays0 = Math.round(avgIdx / 252 * 365);
+  // Advance to next future cycle
+  let predDate = new Date(new Date(last.date).getTime() + calDays0 * 86400000);
+  const today  = new Date();
+  while (predDate < today) predDate = new Date(predDate.getTime() + calDays0 * 86400000);
+  const calDays = Math.round((predDate - new Date(last.date)) / 86400000);
+  const predIdx = last.idx + Math.round(calDays / 365 * 252);
+  const dateStr = predDate.getFullYear() + '-' + String(predDate.getMonth() + 1).padStart(2, '0');
+  // Price estimate: upper channel at predicted index (optimistic), center as base
+  const cp = channelParams;
+  const priceUpper  = Math.exp(cp.upper  + cp.slope * predIdx);
+  const priceCenter = Math.exp(cp.center + cp.slope * predIdx);
+  return { idx: predIdx, dateStr, priceUpper, priceCenter, calDays };
 }
 
 function fmtInterval(days) {
@@ -584,6 +613,7 @@ function initChart() {
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       interaction: { mode: 'index', intersect: false },
+      layout: { padding: { top: 30, bottom: 30 } },
       plugins: {
         legend: { display: false },
         zoom: {
@@ -612,7 +642,7 @@ function initChart() {
       },
       scales: {
         x: {
-          type: 'linear', min: 0, max: prices.length - 1,
+          type: 'linear', min: 0, max: futureMax,
           grid: { color: 'rgba(48,54,61,0.8)' },
           ticks: { color:'#8b949e', font:{size:10}, maxTicksLimit:15, callback: xTickCallback }
         },
@@ -649,8 +679,8 @@ function initChart() {
 
   document.getElementById('stockChart').addEventListener('dblclick', () => {
     chart.resetZoom();
-    if (rsiChart) rsiChart.zoomScale('x', {min:0, max:prices.length-1}, 'none');
-    syncVolumeRange(0, prices.length - 1);
+    if (rsiChart) rsiChart.zoomScale('x', {min:0, max:futureMax}, 'none');
+    syncVolumeRange(0, futureMax);
     updateOverlay(chart);
   });
 
@@ -749,7 +779,7 @@ function initVolumeChart() {
       },
       scales: {
         x: {
-          type: 'linear', min: 0, max: prices.length - 1,
+          type: 'linear', min: 0, max: futureMax,
           grid: { color: 'rgba(48,54,61,0.8)' }, ticks: { display: false },
         },
         y: {
@@ -801,7 +831,7 @@ function initRsiChart() {
     options: {
       responsive:true, maintainAspectRatio:false, animation:false,
       scales: {
-        x: { type:'linear', min:0, max:prices.length-1, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{display:false} },
+        x: { type:'linear', min:0, max:futureMax, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{display:false} },
         y: {
           type:'linear', min:0, max:100,
           grid: { color:'rgba(48,54,61,0.8)' },
@@ -836,7 +866,7 @@ document.querySelectorAll('[data-days]').forEach(btn => {
     if (!chart) return;
     const days = parseInt(btn.dataset.days);
     const max = prices.length - 1;
-    const range = days ? { min: Math.max(0, max - days), max } : { min: 0, max };
+    const range = days ? { min: Math.max(0, max - days), max } : { min: 0, max: futureMax };
     chart.zoomScale('x', range, 'none');
     if (rsiChart) rsiChart.zoomScale('x', range, 'none');
     syncVolumeRange(range.min, range.max);
@@ -924,8 +954,12 @@ async function loadData() {
 
   applySplitAdj(SYMBOL, prices, dates);
   channelParams = computeChannel(prices);
-  zigzagPivots = detectZigzag(prices, dates, 0.40);
-  majorPivots  = detectZigzag(prices, dates, 0.55);
+  zigzagPivots   = detectZigzag(prices, dates, 0.40);
+  majorPivots    = detectZigzag(prices, dates, 0.55);
+  predictionInfo = computePrediction();
+  futureMax = predictionInfo && predictionInfo.idx > prices.length - 1
+    ? predictionInfo.idx + 30
+    : prices.length - 1;
   initChart();
   if (volumes.some(v => v > 0)) initVolumeChart();
   initRsiChart();
