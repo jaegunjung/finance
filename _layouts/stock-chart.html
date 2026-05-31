@@ -536,6 +536,34 @@ function initVolumeChart() {
     return prices[i] >= prices[i-1] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)';
   });
 
+  // Draw bars manually — Chart.js bar+linear scale combo is unreliable
+  const volBarsPlugin = {
+    id: 'volBars',
+    afterDatasetsDraw(ch) {
+      const { ctx: c, chartArea: ca, scales } = ch;
+      const xS = scales.x, yS = scales.y;
+      const xMin = Math.max(0, Math.round(xS.min));
+      const xMax = Math.min(volumes.length - 1, Math.round(xS.max));
+      const totalPx = ca.right - ca.left;
+      const totalBars = xS.max - xS.min;
+      const barW = Math.max(1, totalPx / totalBars);
+      const yBase = yS.getPixelForValue(0);
+      c.save();
+      c.beginPath();
+      c.rect(ca.left, ca.top, ca.right - ca.left, ca.bottom - ca.top);
+      c.clip();
+      for (let i = xMin; i <= xMax; i++) {
+        const v = volumes[i] || 0;
+        if (!v) continue;
+        const x = xS.getPixelForValue(i);
+        const y = yS.getPixelForValue(v);
+        c.fillStyle = barColors[i];
+        c.fillRect(x - barW / 2, y, barW, yBase - y);
+      }
+      c.restore();
+    }
+  };
+
   const crosshairPlugin = {
     id: 'volCross',
     afterDraw(ch) {
@@ -550,17 +578,10 @@ function initVolumeChart() {
 
   const ctx = document.getElementById('volumeChart').getContext('2d');
   volumeChart = new Chart(ctx, {
-    type: 'bar',
-    plugins: [crosshairPlugin],
+    type: 'line',
+    plugins: [volBarsPlugin, crosshairPlugin],
     data: {
-      datasets: [{
-        data: volumes.map((v, i) => ({ x: i, y: v || 0 })),
-        label: 'Volume',
-        backgroundColor: barColors,
-        borderWidth: 0,
-        barThickness: 'flex',
-        parsing: false,
-      }]
+      datasets: [{ data: [], parsing: false }]
     },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
@@ -571,9 +592,11 @@ function initVolumeChart() {
         tooltip: {
           backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
           titleColor:'#e6edf3', bodyColor:'#8b949e', padding:8, displayColors:false,
-          callbacks: {
-            title: items => fmtDate(dates[items[0].dataIndex] ?? ''),
-            label: item => `Vol: ${fmtVol(item.parsed.y)}`
+          external({ chart: ch, tooltip }) {
+            if (!tooltip.dataPoints) return;
+            const i = tooltip.dataPoints[0]?.dataIndex;
+            if (i == null) return;
+            updateVolumeLabel(i);
           }
         }
       },
@@ -581,10 +604,9 @@ function initVolumeChart() {
         x: {
           type: 'linear', min: 0, max: prices.length - 1,
           grid: { color: 'rgba(48,54,61,0.8)' }, ticks: { display: false },
-          offset: false,
         },
         y: {
-          type: 'linear',
+          type: 'linear', min: 0, max: Math.max(...volumes) * 1.1,
           grid: { color: 'rgba(48,54,61,0.5)' },
           ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 2, callback: v => fmtVol(v) }
         }
