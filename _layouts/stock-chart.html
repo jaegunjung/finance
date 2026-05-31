@@ -187,10 +187,11 @@ layout: default
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <script>
-const SYMBOL   = '{{ page.symbol }}';
-const CSV_URL  = '{{ "/assets/data/stocks/" | append: page.csv_file | relative_url }}';
-const TITLE_EN = '{{ page.title_en }}';
-const TITLE_KO = '{{ page.title_ko }}';
+const SYMBOL        = '{{ page.symbol }}';
+const CSV_URL       = '{{ "/assets/data/stocks/" | append: page.csv_file | relative_url }}';
+const TITLE_EN      = '{{ page.title_en }}';
+const TITLE_KO      = '{{ page.title_ko }}';
+const SHOW_INTERVALS = '{{ page.show_intervals }}' === 'true';
 
 // ── State ──
 let chart = null, rsiChart = null, volumeChart = null;
@@ -375,52 +376,45 @@ function updateOverlay(ch) {
     }
   }
 
-  // Peak annotations: above ca.top (in top padding), trough below ca.bottom (below x-axis labels)
-  // Top: arrowOff > 0 means ca.top - arrowOff (above chart)
-  // Bottom: arrowOff > 0 means ca.bottom + arrowOff (below chart)
-  // x-axis year labels ≈ ca.bottom + 5~18px → troughs start at +28 to clear them
-  if (zigzagPivots.length >= 2) {
-    drawArrows(zigzagPivots.filter(p=>p.type==='peak'),   true,   8, 'rgba(255,100,100,0.70)', 'rgba(255,145,145,0.90)', 'arr-r-s', 'arr-r');
-    drawArrows(zigzagPivots.filter(p=>p.type==='trough'), false, 28, 'rgba(88,166,255,0.70)',  'rgba(145,200,255,0.90)', 'arr-b-s', 'arr-b');
-  }
-
-  // Major (outer): peaks further up, troughs further down
-  if (majorPivots.length >= 2) {
-    const majPeaks   = majorPivots.filter(p => p.type === 'peak');
-    const majTroughs = majorPivots.filter(p => p.type === 'trough');
-    drawArrows(majPeaks,   true,  20, 'rgba(255,130,130,0.95)', 'rgba(255,185,185,1.0)', 'arr-r-s', 'arr-r');
-    drawArrows(majTroughs, false, 44, 'rgba(88,166,255,0.95)',  'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
-
-    // Extra: group minor troughs not covered by major brackets
-    if (majTroughs.length > 0) {
-      const minorTs  = zigzagPivots.filter(p => p.type === 'trough');
-      const firstMaj = majTroughs[0];
-      const lastMaj  = majTroughs[majTroughs.length - 1];
-
-      // BEFORE first major trough: e.g. 3mo + 9mo → 12mo
-      const early = minorTs.filter(t => t.idx <= firstMaj.idx);
-      if (early.length >= 2)
-        drawArrows([early[0], early[early.length - 1]], false, 44,
-          'rgba(88,166,255,0.95)', 'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
-
-      // AFTER last major trough: e.g. 5mo + 6mo → 11mo
-      const late = minorTs.filter(t => t.idx >= lastMaj.idx);
-      if (late.length >= 2)
-        drawArrows([late[0], late[late.length - 1]], false, 44,
-          'rgba(88,166,255,0.95)', 'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
+  // Interval annotations — only when page.show_intervals: true
+  if (SHOW_INTERVALS) {
+    if (zigzagPivots.length >= 2) {
+      drawArrows(zigzagPivots.filter(p=>p.type==='peak'),   true,   8, 'rgba(255,100,100,0.70)', 'rgba(255,145,145,0.90)', 'arr-r-s', 'arr-r');
+      drawArrows(zigzagPivots.filter(p=>p.type==='trough'), false, 28, 'rgba(88,166,255,0.70)',  'rgba(145,200,255,0.90)', 'arr-b-s', 'arr-b');
     }
+    if (majorPivots.length >= 2) {
+      const majPeaks   = majorPivots.filter(p => p.type === 'peak');
+      const majTroughs = majorPivots.filter(p => p.type === 'trough');
+      drawArrows(majPeaks,   true,  20, 'rgba(255,130,130,0.95)', 'rgba(255,185,185,1.0)', 'arr-r-s', 'arr-r');
+      drawArrows(majTroughs, false, 44, 'rgba(88,166,255,0.95)',  'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
 
-    // Prediction dashed arrow from last major peak to predicted date
-    if (predictionInfo && majPeaks.length >= 1) {
-      const last    = majPeaks[majPeaks.length - 1];
-      const predColor = 'rgba(255,210,55,0.90)';
-      const xLast = xS.getPixelForValue(last.idx);
-      const xPred = xS.getPixelForValue(predictionInfo.idx);
-      const yArr  = ca.top - 20;
-      if (xLast >= ca.left && xPred > xLast + 8) {
-        html += `<line x1="${xLast+4}" y1="${yArr}" x2="${xPred-4}" y2="${yArr}" stroke="${predColor}" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-gold)"/>`;
-        const mx = (xLast + Math.min(xPred, ca.right)) / 2;
-        html += `<text x="${mx}" y="${yArr-3}" fill="${predColor}" font-size="10" text-anchor="middle" font-family="monospace" font-weight="700">${fmtInterval(predictionInfo.calDays)}</text>`;
+      // Group minor troughs not covered by major brackets (before/after)
+      if (majTroughs.length > 0) {
+        const minorTs  = zigzagPivots.filter(p => p.type === 'trough');
+        const firstMaj = majTroughs[0];
+        const lastMaj  = majTroughs[majTroughs.length - 1];
+        const early = minorTs.filter(t => t.idx <= firstMaj.idx);
+        if (early.length >= 2)
+          drawArrows([early[0], early[early.length - 1]], false, 44,
+            'rgba(88,166,255,0.95)', 'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
+        const late = minorTs.filter(t => t.idx >= lastMaj.idx);
+        if (late.length >= 2)
+          drawArrows([late[0], late[late.length - 1]], false, 44,
+            'rgba(88,166,255,0.95)', 'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
+      }
+
+      // Prediction dashed arrow
+      if (predictionInfo && majPeaks.length >= 1) {
+        const last = majPeaks[majPeaks.length - 1];
+        const predColor = 'rgba(255,210,55,0.90)';
+        const xLast = xS.getPixelForValue(last.idx);
+        const xPred = xS.getPixelForValue(predictionInfo.idx);
+        const yArr  = ca.top - 20;
+        if (xLast >= ca.left && xPred > xLast + 8) {
+          html += `<line x1="${xLast+4}" y1="${yArr}" x2="${xPred-4}" y2="${yArr}" stroke="${predColor}" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-gold)"/>`;
+          const mx = (xLast + Math.min(xPred, ca.right)) / 2;
+          html += `<text x="${mx}" y="${yArr-3}" fill="${predColor}" font-size="10" text-anchor="middle" font-family="monospace" font-weight="700">${fmtInterval(predictionInfo.calDays)}</text>`;
+        }
       }
     }
   }
@@ -429,8 +423,8 @@ function updateOverlay(ch) {
   // ── Prediction range area (clipped) ──
   html += `<g clip-path="url(#ca)">`;
 
-  // ── 3-Scenario forecast from last data point ──
-  if (predictionInfo && channelParams) {
+  // ── 3-Scenario forecast — only when show_intervals: true ──
+  if (SHOW_INTERVALS && predictionInfo && channelParams) {
     const { idx: predIdx, dateStr, priceUpper, priceCenter, priceBase } = predictionInfo;
     const lastIdx  = prices.length - 1;
     const lastPrice = prices[lastIdx];
@@ -668,7 +662,7 @@ function initChart() {
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       interaction: { mode: 'index', intersect: false },
-      layout: { padding: { top: 42, bottom: 65 } },
+      layout: { padding: SHOW_INTERVALS ? { top: 42, bottom: 65 } : { top: 8, bottom: 8 } },
       plugins: {
         legend: { display: false },
         zoom: {
@@ -1015,18 +1009,23 @@ async function loadData() {
 
   applySplitAdj(SYMBOL, prices, dates);
   channelParams = computeChannel(prices);
-  zigzagPivots   = detectZigzag(prices, dates, 0.40);
-  majorPivots    = detectZigzag(prices, dates, 0.65);
   // Precompute year boundary indices for precise x-axis tick placement
   yearFirstIdx = {};
   for (let i = 0; i < dates.length; i++) {
     const yr = dates[i].slice(0, 4);
     if (!(yr in yearFirstIdx)) yearFirstIdx[yr] = i;
   }
-  predictionInfo = computePrediction();
-  futureMax = predictionInfo && predictionInfo.idx > prices.length - 1
-    ? predictionInfo.idx + 30
-    : prices.length - 1;
+
+  if (SHOW_INTERVALS) {
+    zigzagPivots   = detectZigzag(prices, dates, 0.40);
+    majorPivots    = detectZigzag(prices, dates, 0.65);
+    predictionInfo = computePrediction();
+    futureMax = predictionInfo && predictionInfo.idx > prices.length - 1
+      ? predictionInfo.idx + 30
+      : prices.length - 1;
+  } else {
+    futureMax = prices.length - 1;
+  }
   initChart();
   if (volumes.some(v => v > 0)) initVolumeChart();
   initRsiChart();
