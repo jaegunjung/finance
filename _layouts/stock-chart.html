@@ -34,6 +34,17 @@ layout: default
 #channelSvg { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
 
 
+#volumeContainer {
+  position: relative; width: 100%; height: 80px;
+  background: var(--bg-card); border: 1px solid var(--border); border-top: none;
+  overflow: hidden; display: none;
+}
+#volumeChart { position: absolute; top:0; left:0; width:100%; height:100%; }
+#volumeLabel {
+  position: absolute; top: 6px; left: 10px; font-size: 0.72rem; color: var(--text-muted);
+  pointer-events: none; z-index: 5;
+}
+
 #rsiContainer {
   position: relative; width: 100%; height: 140px;
   background: var(--bg-card); border: 1px solid var(--border); border-top: none;
@@ -101,6 +112,11 @@ layout: default
   <svg id="channelSvg"></svg>
 </div>
 
+<div id="volumeContainer">
+  <canvas id="volumeChart" style="touch-action:pan-y;"></canvas>
+  <div id="volumeLabel">Vol: —</div>
+</div>
+
 <div id="rsiContainer">
   <canvas id="rsiChart" style="touch-action:pan-y;"></canvas>
   <div id="rsiLabel">RSI(14): —&nbsp;&nbsp;Signal: —</div>
@@ -154,8 +170,8 @@ const TITLE_EN = '{{ page.title_en }}';
 const TITLE_KO = '{{ page.title_ko }}';
 
 // ── State ──
-let chart = null, rsiChart = null;
-let dates = [], prices = [];
+let chart = null, rsiChart = null, volumeChart = null;
+let dates = [], prices = [], volumes = [];
 let channelParams = null;
 let showMA = { 20: true, 50: true, 200: true };
 let sharedCrossIdx = null;
@@ -299,6 +315,22 @@ function updateOverlay(ch) {
   svg.innerHTML = html;
 }
 
+// ── Volume label update ──
+function fmtVol(v) {
+  if (v == null || isNaN(v)) return '—';
+  if (v >= 1e9) return (v/1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
+  return v.toFixed(0);
+}
+function updateVolumeLabel(idx) {
+  const el = document.getElementById('volumeLabel');
+  if (!el || !volumeChart) return;
+  const i = idx ?? (volumes.length - 1);
+  const v = volumes[i];
+  el.textContent = `Vol: ${fmtVol(v)}`;
+}
+
 // ── RSI label update ──
 function updateRsiLabel(idx) {
   const el = document.getElementById('rsiLabel');
@@ -356,6 +388,7 @@ function applyCustomRange() {
   if (fromIdx > toIdx) return;
   chart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
   if (rsiChart) rsiChart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
+  if (volumeChart) volumeChart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
   updateOverlay(chart);
 }
 
@@ -419,11 +452,11 @@ function initChart() {
             wheel: { enabled: true },
             pinch: { enabled: true },
             mode: 'x',
-            onZoom: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); }
+            onZoom: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); if (volumeChart) volumeChart.zoomScale('x', c.scales.x, 'none'); }
           },
           pan: {
             enabled: true, mode: 'x',
-            onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); }
+            onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); if (volumeChart) volumeChart.zoomScale('x', c.scales.x, 'none'); }
           }
         },
         tooltip: {
@@ -460,7 +493,9 @@ function initChart() {
         if (elems.length) {
           sharedCrossIdx = elems[0].index;
           updateRsiLabel(sharedCrossIdx);
+          updateVolumeLabel(sharedCrossIdx);
           if (rsiChart) rsiChart.update('none');
+          if (volumeChart) volumeChart.update('none');
         }
       },
     }
@@ -469,6 +504,7 @@ function initChart() {
   document.getElementById('stockChart').addEventListener('dblclick', () => {
     chart.resetZoom();
     if (rsiChart) rsiChart.zoomScale('x', {min:0, max:prices.length-1}, 'none');
+    if (volumeChart) volumeChart.zoomScale('x', {min:0, max:prices.length-1}, 'none');
     updateOverlay(chart);
   });
 
@@ -481,6 +517,90 @@ function initChart() {
     afterRender(c) { if (c === chart) updateOverlay(c); }
   };
   Chart.register(afterRenderPlugin);
+}
+
+// ── Volume chart init ──
+function initVolumeChart() {
+  const container = document.getElementById('volumeContainer');
+  container.style.display = '';
+  // round corners transfer: price has top, rsi has bottom
+  container.style.borderRadius = '0';
+
+  const ctx = document.getElementById('volumeChart').getContext('2d');
+  const volData = volumes.map((v, i) => ({ x: i, y: v ?? 0 }));
+
+  // color bars green/red based on price change
+  const barColors = volumes.map((_, i) => {
+    if (i === 0) return 'rgba(88,166,255,0.5)';
+    return prices[i] >= prices[i-1] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)';
+  });
+
+  const crosshairPlugin = {
+    id: 'volCross',
+    afterDraw(ch) {
+      if (sharedCrossIdx === null) return;
+      const {ctx:c, chartArea:ca, scales} = ch;
+      const cx = scales.x.getPixelForValue(sharedCrossIdx);
+      if (cx < ca.left || cx > ca.right) return;
+      c.save(); c.strokeStyle = 'rgba(139,148,158,0.3)'; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(cx, ca.top); c.lineTo(cx, ca.bottom); c.stroke(); c.restore();
+    }
+  };
+
+  volumeChart = new Chart(ctx, {
+    type: 'bar',
+    plugins: [crosshairPlugin],
+    data: {
+      datasets: [{
+        data: volData, label: 'Volume',
+        backgroundColor: barColors,
+        borderWidth: 0, parsing: false,
+        barPercentage: 1.0, categoryPercentage: 1.0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        zoom: {
+          zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
+            onZoom: ({ chart: c }) => { if(chart) chart.zoomScale('x', c.scales.x, 'none'); if(rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); updateOverlay(chart); }
+          },
+          pan: { enabled: true, mode: 'x',
+            onPan: ({ chart: c }) => { if(chart) chart.zoomScale('x', c.scales.x, 'none'); if(rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); updateOverlay(chart); }
+          }
+        },
+        tooltip: {
+          backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
+          titleColor:'#e6edf3', bodyColor:'#8b949e', padding:8, displayColors:false,
+          callbacks: {
+            title: items => fmtDate(dates[items[0].dataIndex] ?? ''),
+            label: item => `Vol: ${fmtVol(item.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: { type:'linear', min:0, max:prices.length-1, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{display:false} },
+        y: {
+          type:'linear', grid:{color:'rgba(48,54,61,0.5)'},
+          ticks:{ color:'#8b949e', font:{size:9}, maxTicksLimit:2,
+            callback: v => fmtVol(v)
+          }
+        }
+      },
+      onHover: (_, elems) => {
+        if (elems.length) {
+          sharedCrossIdx = elems[0].index;
+          updateVolumeLabel(sharedCrossIdx);
+          updateRsiLabel(sharedCrossIdx);
+          if (chart) chart.update('none');
+          if (rsiChart) rsiChart.update('none');
+        }
+      }
+    }
+  });
+  updateVolumeLabel(null);
 }
 
 // ── RSI chart init ──
@@ -531,7 +651,7 @@ function initRsiChart() {
         }
       },
       onHover: (_, elems) => {
-        if (elems.length) { sharedCrossIdx = elems[0].index; updateRsiLabel(sharedCrossIdx); if(chart) chart.update('none'); }
+        if (elems.length) { sharedCrossIdx = elems[0].index; updateRsiLabel(sharedCrossIdx); updateVolumeLabel(sharedCrossIdx); if(chart) chart.update('none'); if(volumeChart) volumeChart.update('none'); }
       }
     }
   });
@@ -550,6 +670,7 @@ document.querySelectorAll('[data-days]').forEach(btn => {
     const range = days ? { min: Math.max(0, max - days), max } : { min: 0, max };
     chart.zoomScale('x', range, 'none');
     if (rsiChart) rsiChart.zoomScale('x', range, 'none');
+    if (volumeChart) volumeChart.zoomScale('x', range, 'none');
     updateOverlay(chart);
   });
 });
@@ -575,12 +696,16 @@ async function loadData() {
         : header.indexOf('close_price_usd') >= 0
           ? header.indexOf('close_price_usd')
           : header.indexOf('open_price_usd');
+      const volIdx = header.indexOf('total_volume_usd');
       if (dateIdx >= 0 && priceIdx >= 0) {
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(',');
           const d = cols[dateIdx]?.trim();
           const p = parseFloat(cols[priceIdx]);
-          if (d && !isNaN(p) && p > 0) { dates.push(d); prices.push(p); }
+          if (d && !isNaN(p) && p > 0) {
+            dates.push(d); prices.push(p);
+            volumes.push(volIdx >= 0 ? (parseFloat(cols[volIdx]) || 0) : 0);
+          }
         }
         loaded = prices.length > 0;
       }
@@ -631,6 +756,7 @@ async function loadData() {
   applySplitAdj(SYMBOL, prices, dates);
   channelParams = computeChannel(prices);
   initChart();
+  if (volumes.some(v => v > 0)) initVolumeChart();
   initRsiChart();
   if (loader) loader.style.display = 'none';
 
