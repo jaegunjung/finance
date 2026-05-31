@@ -539,7 +539,7 @@ function initVolumeChart() {
   // Draw bars manually — Chart.js bar+linear scale combo is unreliable
   const volBarsPlugin = {
     id: 'volBars',
-    afterDatasetsDraw(ch) {
+    afterDraw(ch) {
       const { ctx: c, chartArea: ca, scales } = ch;
       const xS = scales.x, yS = scales.y;
       const xMin = Math.max(0, Math.round(xS.min));
@@ -588,7 +588,6 @@ function initVolumeChart() {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        zoom: false,
         tooltip: {
           backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
           titleColor:'#e6edf3', bodyColor:'#8b949e', padding:8, displayColors:false,
