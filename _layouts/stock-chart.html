@@ -551,10 +551,11 @@ function initVolumeChart() {
     type: 'bar',
     plugins: [crosshairPlugin],
     data: {
+      labels: volumes.map((_, i) => i),
       datasets: [{
-        data: volData, label: 'Volume',
+        data: volumes.map(v => v ?? 0), label: 'Volume',
         backgroundColor: barColors,
-        borderWidth: 0, parsing: false,
+        borderWidth: 0,
         barPercentage: 1.0, categoryPercentage: 1.0,
       }]
     },
@@ -565,10 +566,20 @@ function initVolumeChart() {
         legend: { display: false },
         zoom: {
           zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
-            onZoom: ({ chart: c }) => { if(chart) chart.zoomScale('x', c.scales.x, 'none'); if(rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); updateOverlay(chart); }
+            onZoom: ({ chart: c }) => {
+              const r = { min: Math.round(c.scales.x.min), max: Math.round(c.scales.x.max) };
+              if(chart) chart.zoomScale('x', r, 'none');
+              if(rsiChart) rsiChart.zoomScale('x', r, 'none');
+              updateOverlay(chart);
+            }
           },
           pan: { enabled: true, mode: 'x',
-            onPan: ({ chart: c }) => { if(chart) chart.zoomScale('x', c.scales.x, 'none'); if(rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); updateOverlay(chart); }
+            onPan: ({ chart: c }) => {
+              const r = { min: Math.round(c.scales.x.min), max: Math.round(c.scales.x.max) };
+              if(chart) chart.zoomScale('x', r, 'none');
+              if(rsiChart) rsiChart.zoomScale('x', r, 'none');
+              updateOverlay(chart);
+            }
           }
         },
         tooltip: {
@@ -581,7 +592,7 @@ function initVolumeChart() {
         }
       },
       scales: {
-        x: { type:'linear', min:0, max:prices.length-1, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{display:false} },
+        x: { type:'category', grid:{color:'rgba(48,54,61,0.8)'}, ticks:{display:false}, offset: false },
         y: {
           type:'linear', grid:{color:'rgba(48,54,61,0.5)'},
           ticks:{ color:'#8b949e', font:{size:9}, maxTicksLimit:2,
