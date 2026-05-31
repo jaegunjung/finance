@@ -391,6 +391,22 @@ function updateOverlay(ch) {
     drawArrows(majPeaks,   true,  20, 'rgba(255,130,130,0.95)', 'rgba(255,185,185,1.0)', 'arr-r-s', 'arr-r');
     drawArrows(majTroughs, false, 44, 'rgba(88,166,255,0.95)',  'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
 
+    // Extra: group minor troughs that fall AFTER the last major trough into one outer bracket
+    // e.g. 5mo + 6mo → 11mo shown at the same outer level
+    if (majTroughs.length > 0) {
+      const lastMajT  = majTroughs[majTroughs.length - 1];
+      const minorTs   = zigzagPivots.filter(p => p.type === 'trough');
+      const uncovered = minorTs.filter(t => t.idx >= lastMajT.idx);
+      if (uncovered.length >= 2) {
+        drawArrows(
+          [uncovered[0], uncovered[uncovered.length - 1]],
+          false, 44,
+          'rgba(88,166,255,0.95)', 'rgba(165,215,255,1.0)',
+          'arr-b-s', 'arr-b'
+        );
+      }
+    }
+
     // Prediction dashed arrow from last major peak to predicted date
     if (predictionInfo && majPeaks.length >= 1) {
       const last    = majPeaks[majPeaks.length - 1];
