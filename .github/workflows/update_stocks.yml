@@ -2,7 +2,7 @@ name: Update Stock Daily Data
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # Every day UTC 01:00
+    - cron: '0 1 * * 1-6'  # Mon–Sat UTC 01:00
   workflow_dispatch:
 
 permissions:
