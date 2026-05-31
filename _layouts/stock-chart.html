@@ -388,7 +388,7 @@ function applyCustomRange() {
   if (fromIdx > toIdx) return;
   chart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
   if (rsiChart) rsiChart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
-  if (volumeChart) volumeChart.zoomScale('x', { min: fromIdx, max: toIdx }, 'none');
+  syncVolumeRange(fromIdx, toIdx);
   updateOverlay(chart);
 }
 
@@ -452,11 +452,11 @@ function initChart() {
             wheel: { enabled: true },
             pinch: { enabled: true },
             mode: 'x',
-            onZoom: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); if (volumeChart) volumeChart.zoomScale('x', c.scales.x, 'none'); }
+            onZoom: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); }
           },
           pan: {
             enabled: true, mode: 'x',
-            onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); if (volumeChart) volumeChart.zoomScale('x', c.scales.x, 'none'); }
+            onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); }
           }
         },
         tooltip: {
@@ -504,7 +504,7 @@ function initChart() {
   document.getElementById('stockChart').addEventListener('dblclick', () => {
     chart.resetZoom();
     if (rsiChart) rsiChart.zoomScale('x', {min:0, max:prices.length-1}, 'none');
-    if (volumeChart) volumeChart.zoomScale('x', {min:0, max:prices.length-1}, 'none');
+    syncVolumeRange(0, prices.length - 1);
     updateOverlay(chart);
   });
 
@@ -519,17 +519,18 @@ function initChart() {
   Chart.register(afterRenderPlugin);
 }
 
+// ── Volume range sync ──
+function syncVolumeRange(min, max) {
+  if (!volumeChart) return;
+  volumeChart.options.scales.x.min = Math.round(min);
+  volumeChart.options.scales.x.max = Math.round(max);
+  volumeChart.update('none');
+}
+
 // ── Volume chart init ──
 function initVolumeChart() {
-  const container = document.getElementById('volumeContainer');
-  container.style.display = '';
-  // round corners transfer: price has top, rsi has bottom
-  container.style.borderRadius = '0';
+  document.getElementById('volumeContainer').style.display = '';
 
-  const ctx = document.getElementById('volumeChart').getContext('2d');
-  const volData = volumes.map((v, i) => ({ x: i, y: v ?? 0 }));
-
-  // color bars green/red based on price change
   const barColors = volumes.map((_, i) => {
     if (i === 0) return 'rgba(88,166,255,0.5)';
     return prices[i] >= prices[i-1] ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)';
@@ -539,7 +540,7 @@ function initVolumeChart() {
     id: 'volCross',
     afterDraw(ch) {
       if (sharedCrossIdx === null) return;
-      const {ctx:c, chartArea:ca, scales} = ch;
+      const {ctx: c, chartArea: ca, scales} = ch;
       const cx = scales.x.getPixelForValue(sharedCrossIdx);
       if (cx < ca.left || cx > ca.right) return;
       c.save(); c.strokeStyle = 'rgba(139,148,158,0.3)'; c.lineWidth = 1;
@@ -547,16 +548,18 @@ function initVolumeChart() {
     }
   };
 
+  const ctx = document.getElementById('volumeChart').getContext('2d');
   volumeChart = new Chart(ctx, {
     type: 'bar',
     plugins: [crosshairPlugin],
     data: {
-      labels: volumes.map((_, i) => i),
       datasets: [{
-        data: volumes.map(v => v ?? 0), label: 'Volume',
+        data: volumes.map((v, i) => ({ x: i, y: v || 0 })),
+        label: 'Volume',
         backgroundColor: barColors,
         borderWidth: 0,
-        barPercentage: 1.0, categoryPercentage: 1.0,
+        barThickness: 'flex',
+        parsing: false,
       }]
     },
     options: {
@@ -564,24 +567,7 @@ function initVolumeChart() {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        zoom: {
-          zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
-            onZoom: ({ chart: c }) => {
-              const r = { min: Math.round(c.scales.x.min), max: Math.round(c.scales.x.max) };
-              if(chart) chart.zoomScale('x', r, 'none');
-              if(rsiChart) rsiChart.zoomScale('x', r, 'none');
-              updateOverlay(chart);
-            }
-          },
-          pan: { enabled: true, mode: 'x',
-            onPan: ({ chart: c }) => {
-              const r = { min: Math.round(c.scales.x.min), max: Math.round(c.scales.x.max) };
-              if(chart) chart.zoomScale('x', r, 'none');
-              if(rsiChart) rsiChart.zoomScale('x', r, 'none');
-              updateOverlay(chart);
-            }
-          }
-        },
+        zoom: false,
         tooltip: {
           backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
           titleColor:'#e6edf3', bodyColor:'#8b949e', padding:8, displayColors:false,
@@ -592,12 +578,15 @@ function initVolumeChart() {
         }
       },
       scales: {
-        x: { type:'category', grid:{color:'rgba(48,54,61,0.8)'}, ticks:{display:false}, offset: false },
+        x: {
+          type: 'linear', min: 0, max: prices.length - 1,
+          grid: { color: 'rgba(48,54,61,0.8)' }, ticks: { display: false },
+          offset: false,
+        },
         y: {
-          type:'linear', grid:{color:'rgba(48,54,61,0.5)'},
-          ticks:{ color:'#8b949e', font:{size:9}, maxTicksLimit:2,
-            callback: v => fmtVol(v)
-          }
+          type: 'linear',
+          grid: { color: 'rgba(48,54,61,0.5)' },
+          ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 2, callback: v => fmtVol(v) }
         }
       },
       onHover: (_, elems) => {
@@ -681,7 +670,7 @@ document.querySelectorAll('[data-days]').forEach(btn => {
     const range = days ? { min: Math.max(0, max - days), max } : { min: 0, max };
     chart.zoomScale('x', range, 'none');
     if (rsiChart) rsiChart.zoomScale('x', range, 'none');
-    if (volumeChart) volumeChart.zoomScale('x', range, 'none');
+    syncVolumeRange(range.min, range.max);
     updateOverlay(chart);
   });
 });
