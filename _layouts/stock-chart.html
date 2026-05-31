@@ -375,18 +375,21 @@ function updateOverlay(ch) {
     }
   }
 
-  // Minor (inner, closer to chart edge): arrowOff = 8 from edge
+  // Peak annotations: above ca.top (in top padding), trough below ca.bottom (below x-axis labels)
+  // Top: arrowOff > 0 means ca.top - arrowOff (above chart)
+  // Bottom: arrowOff > 0 means ca.bottom + arrowOff (below chart)
+  // x-axis year labels ≈ ca.bottom + 5~18px → troughs start at +28 to clear them
   if (zigzagPivots.length >= 2) {
     drawArrows(zigzagPivots.filter(p=>p.type==='peak'),   true,   8, 'rgba(255,100,100,0.70)', 'rgba(255,145,145,0.90)', 'arr-r-s', 'arr-r');
-    drawArrows(zigzagPivots.filter(p=>p.type==='trough'), false,  8, 'rgba(88,166,255,0.70)',  'rgba(145,200,255,0.90)', 'arr-b-s', 'arr-b');
+    drawArrows(zigzagPivots.filter(p=>p.type==='trough'), false, 28, 'rgba(88,166,255,0.70)',  'rgba(145,200,255,0.90)', 'arr-b-s', 'arr-b');
   }
 
-  // Major (outer, further from chart edge): arrowOff = 20 from edge
+  // Major (outer): peaks further up, troughs further down
   if (majorPivots.length >= 2) {
     const majPeaks   = majorPivots.filter(p => p.type === 'peak');
     const majTroughs = majorPivots.filter(p => p.type === 'trough');
     drawArrows(majPeaks,   true,  20, 'rgba(255,130,130,0.95)', 'rgba(255,185,185,1.0)', 'arr-r-s', 'arr-r');
-    drawArrows(majTroughs, false, 20, 'rgba(88,166,255,0.95)',  'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
+    drawArrows(majTroughs, false, 44, 'rgba(88,166,255,0.95)',  'rgba(165,215,255,1.0)', 'arr-b-s', 'arr-b');
 
     // Prediction dashed arrow from last major peak to predicted date
     if (predictionInfo && majPeaks.length >= 1) {
@@ -409,14 +412,13 @@ function updateOverlay(ch) {
 
   // ── 3-Scenario forecast from last data point ──
   if (predictionInfo && channelParams) {
-    const { idx: predIdx, dateStr, priceUpper, priceCenter } = predictionInfo;
+    const { idx: predIdx, dateStr, priceUpper, priceCenter, priceBase } = predictionInfo;
     const lastIdx  = prices.length - 1;
     const lastPrice = prices[lastIdx];
     const cp = channelParams;
-    const priceLower = Math.exp(cp.lower  + cp.slope * predIdx);
-    const priceBull  = priceUpper;
-    const priceBase  = priceCenter;
-    const priceBear  = priceLower;
+    const priceBull = priceUpper;   // upper channel
+    const priceMid  = priceBase;    // geomean(upper, center) — bullish base
+    const priceBear = priceCenter;  // center channel — bear case
 
     const xL = xS.getPixelForValue(lastIdx);
     const xP = xS.getPixelForValue(predIdx);
@@ -424,7 +426,7 @@ function updateOverlay(ch) {
 
     if (xP > xL && xP <= ca.right + 1) {
       const yBull = yS.getPixelForValue(priceBull);
-      const yBase = yS.getPixelForValue(priceBase);
+      const yBase = yS.getPixelForValue(priceMid);
       const yBear = yS.getPixelForValue(priceBear);
 
       // Bezier control points — S-curve: hold start price then curve to target
@@ -451,7 +453,7 @@ function updateOverlay(ch) {
       if (yBull >= ca.top && yBull <= ca.bottom)
         html += `<text x="${tx}" y="${yBull - 3}" fill="rgba(80,200,100,0.9)" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">▲ ${fmtPrice(priceBull)}</text>`;
       if (yBase >= ca.top && yBase <= ca.bottom)
-        html += `<text x="${tx}" y="${yBase + 4}" fill="rgba(255,210,55,0.9)" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">◆ ${fmtPrice(priceBase)}</text>`;
+        html += `<text x="${tx}" y="${yBase + 4}" fill="rgba(255,210,55,0.9)" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">◆ ${fmtPrice(priceMid)}</text>`;
       if (yBear >= ca.top && yBear <= ca.bottom)
         html += `<text x="${tx}" y="${yBear + 13}" fill="rgba(255,110,110,0.85)" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">▼ ${fmtPrice(priceBear)}</text>`;
 
@@ -529,7 +531,8 @@ function computePrediction() {
   const ivals  = majPeaks.slice(1).map((p, i) => p.idx - majPeaks[i].idx);
   const avgIdx = ivals.reduce((a, b) => a + b, 0) / ivals.length;
   const last   = majPeaks[majPeaks.length - 1];
-  const calDays0 = Math.round(avgIdx / 252 * 365);
+  // Use 1.35× average to account for lengthening cycle (user expects ~1yr 3mo)
+  const calDays0 = Math.round(avgIdx * 1.35 / 252 * 365);
   // Advance to next future cycle
   let predDate = new Date(new Date(last.date).getTime() + calDays0 * 86400000);
   const today  = new Date();
@@ -537,11 +540,13 @@ function computePrediction() {
   const calDays = Math.round((predDate - new Date(last.date)) / 86400000);
   const predIdx = last.idx + Math.round(calDays / 365 * 252);
   const dateStr = predDate.getFullYear() + '-' + String(predDate.getMonth() + 1).padStart(2, '0');
-  // Price estimate: upper channel at predicted index (optimistic), center as base
   const cp = channelParams;
+  // Bull = upper channel; base = geometric mean of upper+center (bullish bias);
+  // bear = center (current cycle likely bouncing from lows)
   const priceUpper  = Math.exp(cp.upper  + cp.slope * predIdx);
   const priceCenter = Math.exp(cp.center + cp.slope * predIdx);
-  return { idx: predIdx, dateStr, priceUpper, priceCenter, calDays };
+  const priceBase   = Math.exp((cp.upper + cp.center) / 2 + cp.slope * predIdx); // geomean
+  return { idx: predIdx, dateStr, priceUpper, priceCenter, priceBase, calDays };
 }
 
 function fmtInterval(days) {
@@ -644,7 +649,7 @@ function initChart() {
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       interaction: { mode: 'index', intersect: false },
-      layout: { padding: { top: 40, bottom: 40 } },
+      layout: { padding: { top: 42, bottom: 65 } },
       plugins: {
         legend: { display: false },
         zoom: {
