@@ -198,6 +198,7 @@ let dates = [], prices = [], volumes = [];
 let channelParams = null;
 let zigzagPivots = [], majorPivots = [];
 let predictionInfo = null;   // { idx, dateStr, price, calDays }
+let yearFirstIdx  = {};      // { '2021': 0, '2022': 252, ... }
 let futureMax = 0;           // x-axis max including future prediction area
 let showMA = { 20: true, 50: true, 200: true };
 let sharedCrossIdx = null;
@@ -406,59 +407,56 @@ function updateOverlay(ch) {
   // ── Prediction range area (clipped) ──
   html += `<g clip-path="url(#ca)">`;
 
-  // ── Prediction range area (outside clip, uses full chart area clip) ──
+  // ── 3-Scenario forecast from last data point ──
   if (predictionInfo && channelParams) {
     const { idx: predIdx, dateStr, priceUpper, priceCenter } = predictionInfo;
-    const lastIdx = prices.length - 1;
+    const lastIdx  = prices.length - 1;
+    const lastPrice = prices[lastIdx];
     const cp = channelParams;
-    const predColor   = 'rgba(255,210,55,0.90)';
-    const predColorBg = 'rgba(255,210,55,0.07)';
+    const priceLower = Math.exp(cp.lower  + cp.slope * predIdx);
+    const priceBull  = priceUpper;
+    const priceBase  = priceCenter;
+    const priceBear  = priceLower;
 
-    // Channel values at data end (start of prediction zone)
-    const upperAtLast  = Math.exp(cp.upper  + cp.slope * lastIdx);
-    const centerAtLast = Math.exp(cp.center + cp.slope * lastIdx);
-    const lowerAtLast  = Math.exp(cp.lower  + cp.slope * lastIdx);
+    const xL = xS.getPixelForValue(lastIdx);
+    const xP = xS.getPixelForValue(predIdx);
+    const yStart = yS.getPixelForValue(lastPrice);   // from actual last price
 
-    const xLast = xS.getPixelForValue(lastIdx);
-    const xPred = xS.getPixelForValue(predIdx);
+    if (xP > xL && xP <= ca.right + 1) {
+      const yBull = yS.getPixelForValue(priceBull);
+      const yBase = yS.getPixelForValue(priceBase);
+      const yBear = yS.getPixelForValue(priceBear);
 
-    if (xPred > xLast && xPred <= ca.right + 1) {
-      const yUL = yS.getPixelForValue(upperAtLast);
-      const yCL = yS.getPixelForValue(centerAtLast);
-      const yLL = yS.getPixelForValue(lowerAtLast);
-      const yUP = yS.getPixelForValue(priceUpper);
-      const yCP = yS.getPixelForValue(priceCenter);
-      // Lower bound at prediction = same ratio below center as at last
-      const priceLower = Math.exp(cp.lower + cp.slope * predIdx);
-      const yLP = yS.getPixelForValue(priceLower);
+      // Bezier control points — S-curve: hold start price then curve to target
+      const cpx1 = xL + (xP - xL) * 0.35;
+      const cpx2 = xL + (xP - xL) * 0.65;
 
-      // Shaded prediction zone — optimistic (upper→center) fan
-      html += `<polygon points="${xLast},${yUL} ${xPred},${yUP} ${xPred},${yCP} ${xLast},${yCL}" fill="${predColorBg}" clip-path="url(#ca)"/>`;
-      // Bear zone (center→lower), lighter
-      html += `<polygon points="${xLast},${yCL} ${xPred},${yCP} ${xPred},${yLP} ${xLast},${yLL}" fill="rgba(255,210,55,0.03)" clip-path="url(#ca)"/>`;
+      // Shaded fan area (bull to bear)
+      const fanPath = `M${xL},${yStart} C${cpx1},${yStart} ${cpx2},${yBull} ${xP},${yBull}`
+                    + ` L${xP},${yBear} C${cpx2},${yBear} ${cpx1},${yStart} ${xL},${yStart} Z`;
+      html += `<path d="${fanPath}" fill="rgba(180,180,255,0.06)" clip-path="url(#ca)"/>`;
 
-      // Dashed boundary lines
-      html += `<line x1="${xLast}" y1="${yUL}" x2="${xPred}" y2="${yUP}" stroke="rgba(255,210,55,0.55)" stroke-width="1.3" stroke-dasharray="6 4" clip-path="url(#ca)"/>`;
-      html += `<line x1="${xLast}" y1="${yCL}" x2="${xPred}" y2="${yCP}" stroke="rgba(255,210,55,0.40)" stroke-width="1" stroke-dasharray="6 4" clip-path="url(#ca)"/>`;
-      html += `<line x1="${xLast}" y1="${yLL}" x2="${xPred}" y2="${yLP}" stroke="rgba(255,210,55,0.20)" stroke-width="0.8" stroke-dasharray="4 4" clip-path="url(#ca)"/>`;
+      // Bull scenario — green dashed
+      html += `<path d="M${xL},${yStart} C${cpx1},${yStart} ${cpx2},${yBull} ${xP},${yBull}" stroke="rgba(80,200,100,0.80)" stroke-width="1.5" stroke-dasharray="8 4" fill="none" clip-path="url(#ca)"/>`;
+      // Base scenario — yellow dashed
+      html += `<path d="M${xL},${yStart} C${cpx1},${yStart} ${cpx2},${yBase} ${xP},${yBase}" stroke="rgba(255,210,55,0.85)" stroke-width="1.5" stroke-dasharray="8 4" fill="none" clip-path="url(#ca)"/>`;
+      // Bear scenario — red dashed
+      html += `<path d="M${xL},${yStart} C${cpx1},${yStart} ${cpx2},${yBear} ${xP},${yBear}" stroke="rgba(255,90,90,0.75)" stroke-width="1.5" stroke-dasharray="8 4" fill="none" clip-path="url(#ca)"/>`;
 
       // Vertical dashed line at predicted date
-      html += `<line x1="${xPred}" y1="${ca.top}" x2="${xPred}" y2="${ca.bottom}" stroke="${predColor}" stroke-width="1.2" stroke-dasharray="5 3" clip-path="url(#ca)"/>`;
+      html += `<line x1="${xP}" y1="${ca.top}" x2="${xP}" y2="${ca.bottom}" stroke="rgba(255,210,55,0.5)" stroke-width="1" stroke-dasharray="4 3" clip-path="url(#ca)"/>`;
 
-      // Price markers — text drawn to LEFT of line to avoid right-edge clipping
-      const tx = xPred - 9;
-      if (yUP >= ca.top && yUP <= ca.bottom)
-        html += `<text x="${tx}" y="${yUP - 3}" fill="${predColor}" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">▲ ${fmtPrice(priceUpper)}</text>`;
-      if (yCP >= ca.top && yCP <= ca.bottom) {
-        const s = 5;
-        html += `<path d="M${xPred},${yCP-s} L${xPred+s},${yCP} L${xPred},${yCP+s} L${xPred-s},${yCP} Z" fill="${predColor}" clip-path="url(#ca)"/>`;
-        html += `<text x="${tx}" y="${yCP + 4}" fill="${predColor}" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">◆ ${fmtPrice(priceCenter)}</text>`;
-      }
-      if (yLP >= ca.top && yLP <= ca.bottom)
-        html += `<text x="${tx}" y="${yLP + 11}" fill="rgba(255,210,55,0.55)" font-size="9" text-anchor="end" font-family="monospace" clip-path="url(#ca)">▼ ${fmtPrice(priceLower)}</text>`;
+      // Price labels — left of line
+      const tx = xP - 8;
+      if (yBull >= ca.top && yBull <= ca.bottom)
+        html += `<text x="${tx}" y="${yBull - 3}" fill="rgba(80,200,100,0.9)" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">▲ ${fmtPrice(priceBull)}</text>`;
+      if (yBase >= ca.top && yBase <= ca.bottom)
+        html += `<text x="${tx}" y="${yBase + 4}" fill="rgba(255,210,55,0.9)" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">◆ ${fmtPrice(priceBase)}</text>`;
+      if (yBear >= ca.top && yBear <= ca.bottom)
+        html += `<text x="${tx}" y="${yBear + 13}" fill="rgba(255,110,110,0.85)" font-size="10" text-anchor="end" font-family="monospace" font-weight="600" clip-path="url(#ca)">▼ ${fmtPrice(priceBear)}</text>`;
 
-      // Date label — anchored left-of-line to avoid right-edge clipping
-      html += `<text x="${xPred - 5}" y="${ca.top + 14}" fill="${predColor}" font-size="10" text-anchor="end" font-family="monospace" font-weight="700" clip-path="url(#ca)">▲ ${dateStr}</text>`;
+      // Date label
+      html += `<text x="${xP - 5}" y="${ca.top + 14}" fill="rgba(255,210,55,0.85)" font-size="10" text-anchor="end" font-family="monospace" font-weight="700" clip-path="url(#ca)">▲ ${dateStr}</text>`;
     }
   }
 
@@ -493,17 +491,10 @@ function updateRsiLabel(idx) {
   el.textContent = `RSI(14): ${fmt(rv)}   Signal: ${fmt(ev)}`;
 }
 
-// ── X-axis tick formatter ──
-function xTickCallback(value, idx, ticks) {
+// ── X-axis tick formatter — ticks are placed exactly at year starts ──
+function xTickCallback(value) {
   const dataIdx = Math.round(value);
-  if (!dates[dataIdx]) return '';
-  const yr = dates[dataIdx].slice(0, 4);
-  if (idx === 0) return yr;
-  const prevValue = ticks[idx - 1]?.value;
-  if (prevValue == null) return yr;
-  const prevDataIdx = Math.round(prevValue);
-  if (!dates[prevDataIdx]) return yr;
-  return dates[prevDataIdx].slice(0, 4) !== yr ? yr : '';
+  return dates[dataIdx] ? dates[dataIdx].slice(0, 4) : '';
 }
 
 // ── Zigzag peak/trough detection ──
@@ -684,7 +675,13 @@ function initChart() {
         x: {
           type: 'linear', min: 0, max: futureMax,
           grid: { color: 'rgba(48,54,61,0.8)' },
-          ticks: { color:'#8b949e', font:{size:10}, maxTicksLimit:15, callback: xTickCallback }
+          afterBuildTicks(scale) {
+            // Place ticks exactly at year boundaries — no uneven gaps
+            scale.ticks = Object.values(yearFirstIdx)
+              .sort((a, b) => a - b)
+              .map(v => ({ value: v }));
+          },
+          ticks: { color:'#8b949e', font:{size:10}, callback: xTickCallback }
         },
         y: {
           type: 'logarithmic',
@@ -995,7 +992,13 @@ async function loadData() {
   applySplitAdj(SYMBOL, prices, dates);
   channelParams = computeChannel(prices);
   zigzagPivots   = detectZigzag(prices, dates, 0.40);
-  majorPivots    = detectZigzag(prices, dates, 0.55);
+  majorPivots    = detectZigzag(prices, dates, 0.65);
+  // Precompute year boundary indices for precise x-axis tick placement
+  yearFirstIdx = {};
+  for (let i = 0; i < dates.length; i++) {
+    const yr = dates[i].slice(0, 4);
+    if (!(yr in yearFirstIdx)) yearFirstIdx[yr] = i;
+  }
   predictionInfo = computePrediction();
   futureMax = predictionInfo && predictionInfo.idx > prices.length - 1
     ? predictionInfo.idx + 30
