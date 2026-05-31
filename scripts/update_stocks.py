@@ -51,7 +51,7 @@ def read_last_date(symbol: str) -> str:
 
 def fetch_adjusted(symbol: str, full: bool = False) -> dict:
     params = {
-        'function': 'TIME_SERIES_DAILY_ADJUSTED',
+        'function': 'TIME_SERIES_DAILY',   # ADJUSTED moved to premium; use free daily
         'symbol': symbol,
         'outputsize': 'full' if full else 'compact',
         'apikey': API_KEY,
@@ -86,8 +86,8 @@ def append_rows(symbol: str, ts: dict, last_date: str) -> int:
             'date':              date_str,
             'open_price_usd':    round(float(v['1. open']), 4),
             'close_price_usd':   round(float(v['4. close']), 4),
-            'adj_close_price_usd': round(float(v['5. adjusted close']), 4),
-            'total_volume_usd':  int(v['6. volume']),
+            'adj_close_price_usd': round(float(v['4. close']), 4),  # no adj in free tier
+            'total_volume_usd':  int(v['5. volume']),
         })
 
     if not new_rows:
