@@ -122,6 +122,29 @@ layout: default
   <div id="rsiLabel">RSI(14): —&nbsp;&nbsp;Signal: —</div>
 </div>
 
+<div id="maLegend" style="display:flex; gap:18px; padding: 6px 2px 2px; flex-wrap:wrap;">
+  <span style="display:flex; align-items:center; gap:5px; font-size:0.74rem; color:var(--text-secondary);">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="#58a6ff" stroke-width="2"/></svg>{{ page.symbol }}
+  </span>
+  <span id="legMA20" style="display:flex; align-items:center; gap:5px; font-size:0.74rem; color:var(--text-secondary);">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="rgba(63,185,80,0.9)" stroke-width="2"/></svg>MA-20
+  </span>
+  <span id="legMA50" style="display:flex; align-items:center; gap:5px; font-size:0.74rem; color:var(--text-secondary);">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="rgba(255,152,0,0.9)" stroke-width="2"/></svg>MA-50
+  </span>
+  <span id="legMA200" style="display:flex; align-items:center; gap:5px; font-size:0.74rem; color:var(--text-secondary);">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="rgba(248,81,73,0.9)" stroke-width="2"/></svg>MA-200
+  </span>
+  <span style="display:flex; align-items:center; gap:5px; font-size:0.74rem; color:var(--text-secondary);">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="rgba(255,100,100,0.8)" stroke-width="1.5" stroke-dasharray="3 2"/></svg>
+    <span class="en-only">Peak interval</span><span class="ko-only">고점 간격</span>
+  </span>
+  <span style="display:flex; align-items:center; gap:5px; font-size:0.74rem; color:var(--text-secondary);">
+    <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="rgba(88,166,255,0.8)" stroke-width="1.5" stroke-dasharray="3 2"/></svg>
+    <span class="en-only">Trough interval</span><span class="ko-only">저점 간격</span>
+  </span>
+</div>
+
 <p class="chart-hint" style="margin-top:8px;">
   <span class="en-only">Scroll to zoom · Drag to pan · Double-click to reset</span>
   <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 더블클릭으로 초기화</span>
@@ -173,6 +196,7 @@ const TITLE_KO = '{{ page.title_ko }}';
 let chart = null, rsiChart = null, volumeChart = null;
 let dates = [], prices = [], volumes = [];
 let channelParams = null;
+let zigzagPivots = [];
 let showMA = { 20: true, 50: true, 200: true };
 let sharedCrossIdx = null;
 
@@ -244,6 +268,8 @@ function toggleMA(period) {
   showMA[period] = !showMA[period];
   const btn = document.getElementById(`ma${period}Btn`);
   btn.classList.toggle('active', showMA[period]);
+  const leg = document.getElementById(`legMA${period}`);
+  if (leg) leg.style.opacity = showMA[period] ? '1' : '0.35';
   if (!chart) return;
   chart.data.datasets[maDs(period)].hidden = !showMA[period];
   chart.update('none');
@@ -298,8 +324,17 @@ function updateOverlay(ch) {
   const xS = ch.scales.x, yS = ch.scales.y;
   const cp = channelParams;
 
-  let html = `<defs><clipPath id="ca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs><g clip-path="url(#ca)">`;
+  // Arrow marker defs
+  let html = `<defs>
+    <clipPath id="ca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath>
+    <marker id="arr-r" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="rgba(255,100,100,0.8)"/></marker>
+    <marker id="arr-r-s" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 Z" fill="rgba(255,100,100,0.8)"/></marker>
+    <marker id="arr-b" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="rgba(88,166,255,0.8)"/></marker>
+    <marker id="arr-b-s" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6 Z" fill="rgba(88,166,255,0.8)"/></marker>
+  </defs>`;
 
+  // Channel
+  html += `<g clip-path="url(#ca)">`;
   const mn0 = xS.getValueForPixel(ca.left), mn1 = xS.getValueForPixel(ca.right);
   const x0 = ca.left, x1 = ca.right;
   const cy = (int, mn) => yS.getPixelForValue(Math.exp(int + cp.slope * mn));
@@ -310,6 +345,43 @@ function updateOverlay(ch) {
   html += `<line x1="${x0}" y1="${uY0}" x2="${x1}" y2="${uY1}" stroke="#3B8BD4" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="6 4"/>`;
   html += `<line x1="${x0}" y1="${lY0}" x2="${x1}" y2="${lY1}" stroke="#3B8BD4" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="6 4"/>`;
   html += `<line x1="${x0}" y1="${cY0}" x2="${x1}" y2="${cY1}" stroke="#3B8BD4" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="2 4"/>`;
+
+  // Peak/trough interval annotations
+  if (zigzagPivots.length >= 2) {
+    const peaks   = zigzagPivots.filter(p => p.type === 'peak');
+    const troughs = zigzagPivots.filter(p => p.type === 'trough');
+    const xMin = xS.min, xMax = xS.max;
+
+    // peak-to-peak (red, top area)
+    for (let i = 1; i < peaks.length; i++) {
+      const p1 = peaks[i-1], p2 = peaks[i];
+      if (p2.idx < xMin || p1.idx > xMax) continue;
+      const x1p = Math.max(ca.left,  xS.getPixelForValue(p1.idx));
+      const x2p = Math.min(ca.right, xS.getPixelForValue(p2.idx));
+      if (x2p - x1p < 8) continue;
+      const y = ca.top + 16;
+      const days = Math.round((new Date(p2.date) - new Date(p1.date)) / 86400000);
+      const label = fmtInterval(days);
+      const mx = (x1p + x2p) / 2;
+      html += `<line x1="${x1p+4}" y1="${y}" x2="${x2p-4}" y2="${y}" stroke="rgba(255,100,100,0.75)" stroke-width="1.2" marker-start="url(#arr-r-s)" marker-end="url(#arr-r)"/>`;
+      html += `<text x="${mx}" y="${y-4}" fill="rgba(255,130,130,0.9)" font-size="10" text-anchor="middle" font-family="monospace" font-weight="600">${label}</text>`;
+    }
+
+    // trough-to-trough (blue, bottom area)
+    for (let i = 1; i < troughs.length; i++) {
+      const t1 = troughs[i-1], t2 = troughs[i];
+      if (t2.idx < xMin || t1.idx > xMax) continue;
+      const x1p = Math.max(ca.left,  xS.getPixelForValue(t1.idx));
+      const x2p = Math.min(ca.right, xS.getPixelForValue(t2.idx));
+      if (x2p - x1p < 8) continue;
+      const y = ca.bottom - 14;
+      const days = Math.round((new Date(t2.date) - new Date(t1.date)) / 86400000);
+      const label = fmtInterval(days);
+      const mx = (x1p + x2p) / 2;
+      html += `<line x1="${x1p+4}" y1="${y}" x2="${x2p-4}" y2="${y}" stroke="rgba(88,166,255,0.75)" stroke-width="1.2" marker-start="url(#arr-b-s)" marker-end="url(#arr-b)"/>`;
+      html += `<text x="${mx}" y="${y+12}" fill="rgba(130,190,255,0.9)" font-size="10" text-anchor="middle" font-family="monospace" font-weight="600">${label}</text>`;
+    }
+  }
 
   html += '</g>';
   svg.innerHTML = html;
@@ -343,15 +415,51 @@ function updateRsiLabel(idx) {
 }
 
 // ── X-axis tick formatter ──
-function xTickCallback(_, i, ticks) {
-  if (!dates[i]) return '';
-  const d = dates[i];
-  const yr = d.slice(0, 4);
-  if (i === 0) return yr;
-  const prev = dates[i-1];
-  if (!prev) return '';
-  if (prev.slice(0, 4) !== yr) return yr;
-  return '';
+function xTickCallback(value, idx, ticks) {
+  const dataIdx = Math.round(value);
+  if (!dates[dataIdx]) return '';
+  const yr = dates[dataIdx].slice(0, 4);
+  if (idx === 0) return yr;
+  const prevValue = ticks[idx - 1]?.value;
+  if (prevValue == null) return yr;
+  const prevDataIdx = Math.round(prevValue);
+  if (!dates[prevDataIdx]) return yr;
+  return dates[prevDataIdx].slice(0, 4) !== yr ? yr : '';
+}
+
+// ── Zigzag peak/trough detection ──
+function detectZigzag(pricesArr, datesArr, deviation = 0.20) {
+  const n = pricesArr.length;
+  if (n < 3) return [];
+  const pivots = [];
+  let isUp = pricesArr[1] > pricesArr[0];
+  let lastIdx = 0, lastPrice = pricesArr[0];
+  for (let i = 1; i < n; i++) {
+    if (isUp) {
+      if (pricesArr[i] >= lastPrice) { lastIdx = i; lastPrice = pricesArr[i]; }
+      else if ((lastPrice - pricesArr[i]) / lastPrice >= deviation) {
+        pivots.push({ idx: lastIdx, type: 'peak', price: lastPrice, date: datesArr[lastIdx] });
+        isUp = false; lastIdx = i; lastPrice = pricesArr[i];
+      }
+    } else {
+      if (pricesArr[i] <= lastPrice) { lastIdx = i; lastPrice = pricesArr[i]; }
+      else if ((pricesArr[i] - lastPrice) / lastPrice >= deviation) {
+        pivots.push({ idx: lastIdx, type: 'trough', price: lastPrice, date: datesArr[lastIdx] });
+        isUp = true; lastIdx = i; lastPrice = pricesArr[i];
+      }
+    }
+  }
+  pivots.push({ idx: lastIdx, type: isUp ? 'peak' : 'trough', price: lastPrice, date: datesArr[lastIdx] });
+  return pivots;
+}
+
+function fmtInterval(days) {
+  const totalMonths = Math.round(days / 30.44);
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  if (years === 0) return `${totalMonths}mo`;
+  if (months === 0) return `${years}yr`;
+  return `${years}yr ${months}mo`;
 }
 
 // ── Custom date range ──
@@ -475,15 +583,22 @@ function initChart() {
         x: {
           type: 'linear', min: 0, max: prices.length - 1,
           grid: { color: 'rgba(48,54,61,0.8)' },
-          ticks: { color:'#8b949e', font:{size:10}, maxTicksLimit:10, callback: xTickCallback }
+          ticks: { color:'#8b949e', font:{size:10}, maxTicksLimit:15, callback: xTickCallback }
         },
         y: {
           type: 'logarithmic',
+          min: (() => {
+            if (!channelParams) return undefined;
+            const n = prices.length;
+            const cp = channelParams;
+            const minIdx = cp.slope >= 0 ? 0 : n - 1;
+            return Math.exp(cp.lower + cp.slope * minIdx) * 0.80;
+          })(),
           grid: { color: 'rgba(48,54,61,0.8)' },
           ticks: {
             color:'#8b949e', font:{size:10},
             callback: v => {
-              const p = [1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000];
+              const p = [0.5,1,2,3,5,7,10,15,20,30,50,75,100,150,200,300,500,750,1000,1500,2000,3000,5000,7500,10000,15000,20000,50000,100000,500000,1000000];
               return p.includes(v) ? fmtPrice(v) : undefined;
             }
           }
@@ -778,6 +893,7 @@ async function loadData() {
 
   applySplitAdj(SYMBOL, prices, dates);
   channelParams = computeChannel(prices);
+  zigzagPivots = detectZigzag(prices, dates, 0.40);
   initChart();
   if (volumes.some(v => v > 0)) initVolumeChart();
   initRsiChart();
