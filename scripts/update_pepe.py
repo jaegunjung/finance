@@ -20,7 +20,7 @@ PEPE_LAUNCH = '2023-04-14'
 def read_date_range() -> tuple[str, str]:
     if not CSV_PATH.exists() or CSV_PATH.stat().st_size == 0:
         return PEPE_LAUNCH, PEPE_LAUNCH
-    with open(CSV_PATH, newline='') as f:
+    with open(CSV_PATH, newline='', encoding='utf-8-sig') as f:
         rows = list(csv.DictReader(f))
     if not rows:
         return PEPE_LAUNCH, PEPE_LAUNCH
@@ -121,7 +121,7 @@ def main():
             historical_rows.sort(key=lambda r: r['date'])
             existing_rows = []
             if CSV_PATH.exists():
-                with open(CSV_PATH, newline='') as f:
+                with open(CSV_PATH, newline='', encoding='utf-8-sig') as f:
                     existing_rows = list(csv.DictReader(f))
             all_rows = historical_rows + existing_rows + new_rows
             with open(CSV_PATH, 'w', newline='') as f:

@@ -20,7 +20,7 @@ ETH_GENESIS = '2015-08-07'
 def read_date_range() -> tuple[str, str]:
     if not CSV_PATH.exists() or CSV_PATH.stat().st_size == 0:
         return ETH_GENESIS, ETH_GENESIS
-    with open(CSV_PATH, newline='') as f:
+    with open(CSV_PATH, newline='', encoding='utf-8-sig') as f:
         rows = list(csv.DictReader(f))
     if not rows:
         return ETH_GENESIS, ETH_GENESIS
@@ -125,7 +125,7 @@ def main():
             # Prepend historical data by rewriting CSV
             existing_rows = []
             if CSV_PATH.exists():
-                with open(CSV_PATH, newline='') as f:
+                with open(CSV_PATH, newline='', encoding='utf-8-sig') as f:
                     existing_rows = list(csv.DictReader(f))
             all_rows = historical_rows + existing_rows + new_rows
             with open(CSV_PATH, 'w', newline='') as f:

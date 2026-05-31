@@ -16,7 +16,7 @@ COINGECKO_URL = 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart'
 
 
 def read_last_date() -> str:
-    with open(CSV_PATH, newline='') as f:
+    with open(CSV_PATH, newline='', encoding='utf-8-sig') as f:
         rows = list(csv.DictReader(f))
     return rows[-1]['date'].strip() if rows else '2013-01-01'
 
