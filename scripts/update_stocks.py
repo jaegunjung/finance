@@ -75,7 +75,7 @@ def fetch_adjusted(symbol: str, full: bool = False) -> dict:
 
 
 def append_rows(symbol: str, ts: dict, last_date: str) -> int:
-    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=2)).strftime('%Y-%m-%d')  # 2-day buffer for AV lag
     new_rows = []
     for date_str, v in ts.items():
         if date_str <= last_date:
