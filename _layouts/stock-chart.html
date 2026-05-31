@@ -529,7 +529,9 @@ function syncVolumeRange(min, max) {
 
 // ── Volume chart init ──
 function initVolumeChart() {
-  document.getElementById('volumeContainer').style.display = '';
+  const volContainer = document.getElementById('volumeContainer');
+  volContainer.style.display = 'block';
+  void volContainer.offsetHeight; // force reflow so canvas gets correct dimensions
 
   const barColors = volumes.map((_, i) => {
     if (i === 0) return 'rgba(88,166,255,0.5)';
