@@ -27,14 +27,14 @@
   </script>
 </head>
 <body>
+  <!-- Supabase SDK: must load before {{ content }} because comments.js (included in posts) needs window.supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   {% include nav.html %}
   <main>
     {{ content }}
   </main>
   {% include footer.html %}
   {% include import-modal.html %}
-  <!-- Supabase SDK (site-wide: avatar, comments, profile) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="{{ '/assets/js/auth.js' | relative_url }}"></script>
   <script src="{{ '/assets/js/transactions.js' | relative_url }}"></script>
   <script>
