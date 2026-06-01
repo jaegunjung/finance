@@ -12,12 +12,30 @@ title: Portfolio & Trades
 .txn-table tr:hover td { background:rgba(88,166,255,0.04); }
 .txn-type-buy  { color:rgba(63,185,80,0.9); font-weight:700; font-size:0.75rem; text-transform:uppercase; }
 .txn-type-sell { color:rgba(248,81,73,0.9); font-weight:700; font-size:0.75rem; text-transform:uppercase; }
+.txn-type-other { color:rgba(255,180,50,0.9); font-weight:700; font-size:0.75rem; text-transform:uppercase; }
 .del-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1rem; padding:2px 6px; border-radius:4px; transition:color 0.15s, background 0.15s; }
 .del-btn:hover { color:rgba(248,81,73,0.9); background:rgba(248,81,73,0.1); }
+.edit-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.9rem; padding:2px 6px; border-radius:4px; transition:color 0.15s, background 0.15s; }
+.edit-btn:hover { color:rgba(88,166,255,0.9); background:rgba(88,166,255,0.1); }
 .port-section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px; }
 .port-add-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; }
 .port-add-btn:hover { border-color:var(--accent-blue); color:var(--accent-blue); }
 .empty-state { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:0.88rem; }
+.pnl-pos { color:rgba(63,185,80,0.95); }
+.pnl-neg { color:rgba(248,81,73,0.95); }
+.pnl-card { background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:12px 16px; margin-bottom:12px; }
+.pnl-row { display:flex; gap:24px; flex-wrap:wrap; align-items:baseline; }
+.pnl-stat { display:flex; flex-direction:column; gap:2px; }
+.pnl-stat-label { font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; }
+.pnl-stat-val { font-size:0.88rem; font-weight:700; }
+
+/* Edit modal */
+#editModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center; }
+#editModal.open { display:flex; }
+#editModalBox { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px 26px; min-width:340px; max-width:600px; width:90vw; max-height:90vh; overflow-y:auto; }
+.modal-field { display:flex; flex-direction:column; gap:4px; }
+.modal-field label { font-size:0.72rem; color:var(--text-muted); }
+.modal-input { background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:7px 10px; font-size:0.84rem; width:100%; box-sizing:border-box; }
 </style>
 
 <div style="padding:28px 0 8px;">
@@ -51,6 +69,24 @@ title: Portfolio & Trades
     <input id="portNewPortName" type="text" placeholder="Portfolio name" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:220px;">
     <button onclick="portCreatePortfolio()" style="padding:6px 16px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem;">Create</button>
     <button onclick="document.getElementById('portAddPortfolioForm').style.display='none';" style="padding:6px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
+  </div>
+
+  <!-- USD Cash section (Item 7) -->
+  <div id="portCashSection" class="card pnl-card" style="display:none; margin-bottom:16px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+      <span style="font-size:1.1rem;">💵</span>
+      <span class="port-section-label" style="margin-bottom:0;">USD Cash Balance</span>
+    </div>
+    <div id="portCashBalance" style="font-size:1.4rem; font-weight:700; color:var(--text-primary);">—</div>
+    <div id="portCashDetail" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;"></div>
+  </div>
+
+  <!-- Per-symbol P&L summary (Item 10 — shown when a specific symbol is selected) -->
+  <div id="portSymbolSummary" class="card pnl-card" style="display:none; margin-bottom:16px;">
+    <div class="port-section-label" id="portSymbolSummaryTitle" style="margin-bottom:10px;">Symbol Summary</div>
+    <div class="pnl-row" id="portSymbolSummaryRow"></div>
+    <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolHoldingsLine"></div>
+    <div style="margin-top:4px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolUnrealizedLine"></div>
   </div>
 
   <!-- Transactions section -->
@@ -89,6 +125,7 @@ title: Portfolio & Trades
             <th style="text-align:right;">Shares</th>
             <th style="text-align:right;">Price</th>
             <th style="text-align:right;">Amount</th>
+            <th style="text-align:right;">Commission</th>
             <th>Notes</th>
             <th>Source</th>
             <th></th>
@@ -108,9 +145,86 @@ title: Portfolio & Trades
   </div>
 </div>
 
+<!-- Edit Modal (Item 2) -->
+<div id="editModal" onclick="editModalBgClick(event)">
+  <div id="editModalBox">
+    <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:16px;">Edit Transaction</div>
+    <input type="hidden" id="editTxnId">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div class="modal-field">
+        <label>Date</label>
+        <input type="date" id="editDate" class="modal-input">
+      </div>
+      <div class="modal-field">
+        <label>Time</label>
+        <input type="time" id="editTime" class="modal-input">
+      </div>
+      <div class="modal-field">
+        <label>Type</label>
+        <select id="editType" class="modal-input">
+          <optgroup label="Trade">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+            <option value="buy_to_cover">Buy to Cover</option>
+            <option value="sell_short">Sell Short</option>
+          </optgroup>
+          <optgroup label="Income">
+            <option value="drip">Dividend+DRIP</option>
+            <option value="dividend">Dividend</option>
+            <option value="interest">Interest</option>
+            <option value="split">Split</option>
+          </optgroup>
+          <optgroup label="Cash">
+            <option value="cash_deposit">Cash Deposit</option>
+            <option value="cash_withdrawal">Cash Withdrawal</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Shares</label>
+        <input type="number" id="editShares" class="modal-input" placeholder="0.00" step="any" min="0">
+      </div>
+      <div class="modal-field">
+        <label>Price ($)</label>
+        <input type="number" id="editPrice" class="modal-input" placeholder="0.00" step="any" min="0">
+      </div>
+      <div class="modal-field">
+        <label>Amount ($)</label>
+        <input type="number" id="editAmount" class="modal-input" placeholder="0.00" step="any" min="0">
+      </div>
+      <div class="modal-field">
+        <label>Commission ($)</label>
+        <input type="number" id="editCommission" class="modal-input" placeholder="0.00" step="any" min="0" value="0">
+      </div>
+      <div class="modal-field" style="grid-column:1/-1;">
+        <label>Notes</label>
+        <input type="text" id="editNotes" class="modal-input" placeholder="Optional">
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:18px; justify-content:flex-end;">
+      <button onclick="editModalClose()" style="padding:7px 18px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
+      <button onclick="editSave()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;" id="editSaveBtn">Save</button>
+    </div>
+    <div id="editStatus" style="display:none; margin-top:10px; padding:7px 12px; border-radius:6px; font-size:0.82rem;"></div>
+  </div>
+</div>
+
 <script>
 let portPortfolios = [];
 let portActivePortfolioId = null;  // null = all portfolios
+let portAllTxns = [];  // cached for P&L calcs
+
+// ── Type display labels ──
+const TYPE_LABELS = {
+  buy:'Buy', sell:'Sell', buy_to_cover:'Buy to Cover', sell_short:'Sell Short',
+  drip:'DRIP', dividend:'Dividend', interest:'Interest', split:'Split',
+  cash_deposit:'Deposit', cash_withdrawal:'Withdrawal'
+};
+function typeClass(t) {
+  if (['buy','drip','buy_to_cover'].includes(t)) return 'txn-type-buy';
+  if (['sell','sell_short'].includes(t)) return 'txn-type-sell';
+  return 'txn-type-other';
+}
 
 async function portInit() {
   const user = window._jjUser;
@@ -156,16 +270,44 @@ function portRenderTabs() {
   }
 }
 
+// ── Fetch current price from CSV (Item 3) ──
+async function fetchCurrentPrice(symbol) {
+  try {
+    const url = `/assets/data/stocks/${symbol}.csv`;
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const text = await r.text();
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return null;
+    const header = lines[0].split(',').map(s => s.trim());
+    const priceIdx = header.indexOf('adj_close_price_usd') >= 0
+      ? header.indexOf('adj_close_price_usd')
+      : header.indexOf('close_price_usd') >= 0
+        ? header.indexOf('close_price_usd')
+        : -1;
+    if (priceIdx < 0) return null;
+    // Last non-empty line
+    for (let i = lines.length - 1; i >= 1; i--) {
+      const cols = lines[i].split(',');
+      const p = parseFloat(cols[priceIdx]);
+      if (!isNaN(p) && p > 0) return p;
+    }
+  } catch(e) {}
+  return null;
+}
+
 async function portLoadTxns() {
   if (!window.txns) return;
-  const body = document.getElementById('portTxnBody');
-  const empty = document.getElementById('portTxnEmpty');
+  const body    = document.getElementById('portTxnBody');
+  const empty   = document.getElementById('portTxnEmpty');
   const loading = document.getElementById('portTxnLoading');
   const summary = document.getElementById('portSummaryRow');
   body.innerHTML = '';
   empty.style.display = 'none';
   loading.style.display = 'block';
   summary.style.display = 'none';
+  document.getElementById('portSymbolSummary').style.display = 'none';
+  document.getElementById('portCashSection').style.display = 'none';
 
   const symbolFilter = document.getElementById('portSymbolFilter').value;
 
@@ -178,31 +320,51 @@ async function portLoadTxns() {
     return;
   }
   loading.style.display = 'none';
+  portAllTxns = txns;
 
   if (!txns.length) { empty.style.display = ''; return; }
 
   // Summary
-  const bought = txns.filter(t => t.type === 'buy').reduce((s, t) => s + Number(t.amount), 0);
-  const sold   = txns.filter(t => t.type === 'sell').reduce((s, t) => s + Number(t.amount), 0);
-  const fmtAmt = n => '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const fmtAmt = n => '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  const bought = txns.filter(t => ['buy','drip','buy_to_cover'].includes(t.type)).reduce((s, t) => s + Number(t.amount), 0);
+  const sold   = txns.filter(t => ['sell','sell_short'].includes(t.type)).reduce((s, t) => s + Number(t.amount), 0);
   document.getElementById('portSumBought').textContent = `Bought: ${fmtAmt(bought)}`;
   document.getElementById('portSumSold').textContent   = `Sold: ${fmtAmt(sold)}`;
-  document.getElementById('portSumNet').textContent    = `Net: ${fmtAmt(bought - sold)}`;
+  document.getElementById('portSumNet').textContent    = `Net invested: ${fmtAmt(bought - sold)}`;
   summary.style.display = 'flex';
 
-  const fmtN = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
+  // Cash balance (Item 7)
+  const cashTxns = txns.filter(t => t.symbol === 'USD' || ['cash_deposit','cash_withdrawal'].includes(t.type));
+  if (cashTxns.length > 0) {
+    const cashIn  = cashTxns.filter(t => t.type === 'cash_deposit').reduce((s, t) => s + Number(t.amount), 0);
+    const cashOut = cashTxns.filter(t => t.type === 'cash_withdrawal').reduce((s, t) => s + Number(t.amount), 0);
+    const bal = cashIn - cashOut;
+    document.getElementById('portCashBalance').textContent = fmtAmt(bal);
+    document.getElementById('portCashBalance').className = bal >= 0 ? 'pnl-pos' : 'pnl-neg';
+    document.getElementById('portCashDetail').textContent = `Deposits: ${fmtAmt(cashIn)}  ·  Withdrawals: ${fmtAmt(cashOut)}`;
+    document.getElementById('portCashSection').style.display = '';
+  }
 
-  // Sort newest first for display
+  // Per-symbol summary (Item 10) — only when a specific symbol is selected
+  if (symbolFilter && symbolFilter !== 'USD') {
+    await portRenderSymbolSummary(symbolFilter, txns);
+  }
+
+  const fmtN = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
   const sorted = [...txns].sort((a, b) => b.trade_date.localeCompare(a.trade_date));
 
   for (const t of sorted) {
     const tr = document.createElement('tr');
-    const typeCell = t.type === 'buy'
-      ? `<span class="txn-type-buy">Buy</span>`
-      : `<span class="txn-type-sell">Sell</span>`;
+    const typeLabel = TYPE_LABELS[t.type] || t.type;
+    const typeCell = `<span class="${typeClass(t.type)}">${typeLabel}</span>`;
     const srcBadge = t.source === 'import'
       ? `<span style="font-size:0.7rem; color:var(--text-muted); background:var(--bg-secondary); padding:1px 6px; border-radius:10px; border:1px solid var(--border);">import</span>`
-      : `<span style="font-size:0.7rem; color:var(--text-muted);">manual</span>`;
+      : t.source === 'auto'
+        ? `<span style="font-size:0.7rem; color:var(--text-muted); background:var(--bg-secondary); padding:1px 6px; border-radius:10px; border:1px solid var(--border);">auto</span>`
+        : `<span style="font-size:0.7rem; color:var(--text-muted);">manual</span>`;
+    const commCell = t.commission != null && Number(t.commission) > 0
+      ? `$${fmtN(t.commission)}`
+      : `<span style="color:var(--text-muted);">—</span>`;
     tr.innerHTML = `
       <td style="color:var(--text-secondary); white-space:nowrap;">${t.trade_date}</td>
       <td style="font-weight:600; color:var(--text-primary);">${t.symbol}</td>
@@ -210,12 +372,74 @@ async function portLoadTxns() {
       <td style="text-align:right; color:var(--text-secondary);">${fmtN(t.shares)}</td>
       <td style="text-align:right; color:var(--text-secondary);">${t.price != null ? '$' + fmtN(t.price) : '—'}</td>
       <td style="text-align:right; font-weight:600; color:var(--text-primary);">$${fmtN(t.amount)}</td>
+      <td style="text-align:right; color:var(--text-secondary);">${commCell}</td>
       <td style="color:var(--text-muted); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(t.notes||'').replace(/"/g,'&quot;')}">${t.notes || ''}</td>
       <td>${srcBadge}</td>
-      <td><button class="del-btn" title="Delete" onclick="portDeleteTxn('${t.id}', this)">🗑</button></td>
+      <td style="white-space:nowrap;">
+        <button class="edit-btn" title="Edit" onclick="editModalOpen('${t.id}')">✏️</button>
+        <button class="del-btn" title="Delete" onclick="portDeleteTxn('${t.id}', this)">🗑</button>
+      </td>
     `;
     body.appendChild(tr);
   }
+}
+
+// ── Per-symbol summary (Item 10) ──
+async function portRenderSymbolSummary(symbol, txns) {
+  const fmtAmt = n => '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  const fmtPct = n => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
+  const fmtSign = n => (n >= 0 ? '+' : '') + fmtAmt(n);
+
+  const pnl = window.txns.computePnL(txns);
+  const { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD } = pnl;
+
+  const currentPrice = await fetchCurrentPrice(symbol);
+
+  let unrealizedGain = 0, unrealizedPct = 0, currentValue = 0;
+  if (currentPrice && remainingShares > 0) {
+    currentValue  = remainingShares * currentPrice;
+    unrealizedGain = currentValue - totalCost;
+    unrealizedPct  = totalCost > 0 ? unrealizedGain / totalCost : 0;
+  }
+
+  const allTimeBought = txns
+    .filter(t => ['buy','drip','buy_to_cover'].includes(t.type))
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const allTimeGain = realizedGain + unrealizedGain;
+  const allTimePct  = allTimeBought > 0 ? allTimeGain / allTimeBought : 0;
+  const realizedPct = allTimeBought > 0 ? realizedGain / allTimeBought : 0;
+  const ytdPct      = allTimeBought > 0 ? realizedGainYTD / allTimeBought : 0;
+
+  const summEl = document.getElementById('portSymbolSummary');
+  document.getElementById('portSymbolSummaryTitle').textContent = `${symbol} — Summary`;
+
+  const makeStatEl = (label, val, cls) => `
+    <div class="pnl-stat">
+      <div class="pnl-stat-label">${label}</div>
+      <div class="pnl-stat-val ${cls || ''}">${val}</div>
+    </div>`;
+
+  const rowEl = document.getElementById('portSymbolSummaryRow');
+  rowEl.innerHTML =
+    makeStatEl('All-Time', `${fmtSign(allTimeGain)} (${fmtPct(allTimePct)})`, allTimeGain >= 0 ? 'pnl-pos' : 'pnl-neg') +
+    makeStatEl('Realized', `${fmtSign(realizedGain)} (${fmtPct(realizedPct)})`, realizedGain >= 0 ? 'pnl-pos' : 'pnl-neg') +
+    makeStatEl('Realized YTD', `${fmtSign(realizedGainYTD)} (${fmtPct(ytdPct)})`, realizedGainYTD >= 0 ? 'pnl-pos' : 'pnl-neg');
+
+  const holdLine = document.getElementById('portSymbolHoldingsLine');
+  const allBuyShares = txns.filter(t=>['buy','drip','buy_to_cover'].includes(t.type)).reduce((s,t)=>s+Number(t.shares||0),0);
+  holdLine.textContent = `All-Time Holdings: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ avg $${avgCost.toFixed(2)} (total cost ${fmtAmt(allTimeBought)})`;
+
+  const unrlzLine = document.getElementById('portSymbolUnrealizedLine');
+  if (currentPrice && remainingShares > 0) {
+    const gainStr = `gain: ${fmtSign(unrealizedGain)} / ${fmtPct(unrealizedPct)}`;
+    unrlzLine.innerHTML = `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ current $${currentPrice.toFixed(2)} = ${fmtAmt(currentValue)} total (<span class="${unrealizedGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${gainStr}</span>)`;
+  } else if (!currentPrice) {
+    unrlzLine.textContent = `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares held (current price unavailable)`;
+  } else {
+    unrlzLine.textContent = 'No current holdings.';
+  }
+
+  summEl.style.display = '';
 }
 
 async function portDeleteTxn(id, btn) {
@@ -260,6 +484,63 @@ async function portCreatePortfolio() {
     document.getElementById('portAddPortfolioForm').style.display = 'none';
   } catch(e) {
     alert('Failed to create portfolio: ' + e.message);
+  }
+}
+
+// ── Edit modal (Item 2) ──
+function editModalOpen(id) {
+  const txn = portAllTxns.find(t => t.id === id);
+  if (!txn) return;
+  document.getElementById('editTxnId').value       = txn.id;
+  document.getElementById('editDate').value        = txn.trade_date || '';
+  document.getElementById('editTime').value        = txn.trade_time || '';
+  document.getElementById('editType').value        = txn.type || 'buy';
+  document.getElementById('editShares').value      = txn.shares != null ? txn.shares : '';
+  document.getElementById('editPrice').value       = txn.price  != null ? txn.price  : '';
+  document.getElementById('editAmount').value      = txn.amount != null ? txn.amount : '';
+  document.getElementById('editCommission').value  = txn.commission != null ? txn.commission : 0;
+  document.getElementById('editNotes').value       = txn.notes || '';
+  document.getElementById('editStatus').style.display = 'none';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function editModalClose() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+function editModalBgClick(e) {
+  if (e.target === document.getElementById('editModal')) editModalClose();
+}
+
+async function editSave() {
+  const id  = document.getElementById('editTxnId').value;
+  const btn = document.getElementById('editSaveBtn');
+  btn.disabled = true;
+  const statusEl = document.getElementById('editStatus');
+  statusEl.style.display = 'none';
+  try {
+    await window.txns.updateTransaction(id, {
+      trade_date:  document.getElementById('editDate').value,
+      trade_time:  document.getElementById('editTime').value || null,
+      type:        document.getElementById('editType').value,
+      shares:      document.getElementById('editShares').value !== '' ? parseFloat(document.getElementById('editShares').value) : null,
+      price:       document.getElementById('editPrice').value  !== '' ? parseFloat(document.getElementById('editPrice').value)  : null,
+      amount:      parseFloat(document.getElementById('editAmount').value),
+      commission:  parseFloat(document.getElementById('editCommission').value) || 0,
+      notes:       document.getElementById('editNotes').value.trim() || null,
+    });
+    editModalClose();
+    portLoadTxns();
+  } catch(e) {
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'rgba(248,81,73,0.12)';
+    statusEl.style.color = 'rgba(248,81,73,0.95)';
+    statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
+    statusEl.style.borderRadius = '6px';
+    statusEl.style.padding = '7px 12px';
+    statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
   }
 }
 

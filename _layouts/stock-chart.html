@@ -197,22 +197,43 @@ layout: default
       <!-- Date -->
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:0.72rem; color:var(--text-muted);">Date</label>
-        <input type="date" id="tpDate" class="date-input" style="font-size:0.82rem;">
+        <input type="date" id="tpDate" class="date-input" style="font-size:0.82rem;" onchange="tpSnapDate()">
+        <div id="tpDateHint" style="display:none; color:#f0c040; font-size:0.71rem; margin-top:2px;"></div>
       </div>
 
-      <!-- Type toggle -->
+      <!-- Time -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Time</label>
+        <input type="time" id="tpTime" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:100px;
+        ">
+      </div>
+
+      <!-- Type -->
       <div style="display:flex; flex-direction:column; gap:4px;">
         <label style="font-size:0.72rem; color:var(--text-muted);">Type</label>
-        <div style="display:flex; border-radius:6px; overflow:hidden; border:1px solid var(--border);">
-          <button id="tpTypeBuy" onclick="tpSetType('buy')" style="
-            padding:6px 14px; border:none; background:rgba(63,185,80,0.85); color:#fff;
-            font-size:0.8rem; font-weight:700; cursor:pointer;
-          ">Buy</button>
-          <button id="tpTypeSell" onclick="tpSetType('sell')" style="
-            padding:6px 14px; border:none; background:var(--bg-secondary); color:var(--text-secondary);
-            font-size:0.8rem; font-weight:700; cursor:pointer;
-          ">Sell</button>
-        </div>
+        <select id="tpTypeSelect" onchange="tpSetTypeFromSelect()" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem; min-width:130px;
+        ">
+          <optgroup label="Trade">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+            <option value="buy_to_cover">Buy to Cover</option>
+            <option value="sell_short">Sell Short</option>
+          </optgroup>
+          <optgroup label="Income">
+            <option value="drip">Dividend+DRIP</option>
+            <option value="dividend">Dividend</option>
+            <option value="interest">Interest</option>
+            <option value="split">Split</option>
+          </optgroup>
+          <optgroup label="Cash">
+            <option value="cash_deposit">Cash Deposit</option>
+            <option value="cash_withdrawal">Cash Withdrawal</option>
+          </optgroup>
+        </select>
       </div>
 
       <!-- Shares -->
@@ -242,6 +263,15 @@ layout: default
         ">
       </div>
 
+      <!-- Commission -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Commission ($)</label>
+        <input type="number" id="tpCommission" placeholder="0.00" min="0" step="any" value="0" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:90px;
+        ">
+      </div>
+
       <!-- Notes -->
       <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px;">
         <label style="font-size:0.72rem; color:var(--text-muted);">Notes</label>
@@ -263,6 +293,16 @@ layout: default
         </button>
       </div>
     </div>
+
+    <!-- Auto-debit/credit cash checkbox -->
+    <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="tpAutoCash" checked style="cursor:pointer; accent-color:var(--accent-blue);">
+      <label for="tpAutoCash" style="font-size:0.78rem; color:var(--text-secondary); cursor:pointer;">
+        <span class="en-only">Auto-debit/credit USD cash (Buy → withdraw, Sell → deposit)</span>
+        <span class="ko-only">USD 현금 자동 연동 (매수 → 출금, 매도 → 입금)</span>
+      </label>
+    </div>
+
     <div id="tpStatus" style="display:none; margin-top:10px; padding:8px 12px; border-radius:6px; font-size:0.82rem;"></div>
   </div>
 </div>
@@ -828,7 +868,8 @@ function initChart() {
           pan: {
             enabled: true, mode: 'x',
             onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); }
-          }
+          },
+          limits: { x: { min: 0 } }
         },
         tooltip: {
           backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
@@ -1227,7 +1268,6 @@ document.addEventListener('fullscreenchange', () => {
 
 // ── Trade Panel ──────────────────────────────────────────────────────────────
 const TRADE_SYMBOLS = ['SPY','DIA','AMZN','ENVX','AAPL','VFIAX','TSLA','QQQ','META','GOOG','NVDA','GSPC','DJI','BTC','ETH','PEPE'];
-let tpType = 'buy';
 let tpOpen = false;
 
 function tradePanelToggle() {
@@ -1261,21 +1301,29 @@ async function tpPanelInit() {
   }
 }
 
-function tpSetType(type) {
-  tpType = type;
-  const buyBtn  = document.getElementById('tpTypeBuy');
-  const sellBtn = document.getElementById('tpTypeSell');
-  if (type === 'buy') {
-    buyBtn.style.background  = 'rgba(63,185,80,0.85)';
-    buyBtn.style.color       = '#fff';
-    sellBtn.style.background = 'var(--bg-secondary)';
-    sellBtn.style.color      = 'var(--text-secondary)';
-  } else {
-    sellBtn.style.background = 'rgba(248,81,73,0.85)';
-    sellBtn.style.color      = '#fff';
-    buyBtn.style.background  = 'var(--bg-secondary)';
-    buyBtn.style.color       = 'var(--text-secondary)';
+// Item 1: Date snapping — snap to nearest past trading day in dates[]
+function tpSnapDate() {
+  const dateEl = document.getElementById('tpDate');
+  const hintEl = document.getElementById('tpDateHint');
+  const val = dateEl.value;
+  if (!val || !dates || dates.length === 0) return;
+  if (dates.includes(val)) { hintEl.style.display = 'none'; return; }
+  // Find nearest past date
+  let snapped = null;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    if (dates[i] <= val) { snapped = dates[i]; break; }
   }
+  if (!snapped) snapped = dates[0];
+  if (snapped !== val) {
+    dateEl.value = snapped;
+    hintEl.textContent = '→ adjusted to ' + snapped;
+    hintEl.style.display = 'block';
+    setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
+  }
+}
+
+function tpSetTypeFromSelect() {
+  // nothing extra needed; value read from select directly
 }
 
 function tpCalcAmount() {
@@ -1301,12 +1349,16 @@ async function tpSubmit() {
     tpShowStatus('error', 'Please sign in to add trades.');
     return;
   }
-  const date   = document.getElementById('tpDate').value;
-  const amount = parseFloat(document.getElementById('tpAmount').value);
-  const shares = parseFloat(document.getElementById('tpShares').value);
-  const price  = parseFloat(document.getElementById('tpPrice').value);
-  const notes  = document.getElementById('tpNotes').value.trim();
-  const portId = document.getElementById('tpPortfolioSel').value || null;
+  const date       = document.getElementById('tpDate').value;
+  const amount     = parseFloat(document.getElementById('tpAmount').value);
+  const shares     = parseFloat(document.getElementById('tpShares').value);
+  const price      = parseFloat(document.getElementById('tpPrice').value);
+  const commission = parseFloat(document.getElementById('tpCommission').value) || 0;
+  const tradeTime  = document.getElementById('tpTime').value || null;
+  const notes      = document.getElementById('tpNotes').value.trim();
+  const portId     = document.getElementById('tpPortfolioSel').value || null;
+  const txType     = document.getElementById('tpTypeSelect').value;
+  const autoCash   = document.getElementById('tpAutoCash').checked;
 
   if (!date) { tpShowStatus('error', 'Please enter a date.'); return; }
   if (isNaN(amount) || amount <= 0) { tpShowStatus('error', 'Please enter a valid amount.'); return; }
@@ -1315,23 +1367,50 @@ async function tpSubmit() {
   btn.disabled = true;
 
   try {
-    await window.txns.addTransaction({
+    const trade = await window.txns.addTransaction({
       portfolio_id: portId,
       symbol:       SYMBOL,
       trade_date:   date,
-      type:         tpType,
+      type:         txType,
       shares:       isNaN(shares) ? null : shares,
       price:        isNaN(price)  ? null : price,
       amount:       amount,
+      commission:   commission,
+      trade_time:   tradeTime,
       notes:        notes || null,
       source:       'manual',
     });
+
+    // Auto-debit/credit cash
+    const isBuyType  = ['buy','drip','buy_to_cover'].includes(txType);
+    const isSellType = ['sell','sell_short'].includes(txType);
+    if (autoCash && (isBuyType || isSellType) && SYMBOL !== 'USD') {
+      const cashType = isBuyType ? 'cash_withdrawal' : 'cash_deposit';
+      const cashAmt  = amount + commission;
+      await window.txns.addTransaction({
+        portfolio_id:           portId,
+        symbol:                 'USD',
+        trade_date:             date,
+        type:                   cashType,
+        shares:                 null,
+        price:                  null,
+        amount:                 cashAmt,
+        commission:             0,
+        trade_time:             tradeTime,
+        linked_transaction_id:  trade.id,
+        notes:                  `Linked to ${txType} ${SYMBOL}`,
+        source:                 'auto',
+      });
+    }
+
     tpShowStatus('success', '✓ Trade added!');
     // Reset form fields
-    document.getElementById('tpShares').value = '';
-    document.getElementById('tpPrice').value  = '';
-    document.getElementById('tpAmount').value = '';
-    document.getElementById('tpNotes').value  = '';
+    document.getElementById('tpShares').value     = '';
+    document.getElementById('tpPrice').value      = '';
+    document.getElementById('tpAmount').value     = '';
+    document.getElementById('tpCommission').value = '0';
+    document.getElementById('tpTime').value       = '';
+    document.getElementById('tpNotes').value      = '';
     // Reload chart overlays
     await window.txns.loadChartTransactions(SYMBOL);
   } catch(e) {

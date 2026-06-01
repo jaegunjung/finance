@@ -21,16 +21,27 @@
  *   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
  *   symbol TEXT NOT NULL,
  *   trade_date DATE NOT NULL,
- *   type TEXT NOT NULL CHECK (type IN ('buy','sell')),
+ *   type TEXT NOT NULL CHECK (type IN ('buy','sell','buy_to_cover','sell_short','drip','dividend','interest','split','cash_deposit','cash_withdrawal')),
  *   shares NUMERIC,
  *   price NUMERIC,
  *   amount NUMERIC NOT NULL,
+ *   commission NUMERIC DEFAULT 0,
+ *   trade_time TIME,
+ *   linked_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
  *   notes TEXT,
  *   source TEXT DEFAULT 'manual',
  *   created_at TIMESTAMPTZ DEFAULT NOW()
  * );
  * ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
  * CREATE POLICY "own" ON transactions USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+ *
+ * ── Migration SQL (if table already exists) ───────────────────────────────────
+ *
+ * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS commission NUMERIC DEFAULT 0;
+ * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS trade_time TIME;
+ * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS linked_transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL;
+ * ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_type_check;
+ * ALTER TABLE public.transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('buy','sell','buy_to_cover','sell_short','drip','dividend','interest','split','cash_deposit','cash_withdrawal'));
  *
  * ──────────────────────────────────────────────────────────────────────────────
  */
@@ -94,10 +105,13 @@
       portfolio_id: data.portfolio_id || null,
       symbol:       (data.symbol || '').toUpperCase(),
       trade_date:   data.trade_date,
-      type:         data.type,        // 'buy' | 'sell'
+      type:         data.type,
       shares:       data.shares != null ? Number(data.shares) : null,
       price:        data.price  != null ? Number(data.price)  : null,
       amount:       Number(data.amount),
+      commission:   data.commission != null ? Number(data.commission) : 0,
+      trade_time:   data.trade_time || null,
+      linked_transaction_id: data.linked_transaction_id || null,
       notes:        data.notes || null,
       source:       data.source || 'manual',
     };
@@ -110,14 +124,111 @@
     return result;
   }
 
+  async function updateTransaction(id, data) {
+    const { sb, user } = requireAuth();
+    const fields = {};
+    if (data.trade_date  !== undefined) fields.trade_date  = data.trade_date;
+    if (data.type        !== undefined) fields.type        = data.type;
+    if (data.shares      !== undefined) fields.shares      = data.shares != null ? Number(data.shares) : null;
+    if (data.price       !== undefined) fields.price       = data.price  != null ? Number(data.price)  : null;
+    if (data.amount      !== undefined) fields.amount      = Number(data.amount);
+    if (data.commission  !== undefined) fields.commission  = data.commission != null ? Number(data.commission) : 0;
+    if (data.trade_time  !== undefined) fields.trade_time  = data.trade_time || null;
+    if (data.notes       !== undefined) fields.notes       = data.notes || null;
+    const { data: result, error } = await sb
+      .from('transactions')
+      .update(fields)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return result;
+  }
+
   async function deleteTransaction(id) {
     const { sb, user } = requireAuth();
+
+    // Check for linked cash transaction
+    const { data: linked, error: linkErr } = await sb
+      .from('transactions')
+      .select('id, type, amount')
+      .eq('linked_transaction_id', id)
+      .eq('user_id', user.id);
+    if (linkErr) throw linkErr;
+
+    if (linked && linked.length > 0) {
+      const linkedDesc = linked.map(l => `${l.type} $${Number(l.amount).toFixed(2)}`).join(', ');
+      const ok = confirm(`This will also delete the linked cash transaction(s): ${linkedDesc}. Continue?`);
+      if (!ok) return;
+      for (const l of linked) {
+        const { error: delErr } = await sb
+          .from('transactions')
+          .delete()
+          .eq('id', l.id)
+          .eq('user_id', user.id);
+        if (delErr) throw delErr;
+      }
+    }
+
     const { error } = await sb
       .from('transactions')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id);
     if (error) throw error;
+  }
+
+  // ── P&L computation helper ────────────────────────────────────────────────
+  // Returns { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD }
+  // for a sorted array of transactions (buy/sell/drip/split/buy_to_cover/sell_short)
+  function computePnL(txns) {
+    const buyTypes  = new Set(['buy', 'drip', 'buy_to_cover']);
+    const sellTypes = new Set(['sell', 'sell_short']);
+    const thisYear  = new Date().getFullYear().toString();
+
+    let shares = 0;  // remaining shares
+    let cost   = 0;  // total cost basis
+    let realizedGain    = 0;
+    let realizedGainYTD = 0;
+
+    // Sort by date ascending
+    const sorted = [...txns].sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+
+    for (const t of sorted) {
+      const sh  = Number(t.shares) || 0;
+      const amt = Number(t.amount) || 0;
+
+      if (t.type === 'split' && sh > 0 && shares > 0) {
+        // split ratio = new shares / old shares; store as notes or ignore price
+        // Treat shares as new total if sh > shares, else as ratio
+        if (sh > shares) {
+          // absolute new total
+          shares = sh;
+          // avg cost adjusts: cost stays same, shares change
+        } else {
+          shares *= sh; // sh is a multiplier (e.g. 10 = 10-for-1)
+        }
+        continue;
+      }
+
+      if (buyTypes.has(t.type)) {
+        shares += sh;
+        cost   += amt;
+      } else if (sellTypes.has(t.type) && sh > 0) {
+        const avgCostPerShare = shares > 0 ? cost / shares : 0;
+        const saleProfit = amt - avgCostPerShare * sh;
+        realizedGain += saleProfit;
+        if (t.trade_date.startsWith(thisYear)) realizedGainYTD += saleProfit;
+        cost   -= avgCostPerShare * sh;
+        shares -= sh;
+        if (shares < 0) shares = 0;
+        if (cost   < 0) cost   = 0;
+      }
+    }
+
+    const avgCost = shares > 0 ? cost / shares : 0;
+    return { avgCost, remainingShares: shares, totalCost: cost, realizedGain, realizedGainYTD };
   }
 
   // ── MSP CSV Parser ────────────────────────────────────────────────────────
@@ -198,6 +309,14 @@
       const s = str.trim().toLowerCase();
       if (s === 'buy' || s === 'b' || s === 'bought') return 'buy';
       if (s === 'sell' || s === 's' || s === 'sold') return 'sell';
+      if (s === 'buy_to_cover' || s === 'buy to cover') return 'buy_to_cover';
+      if (s === 'sell_short' || s === 'sell short' || s === 'short') return 'sell_short';
+      if (s === 'drip') return 'drip';
+      if (s === 'dividend' || s === 'div') return 'dividend';
+      if (s === 'interest') return 'interest';
+      if (s === 'split' || s === 'stock split') return 'split';
+      if (s === 'cash_deposit' || s === 'deposit') return 'cash_deposit';
+      if (s === 'cash_withdrawal' || s === 'withdrawal') return 'cash_withdrawal';
       return null;
     }
 
@@ -247,6 +366,7 @@
       shares:       r.shares != null ? Number(r.shares) : null,
       price:        r.price  != null ? Number(r.price)  : null,
       amount:       Number(r.amount),
+      commission:   0,
       notes:        r.notes || null,
       source:       'import',
     }));
@@ -284,7 +404,9 @@
     createPortfolio,
     getTransactions,
     addTransaction,
+    updateTransaction,
     deleteTransaction,
+    computePnL,
     parseMspCsv,
     importTransactions,
     loadChartTransactions,
