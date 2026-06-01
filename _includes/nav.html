@@ -1,5 +1,11 @@
 <nav>
-  <a class="nav-brand" href="{{ '/' | relative_url }}">JJ Financial Analysis</a>
+  <a class="nav-brand" href="{{ '/' | relative_url }}">
+    <img src="{{ '/assets/images/jj-logo.png' | relative_url }}" alt="JJ International" class="nav-logo">
+    <span class="nav-brand-text">
+      <span class="nav-brand-company">JJ International</span>
+      <span class="nav-brand-product">Financial Analysis</span>
+    </span>
+  </a>
   <button class="nav-hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
   <ul class="nav-links">
     <li><a href="{{ '/blog/' | relative_url }}" {% if page.url contains '/blog' %}class="active"{% endif %}>Blog</a></li>
