@@ -210,6 +210,10 @@ title: Portfolio & Trades
 </div>
 
 <script>
+// Jekyll baseurl-aware data paths
+const _STOCKS_BASE  = '{{ "/assets/data/stocks/" | relative_url }}';
+const _CRYPTO_SYMS  = ['BTC','ETH','PEPE'];
+
 let portPortfolios = [];
 let portActivePortfolioId = null;  // null = all portfolios
 let portAllTxns = [];  // cached for P&L calcs
@@ -272,24 +276,33 @@ function portRenderTabs() {
 
 // ── Fetch current price from CSV (Item 3) ──
 async function fetchCurrentPrice(symbol) {
+  // Crypto: fetch from CoinGecko simple price API
+  if (_CRYPTO_SYMS.includes(symbol)) {
+    try {
+      const idMap = { BTC:'bitcoin', ETH:'ethereum', PEPE:'pepe' };
+      const cgId = idMap[symbol];
+      if (!cgId) return null;
+      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${cgId}&vs_currencies=usd`, { timeout: 5000 });
+      if (!r.ok) return null;
+      const data = await r.json();
+      return data[cgId]?.usd ?? null;
+    } catch(e) {}
+    return null;
+  }
+  // Stocks: read last row from local CSV (uses Jekyll baseurl-aware path)
   try {
-    const url = `/assets/data/stocks/${symbol}.csv`;
+    const url = _STOCKS_BASE + symbol + '.csv';
     const r = await fetch(url);
     if (!r.ok) return null;
     const text = await r.text();
     const lines = text.trim().split('\n');
     if (lines.length < 2) return null;
     const header = lines[0].split(',').map(s => s.trim());
-    const priceIdx = header.indexOf('adj_close_price_usd') >= 0
-      ? header.indexOf('adj_close_price_usd')
-      : header.indexOf('close_price_usd') >= 0
-        ? header.indexOf('close_price_usd')
-        : -1;
+    const priceIdx = ['adj_close_price_usd','close_price_usd','open_price_usd']
+      .map(c => header.indexOf(c)).find(i => i >= 0) ?? -1;
     if (priceIdx < 0) return null;
-    // Last non-empty line
     for (let i = lines.length - 1; i >= 1; i--) {
-      const cols = lines[i].split(',');
-      const p = parseFloat(cols[priceIdx]);
+      const p = parseFloat(lines[i].split(',')[priceIdx]);
       if (!isNaN(p) && p > 0) return p;
     }
   } catch(e) {}

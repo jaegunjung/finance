@@ -258,18 +258,25 @@ window.tradePanelCheckAuth = function() {
   }
 };
 
-// Poll for auth + txns readiness
-let _tpPollCount = 0;
+// Poll for auth + txns readiness — keep running until both _jjSb and _tpSymbol are ready
+let _tpPollCount = 0, _tpAuthHooked = false;
 const _tpPoll = setInterval(() => {
   _tpPollCount++;
-  if (_tpPollCount > 40) { clearInterval(_tpPoll); return; }
-  if (window._jjSb && window._tpSymbol) {
+  if (_tpPollCount > 80) { clearInterval(_tpPoll); return; } // 20s max
+  if (!window._jjSb) return; // wait for Supabase
+  // Hook auth once
+  if (!_tpAuthHooked) {
+    _tpAuthHooked = true;
     window._jjSb.auth.onAuthStateChange(() => window.tradePanelCheckAuth());
-    window.tradePanelCheckAuth();
-    // Load chart transactions
-    if (window.txns) window.txns.loadChartTransactions(window._tpSymbol).catch(()=>{});
-    clearInterval(_tpPoll);
+    window._jjSb.auth.getSession().then(({ data: { session } }) => {
+      window._jjUser = session?.user ?? null;
+      window.tradePanelCheckAuth();
+    });
   }
+  if (!window._tpSymbol) return; // wait for symbol (set by page after data loads)
+  window.tradePanelCheckAuth();
+  if (window.txns) window.txns.loadChartTransactions(window._tpSymbol).catch(()=>{});
+  clearInterval(_tpPoll);
 }, 250);
 
 })();

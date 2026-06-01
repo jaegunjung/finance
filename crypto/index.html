@@ -107,6 +107,8 @@ title: Bitcoin Long-Term Trend
     <button id="rainbowToggle" class="ctrl-btn active" onclick="toggleRainbow()">
       <span class="en-only">🌈 Rainbow</span><span class="ko-only">🌈 레인보우</span>
     </button>
+    <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+    <button id="btcZoomRectBtn" class="ctrl-btn" onclick="btcToggleZoomRect()" title="Rectangle zoom">⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span></button>
   </div>
 </div>
 
@@ -1239,11 +1241,13 @@ async function loadBtcData(){
     if (btcDates.length === 0) throw new Error('No price data');
     initBtcChart();
     initBtcRsiChart();
-    // Trade panel globals
+    // Trade panel globals — set then immediately check auth
     window._tpSymbol = 'BTC';
     window._tpDates  = btcDates;
     window._tpPrices = btcPrices;
     window._tpRedrawCallback = () => { if (btcChart) btcChart.update('none'); };
+    if (window.tradePanelCheckAuth) window.tradePanelCheckAuth();
+    if (window.txns) window.txns.loadChartTransactions('BTC').catch(()=>{});
     const loader = document.getElementById('btcChartLoading');
     if (loader) loader.style.display = 'none';
     updateDataSourceNote(dataSource, csvEndDate, apiStartDate);
@@ -1255,6 +1259,33 @@ async function loadBtcData(){
 }
 
 loadBtcData();
+
+// ── Rectangle zoom for BTC ──────────────────────────────────────────────────
+let _btcZoomRect = false;
+function btcToggleZoomRect() {
+  _btcZoomRect = !_btcZoomRect;
+  const btn = document.getElementById('btcZoomRectBtn');
+  if (btn) btn.classList.toggle('zoom-active', _btcZoomRect);
+  if (!btcChart) return;
+  const zOpts = btcChart.options.plugins.zoom;
+  if (_btcZoomRect) {
+    zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1 };
+    zOpts.zoom.wheel = { enabled:false };
+    zOpts.zoom.mode  = 'xy';
+    zOpts.pan.enabled = false;
+    document.getElementById('btcChart').style.cursor = 'crosshair';
+  } else {
+    zOpts.zoom.drag  = { enabled:false };
+    zOpts.zoom.wheel = { enabled:true, speed:0.1 };
+    zOpts.zoom.mode  = 'x';
+    zOpts.pan.enabled = true;
+    document.getElementById('btcChart').style.cursor = '';
+    btcChart.resetZoom();
+    syncBtcRsiZoom();
+    updateBtcOverlay(btcChart);
+  }
+  btcChart.update('none');
+}
 
 // Re-render BTC detail panel when language is toggled while it's open
 (function() {

@@ -47,6 +47,8 @@ title: Ethereum Long-Term Trend
     <button id="ethMa90"  class="ctrl-btn active" onclick="toggleEthMA(90)">MA-90</button>
     <button id="ethMa365" class="ctrl-btn" onclick="toggleEthMA(365)">MA-365</button>
     <button class="ctrl-btn" id="ethDownloadBtn" onclick="downloadEthCsv()" style="display:none;">↓ CSV</button>
+    <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+    <button id="ethZoomRectBtn" class="ctrl-btn" onclick="ethToggleZoomRect()" title="Rectangle zoom">⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span></button>
   </div>
 </div>
 
@@ -379,6 +381,8 @@ async function loadEthData() {
   window._tpDates  = ethDates;
   window._tpPrices = ethPrices;
   window._tpRedrawCallback = () => { if (ethChart) ethChart.update('none'); };
+  if (window.tradePanelCheckAuth) window.tradePanelCheckAuth();
+  if (window.txns) window.txns.loadChartTransactions('ETH').catch(()=>{});
   if (src) src.style.display = 'none';
 
   // Enable download + custom range hints
@@ -391,5 +395,26 @@ async function loadEthData() {
 }
 
 loadEthData();
+
+// ── Rectangle zoom for ETH ──────────────────────────────────────────────────
+let _ethZoomRect = false;
+function ethToggleZoomRect() {
+  _ethZoomRect = !_ethZoomRect;
+  const btn = document.getElementById('ethZoomRectBtn');
+  if (btn) btn.classList.toggle('zoom-active', _ethZoomRect);
+  if (!ethChart) return;
+  const zOpts = ethChart.options.plugins.zoom;
+  if (_ethZoomRect) {
+    zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1 };
+    zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy'; zOpts.pan.enabled = false;
+    document.getElementById('ethChart').style.cursor = 'crosshair';
+  } else {
+    zOpts.zoom.drag  = { enabled:false }; zOpts.zoom.wheel = { enabled:true };
+    zOpts.zoom.mode  = 'x'; zOpts.pan.enabled = true;
+    document.getElementById('ethChart').style.cursor = '';
+    ethChart.resetZoom();
+  }
+  ethChart.update('none');
+}
 </script>
 {% include trade-panel.html %}
