@@ -8,6 +8,7 @@
   </a>
   <button class="nav-hamburger" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">☰</button>
   <ul class="nav-links">
+    <li id="nav-portfolio-li" style="display:none;"><a href="{{ '/portfolio/' | relative_url }}" {% if page.url contains '/portfolio' %}class="active"{% endif %}><span class="en-only">Portfolio</span><span class="ko-only">포트폴리오</span></a></li>
     <li><a href="{{ '/blog/' | relative_url }}" {% if page.url contains '/blog' %}class="active"{% endif %}>Blog</a></li>
 
     <li class="nav-dropdown">
@@ -47,6 +48,14 @@
     <li><a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>About</a></li>
     <li class="lang-toggle-item">
       <button id="langToggleBtn" class="lang-btn" onclick="toggleLang()">한</button>
+    </li>
+
+    <!-- Log In button (shown only when logged out, managed by auth.js) -->
+    <li id="nav-login-li" style="display:none;">
+      <button class="nav-login-btn" onclick="navLoginModalOpen()">
+        <span class="en-only">Log in</span>
+        <span class="ko-only">로그인</span>
+      </button>
     </li>
 
     <!-- Avatar (shown only when logged in, managed by auth.js) -->
@@ -89,3 +98,31 @@
     </li>
   </ul>
 </nav>
+
+<!-- ── Login Modal ─────────────────────────────────────────────── -->
+<div id="navLoginModal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.55); align-items:center; justify-content:center;" onclick="if(event.target===this)navLoginModalClose()">
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:28px 28px 24px; width:min(400px,90vw); position:relative;">
+    <button onclick="navLoginModalClose()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted);">✕</button>
+    <h2 style="font-size:1.05rem;font-weight:600;margin:0 0 6px;color:var(--text-primary);">
+      <span class="en-only">Sign in</span><span class="ko-only">로그인</span>
+    </h2>
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin:0 0 20px;">
+      <span class="en-only">Sign in to access your portfolio and leave comments.</span>
+      <span class="ko-only">포트폴리오 열람 및 댓글 작성을 위해 로그인하세요.</span>
+    </p>
+    <button id="navModalGoogleBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 14px;border-radius:8px;border:1px solid #dadce0;background:#fff;color:#3c4043;font-size:0.9rem;font-weight:500;cursor:pointer;margin-bottom:16px;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.3 1 7.2 2.7l5.7-5.7C33.5 7.1 29 5 24 5 12.9 5 4 13.9 4 25s8.9 20 20 20 20-8.9 20-20c0-1.5-.2-3-.4-4.5z"/><path fill="#34A853" d="M6.3 14.7l6.6 4.8C14.6 15.9 19 13 24 13c2.8 0 5.3 1 7.2 2.7l5.7-5.7C33.5 7.1 29 5 24 5c-7.7 0-14.3 4.4-17.7 9.7z"/><path fill="#FBBC05" d="M24 45c4.9 0 9.3-1.8 12.7-4.7l-5.9-5c-1.7 1.2-3.9 2-6.8 2-5.3 0-9.7-3.5-11.3-8.1L6 33.9C9.3 40.1 16.1 45 24 45z"/><path fill="#EA4335" d="M43.6 20.5H42V20H24v8h11.3c-0.7 2-2 3.7-3.7 5l5.9 5c-.4.4 6.5-4.7 6.5-13 0-1.5-.2-3-.4-4.5z"/></svg>
+      <span class="en-only">Continue with Google</span><span class="ko-only">Google로 계속</span>
+    </button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;color:var(--text-muted);font-size:0.78rem;">
+      <span style="flex:1;height:1px;background:var(--border);display:block;"></span>or<span style="flex:1;height:1px;background:var(--border);display:block;"></span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <input type="email" id="navModalEmail" placeholder="you@example.com" style="flex:1;min-width:0;padding:8px 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:0.85rem;outline:none;" />
+      <button id="navModalMagicBtn" style="padding:8px 14px;border-radius:7px;border:none;background:var(--accent-blue);color:#fff;font-size:0.84rem;font-weight:500;cursor:pointer;white-space:nowrap;">
+        <span class="en-only">Send link</span><span class="ko-only">링크 전송</span>
+      </button>
+    </div>
+    <p id="navModalMsg" style="display:none;font-size:0.82rem;margin:10px 0 0;"></p>
+  </div>
+</div>
