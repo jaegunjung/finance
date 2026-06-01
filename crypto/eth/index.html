@@ -72,6 +72,8 @@ title: Ethereum Long-Term Trend
   <div id="ethRsiLabel">RSI(14): —</div>
 </div>
 
+{% include trade-panel.html %}
+
 <p class="chart-hint" style="margin-top:8px;">
   <span class="en-only">Scroll to zoom · Drag to pan · Double-click to reset</span>
   <span class="ko-only">스크롤 줌 · 드래그 패닝 · 더블클릭 초기화</span>
@@ -408,16 +410,18 @@ function ethToggleZoomRect() {
   if (_ethZoomRect) {
     zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1,
       onZoomComplete: () => {
-        _ethZoomRect = false;
-        const b = document.getElementById('ethZoomRectBtn');
-        if (b) b.classList.remove('zoom-active');
-        const zo = ethChart.options.plugins.zoom;
-        zo.zoom.drag = { enabled:false };
-        zo.zoom.wheel = { enabled:true };
-        zo.zoom.mode = 'x';
-        zo.pan.enabled = true;
-        document.getElementById('ethChart').style.cursor = '';
-        ethChart.update('none');
+        setTimeout(() => {
+          _ethZoomRect = false;
+          const b = document.getElementById('ethZoomRectBtn');
+          if (b) b.classList.remove('zoom-active');
+          const zo = ethChart.options.plugins.zoom;
+          zo.zoom.drag = { enabled:false };
+          zo.zoom.wheel = { enabled:true };
+          zo.zoom.mode = 'x';
+          zo.pan.enabled = true;
+          document.getElementById('ethChart').style.cursor = '';
+          ethChart.update('none');
+        }, 0);
       }
     };
     zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy'; zOpts.pan.enabled = false;
@@ -431,4 +435,3 @@ function ethToggleZoomRect() {
   ethChart.update('none');
 }
 </script>
-{% include trade-panel.html %}

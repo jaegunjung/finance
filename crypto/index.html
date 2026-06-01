@@ -144,6 +144,8 @@ title: Bitcoin Long-Term Trend
   </figure>
 </div>
 
+{% include trade-panel.html %}
+
 <p class="chart-hint">
   <span class="en-only">Scroll to zoom · Drag to pan · Hover/click markers · Double-click to reset</span>
   <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 마커 hover/클릭 · 더블클릭으로 초기화</span>
@@ -448,8 +450,6 @@ title: Bitcoin Long-Term Trend
     </p>
   </div>
 </div>
-
-{% include trade-panel.html %}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1272,16 +1272,18 @@ function btcToggleZoomRect() {
   if (_btcZoomRect) {
     zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1,
       onZoomComplete: () => {
-        _btcZoomRect = false;
-        const b = document.getElementById('btcZoomRectBtn');
-        if (b) b.classList.remove('zoom-active');
-        const zo = btcChart.options.plugins.zoom;
-        zo.zoom.drag = { enabled:false };
-        zo.zoom.wheel = { enabled:true, speed:0.1 };
-        zo.zoom.mode = 'x';
-        zo.pan.enabled = true;
-        document.getElementById('btcChart').style.cursor = '';
-        btcChart.update('none');
+        setTimeout(() => {
+          _btcZoomRect = false;
+          const b = document.getElementById('btcZoomRectBtn');
+          if (b) b.classList.remove('zoom-active');
+          const zo = btcChart.options.plugins.zoom;
+          zo.zoom.drag = { enabled:false };
+          zo.zoom.wheel = { enabled:true, speed:0.1 };
+          zo.zoom.mode = 'x';
+          zo.pan.enabled = true;
+          document.getElementById('btcChart').style.cursor = '';
+          btcChart.update('none');
+        }, 0);
       }
     };
     zOpts.zoom.wheel = { enabled:false };

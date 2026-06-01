@@ -72,6 +72,8 @@ title: PEPE Chart
   <div id="pepeRsiLabel">RSI(14): —</div>
 </div>
 
+{% include trade-panel.html %}
+
 <p class="chart-hint" style="margin-top:8px;">
   <span class="en-only">Scroll to zoom · Drag to pan · Double-click to reset</span>
   <span class="ko-only">스크롤 줌 · 드래그 패닝 · 더블클릭 초기화</span>
@@ -359,16 +361,18 @@ function pepeToggleZoomRect() {
   if (_pepeZoomRect) {
     zOpts.zoom.drag = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1,
       onZoomComplete: () => {
-        _pepeZoomRect = false;
-        const b = document.getElementById('pepeZoomRectBtn');
-        if (b) b.classList.remove('zoom-active');
-        const zo = pepeChart.options.plugins.zoom;
-        zo.zoom.drag = { enabled:false };
-        zo.zoom.wheel = { enabled:true };
-        zo.zoom.mode = 'x';
-        zo.pan.enabled = true;
-        document.getElementById('pepeChart').style.cursor = '';
-        pepeChart.update('none');
+        setTimeout(() => {
+          _pepeZoomRect = false;
+          const b = document.getElementById('pepeZoomRectBtn');
+          if (b) b.classList.remove('zoom-active');
+          const zo = pepeChart.options.plugins.zoom;
+          zo.zoom.drag = { enabled:false };
+          zo.zoom.wheel = { enabled:true };
+          zo.zoom.mode = 'x';
+          zo.pan.enabled = true;
+          document.getElementById('pepeChart').style.cursor = '';
+          pepeChart.update('none');
+        }, 0);
       }
     };
     zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy'; zOpts.pan.enabled = false;
@@ -384,4 +388,3 @@ function pepeToggleZoomRect() {
 }
 
 </script>
-{% include trade-panel.html %}
