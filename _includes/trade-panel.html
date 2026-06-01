@@ -248,14 +248,16 @@ window.tpSubmit = async function() {
 
 // Show/hide panel based on auth state
 window.tradePanelCheckAuth = function() {
+  const sym = window._tpSymbol || '';
   const wrap = document.getElementById('tradePanelWrap');
   if (!wrap) return;
-  const sym = window._tpSymbol || '';
-  if (window._jjUser && TRADE_SYMBOLS.includes(sym)) {
-    wrap.style.display = '';
-  } else {
-    wrap.style.display = 'none';
+  if (!TRADE_SYMBOLS.includes(sym)) { wrap.style.display = 'none'; return; }
+  if (window._jjUser === undefined) {
+    // _jjUser not yet resolved — retry after auth.js resolves
+    setTimeout(window.tradePanelCheckAuth, 400);
+    return;
   }
+  wrap.style.display = window._jjUser ? '' : 'none';
 };
 
 // Poll for auth + txns readiness — keep running until both _jjSb and _tpSymbol are ready
@@ -267,7 +269,10 @@ const _tpPoll = setInterval(() => {
   // Hook auth once
   if (!_tpAuthHooked) {
     _tpAuthHooked = true;
-    window._jjSb.auth.onAuthStateChange(() => window.tradePanelCheckAuth());
+    window._jjSb.auth.onAuthStateChange((_event, session) => {
+      window._jjUser = session?.user ?? null;
+      window.tradePanelCheckAuth();
+    });
     window._jjSb.auth.getSession().then(({ data: { session } }) => {
       window._jjUser = session?.user ?? null;
       window.tradePanelCheckAuth();

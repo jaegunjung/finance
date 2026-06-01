@@ -29,6 +29,15 @@ title: Portfolio & Trades
 .pnl-stat-label { font-size:0.68rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; }
 .pnl-stat-val { font-size:0.88rem; font-weight:700; }
 
+/* Per-symbol Gain view */
+.gain-table { width:100%; border-collapse:collapse; font-size:0.82rem; margin-top:8px; }
+.gain-table th { padding:6px 10px; text-align:left; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); border-bottom:1px solid var(--border); }
+.gain-table th.r, .gain-table td.r { text-align:right; }
+.gain-table td { padding:7px 10px; border-bottom:1px solid rgba(48,54,61,0.5); }
+.port-group-label { font-size:0.72rem; font-weight:600; color:var(--accent-blue); text-transform:uppercase; letter-spacing:0.08em; padding:10px 0 4px; }
+.gain-pos { color:rgba(63,185,80,0.95); }
+.gain-neg { color:rgba(248,81,73,0.95); }
+
 /* Edit modal */
 #editModal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center; }
 #editModal.open { display:flex; }
@@ -102,6 +111,7 @@ title: Portfolio & Trades
           <option value="META">META</option><option value="GOOG">GOOG</option>
           <option value="AMZN">AMZN</option><option value="TSLA">TSLA</option>
           <option value="ENVX">ENVX</option>
+          <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="PEPE">PEPE</option>
         </select>
         <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
       </div>
@@ -115,7 +125,7 @@ title: Portfolio & Trades
     </div>
 
     <!-- Table -->
-    <div style="overflow-x:auto;">
+    <div id="portTxnTableWrap" style="overflow-x:auto;">
       <table class="txn-table">
         <thead>
           <tr>
@@ -319,6 +329,8 @@ async function portLoadTxns() {
   empty.style.display = 'none';
   loading.style.display = 'block';
   summary.style.display = 'none';
+  const _twrap = document.getElementById('portTxnTableWrap');
+  if (_twrap) _twrap.style.display = '';
   document.getElementById('portSymbolSummary').style.display = 'none';
   document.getElementById('portCashSection').style.display = 'none';
 
@@ -358,9 +370,16 @@ async function portLoadTxns() {
     document.getElementById('portCashSection').style.display = '';
   }
 
-  // Per-symbol summary (Item 10) — only when a specific symbol is selected
+  // Per-symbol Gain view (Item 10) — only when a specific symbol is selected (not USD, not All)
+  const tableWrap = document.getElementById('portTxnTableWrap');
   if (symbolFilter && symbolFilter !== 'USD') {
-    await portRenderSymbolSummary(symbolFilter, txns);
+    await portRenderSymbolView(symbolFilter, txns);
+    // Hide flat table, show symbol view instead
+    if (tableWrap) tableWrap.style.display = 'none';
+    summary.style.display = 'none';
+    return;
+  } else {
+    if (tableWrap) tableWrap.style.display = '';
   }
 
   const fmtN = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
@@ -397,34 +416,83 @@ async function portLoadTxns() {
   }
 }
 
-// ── Per-symbol summary (Item 10) ──
-async function portRenderSymbolSummary(symbol, txns) {
-  const fmtAmt = n => '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
-  const fmtPct = n => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
-  const fmtSign = n => (n >= 0 ? '+' : '') + fmtAmt(n);
+// ── Per-symbol Gain view (Item 10) ──
+async function portRenderSymbolView(symbol, txns) {
+  const fmtAmt  = n => '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  const fmtPct  = n => (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%';
+  const fmtSign = n => (n >= 0 ? '+' : '-') + fmtAmt(Math.abs(n));
+  const fmtN    = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
 
+  const currentPrice = await fetchCurrentPrice(symbol);
   const pnl = window.txns.computePnL(txns);
   const { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD } = pnl;
 
-  const currentPrice = await fetchCurrentPrice(symbol);
+  const summEl = document.getElementById('portSymbolSummary');
+  document.getElementById('portSymbolSummaryTitle').textContent = `${symbol} — Gain by Trade`;
 
+  // Group buy/sell txns by portfolio_id
+  const BUY_TYPES = ['buy','drip','buy_to_cover'];
+  const tradeTxns = txns.filter(t => [...BUY_TYPES, 'sell','sell_short'].includes(t.type));
+  const portMap = {};
+  for (const t of tradeTxns) {
+    const portId = t.portfolio_id || '__none__';
+    if (!portMap[portId]) portMap[portId] = [];
+    portMap[portId].push(t);
+  }
+
+  // Build portfolio name lookup
+  const portNameMap = {};
+  if (window.portPortfolios) {
+    for (const p of window.portPortfolios) portNameMap[p.id] = p.name;
+  }
+
+  let groupsHtml = '';
+  for (const [portId, portTxns] of Object.entries(portMap)) {
+    const portName = portNameMap[portId] || (portId === '__none__' ? 'No Portfolio' : portId);
+    let rows = '';
+    const sorted = [...portTxns].sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+    for (const t of sorted) {
+      const isBuy = BUY_TYPES.includes(t.type);
+      let gainHtml = '—';
+      if (isBuy && currentPrice != null && t.price != null && t.shares != null) {
+        const tradeGain = (currentPrice - Number(t.price)) * Number(t.shares);
+        const tradePct  = Number(t.price) > 0 ? (currentPrice - Number(t.price)) / Number(t.price) : 0;
+        const cls = tradeGain >= 0 ? 'gain-pos' : 'gain-neg';
+        gainHtml = `<span class="${cls}">${fmtSign(tradeGain)}</span> / <span class="${cls}">${fmtPct(tradePct)}</span>`;
+      }
+      const typeLabel = TYPE_LABELS[t.type] || t.type;
+      rows += `<tr>
+        <td style="color:var(--text-secondary); white-space:nowrap;">${t.trade_date}</td>
+        <td><span class="${typeClass(t.type)}">${typeLabel}</span></td>
+        <td class="r" style="color:var(--text-secondary);">${fmtN(t.shares)}</td>
+        <td class="r" style="color:var(--text-secondary);">${t.price != null ? fmtAmt(t.price) : '—'}</td>
+        <td class="r" style="color:var(--text-secondary);">${currentPrice != null ? fmtAmt(currentPrice) : '—'}</td>
+        <td class="r">${gainHtml}</td>
+      </tr>`;
+    }
+    groupsHtml += `<div class="port-group-label">${portName}</div>
+      <table class="gain-table">
+        <thead><tr>
+          <th>Date</th><th>Type</th>
+          <th class="r">Shares</th><th class="r">Avg Cost</th>
+          <th class="r">Current</th><th class="r">Gain($) / Gain(%)</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // Summary card
   let unrealizedGain = 0, unrealizedPct = 0, currentValue = 0;
   if (currentPrice && remainingShares > 0) {
-    currentValue  = remainingShares * currentPrice;
+    currentValue   = remainingShares * currentPrice;
     unrealizedGain = currentValue - totalCost;
     unrealizedPct  = totalCost > 0 ? unrealizedGain / totalCost : 0;
   }
-
-  const allTimeBought = txns
-    .filter(t => ['buy','drip','buy_to_cover'].includes(t.type))
-    .reduce((s, t) => s + Number(t.amount), 0);
-  const allTimeGain = realizedGain + unrealizedGain;
-  const allTimePct  = allTimeBought > 0 ? allTimeGain / allTimeBought : 0;
-  const realizedPct = allTimeBought > 0 ? realizedGain / allTimeBought : 0;
-  const ytdPct      = allTimeBought > 0 ? realizedGainYTD / allTimeBought : 0;
-
-  const summEl = document.getElementById('portSymbolSummary');
-  document.getElementById('portSymbolSummaryTitle').textContent = `${symbol} — Summary`;
+  const allTimeBought = txns.filter(t => BUY_TYPES.includes(t.type)).reduce((s, t) => s + Number(t.amount), 0);
+  const allBuyShares  = txns.filter(t => BUY_TYPES.includes(t.type)).reduce((s, t) => s + Number(t.shares || 0), 0);
+  const allTimeGain   = realizedGain + unrealizedGain;
+  const allTimePct    = allTimeBought > 0 ? allTimeGain / allTimeBought : 0;
+  const realizedPct   = allTimeBought > 0 ? realizedGain / allTimeBought : 0;
 
   const makeStatEl = (label, val, cls) => `
     <div class="pnl-stat">
@@ -432,26 +500,30 @@ async function portRenderSymbolSummary(symbol, txns) {
       <div class="pnl-stat-val ${cls || ''}">${val}</div>
     </div>`;
 
-  const rowEl = document.getElementById('portSymbolSummaryRow');
-  rowEl.innerHTML =
-    makeStatEl('All-Time', `${fmtSign(allTimeGain)} (${fmtPct(allTimePct)})`, allTimeGain >= 0 ? 'pnl-pos' : 'pnl-neg') +
-    makeStatEl('Realized', `${fmtSign(realizedGain)} (${fmtPct(realizedPct)})`, realizedGain >= 0 ? 'pnl-pos' : 'pnl-neg') +
-    makeStatEl('Realized YTD', `${fmtSign(realizedGainYTD)} (${fmtPct(ytdPct)})`, realizedGainYTD >= 0 ? 'pnl-pos' : 'pnl-neg');
+  const summaryCard = `
+    <div class="pnl-card" style="margin-top:16px; background:var(--bg-card);">
+      <div class="pnl-row">
+        ${makeStatEl('All-Time', `${fmtSign(allTimeGain)} (${fmtPct(allTimePct)})`, allTimeGain >= 0 ? 'pnl-pos' : 'pnl-neg')}
+        ${makeStatEl('Realized', `${fmtSign(realizedGain)} (${fmtPct(realizedPct)})`, realizedGain >= 0 ? 'pnl-pos' : 'pnl-neg')}
+        ${makeStatEl('Rlzd YTD', fmtSign(realizedGainYTD), realizedGainYTD >= 0 ? 'pnl-pos' : 'pnl-neg')}
+      </div>
+      <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);">
+        All-Time Holdings: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ avg ${fmtAmt(avgCost)} (total cost ${fmtAmt(allTimeBought)})
+      </div>
+      <div style="margin-top:4px; font-size:0.8rem; color:var(--text-secondary);">
+        ${currentPrice && remainingShares > 0
+          ? `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ current ${fmtAmt(currentPrice)} = ${fmtAmt(currentValue)} (<span class="${unrealizedGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">gain: ${fmtSign(unrealizedGain)} / ${fmtPct(unrealizedPct)}</span>)`
+          : currentPrice
+            ? 'No current holdings.'
+            : `${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares held (current price unavailable)`}
+      </div>
+    </div>`;
 
-  const holdLine = document.getElementById('portSymbolHoldingsLine');
-  const allBuyShares = txns.filter(t=>['buy','drip','buy_to_cover'].includes(t.type)).reduce((s,t)=>s+Number(t.shares||0),0);
-  holdLine.textContent = `All-Time Holdings: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ avg $${avgCost.toFixed(2)} (total cost ${fmtAmt(allTimeBought)})`;
-
-  const unrlzLine = document.getElementById('portSymbolUnrealizedLine');
-  if (currentPrice && remainingShares > 0) {
-    const gainStr = `gain: ${fmtSign(unrealizedGain)} / ${fmtPct(unrealizedPct)}`;
-    unrlzLine.innerHTML = `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ current $${currentPrice.toFixed(2)} = ${fmtAmt(currentValue)} total (<span class="${unrealizedGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${gainStr}</span>)`;
-  } else if (!currentPrice) {
-    unrlzLine.textContent = `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares held (current price unavailable)`;
-  } else {
-    unrlzLine.textContent = 'No current holdings.';
-  }
-
+  // Render into portSymbolSummary — replace inner content entirely
+  document.getElementById('portSymbolSummaryTitle').textContent = `${symbol} — Gain by Trade`;
+  document.getElementById('portSymbolSummaryRow').innerHTML = groupsHtml + summaryCard;
+  document.getElementById('portSymbolHoldingsLine').textContent = '';
+  document.getElementById('portSymbolUnrealizedLine').textContent = '';
   summEl.style.display = '';
 }
 
