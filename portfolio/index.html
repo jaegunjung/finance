@@ -1,0 +1,284 @@
+---
+layout: default
+title: Portfolio & Trades
+---
+<style>
+.port-tab { padding:7px 18px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.82rem; cursor:pointer; transition:all 0.15s; }
+.port-tab:hover { background:var(--bg-card); color:var(--text-primary); }
+.port-tab.active { background:var(--accent-blue); color:#fff; border-color:var(--accent-blue); }
+.txn-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.txn-table th { padding:8px 12px; text-align:left; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:0.71rem; letter-spacing:0.06em; border-bottom:1px solid var(--border); background:var(--bg-secondary); white-space:nowrap; }
+.txn-table td { padding:9px 12px; border-bottom:1px solid rgba(48,54,61,0.5); vertical-align:middle; }
+.txn-table tr:hover td { background:rgba(88,166,255,0.04); }
+.txn-type-buy  { color:rgba(63,185,80,0.9); font-weight:700; font-size:0.75rem; text-transform:uppercase; }
+.txn-type-sell { color:rgba(248,81,73,0.9); font-weight:700; font-size:0.75rem; text-transform:uppercase; }
+.del-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1rem; padding:2px 6px; border-radius:4px; transition:color 0.15s, background 0.15s; }
+.del-btn:hover { color:rgba(248,81,73,0.9); background:rgba(248,81,73,0.1); }
+.port-section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px; }
+.port-add-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; }
+.port-add-btn:hover { border-color:var(--accent-blue); color:var(--accent-blue); }
+.empty-state { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:0.88rem; }
+</style>
+
+<div style="padding:28px 0 8px;">
+  <h1><span class="en-only">Portfolio &amp; Trades</span><span class="ko-only">포트폴리오 &amp; 거래내역</span></h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">Track your buy/sell transactions across portfolios.</span>
+    <span class="ko-only">포트폴리오별 매수/매도 거래 내역을 관리합니다.</span>
+  </p>
+</div>
+
+<!-- Not logged in message -->
+<div id="portNotLoggedIn" class="card" style="display:none;">
+  <p style="color:var(--text-secondary);">
+    <span class="en-only">Please <a href="/profile/" style="color:var(--accent-blue);">sign in</a> to view your portfolio and trades.</span>
+    <span class="ko-only"><a href="/profile/" style="color:var(--accent-blue);">로그인</a>하면 거래 내역을 확인할 수 있습니다.</span>
+  </p>
+</div>
+
+<!-- Main portfolio UI (shown when logged in) -->
+<div id="portMain" style="display:none;">
+
+  <!-- Portfolio tabs row -->
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
+    <div class="port-section-label" style="margin-bottom:0;">Portfolio:</div>
+    <div id="portTabsRow" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+    <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
+  </div>
+
+  <!-- Add portfolio inline form -->
+  <div id="portAddPortfolioForm" style="display:none; margin-bottom:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <input id="portNewPortName" type="text" placeholder="Portfolio name" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:220px;">
+    <button onclick="portCreatePortfolio()" style="padding:6px 16px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem;">Create</button>
+    <button onclick="document.getElementById('portAddPortfolioForm').style.display='none';" style="padding:6px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
+  </div>
+
+  <!-- Transactions section -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:16px 18px 12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div class="port-section-label" style="margin-bottom:0;" id="portTxnLabel">My Trades</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select id="portSymbolFilter" onchange="portLoadTxns()" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:5px 10px; font-size:0.82rem;">
+          <option value="">All symbols</option>
+          <option value="SPY">SPY</option><option value="DIA">DIA</option>
+          <option value="QQQ">QQQ</option><option value="VFIAX">VFIAX</option>
+          <option value="AAPL">AAPL</option><option value="NVDA">NVDA</option>
+          <option value="META">META</option><option value="GOOG">GOOG</option>
+          <option value="AMZN">AMZN</option><option value="TSLA">TSLA</option>
+          <option value="ENVX">ENVX</option>
+        </select>
+        <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
+      </div>
+    </div>
+
+    <!-- Summary row -->
+    <div id="portSummaryRow" style="display:none; padding:0 18px 12px; display:flex; gap:24px; flex-wrap:wrap;">
+      <span id="portSumBought" style="font-size:0.82rem; color:var(--text-secondary);"></span>
+      <span id="portSumSold"   style="font-size:0.82rem; color:var(--text-secondary);"></span>
+      <span id="portSumNet"    style="font-size:0.82rem; color:var(--text-secondary);"></span>
+    </div>
+
+    <!-- Table -->
+    <div style="overflow-x:auto;">
+      <table class="txn-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Symbol</th>
+            <th>Type</th>
+            <th style="text-align:right;">Shares</th>
+            <th style="text-align:right;">Price</th>
+            <th style="text-align:right;">Amount</th>
+            <th>Notes</th>
+            <th>Source</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="portTxnBody"></tbody>
+      </table>
+    </div>
+    <div id="portTxnEmpty" class="empty-state" style="display:none;">
+      <div style="font-size:2rem; margin-bottom:8px;">📭</div>
+      <div class="en-only">No transactions yet. Use the trade panel on a stock chart or import a CSV.</div>
+      <div class="ko-only">거래 내역이 없습니다. 주식 차트의 거래 패널이나 CSV 가져오기를 사용해 보세요.</div>
+    </div>
+    <div id="portTxnLoading" style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+      <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
+    </div>
+  </div>
+</div>
+
+<script>
+let portPortfolios = [];
+let portActivePortfolioId = null;  // null = all portfolios
+
+async function portInit() {
+  const user = window._jjUser;
+  if (!user) {
+    document.getElementById('portNotLoggedIn').style.display = '';
+    document.getElementById('portMain').style.display = 'none';
+    return;
+  }
+  document.getElementById('portNotLoggedIn').style.display = 'none';
+  document.getElementById('portMain').style.display = '';
+
+  await portLoadPortfolios();
+  portLoadTxns();
+}
+
+async function portLoadPortfolios() {
+  if (!window.txns) return;
+  try {
+    portPortfolios = await window.txns.getPortfolios();
+  } catch(e) {
+    portPortfolios = [];
+  }
+  portRenderTabs();
+}
+
+function portRenderTabs() {
+  const row = document.getElementById('portTabsRow');
+  row.innerHTML = '';
+
+  // "All" tab
+  const allBtn = document.createElement('button');
+  allBtn.className = 'port-tab' + (portActivePortfolioId === null ? ' active' : '');
+  allBtn.textContent = 'All';
+  allBtn.onclick = () => { portActivePortfolioId = null; portRenderTabs(); portLoadTxns(); };
+  row.appendChild(allBtn);
+
+  for (const p of portPortfolios) {
+    const btn = document.createElement('button');
+    btn.className = 'port-tab' + (portActivePortfolioId === p.id ? ' active' : '');
+    btn.textContent = p.name;
+    btn.onclick = () => { portActivePortfolioId = p.id; portRenderTabs(); portLoadTxns(); };
+    row.appendChild(btn);
+  }
+}
+
+async function portLoadTxns() {
+  if (!window.txns) return;
+  const body = document.getElementById('portTxnBody');
+  const empty = document.getElementById('portTxnEmpty');
+  const loading = document.getElementById('portTxnLoading');
+  const summary = document.getElementById('portSummaryRow');
+  body.innerHTML = '';
+  empty.style.display = 'none';
+  loading.style.display = 'block';
+  summary.style.display = 'none';
+
+  const symbolFilter = document.getElementById('portSymbolFilter').value;
+
+  let txns = [];
+  try {
+    txns = await window.txns.getTransactions(symbolFilter || null, portActivePortfolioId);
+  } catch(e) {
+    loading.style.display = 'none';
+    empty.style.display = '';
+    return;
+  }
+  loading.style.display = 'none';
+
+  if (!txns.length) { empty.style.display = ''; return; }
+
+  // Summary
+  const bought = txns.filter(t => t.type === 'buy').reduce((s, t) => s + Number(t.amount), 0);
+  const sold   = txns.filter(t => t.type === 'sell').reduce((s, t) => s + Number(t.amount), 0);
+  const fmtAmt = n => '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  document.getElementById('portSumBought').textContent = `Bought: ${fmtAmt(bought)}`;
+  document.getElementById('portSumSold').textContent   = `Sold: ${fmtAmt(sold)}`;
+  document.getElementById('portSumNet').textContent    = `Net: ${fmtAmt(bought - sold)}`;
+  summary.style.display = 'flex';
+
+  const fmtN = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
+
+  // Sort newest first for display
+  const sorted = [...txns].sort((a, b) => b.trade_date.localeCompare(a.trade_date));
+
+  for (const t of sorted) {
+    const tr = document.createElement('tr');
+    const typeCell = t.type === 'buy'
+      ? `<span class="txn-type-buy">Buy</span>`
+      : `<span class="txn-type-sell">Sell</span>`;
+    const srcBadge = t.source === 'import'
+      ? `<span style="font-size:0.7rem; color:var(--text-muted); background:var(--bg-secondary); padding:1px 6px; border-radius:10px; border:1px solid var(--border);">import</span>`
+      : `<span style="font-size:0.7rem; color:var(--text-muted);">manual</span>`;
+    tr.innerHTML = `
+      <td style="color:var(--text-secondary); white-space:nowrap;">${t.trade_date}</td>
+      <td style="font-weight:600; color:var(--text-primary);">${t.symbol}</td>
+      <td>${typeCell}</td>
+      <td style="text-align:right; color:var(--text-secondary);">${fmtN(t.shares)}</td>
+      <td style="text-align:right; color:var(--text-secondary);">${t.price != null ? '$' + fmtN(t.price) : '—'}</td>
+      <td style="text-align:right; font-weight:600; color:var(--text-primary);">$${fmtN(t.amount)}</td>
+      <td style="color:var(--text-muted); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(t.notes||'').replace(/"/g,'&quot;')}">${t.notes || ''}</td>
+      <td>${srcBadge}</td>
+      <td><button class="del-btn" title="Delete" onclick="portDeleteTxn('${t.id}', this)">🗑</button></td>
+    `;
+    body.appendChild(tr);
+  }
+}
+
+async function portDeleteTxn(id, btn) {
+  if (!confirm('Delete this transaction?')) return;
+  btn.disabled = true;
+  try {
+    await window.txns.deleteTransaction(id);
+    btn.closest('tr').remove();
+    // Refresh summary if table now empty
+    if (!document.getElementById('portTxnBody').children.length) {
+      document.getElementById('portTxnEmpty').style.display = '';
+      document.getElementById('portSummaryRow').style.display = 'none';
+    }
+    // Reload chart txns if on a stock page
+    if (window.SYMBOL && window.txns.loadChartTransactions) {
+      window.txns.loadChartTransactions(window.SYMBOL);
+    }
+  } catch(e) {
+    alert('Delete failed: ' + e.message);
+    btn.disabled = false;
+  }
+}
+
+function portShowAddPortfolio() {
+  const form = document.getElementById('portAddPortfolioForm');
+  form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+  if (form.style.display !== 'none') {
+    document.getElementById('portNewPortName').focus();
+  }
+}
+
+async function portCreatePortfolio() {
+  const name = document.getElementById('portNewPortName').value.trim();
+  if (!name) return;
+  try {
+    const p = await window.txns.createPortfolio(name);
+    portPortfolios.push(p);
+    portActivePortfolioId = p.id;
+    portRenderTabs();
+    portLoadTxns();
+    document.getElementById('portNewPortName').value = '';
+    document.getElementById('portAddPortfolioForm').style.display = 'none';
+  } catch(e) {
+    alert('Failed to create portfolio: ' + e.message);
+  }
+}
+
+// Wait for auth to resolve before initializing
+function portTryInit() {
+  if (window._jjUser !== undefined) {
+    portInit();
+  } else {
+    setTimeout(portTryInit, 150);
+  }
+}
+
+// transactions.js needs to be loaded; retry if not yet
+function portWaitTxns() {
+  if (window.txns) {
+    portTryInit();
+  } else {
+    setTimeout(portWaitTxns, 200);
+  }
+}
+portWaitTxns();
+</script>

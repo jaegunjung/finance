@@ -1,0 +1,278 @@
+<!-- Import Transactions Modal — hidden until triggered via "Import Trades" link -->
+<div id="importModal" style="display:none; position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,0.72); overflow-y:auto;">
+  <div id="importModalBox" style="
+    background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+    max-width:680px; margin:48px auto; padding:28px; position:relative;
+  ">
+    <!-- Close -->
+    <button onclick="importModalClose()" style="
+      position:absolute; top:14px; right:16px; background:none; border:none;
+      color:var(--text-muted); font-size:1.4rem; cursor:pointer; line-height:1;
+    " title="Close">✕</button>
+
+    <h2 style="margin:0 0 4px; color:var(--text-primary); font-size:1.1rem;">📥 Import Transactions</h2>
+    <p style="color:var(--text-muted); font-size:0.82rem; margin:0 0 20px;">
+      Upload a CSV from My Stocks Portfolio (MSP) app or any generic trade CSV.
+    </p>
+
+    <!-- Portfolio selector -->
+    <div style="margin-bottom:16px;">
+      <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">Portfolio</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <select id="importPortfolioSel" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.85rem; flex:1; min-width:160px;
+        ">
+          <option value="">— Select portfolio —</option>
+        </select>
+        <span style="color:var(--text-muted); font-size:0.8rem;">or</span>
+        <input id="importNewPortfolio" type="text" placeholder="New portfolio name" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.85rem; flex:1; min-width:140px;
+        ">
+      </div>
+    </div>
+
+    <!-- File upload / drag-drop -->
+    <div id="importDropZone" style="
+      border:2px dashed var(--border); border-radius:8px; padding:32px 20px;
+      text-align:center; cursor:pointer; transition:border-color 0.2s, background 0.2s;
+      background:var(--bg-secondary); margin-bottom:16px;
+    "
+      onclick="document.getElementById('importFileInput').click()"
+      ondragover="importDragOver(event)"
+      ondragleave="importDragLeave(event)"
+      ondrop="importDrop(event)"
+    >
+      <div style="font-size:2rem; margin-bottom:8px;">📄</div>
+      <div style="color:var(--text-secondary); font-size:0.88rem;">Drag &amp; drop a CSV file here, or <strong style="color:var(--accent-blue);">browse</strong></div>
+      <div style="color:var(--text-muted); font-size:0.76rem; margin-top:4px;">Supports MSP export or any trade CSV with headers</div>
+      <input id="importFileInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importFileSelected(event)">
+    </div>
+
+    <!-- Detected format badge + preview -->
+    <div id="importPreviewArea" style="display:none;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+        <span id="importFormatBadge" style="
+          background:var(--accent-blue); color:#fff; font-size:0.72rem; font-weight:700;
+          padding:2px 10px; border-radius:20px; letter-spacing:0.05em;
+        ">MSP</span>
+        <span id="importRowCount" style="color:var(--text-secondary); font-size:0.83rem;"></span>
+        <span id="importWarnMsg" style="color:rgba(255,180,0,0.9); font-size:0.8rem;"></span>
+      </div>
+
+      <!-- Preview table (first 10 rows) -->
+      <div style="overflow-x:auto; border-radius:6px; border:1px solid var(--border);">
+        <table id="importPreviewTable" style="
+          width:100%; border-collapse:collapse; font-size:0.78rem; color:var(--text-secondary);
+        ">
+          <thead>
+            <tr style="background:var(--bg-secondary);">
+              <th style="padding:7px 10px; text-align:left; color:var(--text-muted); font-weight:600; white-space:nowrap;">Date</th>
+              <th style="padding:7px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Symbol</th>
+              <th style="padding:7px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Type</th>
+              <th style="padding:7px 10px; text-align:right; color:var(--text-muted); font-weight:600;">Shares</th>
+              <th style="padding:7px 10px; text-align:right; color:var(--text-muted); font-weight:600;">Price</th>
+              <th style="padding:7px 10px; text-align:right; color:var(--text-muted); font-weight:600;">Amount</th>
+              <th style="padding:7px 10px; text-align:left; color:var(--text-muted); font-weight:600;">Notes</th>
+            </tr>
+          </thead>
+          <tbody id="importPreviewBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Status message -->
+    <div id="importStatus" style="display:none; margin-top:12px; padding:10px 14px; border-radius:6px; font-size:0.84rem;"></div>
+
+    <!-- Action buttons -->
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+      <button onclick="importModalClose()" style="
+        padding:8px 20px; border-radius:6px; border:1px solid var(--border);
+        background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;
+      ">Cancel</button>
+      <button id="importSubmitBtn" onclick="importSubmit()" style="
+        padding:8px 20px; border-radius:6px; border:none;
+        background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem;
+        font-weight:600; opacity:0.4; pointer-events:none;
+      " disabled>Import</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Import Modal State ──────────────────────────────────────────────────────
+let _importParsed = null;  // { rows, format }
+
+function importModalOpen() {
+  document.getElementById('importModal').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  importLoadPortfolios();
+}
+
+function importModalClose() {
+  document.getElementById('importModal').style.display = 'none';
+  document.body.style.overflow = '';
+  // Reset
+  _importParsed = null;
+  document.getElementById('importPreviewArea').style.display = 'none';
+  document.getElementById('importStatus').style.display = 'none';
+  document.getElementById('importFileInput').value = '';
+  const btn = document.getElementById('importSubmitBtn');
+  btn.disabled = true; btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none';
+  btn.textContent = 'Import';
+}
+
+// Close on backdrop click
+document.getElementById('importModal').addEventListener('click', function(e) {
+  if (e.target === this) importModalClose();
+});
+
+async function importLoadPortfolios() {
+  const sel = document.getElementById('importPortfolioSel');
+  sel.innerHTML = '<option value="">— Select portfolio —</option>';
+  if (!window.txns) return;
+  try {
+    const portfolios = await window.txns.getPortfolios();
+    for (const p of portfolios) {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name;
+      sel.appendChild(opt);
+    }
+    if (portfolios.length === 1) sel.value = portfolios[0].id;
+  } catch(e) {
+    // Not logged in or error — silent
+  }
+}
+
+function importDragOver(e) {
+  e.preventDefault();
+  const dz = document.getElementById('importDropZone');
+  dz.style.borderColor = 'var(--accent-blue)';
+  dz.style.background  = 'rgba(88,166,255,0.06)';
+}
+function importDragLeave(e) {
+  const dz = document.getElementById('importDropZone');
+  dz.style.borderColor = 'var(--border)';
+  dz.style.background  = 'var(--bg-secondary)';
+}
+function importDrop(e) {
+  e.preventDefault();
+  importDragLeave(e);
+  const file = e.dataTransfer?.files?.[0];
+  if (file) importParseFile(file);
+}
+function importFileSelected(e) {
+  const file = e.target.files?.[0];
+  if (file) importParseFile(file);
+}
+
+function importParseFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    if (!window.txns) { importShowStatus('error', 'Transaction module not loaded.'); return; }
+    _importParsed = window.txns.parseMspCsv(text);
+    importRenderPreview(_importParsed);
+  };
+  reader.readAsText(file);
+}
+
+function importRenderPreview({ rows, format }) {
+  document.getElementById('importPreviewArea').style.display = 'block';
+  document.getElementById('importFormatBadge').textContent = format;
+  document.getElementById('importRowCount').textContent =
+    `${rows.length} row${rows.length !== 1 ? 's' : ''} detected`;
+
+  const warnEl = document.getElementById('importWarnMsg');
+  warnEl.textContent = '';
+
+  const tbody = document.getElementById('importPreviewBody');
+  tbody.innerHTML = '';
+
+  const preview = rows.slice(0, 10);
+  const fmtN = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
+  const fmtAmt = n => n != null ? '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—';
+
+  for (const r of preview) {
+    const tr = document.createElement('tr');
+    tr.style.borderTop = '1px solid var(--border)';
+    const typeColor = r.type === 'buy' ? 'rgba(63,185,80,0.9)' : 'rgba(248,81,73,0.9)';
+    tr.innerHTML = `
+      <td style="padding:6px 10px; white-space:nowrap;">${r.trade_date || '—'}</td>
+      <td style="padding:6px 10px; font-weight:600; color:var(--text-primary);">${r.symbol || '—'}</td>
+      <td style="padding:6px 10px; color:${typeColor}; font-weight:700; text-transform:uppercase; font-size:0.74rem;">${r.type || '—'}</td>
+      <td style="padding:6px 10px; text-align:right;">${fmtN(r.shares)}</td>
+      <td style="padding:6px 10px; text-align:right;">${fmtAmt(r.price)}</td>
+      <td style="padding:6px 10px; text-align:right; color:var(--text-primary); font-weight:600;">${fmtAmt(r.amount)}</td>
+      <td style="padding:6px 10px; color:var(--text-muted); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${r.notes || ''}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  if (rows.length > 10) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="7" style="padding:6px 10px; color:var(--text-muted); font-style:italic; text-align:center;">…and ${rows.length - 10} more rows</td>`;
+    tbody.appendChild(tr);
+  }
+
+  const btn = document.getElementById('importSubmitBtn');
+  if (rows.length > 0) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = '';
+    btn.textContent = `Import ${rows.length} row${rows.length !== 1 ? 's' : ''}`;
+  } else {
+    btn.disabled = true; btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none';
+    btn.textContent = 'Import';
+    importShowStatus('error', 'No valid rows found. Check that your CSV has Date, Type, and Amount columns.');
+  }
+}
+
+async function importSubmit() {
+  if (!_importParsed || !_importParsed.rows.length) return;
+  if (!window.txns) { importShowStatus('error', 'Module not ready.'); return; }
+
+  const btn = document.getElementById('importSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+
+  // Resolve portfolio
+  let portfolioId = document.getElementById('importPortfolioSel').value || null;
+  const newName = document.getElementById('importNewPortfolio').value.trim();
+  if (!portfolioId && newName) {
+    try {
+      const p = await window.txns.createPortfolio(newName);
+      portfolioId = p.id;
+      document.getElementById('importNewPortfolio').value = '';
+    } catch(e) {
+      importShowStatus('error', 'Failed to create portfolio: ' + e.message);
+      btn.disabled = false; btn.textContent = `Import ${_importParsed.rows.length} rows`;
+      return;
+    }
+  }
+
+  try {
+    const { imported } = await window.txns.importTransactions(_importParsed.rows, portfolioId);
+    importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.`);
+    btn.textContent = 'Done!';
+    // Refresh chart txns if on a stock page
+    if (window.SYMBOL && window.txns.loadChartTransactions) {
+      window.txns.loadChartTransactions(window.SYMBOL);
+    }
+    setTimeout(() => importModalClose(), 2200);
+  } catch(e) {
+    importShowStatus('error', 'Import failed: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = `Import ${_importParsed.rows.length} rows`;
+  }
+}
+
+function importShowStatus(type, msg) {
+  const el = document.getElementById('importStatus');
+  el.style.display = 'block';
+  el.style.background = type === 'success' ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)';
+  el.style.color = type === 'success' ? 'rgba(63,185,80,0.95)' : 'rgba(248,81,73,0.95)';
+  el.style.border = type === 'success' ? '1px solid rgba(63,185,80,0.3)' : '1px solid rgba(248,81,73,0.3)';
+  el.textContent = msg;
+}
+</script>

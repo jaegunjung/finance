@@ -166,6 +166,109 @@ layout: default
   </span>
 </div>
 
+<!-- ── Trade Panel (logged-in only) ──────────────────────────────────────── -->
+<div id="tradePanelWrap" style="display:none; margin-top:10px;">
+  <button id="tradePanelToggle" onclick="tradePanelToggle()" style="
+    display:flex; align-items:center; gap:6px;
+    padding:5px 14px; border-radius:20px; border:1px solid var(--border);
+    background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer;
+    transition:all 0.15s;
+  ">
+    <span id="tradePanelToggleIcon">＋</span>
+    <span class="en-only">Trade</span><span class="ko-only">거래 입력</span>
+  </button>
+
+  <div id="tradePanelBody" style="display:none; margin-top:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px;">
+    <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:14px;">
+      <span class="en-only">Add Transaction</span><span class="ko-only">거래 추가</span>
+      — {{ page.symbol }}
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+
+      <!-- Portfolio -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Portfolio</label>
+        <select id="tpPortfolioSel" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem; min-width:130px;
+        ">
+          <option value="">— None —</option>
+        </select>
+      </div>
+
+      <!-- Date -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Date</label>
+        <input type="date" id="tpDate" class="date-input" style="font-size:0.82rem;">
+      </div>
+
+      <!-- Type toggle -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Type</label>
+        <div style="display:flex; border-radius:6px; overflow:hidden; border:1px solid var(--border);">
+          <button id="tpTypeBuy" onclick="tpSetType('buy')" style="
+            padding:6px 14px; border:none; background:rgba(63,185,80,0.85); color:#fff;
+            font-size:0.8rem; font-weight:700; cursor:pointer;
+          ">Buy</button>
+          <button id="tpTypeSell" onclick="tpSetType('sell')" style="
+            padding:6px 14px; border:none; background:var(--bg-secondary); color:var(--text-secondary);
+            font-size:0.8rem; font-weight:700; cursor:pointer;
+          ">Sell</button>
+        </div>
+      </div>
+
+      <!-- Shares -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Shares</label>
+        <input type="number" id="tpShares" placeholder="0.00" min="0" step="any" oninput="tpCalcAmount()" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:90px;
+        ">
+      </div>
+
+      <!-- Price -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Price ($)</label>
+        <input type="number" id="tpPrice" placeholder="0.00" min="0" step="any" oninput="tpCalcAmount()" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:90px;
+        ">
+      </div>
+
+      <!-- Amount (auto-calc) -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Amount ($)</label>
+        <input type="number" id="tpAmount" placeholder="0.00" min="0" step="any" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:100px;
+        ">
+      </div>
+
+      <!-- Notes -->
+      <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Notes</label>
+        <input type="text" id="tpNotes" placeholder="Optional" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
+          color:var(--text-primary); padding:6px 10px; font-size:0.82rem;
+        ">
+      </div>
+
+      <!-- Submit -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:transparent;">.</label>
+        <button id="tpSubmitBtn" onclick="tpSubmit()" style="
+          padding:6px 18px; border-radius:6px; border:none;
+          background:var(--accent-blue); color:#fff; font-size:0.84rem;
+          font-weight:600; cursor:pointer; white-space:nowrap;
+        ">
+          <span class="en-only">Add Trade</span><span class="ko-only">추가</span>
+        </button>
+      </div>
+    </div>
+    <div id="tpStatus" style="display:none; margin-top:10px; padding:8px 12px; border-radius:6px; font-size:0.82rem;"></div>
+  </div>
+</div>
+
 <p class="chart-hint" style="margin-top:8px;">
   <span class="en-only">Scroll to zoom · Drag to pan · Double-click to reset</span>
   <span class="ko-only">스크롤로 줌 · 드래그로 패닝 · 더블클릭으로 초기화</span>
@@ -349,6 +452,10 @@ function updateOverlay(ch) {
   const xS = ch.scales.x, yS = ch.scales.y;
   const cp = channelParams;
 
+  // Build date→index map for transaction circle placement
+  const dateToIdx = {};
+  for (let i = 0; i < dates.length; i++) dateToIdx[dates[i]] = i;
+
   // Arrow marker defs
   let html = `<defs>
     <clipPath id="ca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath>
@@ -497,6 +604,33 @@ function updateOverlay(ch) {
   }
 
   html += '</g>';
+
+  // ── Transaction circles (clipped to chart area) ───────────────────────
+  const chartTxns = window.chartTxns || [];
+  if (chartTxns.length > 0) {
+    html += `<g clip-path="url(#ca)">`;
+    for (const t of chartTxns) {
+      const idx = dateToIdx[t.trade_date];
+      if (idx == null) continue;
+      const cx = xS.getPixelForValue(idx);
+      if (cx < ca.left || cx > ca.right) continue;
+      const amount = Math.abs(Number(t.amount) || 0);
+      const r = Math.min(Math.max(Math.sqrt(amount / 1000) * 8 + 5, 6), 28);
+      const price = t.price != null ? Number(t.price) : prices[idx];
+      const cy2 = yS.getPixelForValue(price || prices[idx] || 1);
+      const fill   = t.type === 'buy' ? 'rgba(63,185,80,0.35)'  : 'rgba(248,81,73,0.35)';
+      const stroke = t.type === 'buy' ? 'rgba(63,185,80,0.8)'   : 'rgba(248,81,73,0.8)';
+      const label  = t.type === 'buy' ? 'B' : 'S';
+      const labelColor = t.type === 'buy' ? 'rgba(63,185,80,1)' : 'rgba(248,81,73,1)';
+      const amt$ = '$' + Number(amount).toLocaleString(undefined, { maximumFractionDigits: 0 });
+      const shares = t.shares != null ? ` · ${Number(t.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })} sh` : '';
+      const tipText = `${t.type.toUpperCase()} ${t.symbol} ${amt$}${shares}\n${t.trade_date}${t.notes ? '\n' + t.notes : ''}`;
+      html += `<circle cx="${cx}" cy="${cy2}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" style="pointer-events:all; cursor:pointer;"><title>${tipText}</title></circle>`;
+      html += `<text x="${cx}" y="${cy2 + 4}" fill="${labelColor}" font-size="9" font-weight="700" text-anchor="middle" font-family="monospace" style="pointer-events:none;">${label}</text>`;
+    }
+    html += `</g>`;
+  }
+
   svg.innerHTML = html;
 }
 
@@ -1088,6 +1222,154 @@ document.addEventListener('fullscreenchange', () => {
     updateOverlay(chart);
   }, 100);
 });
+
+// ── Trade Panel ──────────────────────────────────────────────────────────────
+const TRADE_SYMBOLS = ['SPY','DIA','AMZN','ENVX','AAPL','VFIAX','TSLA','QQQ','META','GOOG','NVDA','GSPC','DJI','BTC','ETH','PEPE'];
+let tpType = 'buy';
+let tpOpen = false;
+
+function tradePanelToggle() {
+  tpOpen = !tpOpen;
+  const body = document.getElementById('tradePanelBody');
+  const icon = document.getElementById('tradePanelToggleIcon');
+  body.style.display = tpOpen ? 'block' : 'none';
+  icon.textContent   = tpOpen ? '－' : '＋';
+  if (tpOpen) tpPanelInit();
+}
+
+async function tpPanelInit() {
+  // Set today's date as default
+  const dateEl = document.getElementById('tpDate');
+  if (!dateEl.value) {
+    const today = new Date();
+    dateEl.value = today.toISOString().slice(0, 10);
+  }
+  // Load portfolios
+  const sel = document.getElementById('tpPortfolioSel');
+  if (sel.options.length <= 1 && window.txns) {
+    try {
+      const portfolios = await window.txns.getPortfolios();
+      for (const p of portfolios) {
+        const opt = document.createElement('option');
+        opt.value = p.id; opt.textContent = p.name;
+        sel.appendChild(opt);
+      }
+      if (portfolios.length === 1) sel.value = portfolios[0].id;
+    } catch(e) {}
+  }
+}
+
+function tpSetType(type) {
+  tpType = type;
+  const buyBtn  = document.getElementById('tpTypeBuy');
+  const sellBtn = document.getElementById('tpTypeSell');
+  if (type === 'buy') {
+    buyBtn.style.background  = 'rgba(63,185,80,0.85)';
+    buyBtn.style.color       = '#fff';
+    sellBtn.style.background = 'var(--bg-secondary)';
+    sellBtn.style.color      = 'var(--text-secondary)';
+  } else {
+    sellBtn.style.background = 'rgba(248,81,73,0.85)';
+    sellBtn.style.color      = '#fff';
+    buyBtn.style.background  = 'var(--bg-secondary)';
+    buyBtn.style.color       = 'var(--text-secondary)';
+  }
+}
+
+function tpCalcAmount() {
+  const shares = parseFloat(document.getElementById('tpShares').value);
+  const price  = parseFloat(document.getElementById('tpPrice').value);
+  if (!isNaN(shares) && !isNaN(price)) {
+    document.getElementById('tpAmount').value = (shares * price).toFixed(2);
+  }
+}
+
+function tpShowStatus(type, msg) {
+  const el = document.getElementById('tpStatus');
+  el.style.display  = 'block';
+  el.style.background = type === 'success' ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)';
+  el.style.color    = type === 'success' ? 'rgba(63,185,80,0.95)' : 'rgba(248,81,73,0.95)';
+  el.style.border   = type === 'success' ? '1px solid rgba(63,185,80,0.3)' : '1px solid rgba(248,81,73,0.3)';
+  el.textContent    = msg;
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+async function tpSubmit() {
+  if (!window.txns || !window._jjUser) {
+    tpShowStatus('error', 'Please sign in to add trades.');
+    return;
+  }
+  const date   = document.getElementById('tpDate').value;
+  const amount = parseFloat(document.getElementById('tpAmount').value);
+  const shares = parseFloat(document.getElementById('tpShares').value);
+  const price  = parseFloat(document.getElementById('tpPrice').value);
+  const notes  = document.getElementById('tpNotes').value.trim();
+  const portId = document.getElementById('tpPortfolioSel').value || null;
+
+  if (!date) { tpShowStatus('error', 'Please enter a date.'); return; }
+  if (isNaN(amount) || amount <= 0) { tpShowStatus('error', 'Please enter a valid amount.'); return; }
+
+  const btn = document.getElementById('tpSubmitBtn');
+  btn.disabled = true;
+
+  try {
+    await window.txns.addTransaction({
+      portfolio_id: portId,
+      symbol:       SYMBOL,
+      trade_date:   date,
+      type:         tpType,
+      shares:       isNaN(shares) ? null : shares,
+      price:        isNaN(price)  ? null : price,
+      amount:       amount,
+      notes:        notes || null,
+      source:       'manual',
+    });
+    tpShowStatus('success', '✓ Trade added!');
+    // Reset form fields
+    document.getElementById('tpShares').value = '';
+    document.getElementById('tpPrice').value  = '';
+    document.getElementById('tpAmount').value = '';
+    document.getElementById('tpNotes').value  = '';
+    // Reload chart overlays
+    await window.txns.loadChartTransactions(SYMBOL);
+  } catch(e) {
+    tpShowStatus('error', 'Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Show/hide trade panel based on auth + symbol eligibility
+function tradePanelCheckAuth() {
+  const wrap = document.getElementById('tradePanelWrap');
+  if (!wrap) return;
+  const user = window._jjUser;
+  if (user && TRADE_SYMBOLS.includes(SYMBOL)) {
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+// Poll for auth readiness then load chart transactions
+(function tradePanelBootstrap() {
+  function tryInit() {
+    if (window._jjUser !== undefined) {
+      tradePanelCheckAuth();
+      if (window._jjUser && window.txns) {
+        window.txns.loadChartTransactions(SYMBOL);
+      }
+    } else {
+      setTimeout(tryInit, 200);
+    }
+  }
+  // Wait for transactions.js
+  function waitTxns() {
+    if (window.txns) { tryInit(); }
+    else { setTimeout(waitTxns, 200); }
+  }
+  waitTxns();
+})();
 
 // ── Rectangle Zoom Toggle ──
 let zoomRectMode = false;
