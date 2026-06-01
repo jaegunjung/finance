@@ -1,0 +1,276 @@
+<!-- ── Trade Panel (shared include for stocks & crypto) ────────────────────────
+     Requires caller to set: window._tpSymbol, window._tpDates, window._tpPrices
+     Also needs: window.txns (transactions.js), window._jjUser (auth.js)
+  ────────────────────────────────────────────────────────────────────────── -->
+<div id="tradePanelWrap" style="display:none; margin-top:10px;">
+  <button id="tradePanelToggle" onclick="tradePanelToggle()" style="
+    display:flex; align-items:center; gap:6px;
+    padding:5px 14px; border-radius:20px; border:1px solid var(--border);
+    background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer;
+    transition:all 0.15s;">
+    <span id="tradePanelToggleIcon">＋</span>
+    <span class="en-only">Trade</span><span class="ko-only">거래 입력</span>
+  </button>
+
+  <div id="tradePanelBody" style="display:none; margin-top:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px;">
+    <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:14px;">
+      <span class="en-only">Add Transaction</span><span class="ko-only">거래 추가</span>
+      — <span id="tpSymbolLabel"></span>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+
+      <!-- Portfolio -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Portfolio</label>
+        <select id="tpPortfolioSel" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem; min-width:130px;">
+          <option value="">— None —</option>
+        </select>
+      </div>
+
+      <!-- Date -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Date</label>
+        <input type="date" id="tpDate" class="date-input" style="font-size:0.82rem;" onchange="tpSnapDate()">
+        <div id="tpDateHint" style="display:none; color:#f0c040; font-size:0.71rem; margin-top:2px;"></div>
+      </div>
+
+      <!-- Time -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Time</label>
+        <input type="time" id="tpTime" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:100px;">
+      </div>
+
+      <!-- Type -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Type</label>
+        <select id="tpTypeSelect" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem; min-width:130px;">
+          <optgroup label="Trade">
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+            <option value="buy_to_cover">Buy to Cover</option>
+            <option value="sell_short">Sell Short</option>
+          </optgroup>
+          <optgroup label="Income">
+            <option value="drip">Dividend+DRIP</option>
+            <option value="dividend">Dividend</option>
+            <option value="interest">Interest</option>
+            <option value="split">Split</option>
+          </optgroup>
+          <optgroup label="Cash">
+            <option value="cash_deposit">Cash Deposit</option>
+            <option value="cash_withdrawal">Cash Withdrawal</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Shares -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Shares</label>
+        <input type="number" id="tpShares" placeholder="0.00" min="0" step="any" oninput="tpCalcAmount()" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:90px;">
+      </div>
+
+      <!-- Price -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Price ($)</label>
+        <input type="number" id="tpPrice" placeholder="0.00" min="0" step="any" oninput="tpCalcAmount()" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:90px;">
+      </div>
+
+      <!-- Amount -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Amount ($)</label>
+        <input type="number" id="tpAmount" placeholder="0.00" min="0" step="any" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:100px;">
+      </div>
+
+      <!-- Commission -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Commission ($)</label>
+        <input type="number" id="tpCommission" placeholder="0.00" min="0" step="any" value="0" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem; width:90px;">
+      </div>
+
+      <!-- Notes -->
+      <div style="display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px;">
+        <label style="font-size:0.72rem; color:var(--text-muted);">Notes</label>
+        <input type="text" id="tpNotes" placeholder="Optional" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem;">
+      </div>
+
+      <!-- Submit -->
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:0.72rem; color:transparent;">.</label>
+        <button id="tpSubmitBtn" onclick="tpSubmit()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; font-size:0.85rem; cursor:pointer; font-weight:600;">
+          <span class="en-only">Add</span><span class="ko-only">추가</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Auto cash -->
+    <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="tpAutoCash" checked style="cursor:pointer; accent-color:var(--accent-blue);">
+      <label for="tpAutoCash" style="font-size:0.78rem; color:var(--text-secondary); cursor:pointer;">
+        <span class="en-only">Auto-debit/credit USD cash (Buy → withdraw, Sell → deposit)</span>
+        <span class="ko-only">USD 현금 자동 연동 (매수 → 출금, 매도 → 입금)</span>
+      </label>
+    </div>
+
+    <div id="tpStatus" style="display:none; margin-top:10px; padding:8px 12px; border-radius:6px; font-size:0.82rem;"></div>
+  </div>
+</div>
+
+<script>
+// ── Trade Panel JS (shared: stock + crypto) ─────────────────────────────────
+// Reads globals: window._tpSymbol, window._tpDates
+(function() {
+'use strict';
+const TRADE_SYMBOLS = ['SPY','DIA','AMZN','ENVX','AAPL','VFIAX','TSLA','QQQ','META','GOOG','NVDA','GSPC','DJI','BTC','ETH','PEPE','WGMI','SOXX'];
+let _tpOpen = false;
+
+window.tradePanelToggle = function() {
+  _tpOpen = !_tpOpen;
+  const body = document.getElementById('tradePanelBody');
+  const icon = document.getElementById('tradePanelToggleIcon');
+  body.style.display = _tpOpen ? 'block' : 'none';
+  icon.textContent   = _tpOpen ? '－' : '＋';
+  if (_tpOpen) tpPanelInit();
+};
+
+async function tpPanelInit() {
+  // Update symbol label
+  const sym = window._tpSymbol || '';
+  const lbl = document.getElementById('tpSymbolLabel');
+  if (lbl) lbl.textContent = sym;
+
+  // Default date
+  const dateEl = document.getElementById('tpDate');
+  if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+
+  // Load portfolios
+  const sel = document.getElementById('tpPortfolioSel');
+  if (sel && sel.options.length <= 1 && window.txns) {
+    try {
+      const portfolios = await window.txns.getPortfolios();
+      for (const p of portfolios) {
+        const opt = document.createElement('option');
+        opt.value = p.id; opt.textContent = p.name;
+        sel.appendChild(opt);
+      }
+      if (portfolios.length === 1) sel.value = portfolios[0].id;
+    } catch(e) {}
+  }
+}
+
+window.tpSnapDate = function() {
+  const dateEl = document.getElementById('tpDate');
+  const hintEl = document.getElementById('tpDateHint');
+  const val = dateEl.value;
+  const dates = window._tpDates;
+  if (!val || !dates || !dates.length) return;
+  // Normalize: dates may be YYYY-MM-DD (daily) or YYYY-MM (monthly)
+  const daily = dates[0] && dates[0].length === 10;
+  const valCmp = daily ? val : val.slice(0, 7);
+  if (dates.includes(valCmp)) { hintEl.style.display = 'none'; return; }
+  // Find nearest past
+  let snapped = null;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    if (dates[i] <= valCmp) { snapped = dates[i]; break; }
+  }
+  if (!snapped) snapped = dates[0];
+  if (snapped !== valCmp) {
+    dateEl.value = daily ? snapped : snapped + '-01';
+    hintEl.textContent = '→ adjusted to ' + snapped;
+    hintEl.style.display = 'block';
+    setTimeout(() => { hintEl.style.display = 'none'; }, 4000);
+  }
+};
+
+window.tpCalcAmount = function() {
+  const shares = parseFloat(document.getElementById('tpShares').value);
+  const price  = parseFloat(document.getElementById('tpPrice').value);
+  if (!isNaN(shares) && !isNaN(price))
+    document.getElementById('tpAmount').value = (shares * price).toFixed(2);
+};
+
+function tpShowStatus(type, msg) {
+  const el = document.getElementById('tpStatus');
+  el.style.display    = 'block';
+  el.style.background = type === 'success' ? 'rgba(63,185,80,0.12)' : 'rgba(248,81,73,0.12)';
+  el.style.color      = type === 'success' ? 'rgba(63,185,80,0.95)' : 'rgba(248,81,73,0.95)';
+  el.style.border     = type === 'success' ? '1px solid rgba(63,185,80,0.3)' : '1px solid rgba(248,81,73,0.3)';
+  el.textContent      = msg;
+  setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+window.tpSubmit = async function() {
+  const sym = window._tpSymbol;
+  if (!window.txns || !window._jjUser) { tpShowStatus('error', 'Please sign in to add trades.'); return; }
+  const date       = document.getElementById('tpDate').value;
+  const amount     = parseFloat(document.getElementById('tpAmount').value);
+  const shares     = parseFloat(document.getElementById('tpShares').value);
+  const price      = parseFloat(document.getElementById('tpPrice').value);
+  const commission = parseFloat(document.getElementById('tpCommission').value) || 0;
+  const tradeTime  = document.getElementById('tpTime').value || null;
+  const notes      = document.getElementById('tpNotes').value.trim();
+  const portId     = document.getElementById('tpPortfolioSel').value || null;
+  const txType     = document.getElementById('tpTypeSelect').value;
+  const autoCash   = document.getElementById('tpAutoCash').checked;
+
+  if (!date) { tpShowStatus('error', 'Please enter a date.'); return; }
+  if (isNaN(amount) || amount <= 0) { tpShowStatus('error', 'Please enter a valid amount.'); return; }
+
+  const btn = document.getElementById('tpSubmitBtn');
+  btn.disabled = true;
+  try {
+    const trade = await window.txns.addTransaction({
+      portfolio_id: portId, symbol: sym, trade_date: date, type: txType,
+      shares: isNaN(shares) ? null : shares, price: isNaN(price) ? null : price,
+      amount, commission, trade_time: tradeTime, notes: notes || null, source: 'manual',
+    });
+    const isBuy  = ['buy','drip','buy_to_cover'].includes(txType);
+    const isSell = ['sell','sell_short'].includes(txType);
+    if (autoCash && (isBuy || isSell) && sym !== 'USD') {
+      await window.txns.addTransaction({
+        portfolio_id: portId, symbol: 'USD', trade_date: date,
+        type: isBuy ? 'cash_withdrawal' : 'cash_deposit',
+        amount: amount + commission, commission: 0, trade_time: tradeTime,
+        linked_transaction_id: trade.id, notes: `Linked to ${txType} ${sym}`, source: 'auto',
+      });
+    }
+    tpShowStatus('success', '✓ Trade added!');
+    ['tpShares','tpPrice','tpAmount','tpNotes','tpTime'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('tpCommission').value = '0';
+    // Reload circles
+    if (window.txns) window.txns.loadChartTransactions(sym).catch(()=>{});
+  } catch(e) {
+    const msg = e.message?.includes('schema cache')
+      ? '⚠️ DB setup needed — run SQL in Supabase Dashboard'
+      : 'Error: ' + e.message;
+    tpShowStatus('error', msg);
+  } finally { btn.disabled = false; }
+};
+
+// Show/hide panel based on auth state
+window.tradePanelCheckAuth = function() {
+  const wrap = document.getElementById('tradePanelWrap');
+  if (!wrap) return;
+  const sym = window._tpSymbol || '';
+  if (window._jjUser && TRADE_SYMBOLS.includes(sym)) {
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+};
+
+// Poll for auth + txns readiness
+let _tpPollCount = 0;
+const _tpPoll = setInterval(() => {
+  _tpPollCount++;
+  if (_tpPollCount > 40) { clearInterval(_tpPoll); return; }
+  if (window._jjSb && window._tpSymbol) {
+    window._jjSb.auth.onAuthStateChange(() => window.tradePanelCheckAuth());
+    window.tradePanelCheckAuth();
+    // Load chart transactions
+    if (window.txns) window.txns.loadChartTransactions(window._tpSymbol).catch(()=>{});
+    clearInterval(_tpPoll);
+  }
+}, 250);
+
+})();
+</script>

@@ -196,6 +196,39 @@ function initEthChart() {
   const ma90  = sma(ethPrices, 90).map((v,i) => ({x:i, y:isNaN(v)?NaN:v}));
   const ma365 = sma(ethPrices,365).map((v,i) => ({x:i, y:isNaN(v)?NaN:v}));
 
+  // 6-month tick boundaries
+  const ethSixMoIdx = [];
+  { const seen = new Set();
+    for (let i = 0; i < ethDates.length; i++) {
+      const m = ethDates[i].slice(5,7);
+      if (m==='01'||m==='07') { const k=ethDates[i].slice(0,7); if(!seen.has(k)){seen.add(k);ethSixMoIdx.push(i);} }
+    }
+  }
+
+  // Transaction circle plugin
+  const ethTxnPlugin = {
+    id:'ethTxn', afterDraw(ch) {
+      const txns=window.chartTxns||[]; if(!txns.length)return;
+      const dIdx={}; ethDates.forEach((d,i)=>dIdx[d.slice(0,10)]=i);
+      const{ctx:c,chartArea:ca,scales}=ch; const xS=scales.x,yS=scales.y;
+      c.save();
+      for(const t of txns){
+        let idx=dIdx[t.trade_date];
+        if(idx==null){const dobj=new Date(t.trade_date+'T00:00:00');for(let b=1;b<=7;b++){dobj.setDate(dobj.getDate()-1);const k=dobj.toISOString().slice(0,10);if(dIdx[k]!=null){idx=dIdx[k];break;}}}
+        if(idx==null)continue;
+        const cx=xS.getPixelForValue(idx); if(cx<ca.left||cx>ca.right)continue;
+        const amt=Math.abs(Number(t.amount)||0),r=Math.min(Math.max(Math.sqrt(amt/1000)*8+5,6),28);
+        const pr=t.price!=null?Number(t.price):ethPrices[idx];
+        const cy=yS.getPixelForValue(pr||1); if(cy<ca.top||cy>ca.bottom)continue;
+        const isBuy=['buy','drip','buy_to_cover'].includes(t.type);
+        c.beginPath();c.arc(cx,cy,r,0,2*Math.PI);
+        c.fillStyle=isBuy?'rgba(63,185,80,0.35)':'rgba(248,81,73,0.35)';c.fill();
+        c.strokeStyle=isBuy?'rgba(63,185,80,0.8)':'rgba(248,81,73,0.8)';c.lineWidth=1.5;c.stroke();
+      }
+      c.restore();
+    }
+  };
+
   ethChart = new Chart(document.getElementById('ethChart').getContext('2d'), {
     type: 'line',
     data: {
@@ -227,13 +260,16 @@ function initEthChart() {
         }
       },
       scales:{
-        x:{type:'linear', min:0, max:ethPrices.length-1, grid:{color:'rgba(48,54,61,0.8)'}, ticks:{color:'#8b949e', font:{size:10}, maxTicksLimit:8,
-          callback(_, i) {
-            if (!ethDates[i]) return '';
-            const yr = ethDates[i].slice(0,4);
-            return (i===0 || ethDates[i-1]?.slice(0,4) !== yr) ? yr : '';
+        x:{type:'linear', min:0, max:ethPrices.length-1, grid:{color:'rgba(48,54,61,0.8)'},
+          afterBuildTicks(scale){
+            const lo=Math.floor(scale.min??0),hi=Math.ceil(scale.max??ethDates.length);
+            const ticks=ethSixMoIdx.filter(v=>v>=lo&&v<=hi).map(v=>({value:v}));
+            if(ticks.length)scale.ticks=ticks;
+          },
+          ticks:{color:'#8b949e', font:{size:10},
+            callback(val){const i=Math.round(val);if(i<0||i>=ethDates.length)return'';const m=ethDates[i].slice(5,7);return m==='01'?ethDates[i].slice(0,4):m==='07'?'Jul':'';}
           }
-        }},
+        },
         y:{type:'logarithmic', grid:{color:'rgba(48,54,61,0.8)'}, ticks:{color:'#8b949e', font:{size:10},
           callback:v=>[0.01,0.1,1,2,5,10,20,50,100,200,500,1000,2000,5000,10000].includes(v)?fmtP(v):undefined}}
       },
@@ -337,6 +373,12 @@ async function loadEthData() {
   if (ethPrices.length === 0) { if(src) src.textContent='Data unavailable'; return; }
   initEthChart();
   initEthRsiChart();
+  // Register txn circle plugin & trade panel globals
+  Chart.register(ethTxnPlugin);
+  window._tpSymbol = 'ETH';
+  window._tpDates  = ethDates;
+  window._tpPrices = ethPrices;
+  window._tpRedrawCallback = () => { if (ethChart) ethChart.update('none'); };
   if (src) src.style.display = 'none';
 
   // Enable download + custom range hints
@@ -350,3 +392,4 @@ async function loadEthData() {
 
 loadEthData();
 </script>
+{% include trade-panel.html %}

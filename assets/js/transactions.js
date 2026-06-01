@@ -389,7 +389,10 @@
       const txns = await getTransactions(symbol, null);
       window.chartTxns = txns;
       if (window.chart && window.updateOverlay) {
-        window.updateOverlay(window.chart);
+        window.updateOverlay(window.chart);   // stock charts
+      }
+      if (window._tpRedrawCallback) {
+        window._tpRedrawCallback();           // crypto charts
       }
     } catch (e) {
       console.warn('[transactions] loadChartTransactions error:', e.message);
