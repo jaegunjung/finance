@@ -1271,7 +1271,19 @@ function btcToggleZoomRect() {
   const zOpts = btcChart.options.plugins.zoom;
   if (_btcZoomRect) {
     zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1,
-      onZoomComplete: () => { if (_btcZoomRect) btcToggleZoomRect(); } };
+      onZoomComplete: () => {
+        _btcZoomRect = false;
+        const b = document.getElementById('btcZoomRectBtn');
+        if (b) b.classList.remove('zoom-active');
+        const zo = btcChart.options.plugins.zoom;
+        zo.zoom.drag = { enabled:false };
+        zo.zoom.wheel = { enabled:true, speed:0.1 };
+        zo.zoom.mode = 'x';
+        zo.pan.enabled = true;
+        document.getElementById('btcChart').style.cursor = '';
+        btcChart.update('none');
+      }
+    };
     zOpts.zoom.wheel = { enabled:false };
     zOpts.zoom.mode  = 'xy';
     zOpts.pan.enabled = false;

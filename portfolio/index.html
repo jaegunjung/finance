@@ -508,14 +508,14 @@ async function portRenderSymbolView(symbol, txns) {
         ${makeStatEl('Rlzd YTD', fmtSign(realizedGainYTD), realizedGainYTD >= 0 ? 'pnl-pos' : 'pnl-neg')}
       </div>
       <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);">
-        All-Time Holdings: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ avg ${fmtAmt(avgCost)} (total cost ${fmtAmt(allTimeBought)})
+        All-Time: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fmtAmt(avgCost)}
       </div>
       <div style="margin-top:4px; font-size:0.8rem; color:var(--text-secondary);">
         ${currentPrice && remainingShares > 0
-          ? `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares @ current ${fmtAmt(currentPrice)} = ${fmtAmt(currentValue)} (<span class="${unrealizedGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">gain: ${fmtSign(unrealizedGain)} / ${fmtPct(unrealizedPct)}</span>)`
+          ? `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fmtAmt(currentPrice)}`
           : currentPrice
             ? 'No current holdings.'
-            : `${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} shares held (current price unavailable)`}
+            : `${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares held (current price unavailable)`}
       </div>
     </div>`;
 
