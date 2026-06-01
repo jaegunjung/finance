@@ -1,4 +1,4 @@
 {
-  "stocks": ["SPY", "DIA", "AMZN", "ENVX", "AAPL", "VFIAX", "TSLA", "QQQ", "META", "GOOG", "NVDA"],
+  "stocks": ["SPY", "DIA", "AMZN", "ENVX", "AAPL", "VFIAX", "TSLA", "QQQ", "META", "GOOG", "NVDA", "MU", "WDC", "STX", "CIEN", "LITE", "BE", "DRA", "AIPO", "SOXX", "EWY", "WGMI", "KORU"],
   "csv_output_dir": "assets/data/stocks"
 }
