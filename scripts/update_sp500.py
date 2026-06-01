@@ -85,7 +85,7 @@ def main():
 
     if not new_data:
         print("No data returned from stooq. Exiting.")
-        sys.exit(1)
+        sys.exit(0)
 
     latest_from_source = max(new_data.keys())
     print(f"Fetched {len(new_data)} months. Latest available: {latest_from_source}")
