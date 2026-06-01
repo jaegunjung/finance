@@ -27,7 +27,7 @@
   </script>
 </head>
 <body>
-  <!-- Supabase SDK: must load before {{ content }} because comments.js (included in posts) needs window.supabase -->
+  <!-- Supabase SDK loads here so comments.js (in post pages) can use window.supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   {% include nav.html %}
   <main>
