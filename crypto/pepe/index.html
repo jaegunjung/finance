@@ -359,23 +359,24 @@ function pepeToggleZoomRect() {
   if (!pepeChart) return;
   const zOpts = pepeChart.options.plugins.zoom;
   if (_pepeZoomRect) {
-    zOpts.zoom.drag = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1,
-      onZoomComplete: () => {
-        setTimeout(() => {
-          _pepeZoomRect = false;
-          const b = document.getElementById('pepeZoomRectBtn');
-          if (b) b.classList.remove('zoom-active');
-          const zo = pepeChart.options.plugins.zoom;
-          zo.zoom.drag = { enabled:false };
-          zo.zoom.wheel = { enabled:true };
-          zo.zoom.mode = 'x';
-          zo.pan.enabled = true;
-          document.getElementById('pepeChart').style.cursor = '';
-          pepeChart.update('none');
-        }, 0);
-      }
+    zOpts.zoom.drag = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1 };
+    zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy';
+    zOpts.zoom.onZoomComplete = () => {
+      setTimeout(() => {
+        _pepeZoomRect = false;
+        const b = document.getElementById('pepeZoomRectBtn');
+        if (b) b.classList.remove('zoom-active');
+        const zo = pepeChart.options.plugins.zoom;
+        zo.zoom.drag = { enabled:false };
+        zo.zoom.wheel = { enabled:true };
+        zo.zoom.mode = 'x';
+        zo.zoom.onZoomComplete = null;
+        zo.pan.enabled = true;
+        document.getElementById('pepeChart').style.cursor = '';
+        pepeChart.update('none');
+      }, 0);
     };
-    zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy'; zOpts.pan.enabled = false;
+    zOpts.pan.enabled = false;
     document.getElementById('pepeChart').style.cursor = 'crosshair';
   } else {
     zOpts.zoom.drag = { enabled:false }; zOpts.zoom.wheel = { enabled:true };

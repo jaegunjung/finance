@@ -1270,24 +1270,24 @@ function btcToggleZoomRect() {
   if (!btcChart) return;
   const zOpts = btcChart.options.plugins.zoom;
   if (_btcZoomRect) {
-    zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1,
-      onZoomComplete: () => {
-        setTimeout(() => {
-          _btcZoomRect = false;
-          const b = document.getElementById('btcZoomRectBtn');
-          if (b) b.classList.remove('zoom-active');
-          const zo = btcChart.options.plugins.zoom;
-          zo.zoom.drag = { enabled:false };
-          zo.zoom.wheel = { enabled:true, speed:0.1 };
-          zo.zoom.mode = 'x';
-          zo.pan.enabled = true;
-          document.getElementById('btcChart').style.cursor = '';
-          btcChart.update('none');
-        }, 0);
-      }
-    };
+    zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1 };
     zOpts.zoom.wheel = { enabled:false };
     zOpts.zoom.mode  = 'xy';
+    zOpts.zoom.onZoomComplete = () => {
+      setTimeout(() => {
+        _btcZoomRect = false;
+        const b = document.getElementById('btcZoomRectBtn');
+        if (b) b.classList.remove('zoom-active');
+        const zo = btcChart.options.plugins.zoom;
+        zo.zoom.drag = { enabled:false };
+        zo.zoom.wheel = { enabled:true, speed:0.1 };
+        zo.zoom.mode = 'x';
+        zo.zoom.onZoomComplete = null;
+        zo.pan.enabled = true;
+        document.getElementById('btcChart').style.cursor = '';
+        btcChart.update('none');
+      }, 0);
+    };
     zOpts.pan.enabled = false;
     document.getElementById('btcChart').style.cursor = 'crosshair';
   } else {

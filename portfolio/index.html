@@ -90,11 +90,12 @@ title: Portfolio & Trades
     <div id="portCashDetail" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;"></div>
   </div>
 
-  <!-- Per-symbol P&L summary (Item 10 — shown when a specific symbol is selected) -->
+  <!-- Per-symbol P&L summary (shown when a specific symbol is selected) -->
   <div id="portSymbolSummary" class="card pnl-card" style="display:none; margin-bottom:16px;">
-    <div class="port-section-label" id="portSymbolSummaryTitle" style="margin-bottom:10px;">Symbol Summary</div>
-    <div class="pnl-row" id="portSymbolSummaryRow"></div>
-    <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolHoldingsLine"></div>
+    <div class="port-section-label" id="portSymbolSummaryTitle" style="margin-bottom:12px;">Symbol Summary</div>
+    <div id="portGainGroupsContainer"></div>
+    <div class="pnl-row" id="portSymbolSummaryRow" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border);"></div>
+    <div style="margin-top:8px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolHoldingsLine"></div>
     <div style="margin-top:4px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolUnrealizedLine"></div>
   </div>
 
@@ -500,30 +501,27 @@ async function portRenderSymbolView(symbol, txns) {
       <div class="pnl-stat-val ${cls || ''}">${val}</div>
     </div>`;
 
-  const summaryCard = `
-    <div class="pnl-card" style="margin-top:16px; background:var(--bg-card);">
-      <div class="pnl-row">
-        ${makeStatEl('All-Time', `${fmtSign(allTimeGain)} (${fmtPct(allTimePct)})`, allTimeGain >= 0 ? 'pnl-pos' : 'pnl-neg')}
-        ${makeStatEl('Realized', `${fmtSign(realizedGain)} (${fmtPct(realizedPct)})`, realizedGain >= 0 ? 'pnl-pos' : 'pnl-neg')}
-        ${makeStatEl('Rlzd YTD', fmtSign(realizedGainYTD), realizedGainYTD >= 0 ? 'pnl-pos' : 'pnl-neg')}
-      </div>
-      <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);">
-        All-Time: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fmtAmt(avgCost)}
-      </div>
-      <div style="margin-top:4px; font-size:0.8rem; color:var(--text-secondary);">
-        ${currentPrice && remainingShares > 0
-          ? `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fmtAmt(currentPrice)}`
-          : currentPrice
-            ? 'No current holdings.'
-            : `${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares held (current price unavailable)`}
-      </div>
-    </div>`;
-
-  // Render into portSymbolSummary — replace inner content entirely
+  // Render into separate containers
   document.getElementById('portSymbolSummaryTitle').textContent = `${symbol} — Gain by Trade`;
-  document.getElementById('portSymbolSummaryRow').innerHTML = groupsHtml + summaryCard;
-  document.getElementById('portSymbolHoldingsLine').textContent = '';
-  document.getElementById('portSymbolUnrealizedLine').textContent = '';
+  document.getElementById('portGainGroupsContainer').innerHTML = groupsHtml;
+
+  // Stats row: All-Time, Realized, Rlzd YTD
+  document.getElementById('portSymbolSummaryRow').innerHTML = `
+    ${makeStatEl('All-Time', `${fmtSign(allTimeGain)} (${fmtPct(allTimePct)})`, allTimeGain >= 0 ? 'pnl-pos' : 'pnl-neg')}
+    ${makeStatEl('Realized', `${fmtSign(realizedGain)} (${fmtPct(realizedPct)})`, realizedGain >= 0 ? 'pnl-pos' : 'pnl-neg')}
+    ${makeStatEl('Rlzd YTD', fmtSign(realizedGainYTD), realizedGainYTD >= 0 ? 'pnl-pos' : 'pnl-neg')}
+  `;
+
+  document.getElementById('portSymbolHoldingsLine').textContent =
+    `All-Time: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fmtAmt(avgCost)}`;
+
+  document.getElementById('portSymbolUnrealizedLine').innerHTML =
+    currentPrice && remainingShares > 0
+      ? `Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fmtAmt(currentPrice)}`
+      : currentPrice
+        ? 'No current holdings.'
+        : `${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares held (current price unavailable)`;
+
   summEl.style.display = '';
 }
 

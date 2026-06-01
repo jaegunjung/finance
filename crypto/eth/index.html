@@ -408,23 +408,24 @@ function ethToggleZoomRect() {
   if (!ethChart) return;
   const zOpts = ethChart.options.plugins.zoom;
   if (_ethZoomRect) {
-    zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1,
-      onZoomComplete: () => {
-        setTimeout(() => {
-          _ethZoomRect = false;
-          const b = document.getElementById('ethZoomRectBtn');
-          if (b) b.classList.remove('zoom-active');
-          const zo = ethChart.options.plugins.zoom;
-          zo.zoom.drag = { enabled:false };
-          zo.zoom.wheel = { enabled:true };
-          zo.zoom.mode = 'x';
-          zo.pan.enabled = true;
-          document.getElementById('ethChart').style.cursor = '';
-          ethChart.update('none');
-        }, 0);
-      }
+    zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1 };
+    zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy';
+    zOpts.zoom.onZoomComplete = () => {
+      setTimeout(() => {
+        _ethZoomRect = false;
+        const b = document.getElementById('ethZoomRectBtn');
+        if (b) b.classList.remove('zoom-active');
+        const zo = ethChart.options.plugins.zoom;
+        zo.zoom.drag = { enabled:false };
+        zo.zoom.wheel = { enabled:true };
+        zo.zoom.mode = 'x';
+        zo.zoom.onZoomComplete = null;
+        zo.pan.enabled = true;
+        document.getElementById('ethChart').style.cursor = '';
+        ethChart.update('none');
+      }, 0);
     };
-    zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy'; zOpts.pan.enabled = false;
+    zOpts.pan.enabled = false;
     document.getElementById('ethChart').style.cursor = 'crosshair';
   } else {
     zOpts.zoom.drag  = { enabled:false }; zOpts.zoom.wheel = { enabled:true };

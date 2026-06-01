@@ -70,6 +70,27 @@ layout: default
 .ctrl-btn.zoom-active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
 
 .chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 4px; }
+
+/* ── Gain Panel ── */
+#gainPanel {
+  position: fixed; top: 52px; right: 0; bottom: 0; width: 300px;
+  background: var(--bg-secondary); border-left: 1px solid var(--border);
+  transform: translateX(100%); transition: transform 0.25s ease;
+  z-index: 200; overflow-y: auto; padding: 16px 14px;
+  font-size: 0.82rem;
+}
+#gainPanel.open { transform: translateX(0); }
+.gp-txn { padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.6); }
+.gp-txn:last-child { border-bottom: none; }
+.gp-label { font-size: 0.67rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent-blue); margin: 12px 0 6px; }
+.gp-stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0; }
+.gp-stat { display: flex; flex-direction: column; gap: 2px; min-width: 70px; }
+.gp-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.gp-stat-val { font-size: 0.85rem; font-weight: 700; }
+.gp-stat-sub { font-size: 0.72rem; }
+.gp-pos { color: rgba(63,185,80,0.95); }
+.gp-neg { color: rgba(248,81,73,0.95); }
+.gp-sep { border-top: 1px solid var(--border); margin: 10px 0; }
 .section-label {
   font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--accent-blue); margin-bottom: 8px;
@@ -164,17 +185,29 @@ layout: default
   </span>
 </div>
 
+<!-- ── Gain Panel (slide-in right) ───────────────────────────────────────── -->
+<div id="gainPanel">
+  <div id="gainPanelContent" style="color:var(--text-muted); font-size:0.82rem;">Loading…</div>
+</div>
+
 <!-- ── Trade Panel (logged-in only) ──────────────────────────────────────── -->
 <div id="tradePanelWrap" style="display:none; margin-top:10px;">
-  <button id="tradePanelToggle" onclick="tradePanelToggle()" style="
-    display:flex; align-items:center; gap:6px;
-    padding:5px 14px; border-radius:20px; border:1px solid var(--border);
-    background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer;
-    transition:all 0.15s;
-  ">
-    <span id="tradePanelToggleIcon">＋</span>
-    <span class="en-only">Trade</span><span class="ko-only">거래 입력</span>
-  </button>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:0;">
+    <button id="tradePanelToggle" onclick="tradePanelToggle()" style="
+      display:flex; align-items:center; gap:6px;
+      padding:5px 14px; border-radius:20px; border:1px solid var(--border);
+      background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer;
+      transition:all 0.15s;">
+      <span id="tradePanelToggleIcon">＋</span>
+      <span class="en-only">Trade</span><span class="ko-only">거래 입력</span>
+    </button>
+    <button id="gainPanelBtn" onclick="toggleGainPanel()" style="display:none; align-items:center; gap:5px;
+      padding:5px 14px; border-radius:20px; border:1px solid var(--border);
+      background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer;
+      transition:all 0.15s;">
+      📊 <span class="en-only">Gain</span><span class="ko-only">거래내역</span>
+    </button>
+  </div>
 
   <div id="tradePanelBody" style="display:none; margin-top:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px;">
     <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:14px;">
@@ -1464,6 +1497,125 @@ function tradePanelCheckAuth() {
   waitTxns();
 })();
 
+// ── Gain Panel ──────────────────────────────────────────────────────────────
+let _gainPanelOpen = false;
+
+function toggleGainPanel() {
+  _gainPanelOpen = !_gainPanelOpen;
+  const panel = document.getElementById('gainPanel');
+  const btn   = document.getElementById('gainPanelBtn');
+  if (panel) panel.classList.toggle('open', _gainPanelOpen);
+  if (btn)   btn.style.background = _gainPanelOpen ? 'var(--accent-blue)' : '';
+  if (btn)   btn.style.color      = _gainPanelOpen ? '#fff' : '';
+  if (btn)   btn.style.borderColor= _gainPanelOpen ? 'var(--accent-blue)' : '';
+  if (_gainPanelOpen) renderGainPanel();
+}
+
+function renderGainPanel() {
+  const el = document.getElementById('gainPanelContent');
+  if (!el) return;
+  const txns = (window.chartTxns || []).filter(t =>
+    ['buy','drip','buy_to_cover','sell','sell_short'].includes(t.type));
+  if (!txns.length) {
+    el.innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:30px 0;">
+      <div style="font-size:1.5rem;margin-bottom:6px;">📭</div>
+      <div class="en-only">No transactions yet.</div><div class="ko-only">거래 내역이 없습니다.</div></div>`;
+    return;
+  }
+
+  const currentPrice = prices && prices.length ? prices[prices.length - 1] : null;
+  const pnl = window.txns.computePnL(txns);
+  const { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD } = pnl;
+
+  const BUY_T  = ['buy','drip','buy_to_cover'];
+  const SELL_T = ['sell','sell_short'];
+  const fA  = n => '$' + Math.abs(Number(n)).toLocaleString(undefined,{maximumFractionDigits:2,minimumFractionDigits:2});
+  const fS  = n => (n >= 0 ? '+' : '−') + fA(n);
+  const fP  = n => (n >= 0 ? '+' : '') + (n*100).toFixed(1) + '%';
+  const cls = n => n >= 0 ? 'gp-pos' : 'gp-neg';
+
+  // Header
+  let h = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-blue);">${SYMBOL} <span class="en-only">— Gain</span><span class="ko-only">— 거래내역</span></div>
+    <button onclick="toggleGainPanel()" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1rem;padding:2px 6px;">✕</button>
+  </div>`;
+  if (currentPrice) {
+    h += `<div style="font-size:1.25rem;font-weight:700;color:var(--text-primary);margin-bottom:12px;">$${currentPrice.toLocaleString(undefined,{maximumFractionDigits:2})}</div>`;
+  }
+
+  // Transactions (newest first)
+  const sorted = [...txns].sort((a,b) => b.trade_date.localeCompare(a.trade_date));
+  h += `<div class="gp-label"><span class="en-only">Transactions</span><span class="ko-only">거래 목록</span></div>`;
+  for (const t of sorted) {
+    const isBuy = BUY_T.includes(t.type);
+    const sh = Number(t.shares || 0), pr = Number(t.price || 0);
+    const typeColor = isBuy ? 'rgba(63,185,80,0.9)' : 'rgba(248,81,73,0.9)';
+    const typeLabel = isBuy ? '▲ Buy' : '▼ Sell';
+    let gainStr = '';
+    if (isBuy && currentPrice && pr) {
+      const g = (currentPrice - pr) * sh;
+      const gp = pr > 0 ? (currentPrice - pr) / pr : 0;
+      gainStr = `<div class="${cls(g)}" style="font-size:0.74rem;margin-top:2px;">${fS(g)} (${fP(gp)})</div>`;
+    }
+    h += `<div class="gp-txn">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-weight:700;color:${typeColor};font-size:0.78rem;">${typeLabel}</span>
+        <span style="font-size:0.73rem;color:var(--text-muted);">${t.trade_date}</span>
+      </div>
+      <div style="color:var(--text-secondary);font-size:0.78rem;">${sh.toLocaleString(undefined,{maximumFractionDigits:4})} sh @ ${pr ? fA(pr) : '—'}</div>
+      ${gainStr}
+    </div>`;
+  }
+
+  // Summary stats
+  let unrealizedGain = 0, currentValue = 0;
+  if (currentPrice && remainingShares > 0) {
+    currentValue   = remainingShares * currentPrice;
+    unrealizedGain = currentValue - totalCost;
+  }
+  const allBought   = txns.filter(t => BUY_T.includes(t.type)).reduce((s,t) => s+Number(t.amount),0);
+  const allBuyShares= txns.filter(t => BUY_T.includes(t.type)).reduce((s,t) => s+Number(t.shares||0),0);
+  const allTimeGain = realizedGain + unrealizedGain;
+  const allTimePct  = allBought > 0 ? allTimeGain / allBought : 0;
+  const realizedPct = allBought > 0 ? realizedGain / allBought : 0;
+
+  h += `<div class="gp-sep"></div>
+  <div class="gp-stat-row">
+    <div class="gp-stat">
+      <div class="gp-stat-label">All-Time</div>
+      <div class="gp-stat-val ${cls(allTimeGain)}">${fS(allTimeGain)}</div>
+      <div class="gp-stat-sub ${cls(allTimeGain)}">(${fP(allTimePct)})</div>
+    </div>
+    <div class="gp-stat">
+      <div class="gp-stat-label">Realized</div>
+      <div class="gp-stat-val ${cls(realizedGain)}">${fS(realizedGain)}</div>
+      <div class="gp-stat-sub ${cls(realizedGain)}">(${fP(realizedPct)})</div>
+    </div>
+    <div class="gp-stat">
+      <div class="gp-stat-label">Rlzd YTD</div>
+      <div class="gp-stat-val ${cls(realizedGainYTD)}">${fS(realizedGainYTD)}</div>
+    </div>
+  </div>
+  <div class="gp-sep"></div>
+  <div style="font-size:0.78rem;color:var(--text-secondary);">All-Time: ${allBuyShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fA(avgCost)}</div>
+  ${currentPrice && remainingShares > 0
+    ? `<div style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">Unrealized: ${remainingShares.toLocaleString(undefined,{maximumFractionDigits:4})} Shares @ ${fA(currentPrice)}</div>`
+    : currentPrice
+      ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;"><span class="en-only">No current holdings.</span><span class="ko-only">보유 주식 없음.</span></div>`
+      : ''}`;
+
+  el.innerHTML = h;
+}
+
+// Show Gain button when trades exist; re-render if panel is open
+window._tpRedrawCallback = function() {
+  const hasTrades = (window.chartTxns || []).some(t =>
+    ['buy','drip','buy_to_cover','sell','sell_short'].includes(t.type));
+  const btn = document.getElementById('gainPanelBtn');
+  if (btn) btn.style.display = hasTrades ? 'flex' : 'none';
+  if (_gainPanelOpen) renderGainPanel();
+};
+
 // ── Rectangle Zoom Toggle ──
 let zoomRectMode = false;
 function toggleZoomRect() {
@@ -1474,26 +1626,38 @@ function toggleZoomRect() {
   if (!chart) return;
   const zoomOpts = chart.options.plugins.zoom;
   if (zoomRectMode) {
-    // Drag = rectangle zoom XY, disable wheel+pan
     zoomOpts.zoom.drag  = { enabled: true, backgroundColor: 'rgba(88,166,255,0.12)', borderColor: 'rgba(88,166,255,0.5)', borderWidth: 1 };
     zoomOpts.zoom.wheel = { enabled: false };
     zoomOpts.zoom.mode  = 'xy';
+    zoomOpts.zoom.onZoomComplete = () => {
+      setTimeout(() => {
+        zoomRectMode = false;
+        const b = document.getElementById('zoomRectBtn');
+        if (b) b.classList.remove('zoom-active');
+        const zo = chart.options.plugins.zoom;
+        zo.zoom.drag  = { enabled: false };
+        zo.zoom.wheel = { enabled: true };
+        zo.zoom.mode  = 'x';
+        zo.zoom.onZoomComplete = null;
+        zo.pan.enabled = true;
+        document.getElementById('stockChart').style.cursor = '';
+        chart.update('none');
+      }, 0);
+    };
     zoomOpts.pan.enabled = false;
     document.getElementById('stockChart').style.cursor = 'crosshair';
   } else {
-    // Back to scroll-zoom X + pan, and reset to All view
     zoomOpts.zoom.drag  = { enabled: false };
     zoomOpts.zoom.wheel = { enabled: true };
     zoomOpts.zoom.mode  = 'x';
+    zoomOpts.zoom.onZoomComplete = null;
     zoomOpts.pan.enabled = true;
     document.getElementById('stockChart').style.cursor = '';
-    // Reset zoom to All
     chart.resetZoom();
     const allRange = { min: 0, max: futureMax };
     if (rsiChart) rsiChart.zoomScale('x', allRange, 'none');
     syncVolumeRange(0, futureMax);
     updateOverlay(chart);
-    // Sync active range button
     document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.days === '0'));
     return;
   }
