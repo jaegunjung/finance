@@ -14,7 +14,7 @@ from pathlib import Path
 
 CSV_PATH = Path('crypto/data/pepe_daily.csv')
 COINGECKO_URL = 'https://api.coingecko.com/api/v3/coins/pepe/market_chart'
-PEPE_LAUNCH = '2023-04-14'
+PEPE_LAUNCH = '2025-05-20'
 
 
 def read_date_range() -> tuple[str, str]:
@@ -32,7 +32,7 @@ def read_date_range() -> tuple[str, str]:
 
 
 def fetch_daily(days) -> dict:
-    params = {'vs_currency': 'usd', 'days': days}
+    params = {'vs_currency': 'usd', 'days': days, 'interval': 'daily'}
     for attempt in range(3):
         try:
             resp = requests.get(COINGECKO_URL, params=params, timeout=60)
