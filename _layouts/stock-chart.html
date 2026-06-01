@@ -57,6 +57,18 @@ layout: default
 }
 
 
+/* Fullscreen wrapper */
+#chartWrapper:fullscreen, #chartWrapper:-webkit-full-screen {
+  background: var(--bg-primary); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 0;
+}
+#chartWrapper:fullscreen #chartContainer, #chartWrapper:-webkit-full-screen #chartContainer {
+  height: calc(100vh - 280px); border-radius: 8px 8px 0 0;
+}
+#chartWrapper:fullscreen #rsiContainer, #chartWrapper:-webkit-full-screen #rsiContainer {
+  border-radius: 0 0 8px 8px;
+}
+.ctrl-btn.zoom-active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
 .chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 4px; }
 .section-label {
   font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
@@ -104,12 +116,19 @@ layout: default
   <span id="validRangeHint" style="color:var(--text-muted); font-size:0.74rem; margin-left:4px;"></span>
 </div>
 
+<div id="chartWrapper">
+
 <div id="chartContainer">
   <div id="chartLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
     <span class="en-only">Loading data…</span><span class="ko-only">데이터 로딩 중…</span>
   </div>
   <canvas id="stockChart" style="touch-action:pan-y;"></canvas>
   <svg id="channelSvg"></svg>
+  <!-- Fullscreen & Zoom-rect controls -->
+  <div id="chartToolbar" style="position:absolute;top:8px;right:10px;display:flex;gap:6px;z-index:10;">
+    <button id="zoomRectBtn" class="ctrl-btn" onclick="toggleZoomRect()" title="Rectangle zoom">⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span></button>
+    <button id="fullscreenBtn" class="ctrl-btn" onclick="toggleFullscreen()" title="Fullscreen">⤢</button>
+  </div>
 </div>
 
 <div id="volumeContainer">
@@ -121,6 +140,8 @@ layout: default
   <canvas id="rsiChart" style="touch-action:pan-y;"></canvas>
   <div id="rsiLabel">RSI(14): —&nbsp;&nbsp;Signal: —</div>
 </div>
+
+</div><!-- /#chartWrapper -->
 
 <div id="maLegend" style="display:flex; gap:18px; padding: 6px 2px 2px; flex-wrap:wrap;">
   <span style="display:flex; align-items:center; gap:5px; font-size:0.74rem; color:var(--text-secondary);">
@@ -1043,5 +1064,54 @@ async function loadData() {
 }
 
 loadData();
+
+// ── Fullscreen ──
+function toggleFullscreen() {
+  const wrapper = document.getElementById('chartWrapper');
+  const btn = document.getElementById('fullscreenBtn');
+  if (!document.fullscreenElement) {
+    wrapper.requestFullscreen().catch(() => {});
+    btn.textContent = '⤡';
+  } else {
+    document.exitFullscreen();
+    btn.textContent = '⤢';
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  const btn = document.getElementById('fullscreenBtn');
+  if (btn) btn.textContent = document.fullscreenElement ? '⤡' : '⤢';
+  // Resize charts after fullscreen toggle
+  setTimeout(() => {
+    if (chart) chart.resize();
+    if (rsiChart) rsiChart.resize();
+    if (volumeChart) volumeChart.resize();
+    updateOverlay(chart);
+  }, 100);
+});
+
+// ── Rectangle Zoom Toggle ──
+let zoomRectMode = false;
+function toggleZoomRect() {
+  zoomRectMode = !zoomRectMode;
+  const btn = document.getElementById('zoomRectBtn');
+  if (btn) btn.classList.toggle('zoom-active', zoomRectMode);
+
+  if (!chart) return;
+  const zoomOpts = chart.options.plugins.zoom;
+  if (zoomRectMode) {
+    // Drag = rectangle zoom (xy), disable wheel+pan
+    zoomOpts.zoom.drag  = { enabled: true, backgroundColor: 'rgba(88,166,255,0.12)', borderColor: 'rgba(88,166,255,0.5)', borderWidth: 1 };
+    zoomOpts.zoom.wheel = { enabled: false };
+    zoomOpts.pan.enabled = false;
+    document.getElementById('stockChart').style.cursor = 'crosshair';
+  } else {
+    // Back to scroll-zoom + pan
+    zoomOpts.zoom.drag  = { enabled: false };
+    zoomOpts.zoom.wheel = { enabled: true };
+    zoomOpts.pan.enabled = true;
+    document.getElementById('stockChart').style.cursor = '';
+  }
+  chart.update('none');
+}
 
 </script>

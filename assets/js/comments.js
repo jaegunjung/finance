@@ -26,7 +26,9 @@
     console.error('[comments] Supabase SDK not loaded');
     return;
   }
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  // Reuse shared client created by auth.js if available
+  const sb = window._jjSb || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  if (!window._jjSb) window._jjSb = sb;
   const postId = window.location.pathname;
 
   // ── Helpers ──────────────────────────────────────────────────

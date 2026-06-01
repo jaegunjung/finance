@@ -28,7 +28,7 @@
  │                 │      │  ① Alpha Vantage          │
  │  jaegunjung     │      │    (주식 일봉 데이터)      │
  │  .github.io/    │      │                           │
- │  finance/       │      │  ② Yahoo Finance (yfinance)│
+ │  finance/       │      │  ② stooq.com│
  └────────┬────────┘      │    (S&P 500 월봉)          │
           │               │                           │
           │               │  ③ FRED API               │
@@ -99,7 +99,7 @@ finance/
 ├── .github/
 │   └── workflows/
 │       ├── deploy.yml           ← Jekyll 빌드 & GitHub Pages 배포
-│       ├── update-data.yml      ← S&P 500 월봉 자동 업데이트 (Yahoo Finance)
+│       ├── update-data.yml      ← S&P 500 월봉 자동 업데이트 (stooq.com)
 │       ├── update_stocks.yml    ← 주식 일봉 자동 업데이트 (Alpha Vantage)
 │       └── update_macro.yml     ← 거시경제 지표 자동 업데이트 (FRED)
 │
@@ -131,7 +131,7 @@ finance/
 │           └── SP500.csv        ← FRED의 S&P 500 데이터
 │
 ├── scripts/
-│   ├── update_sp500.py          ← Yahoo Finance에서 S&P 500 월봉 수집
+│   ├── update_sp500.py          ← stooq.com에서 S&P 500 월봉 수집
 │   ├── update_stocks.py         ← Alpha Vantage에서 주식 일봉 수집
 │   └── update_macro.py          ← FRED API로 금리/국채 데이터 수집
 │
@@ -176,7 +176,7 @@ finance/
  │  │                                                              │  │
  │  │  pip install yfinance pandas                                 │  │
  │  │  python scripts/update_sp500.py                              │  │
- │  │    └── Yahoo Finance (^GSPC) → sp500_monthly.csv 업데이트    │  │
+ │  │    └── stooq.com (^GSPC) → sp500_monthly.csv 업데이트    │  │
  │  │  git commit & push  →  deploy.yml 자동 트리거               │  │
  │  └──────────────────────────────────────────────────────────────┘  │
  │                                                                    │
@@ -211,7 +211,7 @@ finance/
 
 | 워크플로우 | 스케줄 | 데이터 | 소스 | API Key |
 |---|---|---|---|---|
-| `update-data.yml` | 매일 06:00 UTC | S&P 500 월봉 | Yahoo Finance (`^GSPC`) | 불필요 |
+| `update-data.yml` | 매일 06:00 UTC | S&P 500 월봉 | stooq.com (^SPX) | 불필요 |
 | `update_stocks.yml` | 월~금 01:00 UTC | 주식 종목 일봉 | Alpha Vantage | `ALPHA_VANTAGE_API_KEY` |
 | `update_macro.yml` | 월~금 02:00 UTC | Fed Funds Rate, 10Y Treasury | FRED API | `FRED_API_KEY` |
 | `deploy.yml` | main push 시마다 | (Jekyll 빌드·배포) | — | — |
@@ -224,12 +224,12 @@ finance/
 scripts/
 │
 ├── update_sp500.py
-│   ├── 데이터 소스 : Yahoo Finance  (yfinance 라이브러리, 무료·키 불필요)
+│   ├── 데이터 소스 : stooq.com (무료·키 불필요)
 │   ├── 티커       : ^GSPC
 │   ├── 주기       : 월봉 (1mo interval, 최근 5년)
 │   ├── 로직       :
 │   │     • CSV에 이번 달 데이터가 있으면 → 즉시 종료 (월 1회만 실행)
-│   │     • 없으면 Yahoo Finance에서 fetch
+│   │     • 없으면 stooq.com에서 fetch
 │   │     • 이번 달 데이터가 아직 없으면 → 내일 재시도
 │   │     • 새 데이터 있으면 CSV 업데이트 후 커밋
 │   └── 출력       : assets/data/sp500_monthly.csv
@@ -391,7 +391,7 @@ FRED_API_KEY=your_key python scripts/update_macro.py
 | **스타일** | CSS Variables 기반 다크 테마 |
 | **다국어** | localStorage + CSS class 토글 (한/영) |
 | **주식 일봉** | Alpha Vantage API (`TIME_SERIES_DAILY_ADJUSTED`) |
-| **S&P 500 월봉** | Yahoo Finance (yfinance) |
+| **S&P 500 월봉** | stooq.com |
 | **거시경제 데이터** | FRED API (Federal Reserve) |
 | **자동화** | GitHub Actions (cron + push 트리거) |
 | **인증** | Supabase Auth (Google OAuth + Email Magic Link) |

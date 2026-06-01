@@ -1,32 +1,31 @@
 """
-Fetch the latest S&P 500 monthly closing prices from Yahoo Finance
-and update assets/data/sp500_monthly.csv.
+Fetch S&P 500 monthly closing prices from stooq.com
+(free, no API key required) and update assets/data/sp500_monthly.csv.
 
 Run daily via GitHub Actions. Logic:
-  1. If the CSV already has this month's data → exit immediately (skip rest of month).
-  2. Otherwise fetch from Yahoo Finance.
-  3. If Yahoo Finance doesn't have this month's data yet → exit (try again tomorrow).
-  4. If new month data is available → update CSV and exit (the workflow then commits).
+  1. If the CSV already has this month's data → exit (skip rest of month).
+  2. Fetch from stooq.com (full history, CSV format).
+  3. If source doesn't have this month yet → exit (retry tomorrow).
+  4. If new month data found → merge and commit.
 """
 
 import csv
 import os
 import sys
+import requests
 from datetime import datetime, timezone
-
-try:
-    import yfinance as yf
-except ImportError:
-    print("yfinance not installed. Run: pip install yfinance")
-    sys.exit(1)
+from io import StringIO
 
 CSV_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', 'assets', 'data', 'sp500_monthly.csv')
 )
+STOOQ_URL = 'https://stooq.com/q/d/l/?s=%5Espx&i=m'
 
 
 def read_existing():
     data = {}
+    if not os.path.exists(CSV_PATH):
+        return data
     with open(CSV_PATH, 'r', newline='') as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -34,15 +33,24 @@ def read_existing():
     return data
 
 
-def fetch_yahoo():
-    """Fetch S&P 500 monthly closes from Yahoo Finance (last 5 years)."""
-    ticker = yf.Ticker("^GSPC")
-    hist = ticker.history(period="5y", interval="1mo")
-    if hist.empty:
-        raise RuntimeError("No data returned from Yahoo Finance")
+def fetch_stooq():
+    """Fetch full S&P 500 monthly history from stooq.com."""
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible; finance-updater/1.0)'}
+    resp = requests.get(STOOQ_URL, timeout=30, headers=headers)
+    resp.raise_for_status()
+
     result = {}
-    for ts, row in hist.iterrows():
-        result[ts.strftime('%Y-%m')] = round(float(row['Close']), 2)
+    reader = csv.DictReader(StringIO(resp.text))
+    for row in reader:
+        date_str  = (row.get('Date') or '').strip()
+        close_str = (row.get('Close') or '').strip()
+        if not date_str or not close_str or close_str.lower() == 'null':
+            continue
+        month_key = date_str[:7]          # YYYY-MM-DD → YYYY-MM
+        try:
+            result[month_key] = round(float(close_str), 2)
+        except ValueError:
+            continue
     return result
 
 
@@ -58,35 +66,38 @@ def write_csv(data):
 
 def main():
     current_month = datetime.now(timezone.utc).strftime('%Y-%m')
-    print(f"Current month: {current_month}")
+    print(f"Current month : {current_month}")
 
     existing = read_existing()
-    latest_in_csv = max(existing.keys())
-    print(f"Latest in CSV:  {latest_in_csv}")
+    latest_in_csv = max(existing.keys()) if existing else '1900-01'
+    print(f"Latest in CSV : {latest_in_csv}")
 
-    # ── Guard: already have this month → nothing to do until next month ──
     if latest_in_csv >= current_month:
         print(f"Already up to date ({latest_in_csv}). Skipping until next month.")
         sys.exit(0)
 
-    # ── Need new data — check Yahoo Finance ──
-    print("Fetching from Yahoo Finance (^GSPC)...")
+    print("Fetching from stooq.com (^SPX monthly)…")
     try:
-        new_data = fetch_yahoo()
+        new_data = fetch_stooq()
     except Exception as e:
         print(f"Error fetching data: {e}")
         sys.exit(1)
 
-    # ── Guard: source doesn't have this month yet → try again tomorrow ──
+    if not new_data:
+        print("No data returned from stooq. Exiting.")
+        sys.exit(1)
+
+    latest_from_source = max(new_data.keys())
+    print(f"Fetched {len(new_data)} months. Latest available: {latest_from_source}")
+
     if current_month not in new_data:
-        print(f"Yahoo Finance does not have {current_month} yet. Will retry tomorrow.")
+        print(f"stooq does not have {current_month} yet. Will retry tomorrow.")
         sys.exit(0)
 
-    # ── Update: add/fix any months newer than what we have ──
     added, updated = 0, 0
     for date, price in new_data.items():
         if date <= latest_in_csv:
-            continue  # don't touch historical data
+            continue
         if date not in existing:
             existing[date] = price
             added += 1

@@ -42,5 +42,33 @@
     <li class="lang-toggle-item">
       <button id="langToggleBtn" class="lang-btn" onclick="toggleLang()">한</button>
     </li>
+
+    <!-- Avatar (shown only when logged in, managed by auth.js) -->
+    <li id="nav-avatar-li" style="display:none; position:relative;">
+      <button id="navAvatarBtn" class="nav-avatar-btn" onclick="navToggleProfileMenu()" aria-label="Profile">
+        <div id="navAvatarEl" class="nav-avatar-circle">U</div>
+      </button>
+      <div id="navProfileMenu" class="nav-profile-menu">
+        <div class="nav-profile-header">
+          <div id="navAvatarMenuEl" class="nav-avatar-circle nav-avatar-lg">U</div>
+          <div class="nav-profile-info">
+            <div id="navProfileName" class="nav-profile-name"></div>
+            <div id="navProfileEmail" class="nav-profile-email"></div>
+          </div>
+        </div>
+        <div class="nav-profile-divider"></div>
+        <a href="{{ '/profile/' | relative_url }}" class="nav-profile-link" onclick="navToggleProfileMenu()">
+          <span>👤</span>
+          <span class="en-only">Profile &amp; Settings</span>
+          <span class="ko-only">프로필 &amp; 설정</span>
+        </a>
+        <div class="nav-profile-divider"></div>
+        <button id="navSignOutBtn" class="nav-profile-link nav-profile-signout">
+          <span>↩</span>
+          <span class="en-only">Sign Out</span>
+          <span class="ko-only">로그아웃</span>
+        </button>
+      </div>
+    </li>
   </ul>
 </nav>
