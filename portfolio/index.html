@@ -3,9 +3,18 @@ layout: default
 title: Portfolio & Trades
 ---
 <style>
+/* Portfolio / filter tabs */
 .port-tab { padding:7px 18px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.82rem; cursor:pointer; transition:all 0.15s; }
 .port-tab:hover { background:var(--bg-card); color:var(--text-primary); }
 .port-tab.active { background:var(--accent-blue); color:#fff; border-color:var(--accent-blue); }
+
+/* View tabs (Holdings / Transactions) */
+.view-tab-bar { display:flex; border-bottom:2px solid var(--border); margin-bottom:20px; }
+.view-tab { padding:10px 22px; border:none; background:none; color:var(--text-secondary); font-size:0.88rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.15s; }
+.view-tab:hover { color:var(--text-primary); }
+.view-tab.active { color:var(--accent-blue); border-bottom-color:var(--accent-blue); }
+
+/* Transaction table */
 .txn-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
 .txn-table th { padding:8px 12px; text-align:left; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:0.71rem; letter-spacing:0.06em; border-bottom:1px solid var(--border); background:var(--bg-secondary); white-space:nowrap; }
 .txn-table td { padding:9px 12px; border-bottom:1px solid rgba(48,54,61,0.5); vertical-align:middle; }
@@ -17,6 +26,26 @@ title: Portfolio & Trades
 .del-btn:hover { color:rgba(248,81,73,0.9); background:rgba(248,81,73,0.1); }
 .edit-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.9rem; padding:2px 6px; border-radius:4px; transition:color 0.15s, background 0.15s; }
 .edit-btn:hover { color:rgba(88,166,255,0.9); background:rgba(88,166,255,0.1); }
+
+/* Holdings table */
+.h-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.h-table th { padding:8px 12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:0.69rem; letter-spacing:0.06em; border-bottom:2px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; }
+.h-table th:not(:first-child) { text-align:right; }
+.h-table th:hover { color:var(--text-primary); }
+.h-table td { padding:10px 12px; border-bottom:1px solid rgba(48,54,61,0.4); vertical-align:top; }
+.h-table td:not(:first-child) { text-align:right; }
+.h-table tr:hover td { background:rgba(88,166,255,0.04); }
+.h-ticker { font-weight:700; font-size:0.92rem; color:var(--text-primary); }
+.h-price  { font-size:0.76rem; color:var(--text-muted); margin-top:2px; }
+.h-shares { font-size:0.74rem; color:var(--text-muted); margin-top:1px; }
+.h-val    { font-weight:600; font-size:0.88rem; color:var(--text-primary); }
+.h-sub    { font-size:0.75rem; color:var(--text-muted); margin-top:2px; }
+.h-pos    { color:rgba(63,185,80,0.95); }
+.h-neg    { color:rgba(248,81,73,0.95); }
+.h-foot   { background:var(--bg-secondary); font-weight:600; }
+.h-foot td { border-top:2px solid var(--border); border-bottom:none; padding:10px 12px; }
+
+/* Common */
 .port-section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px; }
 .port-add-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; }
 .port-add-btn:hover { border-color:var(--accent-blue); color:var(--accent-blue); }
@@ -66,95 +95,108 @@ title: Portfolio & Trades
 <!-- Main portfolio UI (shown when logged in) -->
 <div id="portMain" style="display:none;">
 
-  <!-- Portfolio tabs row -->
-  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
+  <!-- Portfolio filter tabs row -->
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
     <div class="port-section-label" style="margin-bottom:0;">Portfolio:</div>
     <div id="portTabsRow" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
     <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
   </div>
 
   <!-- Add portfolio inline form -->
-  <div id="portAddPortfolioForm" style="display:none; margin-bottom:16px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+  <div id="portAddPortfolioForm" style="display:none; margin-bottom:16px; gap:8px; align-items:center; flex-wrap:wrap;">
     <input id="portNewPortName" type="text" placeholder="Portfolio name" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:220px;">
     <button onclick="portCreatePortfolio()" style="padding:6px 16px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem;">Create</button>
     <button onclick="document.getElementById('portAddPortfolioForm').style.display='none';" style="padding:6px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
   </div>
 
-  <!-- USD Cash section (Item 7) -->
-  <div id="portCashSection" class="card pnl-card" style="display:none; margin-bottom:16px;">
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-      <span style="font-size:1.1rem;">💵</span>
-      <span class="port-section-label" style="margin-bottom:0;">USD Cash Balance</span>
+  <!-- View tabs: Holdings / Transactions -->
+  <div class="view-tab-bar">
+    <button class="view-tab active" id="viewTabHoldings" onclick="portSwitchView('holdings')">
+      <span class="en-only">Holdings</span><span class="ko-only">보유 현황</span>
+    </button>
+    <button class="view-tab" id="viewTabTxns" onclick="portSwitchView('transactions')">
+      <span class="en-only">Transactions</span><span class="ko-only">거래내역</span>
+    </button>
+  </div>
+
+  <!-- ── Holdings View ── -->
+  <div id="portHoldingsView">
+    <div id="portHoldingsLoading" style="padding:30px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+      <span class="en-only">Loading holdings…</span><span class="ko-only">보유 현황 로딩 중…</span>
     </div>
-    <div id="portCashBalance" style="font-size:1.4rem; font-weight:700; color:var(--text-primary);">—</div>
-    <div id="portCashDetail" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;"></div>
+    <div id="portHoldingsContent" style="display:none;"></div>
   </div>
 
-  <!-- Per-symbol P&L summary (shown when a specific symbol is selected) -->
-  <div id="portSymbolSummary" class="card pnl-card" style="display:none; margin-bottom:16px;">
-    <div class="port-section-label" id="portSymbolSummaryTitle" style="margin-bottom:12px;">Symbol Summary</div>
-    <div id="portGainGroupsContainer"></div>
-    <div class="pnl-row" id="portSymbolSummaryRow" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border);"></div>
-    <div style="margin-top:8px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolHoldingsLine"></div>
-    <div style="margin-top:4px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolUnrealizedLine"></div>
-  </div>
+  <!-- ── Transactions View ── -->
+  <div id="portTransactionsView" style="display:none;">
 
-  <!-- Transactions section -->
-  <div class="card" style="padding:0; overflow:hidden;">
-    <div style="padding:16px 18px 12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-      <div class="port-section-label" style="margin-bottom:0;" id="portTxnLabel">My Trades</div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <select id="portSymbolFilter" onchange="portLoadTxns()" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:5px 10px; font-size:0.82rem;">
-          <option value="">All symbols</option>
-          <option value="SPY">SPY</option><option value="DIA">DIA</option>
-          <option value="QQQ">QQQ</option><option value="VFIAX">VFIAX</option>
-          <option value="AAPL">AAPL</option><option value="NVDA">NVDA</option>
-          <option value="META">META</option><option value="GOOG">GOOG</option>
-          <option value="AMZN">AMZN</option><option value="TSLA">TSLA</option>
-          <option value="ENVX">ENVX</option>
-          <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="PEPE">PEPE</option>
-        </select>
-        <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
+    <!-- USD Cash section -->
+    <div id="portCashSection" class="card pnl-card" style="display:none; margin-bottom:16px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <span style="font-size:1.1rem;">💵</span>
+        <span class="port-section-label" style="margin-bottom:0;">USD Cash Balance</span>
+      </div>
+      <div id="portCashBalance" style="font-size:1.4rem; font-weight:700; color:var(--text-primary);">—</div>
+      <div id="portCashDetail" style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;"></div>
+    </div>
+
+    <!-- Per-symbol Gain view -->
+    <div id="portSymbolSummary" class="card pnl-card" style="display:none; margin-bottom:16px;">
+      <div class="port-section-label" id="portSymbolSummaryTitle" style="margin-bottom:12px;">Symbol Summary</div>
+      <div id="portGainGroupsContainer"></div>
+      <div class="pnl-row" id="portSymbolSummaryRow" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border);"></div>
+      <div style="margin-top:8px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolHoldingsLine"></div>
+      <div style="margin-top:4px; font-size:0.8rem; color:var(--text-secondary);" id="portSymbolUnrealizedLine"></div>
+    </div>
+
+    <!-- Transaction table card -->
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="padding:16px 18px 12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <div class="port-section-label" style="margin-bottom:0;" id="portTxnLabel">My Trades</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select id="portSymbolFilter" onchange="portLoadTxns()" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:5px 10px; font-size:0.82rem;">
+            <option value="">All symbols</option>
+            <option value="SPY">SPY</option><option value="DIA">DIA</option>
+            <option value="QQQ">QQQ</option><option value="VFIAX">VFIAX</option>
+            <option value="AAPL">AAPL</option><option value="NVDA">NVDA</option>
+            <option value="META">META</option><option value="GOOG">GOOG</option>
+            <option value="AMZN">AMZN</option><option value="TSLA">TSLA</option>
+            <option value="ENVX">ENVX</option>
+            <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="PEPE">PEPE</option>
+          </select>
+          <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
+        </div>
+      </div>
+      <div id="portSummaryRow" style="display:none; padding:0 18px 12px; gap:24px; flex-wrap:wrap;">
+        <span id="portSumBought" style="font-size:0.82rem; color:var(--text-secondary);"></span>
+        <span id="portSumSold"   style="font-size:0.82rem; color:var(--text-secondary);"></span>
+        <span id="portSumNet"    style="font-size:0.82rem; color:var(--text-secondary);"></span>
+      </div>
+      <div id="portTxnTableWrap" style="overflow-x:auto;">
+        <table class="txn-table">
+          <thead>
+            <tr>
+              <th>Date</th><th>Symbol</th><th>Type</th>
+              <th style="text-align:right;">Shares</th><th style="text-align:right;">Price</th>
+              <th style="text-align:right;">Amount</th><th style="text-align:right;">Commission</th>
+              <th>Notes</th><th>Source</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="portTxnBody"></tbody>
+        </table>
+      </div>
+      <div id="portTxnEmpty" class="empty-state" style="display:none;">
+        <div style="font-size:2rem; margin-bottom:8px;">📭</div>
+        <div class="en-only">No transactions yet. Use the trade panel on a stock chart or import a CSV.</div>
+        <div class="ko-only">거래 내역이 없습니다. 주식 차트의 거래 패널이나 CSV 가져오기를 사용해 보세요.</div>
+      </div>
+      <div id="portTxnLoading" style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+        <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
       </div>
     </div>
+  </div><!-- /portTransactionsView -->
 
-    <!-- Summary row -->
-    <div id="portSummaryRow" style="display:none; padding:0 18px 12px; display:flex; gap:24px; flex-wrap:wrap;">
-      <span id="portSumBought" style="font-size:0.82rem; color:var(--text-secondary);"></span>
-      <span id="portSumSold"   style="font-size:0.82rem; color:var(--text-secondary);"></span>
-      <span id="portSumNet"    style="font-size:0.82rem; color:var(--text-secondary);"></span>
-    </div>
-
-    <!-- Table -->
-    <div id="portTxnTableWrap" style="overflow-x:auto;">
-      <table class="txn-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Symbol</th>
-            <th>Type</th>
-            <th style="text-align:right;">Shares</th>
-            <th style="text-align:right;">Price</th>
-            <th style="text-align:right;">Amount</th>
-            <th style="text-align:right;">Commission</th>
-            <th>Notes</th>
-            <th>Source</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="portTxnBody"></tbody>
-      </table>
-    </div>
-    <div id="portTxnEmpty" class="empty-state" style="display:none;">
-      <div style="font-size:2rem; margin-bottom:8px;">📭</div>
-      <div class="en-only">No transactions yet. Use the trade panel on a stock chart or import a CSV.</div>
-      <div class="ko-only">거래 내역이 없습니다. 주식 차트의 거래 패널이나 CSV 가져오기를 사용해 보세요.</div>
-    </div>
-    <div id="portTxnLoading" style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
-      <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
-    </div>
-  </div>
-</div>
+</div><!-- /portMain -->
 
 <!-- Edit Modal (Item 2) -->
 <div id="editModal" onclick="editModalBgClick(event)">
@@ -226,8 +268,20 @@ const _STOCKS_BASE  = '{{ "/assets/data/stocks/" | relative_url }}';
 const _CRYPTO_SYMS  = ['BTC','ETH','PEPE'];
 
 let portPortfolios = [];
-let portActivePortfolioId = null;  // null = all portfolios
-let portAllTxns = [];  // cached for P&L calcs
+let portActivePortfolioId = null;
+let portAllTxns = [];
+let portActiveView = 'holdings'; // 'holdings' | 'transactions'
+
+// ── View tab switch ──
+function portSwitchView(view) {
+  portActiveView = view;
+  document.getElementById('viewTabHoldings').classList.toggle('active', view === 'holdings');
+  document.getElementById('viewTabTxns').classList.toggle('active', view === 'transactions');
+  document.getElementById('portHoldingsView').style.display    = view === 'holdings'     ? '' : 'none';
+  document.getElementById('portTransactionsView').style.display = view === 'transactions' ? '' : 'none';
+  if (view === 'holdings')     portLoadHoldings();
+  if (view === 'transactions') portLoadTxns();
+}
 
 // ── Type display labels ──
 const TYPE_LABELS = {
@@ -252,7 +306,7 @@ async function portInit() {
   document.getElementById('portMain').style.display = '';
 
   await portLoadPortfolios();
-  portLoadTxns();
+  portSwitchView('holdings');
 }
 
 async function portLoadPortfolios() {
@@ -269,38 +323,42 @@ function portRenderTabs() {
   const row = document.getElementById('portTabsRow');
   row.innerHTML = '';
 
-  // "All" tab
+  const reload = () => { portRenderTabs(); portSwitchView(portActiveView); };
+
   const allBtn = document.createElement('button');
   allBtn.className = 'port-tab' + (portActivePortfolioId === null ? ' active' : '');
   allBtn.textContent = 'All';
-  allBtn.onclick = () => { portActivePortfolioId = null; portRenderTabs(); portLoadTxns(); };
+  allBtn.onclick = () => { portActivePortfolioId = null; reload(); };
   row.appendChild(allBtn);
 
   for (const p of portPortfolios) {
     const btn = document.createElement('button');
     btn.className = 'port-tab' + (portActivePortfolioId === p.id ? ' active' : '');
     btn.textContent = p.name;
-    btn.onclick = () => { portActivePortfolioId = p.id; portRenderTabs(); portLoadTxns(); };
+    btn.onclick = () => { portActivePortfolioId = p.id; reload(); };
     row.appendChild(btn);
   }
 }
 
-// ── Fetch current price from CSV (Item 3) ──
-async function fetchCurrentPrice(symbol) {
-  // Crypto: fetch from CoinGecko simple price API
+// ── Fetch price + 24h change ──
+// Returns { price, change, changePct } or null
+async function fetchPriceInfo(symbol) {
   if (_CRYPTO_SYMS.includes(symbol)) {
     try {
       const idMap = { BTC:'bitcoin', ETH:'ethereum', PEPE:'pepe' };
       const cgId = idMap[symbol];
       if (!cgId) return null;
-      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${cgId}&vs_currencies=usd`, { timeout: 5000 });
+      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${cgId}&vs_currencies=usd&include_24hr_change=true`);
       if (!r.ok) return null;
       const data = await r.json();
-      return data[cgId]?.usd ?? null;
+      const price = data[cgId]?.usd ?? null;
+      const changePct = data[cgId]?.usd_24h_change ?? null;
+      const change = (price != null && changePct != null) ? price * changePct / (100 + changePct) : null;
+      return price != null ? { price, change, changePct } : null;
     } catch(e) {}
     return null;
   }
-  // Stocks: read last row from local CSV (uses Jekyll baseurl-aware path)
+  // Stocks: last two rows of CSV
   try {
     const url = _STOCKS_BASE + symbol + '.csv';
     const r = await fetch(url);
@@ -312,12 +370,193 @@ async function fetchCurrentPrice(symbol) {
     const priceIdx = ['adj_close_price_usd','close_price_usd','open_price_usd']
       .map(c => header.indexOf(c)).find(i => i >= 0) ?? -1;
     if (priceIdx < 0) return null;
-    for (let i = lines.length - 1; i >= 1; i--) {
+    const prices = [];
+    for (let i = lines.length - 1; i >= 1 && prices.length < 2; i--) {
       const p = parseFloat(lines[i].split(',')[priceIdx]);
-      if (!isNaN(p) && p > 0) return p;
+      if (!isNaN(p) && p > 0) prices.push(p);
     }
+    if (!prices.length) return null;
+    const price = prices[0];
+    const prev  = prices[1] ?? null;
+    const change    = prev != null ? price - prev : null;
+    const changePct = prev != null ? (price - prev) / prev * 100 : null;
+    return { price, change, changePct };
   } catch(e) {}
   return null;
+}
+
+async function fetchCurrentPrice(symbol) {
+  const info = await fetchPriceInfo(symbol);
+  return info?.price ?? null;
+}
+
+// ── Holdings View ──────────────────────────────────────────────────────────
+async function portLoadHoldings() {
+  const loadEl    = document.getElementById('portHoldingsLoading');
+  const contentEl = document.getElementById('portHoldingsContent');
+  loadEl.style.display = '';
+  contentEl.style.display = 'none';
+
+  if (!window.txns) return;
+
+  let allTxns = [];
+  try {
+    allTxns = await window.txns.getTransactions(null, portActivePortfolioId);
+  } catch(e) {
+    loadEl.textContent = 'Error loading transactions.';
+    return;
+  }
+
+  const BUY_T  = new Set(['buy','drip','buy_to_cover']);
+  const SELL_T = new Set(['sell','sell_short']);
+  const TRADE_T = new Set([...BUY_T, ...SELL_T]);
+
+  // Group trade txns by symbol
+  const symbolMap = {};
+  for (const t of allTxns) {
+    if (!TRADE_T.has(t.type)) continue;
+    if (!symbolMap[t.symbol]) symbolMap[t.symbol] = [];
+    symbolMap[t.symbol].push(t);
+  }
+
+  if (!Object.keys(symbolMap).length) {
+    loadEl.innerHTML = `<div class="empty-state"><div style="font-size:2rem;margin-bottom:8px;">📭</div>
+      <div class="en-only">No holdings yet.</div><div class="ko-only">보유 내역이 없습니다.</div></div>`;
+    return;
+  }
+
+  // Compute PnL per symbol then fetch prices in parallel
+  const symbols = Object.keys(symbolMap);
+  const pnlMap  = {};
+  for (const sym of symbols) pnlMap[sym] = window.txns.computePnL(symbolMap[sym]);
+
+  // Only fetch price for symbols with remaining shares OR that have realized gains
+  const priceResults = await Promise.all(symbols.map(sym => fetchPriceInfo(sym).catch(() => null)));
+  const priceMap = {};
+  symbols.forEach((sym, i) => { priceMap[sym] = priceResults[i]; });
+
+  // Format helpers
+  const fA  = (n, dec=2) => '$' + Math.abs(Number(n)).toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const fS  = n => (n >= 0 ? '+' : '−') + fA(n);
+  const fP  = n => (n >= 0 ? '+' : '') + Number(n).toFixed(2) + '%';
+  const cls = n => n >= 0 ? 'h-pos' : 'h-neg';
+  const fN  = (n, max=4) => Number(n).toLocaleString(undefined,{maximumFractionDigits:max});
+
+  // Build rows: positions with shares first, then closed positions
+  const openRows   = [];
+  const closedRows = [];
+
+  let totalValue = 0, totalCostAll = 0, totalUnrealGain = 0, totalRealGain = 0;
+
+  for (const sym of symbols) {
+    const { avgCost, remainingShares, totalCost, realizedGain } = pnlMap[sym];
+    const info = priceMap[sym];
+    const price = info?.price ?? null;
+    const change    = info?.change ?? null;
+    const changePct = info?.changePct ?? null;
+
+    const curValue   = (price != null && remainingShares > 0) ? price * remainingShares : null;
+    const unrealGain = curValue != null ? curValue - totalCost : null;
+    const totalBought = symbolMap[sym].filter(t=>BUY_T.has(t.type)).reduce((s,t)=>s+Number(t.amount),0);
+    const allTimeGain = (unrealGain ?? 0) + realizedGain;
+    const allTimePct  = totalBought > 0 ? allTimeGain / totalBought * 100 : 0;
+
+    // Today change for this holding
+    let todayVal = null, todayPct = null;
+    if (change != null && remainingShares > 0) {
+      todayVal = change * remainingShares;
+      todayPct = changePct;
+    }
+
+    if (curValue != null) {
+      totalValue     += curValue;
+      totalCostAll   += totalCost;
+      totalUnrealGain+= unrealGain ?? 0;
+    }
+    totalRealGain += realizedGain;
+
+    const row = { sym, price, remainingShares, avgCost, totalCost, curValue,
+      unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct, totalBought };
+
+    if (remainingShares > 0.0001) openRows.push(row);
+    else if (realizedGain !== 0)   closedRows.push(row);
+  }
+
+  // Sort open by current value desc
+  openRows.sort((a,b) => (b.curValue ?? 0) - (a.curValue ?? 0));
+
+  const buildRow = (row) => {
+    const { sym, price, remainingShares, avgCost, totalCost, curValue,
+      unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct } = row;
+
+    const priceStr   = price != null ? fA(price) : '—';
+    const todayStr   = todayVal != null
+      ? `<div class="${cls(todayVal)}">${fS(todayVal)}</div><div class="${cls(todayPct)} h-sub">${fP(todayPct)}</div>`
+      : `<div style="color:var(--text-muted);">—</div>`;
+    const totalStr   = `<div class="${cls(allTimeGain)}">${fS(allTimeGain)}</div><div class="${cls(allTimePct)} h-sub">${fP(allTimePct)}</div>`;
+    const curValStr  = curValue != null
+      ? `<div class="h-val">${fA(curValue)}</div><div class="h-sub">${fA(totalCost)}</div>`
+      : `<div class="h-val" style="color:var(--text-muted);">—</div><div class="h-sub">${fA(totalCost)}</div>`;
+
+    return `<tr>
+      <td>
+        <div class="h-ticker">${sym}</div>
+        <div class="h-price">${priceStr}</div>
+        ${remainingShares > 0.0001 ? `<div class="h-shares">${fN(remainingShares)} sh @ ${fA(avgCost)}</div>` : ''}
+      </td>
+      <td>${curValStr}</td>
+      <td>${todayStr}</td>
+      <td>${totalStr}</td>
+    </tr>`;
+  };
+
+  let html = `<div class="card" style="padding:0; overflow:hidden;">
+    <table class="h-table">
+      <thead><tr>
+        <th><span class="en-only">Ticker</span><span class="ko-only">종목</span></th>
+        <th><span class="en-only">Value / Cost</span><span class="ko-only">평가 / 비용</span></th>
+        <th><span class="en-only">Today</span><span class="ko-only">오늘</span></th>
+        <th><span class="en-only">Total</span><span class="ko-only">총 손익</span></th>
+      </tr></thead>
+      <tbody>`;
+
+  if (openRows.length) html += openRows.map(buildRow).join('');
+
+  if (closedRows.length) {
+    html += `<tr><td colspan="4" style="padding:6px 12px; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); background:var(--bg-secondary);">
+      <span class="en-only">Closed Positions</span><span class="ko-only">청산 포지션</span></td></tr>`;
+    html += closedRows.map(buildRow).join('');
+  }
+
+  // Footer totals
+  const totalTodayVal = openRows.reduce((s,r) => s + (r.todayVal ?? 0), 0);
+  const totalTodayPct = totalCostAll > 0 ? totalTodayVal / totalCostAll * 100 : 0;
+  const grandTotal    = totalUnrealGain + totalRealGain;
+  const grandPct      = totalCostAll > 0 ? grandTotal / totalCostAll * 100 : 0;
+  html += `</tbody>
+    <tfoot>
+      <tr class="h-foot">
+        <td><span class="en-only">Unrealized Total</span><span class="ko-only">평가 합계</span></td>
+        <td>
+          <div class="h-val">${totalValue > 0 ? fA(totalValue) : '—'}</div>
+          <div class="h-sub">${fA(totalCostAll)}</div>
+        </td>
+        <td>
+          ${totalTodayVal !== 0
+            ? `<div class="${cls(totalTodayVal)}">${fS(totalTodayVal)}</div><div class="${cls(totalTodayPct)} h-sub">${fP(totalTodayPct)}</div>`
+            : `<div style="color:var(--text-muted);">—</div>`}
+        </td>
+        <td>
+          <div class="${cls(grandTotal)}">${fS(grandTotal)}</div>
+          <div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>
+        </td>
+      </tr>
+    </tfoot>
+    </table></div>`;
+
+  loadEl.style.display    = 'none';
+  contentEl.innerHTML     = html;
+  contentEl.style.display = '';
 }
 
 async function portLoadTxns() {
