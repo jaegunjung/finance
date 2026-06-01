@@ -26,7 +26,7 @@ layout: default
 .date-input::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
 
 #chartContainer {
-  position: relative; width: 100%; height: 480px;
+  position: relative; width: 100%; height: 540px;
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 8px 8px 0 0; overflow: hidden;
 }
@@ -103,6 +103,9 @@ layout: default
     <button class="ctrl-btn" id="downloadBtn" onclick="downloadCsv()" style="display:none;">
       ↓ <span class="en-only">CSV</span><span class="ko-only">CSV</span>
     </button>
+    <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+    <button id="zoomRectBtn" class="ctrl-btn" onclick="toggleZoomRect()" title="Rectangle zoom">⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span></button>
+    <button id="fullscreenBtn" class="ctrl-btn" onclick="toggleFullscreen()" title="Fullscreen">⤢</button>
   </div>
 </div>
 
@@ -124,11 +127,6 @@ layout: default
   </div>
   <canvas id="stockChart" style="touch-action:pan-y;"></canvas>
   <svg id="channelSvg"></svg>
-  <!-- Fullscreen & Zoom-rect controls -->
-  <div id="chartToolbar" style="position:absolute;top:8px;right:10px;display:flex;gap:6px;z-index:10;">
-    <button id="zoomRectBtn" class="ctrl-btn" onclick="toggleZoomRect()" title="Rectangle zoom">⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span></button>
-    <button id="fullscreenBtn" class="ctrl-btn" onclick="toggleFullscreen()" title="Fullscreen">⤢</button>
-  </div>
 </div>
 
 <div id="volumeContainer">
@@ -849,10 +847,14 @@ function initChart() {
           type: 'linear', min: 0, max: futureMax,
           grid: { color: 'rgba(48,54,61,0.8)' },
           afterBuildTicks(scale) {
-            // Place ticks exactly at year boundaries — no uneven gaps
-            scale.ticks = Object.values(yearFirstIdx)
+            // Place ticks exactly at year boundaries within current visible range
+            const lo = scale.min ?? 0;
+            const hi = scale.max ?? Infinity;
+            const ticks = Object.values(yearFirstIdx)
               .sort((a, b) => a - b)
+              .filter(v => v >= lo && v <= hi)
               .map(v => ({ value: v }));
+            if (ticks.length > 0) scale.ticks = ticks;
           },
           ticks: { color:'#8b949e', font:{size:10}, callback: xTickCallback }
         },
@@ -1333,7 +1335,10 @@ async function tpSubmit() {
     // Reload chart overlays
     await window.txns.loadChartTransactions(SYMBOL);
   } catch(e) {
-    tpShowStatus('error', 'Error: ' + e.message);
+    const msg = e.message?.includes('schema cache')
+      ? '⚠️ DB setup needed — run SQL in Supabase Dashboard (see transactions.js)'
+      : 'Error: ' + e.message;
+    tpShowStatus('error', msg);
   } finally {
     btn.disabled = false;
   }
@@ -1381,15 +1386,17 @@ function toggleZoomRect() {
   if (!chart) return;
   const zoomOpts = chart.options.plugins.zoom;
   if (zoomRectMode) {
-    // Drag = rectangle zoom (xy), disable wheel+pan
+    // Drag = rectangle zoom XY, disable wheel+pan
     zoomOpts.zoom.drag  = { enabled: true, backgroundColor: 'rgba(88,166,255,0.12)', borderColor: 'rgba(88,166,255,0.5)', borderWidth: 1 };
     zoomOpts.zoom.wheel = { enabled: false };
+    zoomOpts.zoom.mode  = 'xy';
     zoomOpts.pan.enabled = false;
     document.getElementById('stockChart').style.cursor = 'crosshair';
   } else {
-    // Back to scroll-zoom + pan
+    // Back to scroll-zoom X + pan
     zoomOpts.zoom.drag  = { enabled: false };
     zoomOpts.zoom.wheel = { enabled: true };
+    zoomOpts.zoom.mode  = 'x';
     zoomOpts.pan.enabled = true;
     document.getElementById('stockChart').style.cursor = '';
   }
