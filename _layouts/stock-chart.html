@@ -648,7 +648,16 @@ function updateOverlay(ch) {
   if (chartTxns.length > 0) {
     html += `<g clip-path="url(#ca)">`;
     for (const t of chartTxns) {
-      const idx = dateToIdx[t.trade_date];
+      // Find nearest past trading day (handles weekends / holidays stored in DB)
+      let idx = dateToIdx[t.trade_date];
+      if (idx == null) {
+        const d = new Date(t.trade_date + 'T00:00:00');
+        for (let back = 1; back <= 7; back++) {
+          d.setDate(d.getDate() - 1);
+          const key = d.toISOString().slice(0, 10);
+          if (dateToIdx[key] != null) { idx = dateToIdx[key]; break; }
+        }
+      }
       if (idx == null) continue;
       const cx = xS.getPixelForValue(idx);
       if (cx < ca.left || cx > ca.right) continue;
@@ -869,7 +878,7 @@ function initChart() {
             enabled: true, mode: 'x',
             onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); }
           },
-          limits: { x: { min: 0 } }
+          limits: { x: { min: 0, max: futureMax + 168 } }  // right cap: prediction end + ~8 months
         },
         tooltip: {
           backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
@@ -1472,12 +1481,21 @@ function toggleZoomRect() {
     zoomOpts.pan.enabled = false;
     document.getElementById('stockChart').style.cursor = 'crosshair';
   } else {
-    // Back to scroll-zoom X + pan
+    // Back to scroll-zoom X + pan, and reset to All view
     zoomOpts.zoom.drag  = { enabled: false };
     zoomOpts.zoom.wheel = { enabled: true };
     zoomOpts.zoom.mode  = 'x';
     zoomOpts.pan.enabled = true;
     document.getElementById('stockChart').style.cursor = '';
+    // Reset zoom to All
+    chart.resetZoom();
+    const allRange = { min: 0, max: futureMax };
+    if (rsiChart) rsiChart.zoomScale('x', allRange, 'none');
+    syncVolumeRange(0, futureMax);
+    updateOverlay(chart);
+    // Sync active range button
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.days === '0'));
+    return;
   }
   chart.update('none');
 }
