@@ -43,8 +43,15 @@
       </ul>
     </li>
 
-    <li><a href="{{ '/rates/' | relative_url }}" {% if page.url contains '/rates' %}class="active"{% endif %}>
-      <span class="en-only">Rates</span><span class="ko-only">금리</span></a></li>
+    <li class="nav-dropdown">
+      <a href="{{ '/macro/' | relative_url }}" {% if page.url contains '/rates' or page.url contains '/macro' %}class="active"{% endif %}>
+        <span class="en-only">Macro</span><span class="ko-only">거시경제</span> <span class="nav-caret">▾</span>
+      </a>
+      <ul class="nav-submenu">
+        <li><a href="{{ '/rates/' | relative_url }}"><span class="en-only">Interest Rates</span><span class="ko-only">금리</span></a></li>
+        <li><a href="{{ '/macro/' | relative_url }}"><span class="en-only">Economic Indicators</span><span class="ko-only">경기지표</span></a></li>
+      </ul>
+    </li>
     <li><a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>About</a></li>
     <li class="lang-toggle-item">
       <button id="langToggleBtn" class="lang-btn" onclick="toggleLang()">한</button>

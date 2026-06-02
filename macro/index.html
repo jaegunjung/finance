@@ -1,0 +1,619 @@
+---
+layout: default
+title: Economic Indicators
+---
+<style>
+.range-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.range-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.range-btn.active { background:var(--accent-blue); color:#fff; border-color:var(--accent-blue); }
+.ctrl-btn { padding:4px 12px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; transition:all 0.15s; }
+.ctrl-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.ctrl-btn.active { background:var(--accent-green); color:#fff; border-color:var(--accent-green); }
+.chart-box { position:relative; width:100%; height:480px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:6px; }
+.chart-box canvas { position:absolute; top:0; left:0; width:100%; height:100%; }
+.chart-hint { color:var(--text-muted); font-size:0.75rem; margin-bottom:4px; }
+.source-note { color:var(--text-muted); font-size:0.73rem; margin-top:4px; margin-bottom:20px; }
+.section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:8px; }
+.legend-row { display:flex; flex-wrap:wrap; gap:12px; font-size:0.78rem; margin:8px 0 16px; }
+.legend-row span { display:flex; align-items:center; gap:6px; }
+.legend-swatch { display:inline-block; width:20px; height:3px; border-radius:2px; }
+.legend-band { display:inline-block; width:14px; height:14px; border-radius:2px; opacity:0.45; }
+.chart-section { margin-bottom:36px; }
+.val-badge { font-size:0.72rem; background:var(--bg-secondary); border:1px solid var(--border); border-radius:4px; padding:2px 7px; color:var(--text-secondary); margin-left:8px; vertical-align:middle; }
+</style>
+
+<div style="padding:28px 0 8px;">
+  <h1>
+    <span class="en-only">Economic Indicators</span>
+    <span class="ko-only">경기지표</span>
+  </h1>
+  <p style="color:var(--text-secondary); margin-top:6px; font-size:0.9rem;">
+    <span class="en-only">Shiller PE (CAPE) · Buffett Indicator · S&amp;P 500 overlay · Standard deviation bands</span>
+    <span class="ko-only">Shiller PE (CAPE) · 버핏지수 · S&amp;P 500 오버레이 · 표준편차 밴드</span>
+  </p>
+</div>
+
+<!-- ── Shared range buttons ─────────────────────────────────────── -->
+<div style="display:flex; gap:6px; flex-wrap:wrap; margin:16px 0 20px;">
+  <button class="range-btn" data-years="20">20Y</button>
+  <button class="range-btn" data-years="30">30Y</button>
+  <button class="range-btn" data-years="50">50Y</button>
+  <button class="range-btn active" data-years="0">All</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     CHART 1 · Shiller PE (CAPE)
+     ════════════════════════════════════════════════════════════════ -->
+<div class="chart-section">
+  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+    <h2 style="margin:0; font-size:1rem;">
+      Shiller PE (CAPE)
+      <span id="capeLatest" class="val-badge"></span>
+    </h2>
+    <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+      <button id="capeBtnSP500" class="ctrl-btn active" onclick="toggleCapeSP500()">S&amp;P 500</button>
+      <button id="capeBtnBands" class="ctrl-btn active" onclick="toggleCapeBands()">±1σ / ±2σ</button>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <div id="capeLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+      <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
+    </div>
+    <canvas id="capeChart" style="touch-action:pan-y;"></canvas>
+  </div>
+
+  <div class="legend-row">
+    <span><span class="legend-swatch" style="background:#e8c84a;"></span>
+      <span class="en-only">Shiller CAPE (left axis)</span><span class="ko-only">Shiller CAPE (좌측 축)</span></span>
+    <span><span class="legend-swatch" style="background:#58a6ff;"></span>
+      <span class="en-only">S&amp;P 500 (log, right axis)</span><span class="ko-only">S&amp;P 500 (로그, 우측 축)</span></span>
+    <span><span class="legend-band" style="background:#f85149;"></span>
+      <span class="en-only">+2σ / +1σ band (overvalued)</span><span class="ko-only">+2σ / +1σ (고평가 구간)</span></span>
+    <span><span class="legend-band" style="background:#3fb950;"></span>
+      <span class="en-only">-1σ / -2σ band (undervalued)</span><span class="ko-only">-1σ / -2σ (저평가 구간)</span></span>
+  </div>
+  <p class="chart-hint">
+    <span class="en-only">Scroll to zoom · Drag to pan · Hover for values · Double-click to reset</span>
+    <span class="ko-only">스크롤 줌 · 드래그 패닝 · 호버 값 확인 · 더블클릭 초기화</span>
+  </p>
+  <p class="source-note">
+    <span class="en-only">CAPE: Robert Shiller / Yale (ie_data.xls) — updated monthly via GitHub Actions · S&amp;P 500: FRED</span>
+    <span class="ko-only">CAPE: Robert Shiller / Yale — 매월 자동 업데이트 · S&amp;P 500: FRED</span>
+  </p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     CHART 2 · Buffett Indicator
+     ════════════════════════════════════════════════════════════════ -->
+<div class="chart-section">
+  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+    <h2 style="margin:0; font-size:1rem;">
+      <span class="en-only">Buffett Indicator</span><span class="ko-only">버핏지수</span>
+      <span id="buffettLatest" class="val-badge"></span>
+    </h2>
+    <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+      <button id="buffBtnSP500" class="ctrl-btn active" onclick="toggleBuffettSP500()">S&amp;P 500</button>
+      <button id="buffBtnBands" class="ctrl-btn active" onclick="toggleBuffettBands()">±1σ / ±2σ</button>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <div id="buffettLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+      <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
+    </div>
+    <canvas id="buffettChart" style="touch-action:pan-y;"></canvas>
+  </div>
+
+  <div class="legend-row">
+    <span><span class="legend-swatch" style="background:#ff7043;"></span>
+      <span class="en-only">Buffett Indicator — Wilshire5000 / GDP (left axis, %)</span>
+      <span class="ko-only">버핏지수 — Wilshire5000 / GDP (좌측 축, %)</span></span>
+    <span><span class="legend-swatch" style="background:#58a6ff;"></span>
+      <span class="en-only">S&amp;P 500 (log, right axis)</span><span class="ko-only">S&amp;P 500 (로그, 우측 축)</span></span>
+    <span><span class="legend-band" style="background:#f85149;"></span>
+      <span class="en-only">+2σ / +1σ (overvalued)</span><span class="ko-only">+2σ / +1σ (고평가)</span></span>
+    <span><span class="legend-band" style="background:#3fb950;"></span>
+      <span class="en-only">-1σ / -2σ (undervalued)</span><span class="ko-only">-1σ / -2σ (저평가)</span></span>
+  </div>
+  <p class="chart-hint">
+    <span class="en-only">Scroll to zoom · Drag to pan · Hover for values · Double-click to reset</span>
+    <span class="ko-only">스크롤 줌 · 드래그 패닝 · 호버 값 확인 · 더블클릭 초기화</span>
+  </p>
+  <p class="source-note">
+    <span class="en-only">Buffett Indicator: FRED WILL5000INDFC / GDP · S&amp;P 500: FRED · Updated quarterly via GitHub Actions</span>
+    <span class="ko-only">버핏지수: FRED Wilshire5000 / GDP · S&amp;P 500: FRED · 분기별 자동 업데이트</span>
+  </p>
+</div>
+
+<!-- ── Explainer cards ─────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-label">Shiller PE (CAPE)</div>
+  <div class="en-only">
+    <h2>Cyclically Adjusted Price-to-Earnings Ratio</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      The <strong style="color:var(--text-primary)">Shiller CAPE</strong> (Cyclically Adjusted PE Ratio) divides the S&amp;P 500 price by the 10-year inflation-adjusted average earnings.
+      By smoothing out short-term earnings swings, it gives a long-run valuation signal.
+      The long-run average is roughly <strong style="color:var(--text-primary)">17×</strong>. Readings above +1σ (~25×) have historically preceded periods of below-average returns.
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>경기조정 주가수익비율 (CAPE)</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      <strong style="color:var(--text-primary)">Shiller CAPE</strong>는 S&amp;P 500 주가를 10년간 물가조정 평균 이익으로 나눈 값입니다.
+      단기 이익 변동을 평활화하여 장기 밸류에이션 신호를 제공합니다.
+      장기 평균은 약 <strong style="color:var(--text-primary)">17배</strong>이며, +1σ(~25배) 이상에서는 역사적으로 향후 수익률이 낮아지는 경향이 있습니다.
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-label"><span class="en-only">Buffett Indicator</span><span class="ko-only">버핏지수</span></div>
+  <div class="en-only">
+    <h2>Total Market Cap / GDP</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      The <strong style="color:var(--text-primary)">Buffett Indicator</strong> compares the total US stock market capitalization (Wilshire 5000 Full Cap) to Gross Domestic Product.
+      Warren Buffett called it "probably the best single measure of where valuations stand at any given moment."
+      A ratio near <strong style="color:var(--text-primary)">100%</strong> is historically fair value; above <strong>+1σ</strong> suggests the market is overextended relative to the underlying economy.
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>시가총액 / GDP</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      <strong style="color:var(--text-primary)">버핏지수</strong>는 미국 전체 주식시장 시가총액(Wilshire 5000)을 GDP로 나눈 값입니다.
+      워렌 버핏은 이를 "주어진 순간의 밸류에이션을 측정하는 가장 좋은 단일 지표"라고 불렀습니다.
+      <strong style="color:var(--text-primary)">100%</strong> 근방이 역사적 적정가치이며, <strong>+1σ</strong> 이상이면 시장이 실물경제 대비 과대평가 상태를 시사합니다.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script>
+// ── Globals ──────────────────────────────────────────────────────
+let capeChartInst = null, buffettChartInst = null;
+let capeShowSP500 = true, capeShowBands = true;
+let buffShowSP500 = true, buffShowBands = true;
+
+// Global date range filter (index bounds per chart)
+let globalYears = 0; // 0 = All
+
+// Raw data
+let capeDates = [], capeVals = [], capeSP500 = [];
+let buffDates = [], buffVals = [], buffSP500 = [];
+
+// ── Utility ───────────────────────────────────────────────────────
+function parseFredCsv(text) {
+  const result = {};
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return result;
+  const header = lines[0].split(',').map(s => s.trim());
+  const dateIdx = header.findIndex(h => h === 'observation_date' || h === 'DATE');
+  const valIdx = header.length > 1 ? (dateIdx === 0 ? 1 : 0) : -1;
+  if (dateIdx < 0 || valIdx < 0) return result;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',');
+    const date = cols[dateIdx]?.trim();
+    const val = cols[valIdx]?.trim();
+    if (!date || !val || val === '.') continue;
+    const v = parseFloat(val);
+    if (!isNaN(v)) result[date] = v;
+  }
+  return result;
+}
+
+function statsOf(arr) {
+  const valid = arr.filter(v => !isNaN(v) && isFinite(v));
+  if (valid.length < 2) return { mean: 0, sd: 0 };
+  const mean = valid.reduce((a, b) => a + b, 0) / valid.length;
+  const sd = Math.sqrt(valid.reduce((a, b) => a + (b - mean) ** 2, 0) / valid.length);
+  return { mean, sd };
+}
+
+function bandDataset(label, val, color, alpha) {
+  return {
+    label,
+    data: val,
+    borderColor: color,
+    borderWidth: 1.5,
+    borderDash: [5, 4],
+    pointRadius: 0,
+    fill: false,
+    yAxisID: 'yLeft',
+    tension: 0,
+    hidden: false,
+  };
+}
+
+function fillDataset(label, y0arr, y1arr, color) {
+  // Filled band between two arrays using Chart.js fill
+  return {
+    label,
+    data: y0arr,
+    borderColor: 'transparent',
+    pointRadius: 0,
+    fill: {
+      target: { value: null }, // will be set differently
+      above: color,
+      below: color,
+    },
+    yAxisID: 'yLeft',
+    tension: 0,
+    hidden: false,
+    _fillPair: y1arr,
+  };
+}
+
+function zoomPluginConfig(onZoom) {
+  return {
+    zoom: {
+      wheel: { enabled: true },
+      pinch: { enabled: true },
+      mode: 'x',
+      onZoom,
+      onZoomComplete: onZoom,
+    },
+    pan: {
+      enabled: true,
+      mode: 'x',
+      onPan: onZoom,
+      onPanComplete: onZoom,
+    },
+  };
+}
+
+// ── Date range filter ─────────────────────────────────────────────
+document.querySelectorAll('[data-years]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-years]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    globalYears = parseInt(btn.dataset.years);
+    applyRangeToChart(capeChartInst, capeDates);
+    applyRangeToChart(buffettChartInst, buffDates);
+  });
+});
+
+function applyRangeToChart(ch, dates) {
+  if (!ch || !dates.length) return;
+  if (globalYears === 0) {
+    ch.resetZoom('none');
+    return;
+  }
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - globalYears);
+  const cutStr = cutoff.toISOString().slice(0, 10);
+  let fi = dates.findIndex(d => d >= cutStr);
+  if (fi < 0) fi = 0;
+  ch.zoomScale('x', { min: fi, max: dates.length - 1 }, 'none');
+  ch.update('none');
+}
+
+// ── Toggle buttons ────────────────────────────────────────────────
+function toggleCapeSP500() {
+  capeShowSP500 = !capeShowSP500;
+  document.getElementById('capeBtnSP500').classList.toggle('active', capeShowSP500);
+  if (!capeChartInst) return;
+  // dataset index 0 = CAPE, 1 = SP500, 2+ = bands
+  capeChartInst.data.datasets[1].hidden = !capeShowSP500;
+  capeChartInst.update('none');
+}
+function toggleCapeBands() {
+  capeShowBands = !capeShowBands;
+  document.getElementById('capeBtnBands').classList.toggle('active', capeShowBands);
+  if (!capeChartInst) return;
+  for (let i = 2; i < capeChartInst.data.datasets.length; i++) {
+    capeChartInst.data.datasets[i].hidden = !capeShowBands;
+  }
+  capeChartInst.update('none');
+}
+function toggleBuffettSP500() {
+  buffShowSP500 = !buffShowSP500;
+  document.getElementById('buffBtnSP500').classList.toggle('active', buffShowSP500);
+  if (!buffettChartInst) return;
+  buffettChartInst.data.datasets[1].hidden = !buffShowSP500;
+  buffettChartInst.update('none');
+}
+function toggleBuffettBands() {
+  buffShowBands = !buffShowBands;
+  document.getElementById('buffBtnBands').classList.toggle('active', buffShowBands);
+  if (!buffettChartInst) return;
+  for (let i = 2; i < buffettChartInst.data.datasets.length; i++) {
+    buffettChartInst.data.datasets[i].hidden = !buffShowBands;
+  }
+  buffettChartInst.update('none');
+}
+
+// ── Build band datasets (mean ± 1σ, ± 2σ) ────────────────────────
+function buildBandDatasets(vals, mean, sd) {
+  const p2 = vals.map(() => mean + 2 * sd);
+  const p1 = vals.map(() => mean + 1 * sd);
+  const mn = vals.map(() => mean);
+  const m1 = vals.map(() => mean - 1 * sd);
+  const m2 = vals.map(() => mean - 2 * sd);
+
+  const lineOpts = { pointRadius: 0, borderWidth: 1, fill: false, yAxisID: 'yLeft', tension: 0, hidden: false };
+
+  return [
+    // +2σ line
+    { label: '+2σ', data: p2, borderColor: 'rgba(248,81,73,0.7)', borderDash: [4,4], ...lineOpts },
+    // +1σ line
+    { label: '+1σ', data: p1, borderColor: 'rgba(248,81,73,0.4)', borderDash: [4,4], ...lineOpts },
+    // Mean line
+    { label: 'Mean', data: mn, borderColor: 'rgba(255,255,255,0.3)', borderDash: [6,4], ...lineOpts },
+    // -1σ line
+    { label: '-1σ', data: m1, borderColor: 'rgba(63,185,80,0.4)', borderDash: [4,4], ...lineOpts },
+    // -2σ line
+    { label: '-2σ', data: m2, borderColor: 'rgba(63,185,80,0.7)', borderDash: [4,4], ...lineOpts },
+  ];
+}
+
+// ── Shared chart config ───────────────────────────────────────────
+function makeChartConfig(dates, primaryData, primaryLabel, primaryColor, sp500Data, bandDatasets, yLeftLabel) {
+  const spMax = Math.max(...sp500Data.filter(v => !isNaN(v) && v > 0)) * 1.15;
+  const spMin = Math.min(...sp500Data.filter(v => !isNaN(v) && v > 0)) / 1.8;
+
+  return {
+    type: 'line',
+    data: {
+      labels: dates.map((_, i) => i),
+      datasets: [
+        // 0: Primary indicator
+        {
+          label: primaryLabel,
+          data: primaryData.map((v, i) => ({ x: i, y: v })),
+          borderColor: primaryColor,
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          yAxisID: 'yLeft',
+          tension: 0.15,
+          order: 1,
+        },
+        // 1: S&P 500
+        {
+          label: 'S&P 500',
+          data: sp500Data.map((v, i) => ({ x: i, y: v })),
+          borderColor: '#58a6ff',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          yAxisID: 'yRight',
+          tension: 0.1,
+          order: 2,
+        },
+        // 2+: Band lines
+        ...bandDatasets.map(ds => ({
+          ...ds,
+          data: ds.data.map((v, i) => ({ x: i, y: v })),
+        })),
+      ],
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: dates.length - 1,
+          ticks: {
+            color: 'rgba(180,180,180,0.7)',
+            font: { size: 11 },
+            maxTicksLimit: 10,
+            callback: (val) => {
+              const i = Math.round(val);
+              return dates[i] ? dates[i].slice(0, 7) : '';
+            },
+          },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+        },
+        yLeft: {
+          type: 'linear',
+          position: 'left',
+          title: { display: true, text: yLeftLabel, color: 'rgba(180,180,180,0.6)', font: { size: 11 } },
+          ticks: { color: 'rgba(180,180,180,0.7)', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+        },
+        yRight: {
+          type: 'logarithmic',
+          position: 'right',
+          min: spMin,
+          max: spMax,
+          title: { display: true, text: 'S&P 500 (log)', color: 'rgba(88,166,255,0.5)', font: { size: 11 } },
+          ticks: {
+            color: 'rgba(88,166,255,0.5)',
+            font: { size: 10 },
+            maxTicksLimit: 6,
+            callback: (v) => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v,
+          },
+          grid: { display: false },
+        },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const i = Math.round(items[0].parsed.x);
+              return dates[i] || '';
+            },
+            label: (item) => {
+              const ds = item.dataset;
+              const v = item.parsed.y;
+              if (isNaN(v)) return null;
+              if (ds.yAxisID === 'yRight') return `S&P 500: ${v.toFixed(0)}`;
+              const name = ds.label;
+              if (name.match(/[+-]?\d+σ|Mean/)) return `${name}: ${v.toFixed(1)}`;
+              return `${name}: ${v.toFixed(2)}`;
+            },
+          },
+        },
+        zoom: zoomPluginConfig(() => {}),
+      },
+    },
+  };
+}
+
+// ── Fetch CSV helper ──────────────────────────────────────────────
+async function fetchCsv(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${url}`);
+  return r.text();
+}
+
+// ── Parse monthly SP500 CSV (date like "1927-01", value in 2nd col) ──
+function parseMonthlySpCsv(text) {
+  const result = {};
+  const lines = text.trim().split('\n');
+  for (let i = 1; i < lines.length; i++) {
+    const [d, v] = lines[i].split(',');
+    if (!d || !v) continue;
+    const ds = d.trim();
+    // Normalise "1927-01" -> "1927-01-01"
+    const full = ds.length === 7 ? ds + '-01' : ds;
+    const num = parseFloat(v.trim());
+    if (!isNaN(num)) result[full] = num;
+  }
+  return result;
+}
+
+// ── Build merged SP500 map (monthly 1927+, daily 2016+) ───────────
+async function fetchSp500Map() {
+  const results = await Promise.allSettled([
+    fetchCsv('{{ "/assets/data/sp500_monthly.csv" | relative_url }}'),
+    fetchCsv('{{ "/assets/data/macro/SP500.csv" | relative_url }}'),
+    fetchCsv('{{ "/assets/data/stocks/GSPC.csv" | relative_url }}'),
+  ]);
+  let sp500Map = {};
+  // Monthly 1927+
+  if (results[0].status === 'fulfilled') {
+    Object.assign(sp500Map, parseMonthlySpCsv(results[0].value));
+  }
+  // FRED daily (more precise, from 2016)
+  if (results[1].status === 'fulfilled') {
+    Object.assign(sp500Map, parseFredCsv(results[1].value));
+  }
+  // stocks CSV fallback
+  if (results[2].status === 'fulfilled') {
+    const lines = results[2].value.trim().split('\n');
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',');
+      if (cols.length < 3) continue;
+      const d = cols[0].trim(), v = parseFloat(cols[2].trim()); // adj_close
+      if (d && !isNaN(v) && !sp500Map[d]) sp500Map[d] = v;
+    }
+  }
+  return sp500Map;
+}
+
+// ── Forward-fill helper ───────────────────────────────────────────
+function alignSeries(primaryMap, sp500Map) {
+  const allDates = [...new Set([...Object.keys(primaryMap), ...Object.keys(sp500Map)])].sort();
+  const dates = [], primary = [], sp500 = [];
+  let lastPrimary = null, lastSP = null;
+  for (const d of allDates) {
+    if (primaryMap[d] != null) lastPrimary = primaryMap[d];
+    if (sp500Map[d] != null) lastSP = sp500Map[d];
+    if (lastPrimary == null) continue;
+    dates.push(d);
+    primary.push(lastPrimary);
+    sp500.push(lastSP ?? NaN);
+  }
+  return { dates, primary, sp500 };
+}
+
+// ── Init CAPE chart ───────────────────────────────────────────────
+async function initCapeChart() {
+  try {
+    const [capeText, sp500Map] = await Promise.all([
+      fetchCsv('{{ "/assets/data/macro/SHILLER_PE.csv" | relative_url }}'),
+      fetchSp500Map(),
+    ]);
+
+    const capeMap  = parseFredCsv(capeText);
+
+    const aligned = alignSeries(capeMap, sp500Map);
+    capeDates = aligned.dates;
+    capeVals  = aligned.primary;
+    capeSP500 = aligned.sp500;
+
+    document.getElementById('capeLoading').style.display = 'none';
+
+    const { mean, sd } = statsOf(capeVals);
+    const bands = buildBandDatasets(capeVals, mean, sd);
+
+    // Latest value badge
+    const lastCape = capeVals.filter(v => !isNaN(v)).at(-1);
+    if (lastCape != null) {
+      document.getElementById('capeLatest').textContent = `${lastCape.toFixed(1)}×`;
+    }
+
+    const cfg = makeChartConfig(
+      capeDates, capeVals, 'Shiller CAPE', '#e8c84a',
+      capeSP500, bands, 'CAPE'
+    );
+    capeChartInst = new Chart(document.getElementById('capeChart'), cfg);
+
+    // Add double-click reset
+    document.getElementById('capeChart').addEventListener('dblclick', () => {
+      capeChartInst.resetZoom();
+      applyRangeToChart(capeChartInst, capeDates);
+    });
+
+    applyRangeToChart(capeChartInst, capeDates);
+  } catch (e) {
+    document.getElementById('capeLoading').textContent = 'Data not yet available — run GitHub Actions to generate SHILLER_PE.csv';
+    console.error('[CAPE]', e);
+  }
+}
+
+// ── Init Buffett chart ────────────────────────────────────────────
+async function initBuffettChart() {
+  try {
+    const [buffText, sp500Map] = await Promise.all([
+      fetchCsv('{{ "/assets/data/macro/BUFFETT.csv" | relative_url }}'),
+      fetchSp500Map(),
+    ]);
+
+    const buffMap = parseFredCsv(buffText);
+
+    const aligned = alignSeries(buffMap, sp500Map);
+    buffDates  = aligned.dates;
+    buffVals   = aligned.primary;
+    buffSP500  = aligned.sp500;
+
+    document.getElementById('buffettLoading').style.display = 'none';
+
+    const { mean, sd } = statsOf(buffVals);
+    const bands = buildBandDatasets(buffVals, mean, sd);
+
+    const lastBuff = buffVals.filter(v => !isNaN(v)).at(-1);
+    if (lastBuff != null) {
+      document.getElementById('buffettLatest').textContent = `${lastBuff.toFixed(1)}%`;
+    }
+
+    const cfg = makeChartConfig(
+      buffDates, buffVals, 'Buffett Indicator', '#ff7043',
+      buffSP500, bands, 'Market Cap / GDP (%)'
+    );
+    buffettChartInst = new Chart(document.getElementById('buffettChart'), cfg);
+
+    document.getElementById('buffettChart').addEventListener('dblclick', () => {
+      buffettChartInst.resetZoom();
+      applyRangeToChart(buffettChartInst, buffDates);
+    });
+
+    applyRangeToChart(buffettChartInst, buffDates);
+  } catch (e) {
+    document.getElementById('buffettLoading').textContent = 'Data not yet available — run GitHub Actions to generate BUFFETT.csv';
+    console.error('[BUFFETT]', e);
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────
+initCapeChart();
+initBuffettChart();
+</script>
