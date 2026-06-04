@@ -7,6 +7,7 @@ Run via GitHub Actions (update_macro.yml) or manually:
 
 FRED API key (free): https://fred.stlouisfed.org/docs/api/api_key.html
 """
+import bisect
 import csv
 import io
 import os
@@ -111,6 +112,7 @@ def update_series(series_id: str, filepath: Path) -> int:
 def update_shiller_pe() -> int:
     """
     Fetch Shiller's IE data from Yale and extract the CAPE (cyclically adjusted PE).
+    Always does a full rewrite so Yale's retroactive updates are captured.
     Saves to assets/data/macro/SHILLER_PE.csv with columns: observation_date, SHILLER_PE
     Yale Excel: http://www.econ.yale.edu/~shiller/data/ie_data.xls
     """
@@ -136,13 +138,22 @@ def update_shiller_pe() -> int:
         return 0
 
     # Shiller's spreadsheet: data starts at row 8 (0-indexed: row 7)
-    # Col 0: Date (decimal like 2024.01), Col 12: CAPE
-    rows_written = 0
+    # Col 0: Date (decimal like 2024.01)
+    # Find CAPE column dynamically by scanning header rows for "CAPE" or "P/E10"
+    cape_col = 12  # default
+    for r in range(0, 8):
+        for c in range(ws.ncols):
+            cell = str(ws.cell_value(r, c)).strip().upper()
+            if cell in ('CAPE', 'P/E10', 'CYCLICALLY ADJUSTED P/E'):
+                cape_col = c
+                print(f'  [SHILLER_PE] Found CAPE at col {c} (row {r})', flush=True)
+                break
+
     out_rows = []
     for row_idx in range(8, ws.nrows):
         try:
             date_val = ws.cell_value(row_idx, 0)
-            cape_val = ws.cell_value(row_idx, 12)
+            cape_val = ws.cell_value(row_idx, cape_col)
         except IndexError:
             continue
         if not date_val or not cape_val or cape_val in ('', 'NA'):
@@ -169,49 +180,28 @@ def update_shiller_pe() -> int:
         print('  [SHILLER_PE] No data rows parsed.', flush=True)
         return 0
 
-    # Read existing last date to only append new rows
-    last_date = '1800-01-01'
-    if filepath.exists() and filepath.stat().st_size > 0:
-        with open(filepath, newline='') as f:
-            existing = list(csv.DictReader(f))
-        if existing:
-            last_date = existing[-1].get('observation_date', '1800-01-01')
-
-    write_header = not filepath.exists() or filepath.stat().st_size == 0
-    new_rows = [r for r in out_rows if r[0] > last_date]
-
-    if new_rows:
-        with open(filepath, 'a', newline='') as f:
-            writer = csv.writer(f)
-            if write_header:
-                writer.writerow(['observation_date', 'SHILLER_PE'])
-            for row in new_rows:
-                writer.writerow(row)
-        print(f'  [SHILLER_PE] appended {len(new_rows)} rows', flush=True)
-    else:
-        # Full rewrite if data looks stale (Yale updates in place)
-        # Always rewrite since Yale updates all data in the same file
-        with open(filepath, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['observation_date', 'SHILLER_PE'])
-            for row in out_rows:
-                writer.writerow(row)
-        print(f'  [SHILLER_PE] rewrote {len(out_rows)} rows (Yale full-file format)', flush=True)
-        rows_written = len(out_rows)
-
-    return len(new_rows) if new_rows else rows_written
+    # Always full rewrite — Yale updates values in-place for recent months
+    with open(filepath, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['observation_date', 'SHILLER_PE'])
+        for row in out_rows:
+            writer.writerow(row)
+    print(f'  [SHILLER_PE] wrote {len(out_rows)} rows', flush=True)
+    return len(out_rows)
 
 
-def compute_buffett(will_path: Path, gdp_path: Path) -> int:
+def compute_buffett(will_path: Path, gdp_path: Path, sp500_path: Path) -> int:
     """
-    Compute Buffett Indicator = WILL5000INDFC / GDP * 100 and save.
-    Both FRED series are quarterly and in billions of USD.
+    Compute Buffett Indicator = WILL5000INDFC / GDP * 100.
+    - Quarterly data for historical period (1989–)
+    - Daily data from 2016+ by scaling quarterly Buffett with daily S&P 500 changes
+      (S&P 500 and Wilshire 5000 are ~99% correlated, so scaling is accurate)
     Saves to assets/data/macro/BUFFETT.csv
     """
     out_path = Path('assets/data/macro/BUFFETT.csv')
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def read_csv(p: Path) -> dict:
+    def read_fred_csv(p: Path) -> dict:
         result = {}
         if not p.exists():
             return result
@@ -229,24 +219,67 @@ def compute_buffett(will_path: Path, gdp_path: Path) -> int:
                         pass
         return result
 
-    will_map = read_csv(will_path)
-    gdp_map = read_csv(gdp_path)
+    will_map = read_fred_csv(will_path)
+    gdp_map  = read_fred_csv(gdp_path)
+    sp500_map = read_fred_csv(sp500_path)
 
     if not will_map or not gdp_map:
         print('  [BUFFETT] Missing source data, skipping.', flush=True)
         return 0
 
-    # Align on quarterly dates — forward-fill GDP for months where only WILL has data
-    all_dates = sorted(set(will_map) | set(gdp_map))
-    out_rows = []
+    # ── Step 1: compute quarterly Buffett (forward-fill GDP) ──────────
+    all_q_dates = sorted(set(will_map) | set(gdp_map))
+    q_buffett: dict[str, float] = {}
     last_gdp = None
-    for d in all_dates:
+    for d in all_q_dates:
         if d in gdp_map:
             last_gdp = gdp_map[d]
         will = will_map.get(d)
         if will is not None and last_gdp is not None and last_gdp > 0:
-            buffett = (will / last_gdp) * 100.0
-            out_rows.append((d, f'{buffett:.4f}'))
+            q_buffett[d] = (will / last_gdp) * 100.0
+
+    q_dates_sorted = sorted(q_buffett.keys())
+    if not q_dates_sorted:
+        print('  [BUFFETT] No quarterly data computed.', flush=True)
+        return 0
+
+    sp500_dates = sorted(sp500_map.keys())
+    sp500_start = sp500_dates[0] if sp500_dates else '9999-99-99'
+
+    def floor_idx(sorted_list: list, value: str) -> int:
+        """Index of the largest element <= value, or -1."""
+        return bisect.bisect_right(sorted_list, value) - 1
+
+    # ── Step 2: quarterly rows before SP500 daily era ─────────────────
+    out_rows: list[tuple[str, str]] = []
+    for d in q_dates_sorted:
+        if d < sp500_start:
+            out_rows.append((d, f'{q_buffett[d]:.4f}'))
+
+    # ── Step 3: daily rows using SP500 scaling ────────────────────────
+    for d in sp500_dates:
+        qi = floor_idx(q_dates_sorted, d)
+        if qi < 0:
+            continue
+        q_date = q_dates_sorted[qi]
+        q_buff_val = q_buffett[q_date]
+
+        # Anchor SP500: first trading day on or after the quarter date
+        anchor_i = bisect.bisect_left(sp500_dates, q_date)
+        if anchor_i >= len(sp500_dates):
+            continue
+        sp_anchor = sp500_map[sp500_dates[anchor_i]]
+        sp_today  = sp500_map[d]
+
+        if sp_anchor > 0 and sp_today > 0:
+            daily_buff = q_buff_val * (sp_today / sp_anchor)
+        else:
+            daily_buff = q_buff_val
+
+        out_rows.append((d, f'{daily_buff:.4f}'))
+
+    # Sort (quarterly + daily combined)
+    out_rows.sort(key=lambda x: x[0])
 
     with open(out_path, 'w', newline='') as f:
         writer = csv.writer(f)
@@ -254,11 +287,31 @@ def compute_buffett(will_path: Path, gdp_path: Path) -> int:
         for row in out_rows:
             writer.writerow(row)
 
-    print(f'  [BUFFETT] wrote {len(out_rows)} rows', flush=True)
+    print(f'  [BUFFETT] wrote {len(out_rows)} rows '
+          f'(quarterly through {sp500_start}, daily from {sp500_start})', flush=True)
     return len(out_rows)
 
 
+def _is_annual_only(filepath: Path) -> bool:
+    """Return True if CSV has only Jan-01 dates (annual data, not quarterly)."""
+    if not filepath.exists() or filepath.stat().st_size == 0:
+        return False
+    with open(filepath, newline='') as f:
+        rows = [r for r in csv.DictReader(f)]
+    if len(rows) < 4:
+        return False
+    date_col = 'observation_date' if 'observation_date' in rows[0] else 'DATE'
+    non_jan = sum(1 for r in rows if not r[date_col].strip().endswith('-01-01'))
+    return non_jan == 0  # all rows are Jan-01 → annual-only
+
+
 def main():
+    # Force re-fetch GDP if it contains only annual (Jan-01) data
+    gdp_path = Path('assets/data/macro/GDP.csv')
+    if _is_annual_only(gdp_path):
+        print('[GDP] Annual-only data detected — deleting for full quarterly re-fetch', flush=True)
+        gdp_path.unlink()
+
     total = 0
     for series_id, filepath in FRED_SERIES.items():
         total += update_series(series_id, filepath)
@@ -266,10 +319,11 @@ def main():
 
     total += update_shiller_pe()
 
-    # Compute derived series
+    # Compute derived series (with daily SP500 scaling for Buffett)
     compute_buffett(
         Path('assets/data/macro/WILL5000INDFC.csv'),
         Path('assets/data/macro/GDP.csv'),
+        Path('assets/data/macro/SP500.csv'),
     )
 
     print(f'\nDone. Total new rows: {total}', flush=True)
