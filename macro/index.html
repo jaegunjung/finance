@@ -282,10 +282,9 @@ function applyRangeToChart(ch, dates) {
   }
   const cutoff = new Date();
   cutoff.setFullYear(cutoff.getFullYear() - globalYears);
-  const cutStr = cutoff.toISOString().slice(0, 10);
-  let fi = dates.findIndex(d => d >= cutStr);
-  if (fi < 0) fi = 0;
-  ch.zoomScale('x', { min: fi, max: dates.length - 1 }, 'none');
+  const minTs = cutoff.getTime();
+  const maxTs = new Date(dates[dates.length - 1]).getTime();
+  ch.zoomScale('x', { min: minTs, max: maxTs }, 'none');
   ch.update('none');
 }
 
@@ -353,15 +352,18 @@ function makeChartConfig(dates, primaryData, primaryLabel, primaryColor, sp500Da
   const spMax = Math.max(...sp500Data.filter(v => !isNaN(v) && v > 0)) * 1.15;
   const spMin = Math.min(...sp500Data.filter(v => !isNaN(v) && v > 0)) / 1.8;
 
+  // Convert dates to Unix timestamps so x-axis spacing is proportional to real time
+  const timestamps = dates.map(d => new Date(d).getTime());
+
   return {
     type: 'line',
     data: {
-      labels: dates.map((_, i) => i),
+      labels: timestamps,
       datasets: [
         // 0: Primary indicator
         {
           label: primaryLabel,
-          data: primaryData.map((v, i) => ({ x: i, y: v })),
+          data: primaryData.map((v, i) => ({ x: timestamps[i], y: v })),
           borderColor: primaryColor,
           borderWidth: 2,
           pointRadius: 0,
@@ -373,7 +375,7 @@ function makeChartConfig(dates, primaryData, primaryLabel, primaryColor, sp500Da
         // 1: S&P 500
         {
           label: 'S&P 500',
-          data: sp500Data.map((v, i) => ({ x: i, y: v })),
+          data: sp500Data.map((v, i) => ({ x: timestamps[i], y: v })),
           borderColor: '#58a6ff',
           borderWidth: 1.5,
           pointRadius: 0,
@@ -385,7 +387,7 @@ function makeChartConfig(dates, primaryData, primaryLabel, primaryColor, sp500Da
         // 2+: Band lines
         ...bandDatasets.map(ds => ({
           ...ds,
-          data: ds.data.map((v, i) => ({ x: i, y: v })),
+          data: ds.data.map((v, i) => ({ x: timestamps[i], y: v })),
         })),
       ],
     },
@@ -397,15 +399,17 @@ function makeChartConfig(dates, primaryData, primaryLabel, primaryColor, sp500Da
       scales: {
         x: {
           type: 'linear',
-          min: 0,
-          max: dates.length - 1,
+          min: timestamps[0],
+          max: timestamps[timestamps.length - 1],
           ticks: {
             color: 'rgba(180,180,180,0.7)',
             font: { size: 11 },
             maxTicksLimit: 10,
             callback: (val) => {
-              const i = Math.round(val);
-              return dates[i] ? dates[i].slice(0, 7) : '';
+              const d = new Date(val);
+              const yr = d.getUTCFullYear();
+              const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+              return `${yr}-${mo}`;
             },
           },
           grid: { color: 'rgba(255,255,255,0.05)' },
@@ -437,8 +441,11 @@ function makeChartConfig(dates, primaryData, primaryLabel, primaryColor, sp500Da
         tooltip: {
           callbacks: {
             title: (items) => {
-              const i = Math.round(items[0].parsed.x);
-              return dates[i] || '';
+              const ts = items[0].parsed.x;
+              const d = new Date(ts);
+              const yr = d.getUTCFullYear();
+              const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+              return `${yr}-${mo}`;
             },
             label: (item) => {
               const ds = item.dataset;
