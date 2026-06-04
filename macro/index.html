@@ -517,7 +517,8 @@ async function fetchSp500Map() {
 }
 
 // ── Forward-fill helper ───────────────────────────────────────────
-function alignSeries(primaryMap, sp500Map) {
+// requireSP500: if true, only include dates where SP500 data exists (1927+)
+function alignSeries(primaryMap, sp500Map, requireSP500 = false) {
   const allDates = [...new Set([...Object.keys(primaryMap), ...Object.keys(sp500Map)])].sort();
   const dates = [], primary = [], sp500 = [];
   let lastPrimary = null, lastSP = null;
@@ -525,6 +526,7 @@ function alignSeries(primaryMap, sp500Map) {
     if (primaryMap[d] != null) lastPrimary = primaryMap[d];
     if (sp500Map[d] != null) lastSP = sp500Map[d];
     if (lastPrimary == null) continue;
+    if (requireSP500 && lastSP == null) continue;
     dates.push(d);
     primary.push(lastPrimary);
     sp500.push(lastSP ?? NaN);
@@ -542,7 +544,7 @@ async function initCapeChart() {
 
     const capeMap  = parseFredCsv(capeText);
 
-    const aligned = alignSeries(capeMap, sp500Map);
+    const aligned = alignSeries(capeMap, sp500Map, true); // start from SP500 origin (1927)
     capeDates = aligned.dates;
     capeVals  = aligned.primary;
     capeSP500 = aligned.sp500;
