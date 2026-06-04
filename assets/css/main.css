@@ -50,6 +50,7 @@ nav {
   height: 34px;
   border-radius: 50%;
   object-fit: cover;
+  background: #fff;
   flex-shrink: 0;
 }
 .nav-brand-text {
@@ -421,6 +422,7 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
   height: 72px;
   border-radius: 50%;
   object-fit: cover;
+  background: #fff;
   box-shadow: 0 4px 20px rgba(245,166,35,0.25), 0 0 0 2px rgba(245,166,35,0.15);
 }
 .hero-brand { display: flex; flex-direction: column; gap: 4px; }
