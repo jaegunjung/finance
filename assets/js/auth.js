@@ -65,8 +65,11 @@
     // React to auth changes (login, logout, token refresh)
     sb.auth.onAuthStateChange((_event, session) => {
       updateNav(session?.user ?? null);
-      if (_event === 'SIGNED_IN') {
+      if (_event === 'SIGNED_IN' && session?.user) {
         navLoginModalClose();
+        if (!window.location.pathname.includes('/portfolio')) {
+          window.location.href = '/finance/portfolio/';
+        }
       }
     });
 
