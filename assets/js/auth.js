@@ -66,8 +66,13 @@
     sb.auth.onAuthStateChange((_event, session) => {
       updateNav(session?.user ?? null);
       if (_event === 'SIGNED_IN' && session?.user) {
+        // Only redirect to portfolio when user actively logged in (modal was open).
+        // Supabase also fires SIGNED_IN on every page load for existing sessions,
+        // so we must NOT redirect unconditionally or every nav click goes to portfolio.
+        const modal = document.getElementById('navLoginModal');
+        const modalWasOpen = modal && modal.style.display !== 'none';
         navLoginModalClose();
-        if (!window.location.pathname.includes('/portfolio')) {
+        if (modalWasOpen && !window.location.pathname.includes('/portfolio')) {
           window.location.href = '/finance/portfolio/';
         }
       }
