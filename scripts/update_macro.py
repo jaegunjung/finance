@@ -115,82 +115,112 @@ def update_series(series_id: str, filepath: Path) -> int:
 
 def update_shiller_pe() -> int:
     """
-    Fetch Shiller's IE data from Yale and extract the CAPE (cyclically adjusted PE).
-    Always does a full rewrite so Yale's retroactive updates are captured.
+    Fetch Shiller CAPE from multpl.com (full history 1871–present).
+    Yale's ie_data.xls stopped updating in Oct 2023.
     Saves to assets/data/macro/SHILLER_PE.csv with columns: observation_date, SHILLER_PE
-    Yale Excel: http://www.econ.yale.edu/~shiller/data/ie_data.xls
     """
+    import html.parser
+    import re
+
     filepath = Path('assets/data/macro/SHILLER_PE.csv')
     filepath.parent.mkdir(parents=True, exist_ok=True)
 
-    url = 'http://www.econ.yale.edu/~shiller/data/ie_data.xls'
-    print(f'[SHILLER_PE] Fetching from Yale: {url}', flush=True)
+    url = 'https://www.multpl.com/shiller-pe/table/by-month'
+    print(f'[SHILLER_PE] Fetching from multpl.com: {url}', flush=True)
 
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible; DataBot/1.0)'}
     try:
-        resp = requests.get(url, timeout=60)
+        resp = requests.get(url, headers=headers, timeout=60)
         resp.raise_for_status()
     except requests.RequestException as e:
         print(f'  [SHILLER_PE] Fetch failed: {e}', flush=True)
         return 0
 
-    try:
-        import xlrd
-        wb = xlrd.open_workbook(file_contents=resp.content)
-        ws = wb.sheet_by_name('Data')
-    except Exception as e:
-        print(f'  [SHILLER_PE] xlrd parse failed: {e}', flush=True)
-        return 0
+    # Parse <table id="datatable"> rows using stdlib html.parser
+    class TableParser(html.parser.HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.in_table = False
+            self.in_td = False
+            self.current_row: list[str] = []
+            self.rows: list[list[str]] = []
+            self.cell_text = ''
 
-    # Shiller's spreadsheet: data starts at row 8 (0-indexed: row 7)
-    # Col 0: Date (decimal like 2024.01)
-    # Find CAPE column dynamically by scanning header rows for "CAPE" or "P/E10"
-    cape_col = 12  # default
-    for r in range(0, 8):
-        for c in range(ws.ncols):
-            cell = str(ws.cell_value(r, c)).strip().upper()
-            if cell in ('CAPE', 'P/E10', 'CYCLICALLY ADJUSTED P/E'):
-                cape_col = c
-                print(f'  [SHILLER_PE] Found CAPE at col {c} (row {r})', flush=True)
-                break
+        def handle_starttag(self, tag, attrs):
+            attrs_dict = dict(attrs)
+            if tag == 'table' and attrs_dict.get('id') == 'datatable':
+                self.in_table = True
+            if self.in_table and tag == 'tr':
+                self.current_row = []
+            if self.in_table and tag in ('td', 'th'):
+                self.in_td = True
+                self.cell_text = ''
 
-    out_rows = []
-    for row_idx in range(8, ws.nrows):
-        try:
-            date_val = ws.cell_value(row_idx, 0)
-            cape_val = ws.cell_value(row_idx, cape_col)
-        except IndexError:
+        def handle_endtag(self, tag):
+            if tag == 'table':
+                self.in_table = False
+            if self.in_table and tag in ('td', 'th'):
+                self.current_row.append(self.cell_text.strip())
+                self.in_td = False
+            if self.in_table and tag == 'tr' and self.current_row:
+                self.rows.append(self.current_row)
+                self.current_row = []
+
+        def handle_data(self, data):
+            if self.in_td:
+                self.cell_text += data
+
+    parser = TableParser()
+    parser.feed(resp.text)
+
+    MONTH_MAP = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+    }
+
+    out_rows: list[tuple[str, str]] = []
+    for row in parser.rows:
+        if len(row) < 2:
             continue
-        if not date_val or not cape_val or cape_val in ('', 'NA'):
+        date_str_raw = row[0].strip()
+        val_raw = row[1].strip()
+        # Date format: "Jun 3, 2026" or "Feb 1, 1871"
+        try:
+            parts = date_str_raw.replace(',', '').split()
+            if len(parts) < 3:
+                continue
+            mon = MONTH_MAP.get(parts[0].lower()[:3])
+            if not mon:
+                continue
+            year = int(parts[2])
+            date_iso = f'{year:04d}-{mon:02d}-01'
+        except (ValueError, IndexError):
+            continue
+        # Value cell may contain em-spaces/entities; extract first float with regex
+        m = re.search(r'[\d]+\.[\d]+', val_raw)
+        if not m:
             continue
         try:
-            date_float = float(date_val)
-            cape = float(cape_val)
-        except (ValueError, TypeError):
+            cape = float(m.group())
+        except ValueError:
             continue
         if cape <= 0:
             continue
-
-        # Convert decimal date like 2024.01 → 2024-01-01
-        year = int(date_float)
-        month_frac = round((date_float - year) * 100)
-        if month_frac < 1:
-            month_frac = 1
-        if month_frac > 12:
-            month_frac = 12
-        date_str = f'{year:04d}-{month_frac:02d}-01'
-        out_rows.append((date_str, f'{cape:.2f}'))
+        out_rows.append((date_iso, f'{cape:.2f}'))
 
     if not out_rows:
-        print('  [SHILLER_PE] No data rows parsed.', flush=True)
+        print('  [SHILLER_PE] No rows parsed from multpl.com', flush=True)
         return 0
 
-    # Always full rewrite — Yale updates values in-place for recent months
+    # Sort ascending and full-rewrite
+    out_rows.sort(key=lambda x: x[0])
     with open(filepath, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['observation_date', 'SHILLER_PE'])
         for row in out_rows:
             writer.writerow(row)
-    print(f'  [SHILLER_PE] wrote {len(out_rows)} rows', flush=True)
+    print(f'  [SHILLER_PE] wrote {len(out_rows)} rows '
+          f'({out_rows[0][0]} → {out_rows[-1][0]})', flush=True)
     return len(out_rows)
 
 
