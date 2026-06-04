@@ -82,7 +82,11 @@ def update_series(series_id: str, filepath: Path) -> int:
     except ValueError:
         next_day = '1950-01-01'
 
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
     yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime('%Y-%m-%d')
+    if next_day > today:
+        print(f'  [{series_id}] already up to date', flush=True)
+        return 0
     observations = fetch_observations(series_id, next_day)
 
     write_header = not filepath.exists() or filepath.stat().st_size == 0
