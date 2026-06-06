@@ -821,9 +821,19 @@ function updateBtcOverlay(ch) {
     const peakPrice = plPrice(futureDays(peakDays), 2.5); // upper band
     const peakPy = yS.getPixelForValue(peakPrice);
     if (peakPx >= ca.left && peakPx <= ca.right && peakPy >= ca.top && peakPy <= ca.bottom) {
-      htmlClipped += `<polygon points="${peakPx},${peakPy-9} ${peakPx-5},${peakPy+3} ${peakPx+5},${peakPy+3}" fill="#ff9900" opacity="0.7"/>`;
-      const lbl = '$' + Math.round(peakPrice/1000) + 'K est.';
-      htmlClipped += `<text x="${peakPx+8}" y="${peakPy+4}" fill="#ff9900" font-size="10" opacity="0.9">${lbl}</text>`;
+      htmlClipped += `<polygon points="${peakPx},${peakPy-10} ${peakPx-6},${peakPy+4} ${peakPx+6},${peakPy+4}" fill="#ff9900" opacity="0.85" style="cursor:pointer"/>`;
+      htmlClipped += `<text x="${peakPx}" y="${peakPy-13}" fill="#ff9900" font-size="9" text-anchor="middle" opacity="0.75">5th Peak (est.)</text>`;
+      // Store for click detection
+      const pLow  = Math.round(plPrice(futureDays(peakDays), 1.5) / 1000);
+      const pHigh = Math.round(plPrice(futureDays(peakDays), 3.0) / 1000);
+      window.btcPredMarkerData = {
+        px: peakPx, py: peakPy,
+        dateRange: 'Aug – Oct 2029',
+        priceRange: `$${pLow}K – $${pHigh}K`,
+        note: '5th halving (est. Mar 2028) + 18mo | Power law band 1.5–3.0σ'
+      };
+    } else {
+      window.btcPredMarkerData = null;
     }
   }
 
@@ -855,6 +865,40 @@ function updateBtcOverlay(ch) {
 
   html += htmlClipped + '</g><g>' + htmlUnclipped + '</g>';
   svg.innerHTML=html;
+}
+
+function openPredPanel(pm) {
+  let tip = document.getElementById('btcPredTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'btcPredTip';
+    tip.style.cssText = 'position:absolute;background:rgba(18,26,36,0.97);border:1px solid #ff9900;border-radius:8px;padding:12px 16px;color:#e6edf3;font-size:0.82rem;line-height:1.6;z-index:50;max-width:260px;pointer-events:auto;';
+    tip.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="color:#ff9900;font-weight:700;">📈 5차 사이클 고점 예측</span>
+      <span id="btcPredClose" style="cursor:pointer;opacity:0.6;font-size:1rem;padding:0 4px;">✕</span></div>
+      <div style="color:#8b949e;font-size:0.75rem;margin-bottom:8px;border-bottom:1px solid rgba(255,153,0,0.2);padding-bottom:6px;">
+      5th Halving (est. Mar 2028) + 17–19mo</div>
+      <div><span style="color:#8b949e;">예상 시기: </span><strong id="ptDate"></strong></div>
+      <div><span style="color:#8b949e;">예상 가격: </span><strong id="ptPrice" style="color:#ff9900;"></strong></div>
+      <div style="font-size:0.72rem;color:#8b949e;margin-top:6px;">Power Law 밴드 기준 · 사이클 수익률 감소 고려<br>전 사이클 대비 감소 추세 (564x→115x→22x→8x→~4x est.)</div>`;
+    document.querySelector('.card canvas')?.parentElement?.style && (() => {})();
+    document.getElementById('btcChart')?.parentElement?.appendChild(tip);
+  }
+  document.getElementById('ptDate').textContent = pm.dateRange;
+  document.getElementById('ptPrice').textContent = pm.priceRange;
+  // Position near marker
+  const canvas = document.getElementById('btcChart');
+  const rect = canvas.getBoundingClientRect();
+  const container = canvas.parentElement;
+  const contRect = container.getBoundingClientRect();
+  let left = pm.px - 130, top = pm.py - 180;
+  if (left < 0) left = 8;
+  if (left + 260 > contRect.width) left = contRect.width - 268;
+  if (top < 0) top = pm.py + 20;
+  tip.style.left = left + 'px';
+  tip.style.top  = top  + 'px';
+  tip.style.display = 'block';
+  document.getElementById('btcPredClose').onclick = () => tip.style.display = 'none';
 }
 
 function openBtcPanel(m) {
@@ -1076,7 +1120,9 @@ function initBtcChart() {
            afterBuildTicks(scale) {
              const lo = Math.floor(scale.min ?? 0), hi = Math.ceil(scale.max ?? btcDates.length);
              const ticks = btcSixMoIdx.filter(v => v >= lo && v <= hi).map(v => ({ value: v }));
-             if (ticks.length) scale.ticks = ticks;
+             const future = (window.btcFutureTicks||[]).filter(t => t.value >= lo && t.value <= hi).map(t => ({value: t.value}));
+             const all = [...ticks, ...future];
+             if (all.length) scale.ticks = all;
            },
            ticks:{color:'#8b949e',font:{size:10},
                   callback:(val)=>{
@@ -1085,7 +1131,8 @@ function initBtcChart() {
                       const m=btcDates[i].slice(5,7);
                       return m==='01'?btcDates[i].slice(0,4):(m==='07'?'Jul':'');
                     }
-                    return'';
+                    const ft=(window.btcFutureTicks||[]).find(t=>Math.abs(t.value-i)<1);
+                    return ft?ft.label:'';
                   }
            }},
         y:{type:'logarithmic',max:1000000,grid:{color:'rgba(48,54,61,0.8)'},
@@ -1148,8 +1195,12 @@ function initBtcChart() {
   });
   canvas.addEventListener('click',e=>{
     const rect=canvas.getBoundingClientRect();
-    const found=detectBtcMarker(e.clientX-rect.left,e.clientY-rect.top);
-    if(found) openBtcPanel(found);
+    const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+    const found=detectBtcMarker(mx, my);
+    if(found){ openBtcPanel(found); return; }
+    // Check prediction marker
+    const pm=window.btcPredMarkerData;
+    if(pm && Math.hypot(mx-pm.px, my-pm.py)<16) openPredPanel(pm);
   });
 
   document.getElementById('btcDpClose').addEventListener('click', () => {
@@ -1373,7 +1424,7 @@ async function loadBtcData(){
     const _firstData  = new Date(btcDates[0].slice(0,10));
     const _daysBefore = Math.floor((_halvingOne - _firstData) / 86400000);
     window.btcXMin = Math.min(0, _daysBefore - 15);
-    // Compute x-axis max: extend rainbow to ~mid-2028 (Halving 5 era)
+    // Compute x-axis max: show to Jan 2030 (past estimated 5th cycle peak Sep 2029)
     const _targetDate = new Date('2030-01-01');
     const _isDaily = btcDates[0].length === 10;
     if (_isDaily) {
@@ -1381,6 +1432,19 @@ async function loadBtcData(){
     } else {
       const _m = (_targetDate.getFullYear() - _firstData.getFullYear())*12 + (_targetDate.getMonth() - _firstData.getMonth());
       window.btcXMax = _m;
+    }
+    // Generate future x-axis tick positions (6-month boundaries beyond data)
+    window.btcFutureTicks = [];
+    const _lastD = new Date(btcDates[btcDates.length-1].slice(0,10));
+    for (let _fd = new Date(_lastD); _fd <= _targetDate; _fd.setMonth(_fd.getMonth()+1)) {
+      const _fm = _fd.getMonth(); // 0=Jan, 6=Jul
+      if (_fm === 0 || _fm === 6) {
+        const _daysAhead = Math.round((_fd - _lastD) / 86400000);
+        const _fidx = _isDaily ? btcDates.length - 1 + _daysAhead
+                                : btcDates.length - 1 + Math.round(_daysAhead / 30.44);
+        const _lbl = _fm === 0 ? String(_fd.getFullYear()) : 'Jul';
+        window.btcFutureTicks.push({value: _fidx, label: _lbl});
+      }
     }
     initBtcChart();
     initBtcRsiChart();
