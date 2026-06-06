@@ -726,7 +726,9 @@ function updateBtcOverlay(ch) {
   const svg=document.getElementById('btcSvg');
   if(!ch||!ch.chartArea) return;
   const ca=ch.chartArea, xS=ch.scales.x, yS=ch.scales.y;
-  let html=`<defs><clipPath id="bca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs><g clip-path="url(#bca)">`;
+  let html=`<defs><clipPath id="bca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs>`;
+  let htmlClipped=`<g clip-path="url(#bca)">`;
+  let htmlUnclipped=``;
 
   // Rainbow bands
   if (showRainbow) {
@@ -760,33 +762,41 @@ function updateBtcOverlay(ch) {
         const py=yS.getPixelForValue(plPrice(days,botOff));
         pts+=`${px},${py} `;
       }
-      html+=`<polygon points="${pts.trim()}" fill="${band.color}"/>`;
+      htmlClipped+=`<polygon points="${pts.trim()}" fill="${band.color}"/>`;
     }
   }
 
-  // Halving lines
-  for (const h of HALVINGS) {
-    const idx=btcDateToIdx(h.date); if(idx<0&&!h.estimated) continue;
-    // For estimated halving, compute idx approximation
-    let hIdx=idx>=0?idx:btcDates.length+12; // ~1yr beyond data
-    const px=xS.getPixelForValue(hIdx);
-    if(px<ca.left||px>ca.right) continue;
-    const dash=h.estimated?'3,5':'6,4';
-    const opacity=h.estimated?0.3:0.5;
-    html+=`<line x1="${px}" y1="${ca.top}" x2="${px}" y2="${ca.bottom}" stroke="rgba(255,255,255,${opacity})" stroke-width="1" stroke-dasharray="${dash}"/>`;
-    html+=`<text x="${px+4}" y="${ca.top+16}" fill="rgba(255,255,255,${opacity*1.5})" font-size="10">${h.label}</text>`;
-  }
-
-  // Markers
+  // Markers (clipped to chart area)
   for (const m of BTC_MARKERS) {
     if (m.idx==null||m.idx<0) continue;
     const px=xS.getPixelForValue(m.idx), py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
     if(px<ca.left-6||px>ca.right+6||py<ca.top-6||py>ca.bottom+6) continue;
-    if(m.type==='peak') html+=`<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
-    else html+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
+    if(m.type==='peak') htmlClipped+=`<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
+    else htmlClipped+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
   }
 
-  html+='</g>';
+  // Halving lines (unclipped — extend into top padding)
+  for (const h of HALVINGS) {
+    let hIdx;
+    const idx = btcDateToIdx(h.date);
+    if (idx >= 0) {
+      hIdx = idx;
+    } else if (h.estimated) {
+      hIdx = btcDates.length + 12;
+    } else {
+      const firstDate = new Date(btcDates[0].slice(0,10));
+      const halvDate  = new Date(h.date.length===7 ? h.date+'-15' : h.date);
+      hIdx = Math.floor((halvDate - firstDate) / 86400000);
+    }
+    const px=xS.getPixelForValue(hIdx);
+    if(px<ca.left||px>ca.right) continue;
+    const dash=h.estimated?'3,5':'6,4';
+    const opacity=h.estimated?0.3:0.5;
+    htmlUnclipped+=`<line x1="${px}" y1="${ca.top-88}" x2="${px}" y2="${ca.bottom}" stroke="rgba(255,255,255,${opacity})" stroke-width="1" stroke-dasharray="${dash}"/>`;
+    htmlUnclipped+=`<text x="${px+4}" y="${ca.top+16}" fill="rgba(255,255,255,${opacity*1.5})" font-size="10">${h.label}</text>`;
+  }
+
+  html += htmlClipped + '</g><g>' + htmlUnclipped + '</g>';
   svg.innerHTML=html;
 }
 
@@ -848,48 +858,46 @@ function initBtcChart() {
       if (!timings || !timings.length) return;
       const {ctx:c, chartArea:ca, scales:{x:xS}} = ch;
 
+      // Convert ISO date → x pixel (handles pre-data extrapolation)
       function dateToX(d) {
-        // d is 'YYYY-MM-DD' or 'YYYY-MM'
         let idx = btcDates.findIndex(bd => bd >= d);
-        if (idx < 0) idx = btcDates.length - 1;
-        return xS.getPixelForValue(idx);
+        if (idx >= 0) return xS.getPixelForValue(idx);
+        // Pre-data: extrapolate
+        const firstDate = new Date(btcDates[0].slice(0,10));
+        const targetDate = new Date(d.length===7 ? d+'-15' : d);
+        const daysDiff = Math.floor((targetDate - firstDate) / 86400000);
+        return xS.getPixelForValue(daysDiff);
       }
 
-      function drawBracket(x1, x2, y, col, label, labelAbove) {
-        if (x2 - x1 < 10) return;
+      function drawBracket(x1, x2, y, col, label) {
+        const w = x2 - x1;
+        if (w < 14) return;
         c.save();
-        c.strokeStyle = col; c.fillStyle = col;
-        c.lineWidth = 1.5; c.globalAlpha = 0.85;
-        const tk = 5, aw = 6, ah = 4;
-        // Main line
+        c.strokeStyle = col; c.lineWidth = 1.5; c.globalAlpha = 0.9;
+        const tk = 4, aw = 5, ah = 3;
         c.beginPath(); c.moveTo(x1, y); c.lineTo(x2, y); c.stroke();
-        // End ticks
         c.beginPath(); c.moveTo(x1, y-tk); c.lineTo(x1, y+tk); c.stroke();
         c.beginPath(); c.moveTo(x2, y-tk); c.lineTo(x2, y+tk); c.stroke();
-        // Arrow heads
         c.beginPath(); c.moveTo(x1+aw, y-ah); c.lineTo(x1, y); c.lineTo(x1+aw, y+ah); c.stroke();
         c.beginPath(); c.moveTo(x2-aw, y-ah); c.lineTo(x2, y); c.lineTo(x2-aw, y+ah); c.stroke();
-        // Label
+        // Label pill
         const mx = (x1+x2)/2;
-        c.font = 'bold 10px sans-serif';
-        c.textAlign = 'center'; c.globalAlpha = 1;
-        // Background pill
+        c.font = 'bold 10px sans-serif'; c.textAlign = 'center'; c.globalAlpha = 1;
         const tw = c.measureText(label).width + 8;
-        const ty = labelAbove ? y - 14 : y + 6;
-        c.fillStyle = 'rgba(18,26,36,0.85)';
+        c.fillStyle = 'rgba(13,17,23,0.9)';
         c.beginPath();
-        c.roundRect ? c.roundRect(mx-tw/2, ty-1, tw, 13, 3) : c.rect(mx-tw/2, ty-1, tw, 13);
+        c.roundRect ? c.roundRect(mx-tw/2, y-8, tw, 13, 3) : c.rect(mx-tw/2, y-8, tw, 13);
         c.fill();
         c.fillStyle = col;
-        c.fillText(label, mx, ty + 9);
+        c.fillText(label, mx, y+3);
         c.restore();
       }
 
-      // Layout: 2 rows at top (red: halving→peak), 1 row at bottom (blue: halving→trough)
-      // Stack red rows to avoid overlap: alt row heights
-      const rowH = 22;
-      const baseTop = ca.top + 10;
-      const baseBot = ca.bottom - 10;
+      // ── Rows above ca.top (in layout padding) ──
+      // Red A (cycles 0,2):  ca.top - 72
+      // Red B (cycles 1,3):  ca.top - 50
+      // Yellow (peak→trough): ca.top - 28
+      // ── Bottom (blue, halving→trough): ca.bottom + 22 ──
 
       timings.forEach((t, i) => {
         if (!t.halvingISO || !t.peakDate) return;
@@ -897,22 +905,24 @@ function initBtcChart() {
         const xP = dateToX(t.peakDate);
         const xT = t.troughDate ? dateToX(t.troughDate) : null;
 
-        // Clip to chart area
-        const x1r = Math.max(xH, ca.left), x2r = Math.min(xP, ca.right);
-        const x1b = Math.max(xH, ca.left);
-        const x2b = xT ? Math.min(xT, ca.right) : null;
+        // Clamp to chart horizontal extent
+        const cxH = Math.max(xH, ca.left);
+        const cxP = Math.min(xP, ca.right);
+        const cxT = xT ? Math.min(xT, ca.right) : null;
 
-        // Red: halving → peak (staggered rows so 1st/3rd and 2nd/4th don't overlap)
-        const redY = baseTop + (i % 2) * rowH;
-        if (x2r > x1r && t.halvingToPeakStr) {
-          drawBracket(x1r, x2r, redY, '#ff7b7b', t.halvingToPeakStr, true);
-        }
+        // Red: halving → peak (2 staggered rows)
+        const redY = ca.top - (i % 2 === 0 ? 72 : 50);
+        if (cxP > cxH && t.halvingToPeakStr)
+          drawBracket(cxH, cxP, redY, '#ff7b7b', t.halvingToPeakStr);
 
-        // Blue: halving → trough (single row at bottom)
-        if (x2b && x2b > x1b && t.halvingToTroughStr) {
-          const blueY = baseBot - (i % 2) * rowH;
-          drawBracket(x1b, x2b, blueY, '#58a6ff', t.halvingToTroughStr, false);
-        }
+        // Yellow: peak → trough
+        if (xT && cxT > cxP && t.peakToTroughStr)
+          drawBracket(cxP, cxT, ca.top - 28, '#f9d71c', t.peakToTroughStr);
+
+        // Blue: halving → trough (bottom padding, staggered)
+        const blueY = ca.bottom + (i % 2 === 0 ? 22 : 38);
+        if (cxT && cxT > cxH && t.halvingToTroughStr)
+          drawBracket(cxH, cxT, blueY, '#58a6ff', t.halvingToTroughStr);
       });
     }
   };
@@ -994,8 +1004,9 @@ function initBtcChart() {
     },
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{top:88,bottom:42}},
       scales:{
-        x:{type:'linear',min:0,max:btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
+        x:{type:'linear',min:window.btcXMin||0,max:btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
            afterBuildTicks(scale) {
              const lo = Math.floor(scale.min ?? 0), hi = Math.ceil(scale.max ?? btcDates.length);
              const ticks = btcSixMoIdx.filter(v => v >= lo && v <= hi).map(v => ({ value: v }));
@@ -1043,7 +1054,7 @@ function initBtcChart() {
                 onZoomComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
           pan:{enabled:true,mode:'x',
                onPanComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
-          limits:{x:{min:0,max:btcDates.length+24,minRange:3}}
+          limits:{x:{min:window.btcXMin||0,max:btcDates.length+24,minRange:3}}
         }
       }
     },
@@ -1130,7 +1141,7 @@ function initBtcRsiChart(){
                 onZoomComplete:()=>{btcChart.zoomScale('x',{min:btcRsiChart.scales.x.min,max:btcRsiChart.scales.x.max},'none');updateBtcOverlay(btcChart);}},
           pan:{enabled:true,mode:'x',
                onPanComplete:()=>{btcChart.zoomScale('x',{min:btcRsiChart.scales.x.min,max:btcRsiChart.scales.x.max},'none');updateBtcOverlay(btcChart);}},
-          limits:{x:{min:0,max:btcDates.length+24,minRange:3}}
+          limits:{x:{min:window.btcXMin||0,max:btcDates.length+24,minRange:3}}
         }
       }
     },
@@ -1291,6 +1302,11 @@ async function loadBtcData(){
 
   try {
     if (btcDates.length === 0) throw new Error('No price data');
+    // Compute x-axis min so Halving 1 (2012-11-28) is visible before CSV data
+    const _halvingOne = new Date('2012-11-15');
+    const _firstData  = new Date(btcDates[0].slice(0,10));
+    const _daysBefore = Math.floor((_halvingOne - _firstData) / 86400000);
+    window.btcXMin = Math.min(0, _daysBefore - 15);
     initBtcChart();
     initBtcRsiChart();
     buildHalvingTable();
