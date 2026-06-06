@@ -311,8 +311,6 @@ title: Bitcoin Long-Term Trend
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Halving</span><span class="ko-only">반감기</span></th>
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Date</span><span class="ko-only">날짜</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Price at Halving</span><span class="ko-only">반감기 시점 가격</span></th>
-          <th style="text-align:left; padding:8px 12px;"><span class="en-only">Cycle Peak</span><span class="ko-only">사이클 고점</span></th>
-          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Peak Price</span><span class="ko-only">고점 가격</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Halving→Peak</span><span class="ko-only">반감기→고점</span></th>
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Cycle Peak</span><span class="ko-only">사이클 고점</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Peak Price</span><span class="ko-only">고점 가격</span></th>
@@ -842,6 +840,83 @@ function initBtcChart() {
   const ctx=canvas.getContext('2d');
   let crossX, crossY;
 
+  // ── Halving cycle timing annotation plugin ──────────────────────────────────
+  const btcTimingPlugin = {
+    id: 'btcTiming',
+    afterDraw(ch) {
+      const timings = window.btcCycleTimings;
+      if (!timings || !timings.length) return;
+      const {ctx:c, chartArea:ca, scales:{x:xS}} = ch;
+
+      function dateToX(d) {
+        // d is 'YYYY-MM-DD' or 'YYYY-MM'
+        let idx = btcDates.findIndex(bd => bd >= d);
+        if (idx < 0) idx = btcDates.length - 1;
+        return xS.getPixelForValue(idx);
+      }
+
+      function drawBracket(x1, x2, y, col, label, labelAbove) {
+        if (x2 - x1 < 10) return;
+        c.save();
+        c.strokeStyle = col; c.fillStyle = col;
+        c.lineWidth = 1.5; c.globalAlpha = 0.85;
+        const tk = 5, aw = 6, ah = 4;
+        // Main line
+        c.beginPath(); c.moveTo(x1, y); c.lineTo(x2, y); c.stroke();
+        // End ticks
+        c.beginPath(); c.moveTo(x1, y-tk); c.lineTo(x1, y+tk); c.stroke();
+        c.beginPath(); c.moveTo(x2, y-tk); c.lineTo(x2, y+tk); c.stroke();
+        // Arrow heads
+        c.beginPath(); c.moveTo(x1+aw, y-ah); c.lineTo(x1, y); c.lineTo(x1+aw, y+ah); c.stroke();
+        c.beginPath(); c.moveTo(x2-aw, y-ah); c.lineTo(x2, y); c.lineTo(x2-aw, y+ah); c.stroke();
+        // Label
+        const mx = (x1+x2)/2;
+        c.font = 'bold 10px sans-serif';
+        c.textAlign = 'center'; c.globalAlpha = 1;
+        // Background pill
+        const tw = c.measureText(label).width + 8;
+        const ty = labelAbove ? y - 14 : y + 6;
+        c.fillStyle = 'rgba(18,26,36,0.85)';
+        c.beginPath();
+        c.roundRect ? c.roundRect(mx-tw/2, ty-1, tw, 13, 3) : c.rect(mx-tw/2, ty-1, tw, 13);
+        c.fill();
+        c.fillStyle = col;
+        c.fillText(label, mx, ty + 9);
+        c.restore();
+      }
+
+      // Layout: 2 rows at top (red: halving→peak), 1 row at bottom (blue: halving→trough)
+      // Stack red rows to avoid overlap: alt row heights
+      const rowH = 22;
+      const baseTop = ca.top + 10;
+      const baseBot = ca.bottom - 10;
+
+      timings.forEach((t, i) => {
+        if (!t.halvingISO || !t.peakDate) return;
+        const xH = dateToX(t.halvingISO);
+        const xP = dateToX(t.peakDate);
+        const xT = t.troughDate ? dateToX(t.troughDate) : null;
+
+        // Clip to chart area
+        const x1r = Math.max(xH, ca.left), x2r = Math.min(xP, ca.right);
+        const x1b = Math.max(xH, ca.left);
+        const x2b = xT ? Math.min(xT, ca.right) : null;
+
+        // Red: halving → peak (staggered rows so 1st/3rd and 2nd/4th don't overlap)
+        const redY = baseTop + (i % 2) * rowH;
+        if (x2r > x1r && t.halvingToPeakStr) {
+          drawBracket(x1r, x2r, redY, '#ff7b7b', t.halvingToPeakStr, true);
+        }
+
+        // Blue: halving → trough (single row at bottom)
+        if (x2b && x2b > x1b && t.halvingToTroughStr) {
+          const blueY = baseBot - (i % 2) * rowH;
+          drawBracket(x1b, x2b, blueY, '#58a6ff', t.halvingToTroughStr, false);
+        }
+      });
+    }
+  };
+
   const crosshairPlugin={
     id:'btcCrosshair',
     afterDraw(ch){
@@ -972,7 +1047,7 @@ function initBtcChart() {
         }
       }
     },
-    plugins:[crosshairPlugin,{id:'btcOverlay',afterDraw(ch){updateBtcOverlay(ch);}},btcTxnPlugin]
+    plugins:[crosshairPlugin,btcTimingPlugin,{id:'btcOverlay',afterDraw(ch){updateBtcOverlay(ch);}},btcTxnPlugin]
   });
 
   canvas.style.touchAction='pan-y';
@@ -1286,7 +1361,7 @@ function buildHalvingTable() {
     return best;
   }
 
-  let html='', prevPeakPrice=null, prevTroughPrice=null;
+  let html='', prevPeakPrice=null, prevTroughPrice=null, cycleTimings=[];
 
   HALVING_CYCLES_DEF.forEach((c,i) => {
     const isLast = i===HALVING_CYCLES_DEF.length-1;
@@ -1326,9 +1401,22 @@ function buildHalvingTable() {
 
     if (peak) prevPeakPrice=peak.price;
     if (trough) prevTroughPrice=trough.price;
+
+    // Store for chart annotation
+    cycleTimings.push({
+      halvingISO: c.halvingISO,
+      peakDate: peak ? peak.date : null,
+      troughDate: trough ? trough.date : null,
+      halvingToPeakStr: halvingToPeak!==null ? fmtDur(halvingToPeak) : null,
+      peakToTroughStr: peakToTrough!==null ? fmtDur(peakToTrough) : null,
+      halvingToTroughStr: halvingToTrough!==null ? fmtDur(halvingToTrough) : null,
+      isDynamic: !!c.isDynamic
+    });
   });
 
   tbody.innerHTML = html;
+  window.btcCycleTimings = cycleTimings;
+  if (btcChart) btcChart.update('none');
 }
 
 loadBtcData();
