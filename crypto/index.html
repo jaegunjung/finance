@@ -315,7 +315,7 @@ title: Bitcoin Long-Term Trend
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Peak Price</span><span class="ko-only">고점 가격</span></th>
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Cycle Trough</span><span class="ko-only">사이클 저점</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">vs. Prev Peak</span><span class="ko-only">전 고점 대비</span></th>
-          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Gain from Trough</span><span class="ko-only">저점 대비 상승</span></th>
+          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Gain from Prior Trough</span><span class="ko-only">전 저점 대비 상승</span></th>
         </tr>
       </thead>
       <tbody id="halvingTableBody">
@@ -1281,7 +1281,7 @@ function buildHalvingTable() {
     const gainStr = gainX ? (gainX>=10 ? Math.round(gainX)+'×' : gainX.toFixed(1)+'×') : '—';
 
     const vsPrev = (trough&&prevPeakPrice)
-      ? Math.round(trough.price/prevPeakPrice*100)+'%' : '—';
+      ? (trough.price/prevPeakPrice*100).toFixed(1)+'%' : '—';
 
     const troughHtml = trough
       ? `${fmtDate(trough.date)}<br><span style="color:var(--text-muted);font-size:0.75rem;">${fmtP(trough.price)}${c.isDynamic?' ↻':''}</span>`
