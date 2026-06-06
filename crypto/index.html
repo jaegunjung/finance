@@ -310,6 +310,7 @@ title: Bitcoin Long-Term Trend
         <tr style="border-bottom:1px solid var(--border); color:var(--text-primary);">
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Halving</span><span class="ko-only">반감기</span></th>
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Date</span><span class="ko-only">날짜</span></th>
+          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Cycle Duration</span><span class="ko-only">기간</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Price at Halving</span><span class="ko-only">반감기 시점 가격</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Halving→Peak</span><span class="ko-only">반감기→고점</span></th>
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Cycle Peak</span><span class="ko-only">사이클 고점</span></th>
@@ -322,7 +323,7 @@ title: Bitcoin Long-Term Trend
         </tr>
       </thead>
       <tbody id="halvingTableBody">
-        <tr><td colspan="11" style="padding:16px; text-align:center; color:var(--text-muted);">Loading...</td></tr>
+        <tr><td colspan="12" style="padding:16px; text-align:center; color:var(--text-muted);">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -743,8 +744,11 @@ function updateBtcOverlay(ch) {
         const frac=t/nPts;
         const idx=mn0+(mn1-mn0)*frac;
         if(idx<0) continue;
-        const dateKey=btcDates[Math.round(Math.max(0,Math.min(btcDates.length-1,idx)))];
-        if(!dateKey) continue;
+        const ri=Math.round(idx);
+        let dateKey;
+        if(ri>=0&&ri<btcDates.length){dateKey=btcDates[ri];}
+        else if(ri<0){continue;}
+        else{const ld=new Date(btcDates[btcDates.length-1]);ld.setDate(ld.getDate()+(ri-(btcDates.length-1)));dateKey=ld.toISOString().slice(0,10);}
         const days=daysSinceGenesis(dateKey);
         const px=xS.getPixelForValue(idx);
         const py=yS.getPixelForValue(plPrice(days,topOff));
@@ -755,8 +759,11 @@ function updateBtcOverlay(ch) {
         const frac=t/nPts;
         const idx=mn0+(mn1-mn0)*frac;
         if(idx<0) continue;
-        const dateKey=btcDates[Math.round(Math.max(0,Math.min(btcDates.length-1,idx)))];
-        if(!dateKey) continue;
+        const ri=Math.round(idx);
+        let dateKey;
+        if(ri>=0&&ri<btcDates.length){dateKey=btcDates[ri];}
+        else if(ri<0){continue;}
+        else{const ld=new Date(btcDates[btcDates.length-1]);ld.setDate(ld.getDate()+(ri-(btcDates.length-1)));dateKey=ld.toISOString().slice(0,10);}
         const days=daysSinceGenesis(dateKey);
         const px=xS.getPixelForValue(idx);
         const py=yS.getPixelForValue(plPrice(days,botOff));
@@ -858,15 +865,24 @@ function initBtcChart() {
       if (!timings || !timings.length) return;
       const {ctx:c, chartArea:ca, scales:{x:xS}} = ch;
 
-      // Convert ISO date → x pixel (handles pre-data extrapolation)
+      // Convert ISO date → x pixel (handles pre-data and future extrapolation)
       function dateToX(d) {
-        let idx = btcDates.findIndex(bd => bd >= d);
-        if (idx >= 0) return xS.getPixelForValue(idx);
-        // Pre-data: extrapolate
-        const firstDate = new Date(btcDates[0].slice(0,10));
-        const targetDate = new Date(d.length===7 ? d+'-15' : d);
-        const daysDiff = Math.floor((targetDate - firstDate) / 86400000);
-        return xS.getPixelForValue(daysDiff);
+        if (!btcDates.length) return ca.left;
+        const target = d.length===7 ? d+'-15' : d;
+        if (target < btcDates[0]) {
+          // Pre-data: extrapolate backward
+          const firstDate = new Date(btcDates[0].slice(0,10));
+          const daysDiff = Math.floor((new Date(target) - firstDate) / 86400000);
+          return xS.getPixelForValue(daysDiff);
+        }
+        let idx = btcDates.findIndex(bd => bd >= target);
+        if (idx < 0) {
+          // Post-data: extrapolate forward
+          const lastDate = new Date(btcDates[btcDates.length-1]);
+          const daysDiff = Math.round((new Date(target) - lastDate) / 86400000);
+          return xS.getPixelForValue(btcDates.length - 1 + daysDiff);
+        }
+        return xS.getPixelForValue(idx);
       }
 
       function drawBracket(x1, x2, y, col, label) {
@@ -910,17 +926,17 @@ function initBtcChart() {
         const cxP = Math.min(xP, ca.right);
         const cxT = xT ? Math.min(xT, ca.right) : null;
 
-        // Red: halving → peak (2 staggered rows)
-        const redY = ca.top - (i % 2 === 0 ? 72 : 50);
+        // Red: halving → peak (2 staggered rows, tightly above ca.top)
+        const redY = ca.top - (i % 2 === 0 ? 62 : 44);
         if (cxP > cxH && t.halvingToPeakStr)
           drawBracket(cxH, cxP, redY, '#ff7b7b', t.halvingToPeakStr);
 
-        // Yellow: peak → trough
+        // Yellow: peak → trough (just below red rows)
         if (xT && cxT > cxP && t.peakToTroughStr)
-          drawBracket(cxP, cxT, ca.top - 28, '#f9d71c', t.peakToTroughStr);
+          drawBracket(cxP, cxT, ca.top - 26, '#f9d71c', t.peakToTroughStr);
 
-        // Blue: halving → trough (bottom padding, staggered)
-        const blueY = ca.bottom + (i % 2 === 0 ? 22 : 38);
+        // Blue: halving → trough (bottom, below x-axis labels)
+        const blueY = ca.bottom + (i % 2 === 0 ? 34 : 48);
         if (cxT && cxT > cxH && t.halvingToTroughStr)
           drawBracket(cxH, cxT, blueY, '#58a6ff', t.halvingToTroughStr);
       });
@@ -1004,9 +1020,9 @@ function initBtcChart() {
     },
     options:{
       responsive:true,maintainAspectRatio:false,animation:false,
-      layout:{padding:{top:88,bottom:42}},
+      layout:{padding:{top:88,bottom:58}},
       scales:{
-        x:{type:'linear',min:window.btcXMin||0,max:btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
+        x:{type:'linear',min:window.btcXMin||0,max:window.btcXMax||btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
            afterBuildTicks(scale) {
              const lo = Math.floor(scale.min ?? 0), hi = Math.ceil(scale.max ?? btcDates.length);
              const ticks = btcSixMoIdx.filter(v => v >= lo && v <= hi).map(v => ({ value: v }));
@@ -1024,7 +1040,7 @@ function initBtcChart() {
            }},
         y:{type:'logarithmic',grid:{color:'rgba(48,54,61,0.8)'},
            ticks:{color:'#8b949e',font:{size:11},
-                  callback:v=>{const vals=[0.01,0.1,1,10,100,1000,10000,100000,1000000];return vals.some(vv=>Math.abs(v-vv)/vv<0.01)?v>=1?v.toLocaleString():`$${v}`:'';}
+                  callback:v=>{const vals=[0.01,0.1,1,10,100,1000,10000,100000,200000,300000,500000,1000000];return vals.some(vv=>Math.abs(v-vv)/vv<0.01)?v>=1000?'$'+(v/1000).toFixed(0)+'K':v>=1?v.toLocaleString():`$${v}`:''}
            }}
       },
       plugins:{
@@ -1054,7 +1070,7 @@ function initBtcChart() {
                 onZoomComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
           pan:{enabled:true,mode:'x',
                onPanComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
-          limits:{x:{min:window.btcXMin||0,max:btcDates.length+24,minRange:3}}
+          limits:{x:{min:window.btcXMin||0,max:(window.btcXMax||btcDates.length-1)+24,minRange:3}}
         }
       }
     },
@@ -1141,7 +1157,7 @@ function initBtcRsiChart(){
                 onZoomComplete:()=>{btcChart.zoomScale('x',{min:btcRsiChart.scales.x.min,max:btcRsiChart.scales.x.max},'none');updateBtcOverlay(btcChart);}},
           pan:{enabled:true,mode:'x',
                onPanComplete:()=>{btcChart.zoomScale('x',{min:btcRsiChart.scales.x.min,max:btcRsiChart.scales.x.max},'none');updateBtcOverlay(btcChart);}},
-          limits:{x:{min:window.btcXMin||0,max:btcDates.length+24,minRange:3}}
+          limits:{x:{min:window.btcXMin||0,max:(window.btcXMax||btcDates.length-1)+24,minRange:3}}
         }
       }
     },
@@ -1307,6 +1323,15 @@ async function loadBtcData(){
     const _firstData  = new Date(btcDates[0].slice(0,10));
     const _daysBefore = Math.floor((_halvingOne - _firstData) / 86400000);
     window.btcXMin = Math.min(0, _daysBefore - 15);
+    // Compute x-axis max: extend rainbow to ~mid-2028 (Halving 5 era)
+    const _targetDate = new Date('2028-07-01');
+    const _isDaily = btcDates[0].length === 10;
+    if (_isDaily) {
+      window.btcXMax = Math.floor((_targetDate - _firstData) / 86400000);
+    } else {
+      const _m = (_targetDate.getFullYear() - _firstData.getFullYear())*12 + (_targetDate.getMonth() - _firstData.getMonth());
+      window.btcXMax = _m;
+    }
     initBtcChart();
     initBtcRsiChart();
     buildHalvingTable();
@@ -1330,13 +1355,17 @@ async function loadBtcData(){
 // ── Halving cycle table (dynamic) ──────────────────────────────────────────
 const HALVING_CYCLES_DEF = [
   {name:{en:'1st Halving',ko:'1차 반감기'}, halvingStr:'Nov 28, 2012', halvingISO:'2012-11-28', halvingPrice:'$12',
+   nextHalvingISO:'2016-07-09',
    peakFrom:'2013-09-01', peakTo:'2014-03-31', troughFrom:'2014-03-01', troughTo:'2015-10-31',
    preTroughPrice:2},
   {name:{en:'2nd Halving',ko:'2차 반감기'}, halvingStr:'Jul 9, 2016', halvingISO:'2016-07-09', halvingPrice:'$650',
+   nextHalvingISO:'2020-05-11',
    peakFrom:'2017-10-01', peakTo:'2018-03-31', troughFrom:'2018-03-01', troughTo:'2019-07-31'},
   {name:{en:'3rd Halving',ko:'3차 반감기'}, halvingStr:'May 11, 2020', halvingISO:'2020-05-11', halvingPrice:'$8,600',
+   nextHalvingISO:'2024-04-19',
    peakFrom:'2021-09-01', peakTo:'2022-03-31', troughFrom:'2022-03-01', troughTo:'2023-07-31'},
   {name:{en:'4th Halving',ko:'4차 반감기'}, halvingStr:'Apr 19, 2024', halvingISO:'2024-04-19', halvingPrice:'$63,750',
+   nextHalvingISO:null,
    peakFrom:'2024-10-01', peakTo:null, troughFrom:null, troughTo:null, isDynamic:true},
 ];
 
@@ -1400,10 +1429,12 @@ function buildHalvingTable() {
       : '—';
     const durStyle = 'text-align:right;padding:8px 12px;color:var(--text-muted);font-size:0.8rem;';
 
+    const cycleDur = c.nextHalvingISO ? fmtDur(monthsBetween(c.halvingISO, c.nextHalvingISO)) : '—';
     const border = isLast ? '' : 'border-bottom:1px solid var(--border);';
     html += `<tr style="${border}">
       <td style="padding:8px 12px;"><span class="en-only">${c.name.en}</span><span class="ko-only">${c.name.ko}</span></td>
       <td style="padding:8px 12px;">${c.halvingStr}</td>
+      <td style="text-align:right;padding:8px 12px;color:var(--text-muted);font-size:0.8rem;">${cycleDur}</td>
       <td style="text-align:right;padding:8px 12px;">${c.halvingPrice}</td>
       <td style="${durStyle}">${halvingToPeak!==null?fmtDur(halvingToPeak):'—'}</td>
       <td style="padding:8px 12px;">${peak?fmtDate(peak.date):'—'}</td>
