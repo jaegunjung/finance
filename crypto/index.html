@@ -313,13 +313,18 @@ title: Bitcoin Long-Term Trend
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Price at Halving</span><span class="ko-only">반감기 시점 가격</span></th>
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Cycle Peak</span><span class="ko-only">사이클 고점</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Peak Price</span><span class="ko-only">고점 가격</span></th>
+          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Halving→Peak</span><span class="ko-only">반감기→고점</span></th>
+          <th style="text-align:left; padding:8px 12px;"><span class="en-only">Cycle Peak</span><span class="ko-only">사이클 고점</span></th>
+          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Peak Price</span><span class="ko-only">고점 가격</span></th>
+          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Peak→Trough</span><span class="ko-only">고점→저점</span></th>
           <th style="text-align:left; padding:8px 12px;"><span class="en-only">Cycle Trough</span><span class="ko-only">사이클 저점</span></th>
+          <th style="text-align:right; padding:8px 12px;"><span class="en-only">Halving→Trough</span><span class="ko-only">반감기→저점</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Trough vs. Prev Peak</span><span class="ko-only">전 고점 대비 사이클 저점</span></th>
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Gain from Prior Trough</span><span class="ko-only">전 저점 대비 상승</span></th>
         </tr>
       </thead>
       <tbody id="halvingTableBody">
-        <tr><td colspan="8" style="padding:16px; text-align:center; color:var(--text-muted);">Loading...</td></tr>
+        <tr><td colspan="11" style="padding:16px; text-align:center; color:var(--text-muted);">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -1233,14 +1238,14 @@ async function loadBtcData(){
 
 // ── Halving cycle table (dynamic) ──────────────────────────────────────────
 const HALVING_CYCLES_DEF = [
-  {name:{en:'1st Halving',ko:'1차 반감기'}, halvingStr:'Nov 28, 2012', halvingPrice:'$12',
+  {name:{en:'1st Halving',ko:'1차 반감기'}, halvingStr:'Nov 28, 2012', halvingISO:'2012-11-28', halvingPrice:'$12',
    peakFrom:'2013-09-01', peakTo:'2014-03-31', troughFrom:'2014-03-01', troughTo:'2015-10-31',
    preTroughPrice:2},
-  {name:{en:'2nd Halving',ko:'2차 반감기'}, halvingStr:'Jul 9, 2016', halvingPrice:'$650',
+  {name:{en:'2nd Halving',ko:'2차 반감기'}, halvingStr:'Jul 9, 2016', halvingISO:'2016-07-09', halvingPrice:'$650',
    peakFrom:'2017-10-01', peakTo:'2018-03-31', troughFrom:'2018-03-01', troughTo:'2019-07-31'},
-  {name:{en:'3rd Halving',ko:'3차 반감기'}, halvingStr:'May 11, 2020', halvingPrice:'$8,600',
+  {name:{en:'3rd Halving',ko:'3차 반감기'}, halvingStr:'May 11, 2020', halvingISO:'2020-05-11', halvingPrice:'$8,600',
    peakFrom:'2021-09-01', peakTo:'2022-03-31', troughFrom:'2022-03-01', troughTo:'2023-07-31'},
-  {name:{en:'4th Halving',ko:'4차 반감기'}, halvingStr:'Apr 19, 2024', halvingPrice:'$63,750',
+  {name:{en:'4th Halving',ko:'4차 반감기'}, halvingStr:'Apr 19, 2024', halvingISO:'2024-04-19', halvingPrice:'$63,750',
    peakFrom:'2024-10-01', peakTo:null, troughFrom:null, troughTo:null, isDynamic:true},
 ];
 
@@ -1251,6 +1256,18 @@ function buildHalvingTable() {
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function fmtDate(d) { const [y,m,day]=d.split('-'); return day ? `${MON[+m-1]} ${+day}, ${y}` : `${MON[+m-1]} ${y}`; }
   function fmtP(p) { return '$'+Math.round(p).toLocaleString(); }
+  function monthsBetween(isoA, isoB) {
+    const [ay,am] = isoA.split('-').map(Number);
+    const [by,bm] = isoB.split('-').map(Number);
+    return (by - ay) * 12 + (bm - am);
+  }
+  function fmtDur(months) {
+    if (months <= 0) return '—';
+    const y = Math.floor(months / 12), m = months % 12;
+    if (y === 0) return m + 'mo';
+    if (m === 0) return y + 'yr';
+    return y + 'yr ' + m + 'mo';
+  }
   function findMax(from, to) {
     let best=null;
     for (let i=0;i<btcDates.length;i++) {
@@ -1283,18 +1300,26 @@ function buildHalvingTable() {
     const vsPrev = (trough&&prevPeakPrice)
       ? (trough.price/prevPeakPrice*100).toFixed(1)+'%' : '—';
 
+    const halvingToPeak = (peak && c.halvingISO) ? monthsBetween(c.halvingISO, peak.date) : null;
+    const peakToTrough = (peak && trough) ? monthsBetween(peak.date, trough.date) : null;
+    const halvingToTrough = (trough && c.halvingISO) ? monthsBetween(c.halvingISO, trough.date) : null;
+
     const troughHtml = trough
       ? `${fmtDate(trough.date)}<br><span style="color:var(--text-muted);font-size:0.75rem;">${fmtP(trough.price)}${c.isDynamic?' ↻':''}</span>`
       : '—';
+    const durStyle = 'text-align:right;padding:8px 12px;color:var(--text-muted);font-size:0.8rem;';
 
     const border = isLast ? '' : 'border-bottom:1px solid var(--border);';
     html += `<tr style="${border}">
       <td style="padding:8px 12px;"><span class="en-only">${c.name.en}</span><span class="ko-only">${c.name.ko}</span></td>
       <td style="padding:8px 12px;">${c.halvingStr}</td>
       <td style="text-align:right;padding:8px 12px;">${c.halvingPrice}</td>
+      <td style="${durStyle}">${halvingToPeak!==null?fmtDur(halvingToPeak):'—'}</td>
       <td style="padding:8px 12px;">${peak?fmtDate(peak.date):'—'}</td>
       <td style="text-align:right;padding:8px 12px;color:var(--accent-green);">${peak?fmtP(peak.price):'—'}</td>
+      <td style="${durStyle}">${peakToTrough!==null?fmtDur(peakToTrough):'—'}</td>
       <td style="padding:8px 12px;">${troughHtml}</td>
+      <td style="${durStyle}">${halvingToTrough!==null?fmtDur(halvingToTrough):'—'}</td>
       <td style="text-align:right;padding:8px 12px;">${vsPrev}</td>
       <td style="text-align:right;padding:8px 12px;">${gainStr}</td>
     </tr>`;
