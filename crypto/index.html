@@ -782,6 +782,51 @@ function updateBtcOverlay(ch) {
     else htmlClipped+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
   }
 
+  // ── Prediction line (power law center, dashed, from last data → 2030) ──
+  if (btcDates.length > 0) {
+    const _isDaily = btcDates[0].length === 10;
+    const lastIdx = btcDates.length - 1;
+    const lastDate = new Date(btcDates[lastIdx].slice(0,10));
+
+    // Helper: future date offset → chart index
+    function futureIdx(daysAhead) {
+      if (_isDaily) return lastIdx + daysAhead;
+      return lastIdx + Math.round(daysAhead / 30.44);
+    }
+    // Helper: date string → daysSinceGenesis
+    function futureDays(daysAhead) {
+      const d = new Date(lastDate); d.setDate(d.getDate() + daysAhead);
+      return Math.max(1, Math.round((d - GENESIS) / 86400000));
+    }
+
+    // Build power law center path from last data point to ~Dec 2029
+    let predPts = '';
+    for (let da = 0; da <= 1300; da += 20) {
+      const fi = futureIdx(da);
+      const px = xS.getPixelForValue(fi);
+      if (px > ca.right + 5) break;
+      const py = yS.getPixelForValue(plPrice(futureDays(da), 0));
+      if (py < ca.top || py > ca.bottom) { predPts += ''; continue; }
+      predPts += (predPts ? ' ' : '') + `${px.toFixed(1)},${py.toFixed(1)}`;
+    }
+    if (predPts)
+      htmlClipped += `<polyline points="${predPts}" fill="none" stroke="rgba(180,180,60,0.45)" stroke-width="1.5" stroke-dasharray="5,4"/>`;
+
+    // Estimated next peak: ~Sep 2029 = ~1215 days from last data (Jun 2026→Sep 2029)
+    // Use Halving 5 (Mar 2028) + 18 months = Sep 2029
+    const halvingFiveDays = Math.round((new Date('2028-03-15') - lastDate) / 86400000);
+    const peakDays = halvingFiveDays + 548; // +18 months
+    const peakFI = futureIdx(peakDays);
+    const peakPx = xS.getPixelForValue(peakFI);
+    const peakPrice = plPrice(futureDays(peakDays), 2.5); // upper band
+    const peakPy = yS.getPixelForValue(peakPrice);
+    if (peakPx >= ca.left && peakPx <= ca.right && peakPy >= ca.top && peakPy <= ca.bottom) {
+      htmlClipped += `<polygon points="${peakPx},${peakPy-9} ${peakPx-5},${peakPy+3} ${peakPx+5},${peakPy+3}" fill="#ff9900" opacity="0.7"/>`;
+      const lbl = '$' + Math.round(peakPrice/1000) + 'K est.';
+      htmlClipped += `<text x="${peakPx+8}" y="${peakPy+4}" fill="#ff9900" font-size="10" opacity="0.9">${lbl}</text>`;
+    }
+  }
+
   // Halving lines (unclipped — extend into top padding)
   for (const h of HALVINGS) {
     let hIdx;
@@ -789,7 +834,12 @@ function updateBtcOverlay(ch) {
     if (idx >= 0) {
       hIdx = idx;
     } else if (h.estimated) {
-      hIdx = btcDates.length + 12;
+      // Use actual date extrapolation (works for both daily and monthly data)
+      const _f = new Date(btcDates[0].slice(0,10));
+      const _t = new Date(h.date.length===7 ? h.date+'-15' : h.date);
+      const _isD = btcDates[0].length===10;
+      hIdx = _isD ? Math.floor((_t-_f)/86400000)
+                  : ((_t.getFullYear()-_f.getFullYear())*12+(_t.getMonth()-_f.getMonth()));
     } else {
       const firstDate = new Date(btcDates[0].slice(0,10));
       const halvDate  = new Date(h.date.length===7 ? h.date+'-15' : h.date);
@@ -1038,9 +1088,9 @@ function initBtcChart() {
                     return'';
                   }
            }},
-        y:{type:'logarithmic',grid:{color:'rgba(48,54,61,0.8)'},
+        y:{type:'logarithmic',max:1000000,grid:{color:'rgba(48,54,61,0.8)'},
            ticks:{color:'#8b949e',font:{size:11},
-                  callback:v=>{const vals=[0.01,0.1,1,10,100,1000,10000,100000,200000,300000,500000,1000000];return vals.some(vv=>Math.abs(v-vv)/vv<0.01)?v>=1000?'$'+(v/1000).toFixed(0)+'K':v>=1?v.toLocaleString():`$${v}`:''}
+                  callback:v=>{const vals=[0.01,0.1,1,10,100,1000,10000,100000,200000,300000,500000,1000000];if(!vals.some(vv=>Math.abs(v-vv)/vv<0.01))return'';if(v>=1000000)return'$1M';if(v>=1000)return'$'+(v/1000).toFixed(0)+'K';return v>=1?v.toLocaleString():`$${v}`;}
            }}
       },
       plugins:{
@@ -1324,7 +1374,7 @@ async function loadBtcData(){
     const _daysBefore = Math.floor((_halvingOne - _firstData) / 86400000);
     window.btcXMin = Math.min(0, _daysBefore - 15);
     // Compute x-axis max: extend rainbow to ~mid-2028 (Halving 5 era)
-    const _targetDate = new Date('2028-07-01');
+    const _targetDate = new Date('2030-01-01');
     const _isDaily = btcDates[0].length === 10;
     if (_isDaily) {
       window.btcXMax = Math.floor((_targetDate - _firstData) / 86400000);
