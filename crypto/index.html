@@ -318,53 +318,14 @@ title: Bitcoin Long-Term Trend
           <th style="text-align:right; padding:8px 12px;"><span class="en-only">Gain from Trough</span><span class="ko-only">저점 대비 상승</span></th>
         </tr>
       </thead>
-      <tbody>
-        <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:8px 12px;"><span class="en-only">1st Halving</span><span class="ko-only">1차 반감기</span></td>
-          <td style="padding:8px 12px;">Nov 2012</td>
-          <td style="text-align:right; padding:8px 12px;">$12</td>
-          <td style="padding:8px 12px;">Dec 2013</td>
-          <td style="text-align:right; padding:8px 12px; color:var(--accent-green);">$1,163</td>
-          <td style="padding:8px 12px;">Nov 2011<br><span style="color:var(--text-muted); font-size:0.75rem;">$2</span></td>
-          <td style="text-align:right; padding:8px 12px; color:var(--text-muted);">—</td>
-          <td style="text-align:right; padding:8px 12px;">580×</td>
-        </tr>
-        <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:8px 12px;"><span class="en-only">2nd Halving</span><span class="ko-only">2차 반감기</span></td>
-          <td style="padding:8px 12px;">Jul 2016</td>
-          <td style="text-align:right; padding:8px 12px;">$650</td>
-          <td style="padding:8px 12px;">Dec 2017</td>
-          <td style="text-align:right; padding:8px 12px; color:var(--accent-green);">$19,783</td>
-          <td style="padding:8px 12px;">Jan 2015<br><span style="color:var(--text-muted); font-size:0.75rem;">$172</span></td>
-          <td style="text-align:right; padding:8px 12px;">15%</td>
-          <td style="text-align:right; padding:8px 12px;">115×</td>
-        </tr>
-        <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:8px 12px;"><span class="en-only">3rd Halving</span><span class="ko-only">3차 반감기</span></td>
-          <td style="padding:8px 12px;">May 2020</td>
-          <td style="text-align:right; padding:8px 12px;">$8,600</td>
-          <td style="padding:8px 12px;">Nov 2021</td>
-          <td style="text-align:right; padding:8px 12px; color:var(--accent-green);">$68,789</td>
-          <td style="padding:8px 12px;">Dec 2018<br><span style="color:var(--text-muted); font-size:0.75rem;">$3,122</span></td>
-          <td style="text-align:right; padding:8px 12px;">16%</td>
-          <td style="text-align:right; padding:8px 12px;">22×</td>
-        </tr>
-        <tr>
-          <td style="padding:8px 12px;"><span class="en-only">4th Halving</span><span class="ko-only">4차 반감기</span></td>
-          <td style="padding:8px 12px;">Apr 2024</td>
-          <td style="text-align:right; padding:8px 12px;">$63,750</td>
-          <td style="padding:8px 12px;">Oct 2025</td>
-          <td style="text-align:right; padding:8px 12px; color:var(--accent-green);">$120,000</td>
-          <td style="padding:8px 12px;">Nov 2022<br><span style="color:var(--text-muted); font-size:0.75rem;">$15,476</span></td>
-          <td style="text-align:right; padding:8px 12px;">23%</td>
-          <td style="text-align:right; padding:8px 12px;">8×</td>
-        </tr>
+      <tbody id="halvingTableBody">
+        <tr><td colspan="8" style="padding:16px; text-align:center; color:var(--text-muted);">Loading...</td></tr>
       </tbody>
     </table>
   </div>
   <p style="color:var(--text-muted); font-size:0.75rem; margin-top:12px; font-style:italic;">
-    <span class="en-only">Gain from trough = peak price ÷ cycle low (previous bear market bottom). vs. Prev Peak = trough price as % of prior cycle's peak. Peak timing: 13 months, 17 months, 18 months, 18 months after each halving.</span>
-    <span class="ko-only">저점 대비 상승 = 고점 가격 ÷ 직전 약세장 바닥. 전 고점 대비 = 저점이 전 사이클 고점의 몇 %인지. 반감기 이후 고점 도달 기간: 13개월, 17개월, 18개월, 18개월.</span>
+    <span class="en-only">Cycle Trough = bear market low after each cycle's peak. Gain from Trough = peak ÷ prior cycle low. vs. Prev Peak = trough as % of the previous cycle's peak. 4th cycle trough updates automatically with new data.</span>
+    <span class="ko-only">사이클 저점 = 해당 사이클 고점 이후 약세장 바닥. 저점 대비 상승 = 고점 ÷ 직전 사이클 저점. 전 고점 대비 = 저점이 전 사이클 고점의 몇 %. 4차 사이클 저점은 데이터 업데이트 시 자동 반영.</span>
   </p>
 </div>
 
@@ -1252,6 +1213,7 @@ async function loadBtcData(){
     if (btcDates.length === 0) throw new Error('No price data');
     initBtcChart();
     initBtcRsiChart();
+    buildHalvingTable();
     // Trade panel globals — set then immediately check auth
     window._tpSymbol = 'BTC';
     window._tpDates  = btcDates;
@@ -1267,6 +1229,81 @@ async function loadBtcData(){
     showBtcError('Chart error: ' + e.message);
     console.error(e);
   }
+}
+
+// ── Halving cycle table (dynamic) ──────────────────────────────────────────
+const HALVING_CYCLES_DEF = [
+  {name:{en:'1st Halving',ko:'1차 반감기'}, halvingStr:'Nov 28, 2012', halvingPrice:'$12',
+   peakFrom:'2013-09-01', peakTo:'2014-03-31', troughFrom:'2014-03-01', troughTo:'2015-10-31',
+   preTroughPrice:2},
+  {name:{en:'2nd Halving',ko:'2차 반감기'}, halvingStr:'Jul 9, 2016', halvingPrice:'$650',
+   peakFrom:'2017-10-01', peakTo:'2018-03-31', troughFrom:'2018-03-01', troughTo:'2019-07-31'},
+  {name:{en:'3rd Halving',ko:'3차 반감기'}, halvingStr:'May 11, 2020', halvingPrice:'$8,600',
+   peakFrom:'2021-09-01', peakTo:'2022-03-31', troughFrom:'2022-03-01', troughTo:'2023-07-31'},
+  {name:{en:'4th Halving',ko:'4차 반감기'}, halvingStr:'Apr 19, 2024', halvingPrice:'$63,750',
+   peakFrom:'2024-10-01', peakTo:null, troughFrom:null, troughTo:null, isDynamic:true},
+];
+
+function buildHalvingTable() {
+  if (!btcDates.length) return;
+  const tbody = document.getElementById('halvingTableBody');
+  if (!tbody) return;
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtDate(d) { const [y,m,day]=d.split('-'); return day ? `${MON[+m-1]} ${+day}, ${y}` : `${MON[+m-1]} ${y}`; }
+  function fmtP(p) { return '$'+Math.round(p).toLocaleString(); }
+  function findMax(from, to) {
+    let best=null;
+    for (let i=0;i<btcDates.length;i++) {
+      if (from&&btcDates[i]<from) continue;
+      if (to&&btcDates[i]>to) break;
+      if (!best||btcPrices[i]>best.price) best={date:btcDates[i],price:btcPrices[i],idx:i};
+    }
+    return best;
+  }
+  function findMin(fromIdx, toDate) {
+    let best=null;
+    for (let i=fromIdx;i<btcDates.length;i++) {
+      if (toDate&&btcDates[i]>toDate) break;
+      if (!best||btcPrices[i]<best.price) best={date:btcDates[i],price:btcPrices[i]};
+    }
+    return best;
+  }
+
+  let html='', prevPeakPrice=null, prevTroughPrice=null;
+
+  HALVING_CYCLES_DEF.forEach((c,i) => {
+    const isLast = i===HALVING_CYCLES_DEF.length-1;
+    const peak = findMax(c.peakFrom, c.peakTo);
+    const trough = peak ? findMin(peak.idx+1, c.troughTo) : null;
+
+    const preTroughP = i===0 ? c.preTroughPrice : prevTroughPrice;
+    const gainX = (peak&&preTroughP) ? (peak.price/preTroughP) : null;
+    const gainStr = gainX ? (gainX>=10 ? Math.round(gainX)+'×' : gainX.toFixed(1)+'×') : '—';
+
+    const vsPrev = (trough&&prevPeakPrice)
+      ? Math.round(trough.price/prevPeakPrice*100)+'%' : '—';
+
+    const troughHtml = trough
+      ? `${fmtDate(trough.date)}<br><span style="color:var(--text-muted);font-size:0.75rem;">${fmtP(trough.price)}${c.isDynamic?' ↻':''}</span>`
+      : '—';
+
+    const border = isLast ? '' : 'border-bottom:1px solid var(--border);';
+    html += `<tr style="${border}">
+      <td style="padding:8px 12px;"><span class="en-only">${c.name.en}</span><span class="ko-only">${c.name.ko}</span></td>
+      <td style="padding:8px 12px;">${c.halvingStr}</td>
+      <td style="text-align:right;padding:8px 12px;">${c.halvingPrice}</td>
+      <td style="padding:8px 12px;">${peak?fmtDate(peak.date):'—'}</td>
+      <td style="text-align:right;padding:8px 12px;color:var(--accent-green);">${peak?fmtP(peak.price):'—'}</td>
+      <td style="padding:8px 12px;">${troughHtml}</td>
+      <td style="text-align:right;padding:8px 12px;">${vsPrev}</td>
+      <td style="text-align:right;padding:8px 12px;">${gainStr}</td>
+    </tr>`;
+
+    if (peak) prevPeakPrice=peak.price;
+    if (trough) prevTroughPrice=trough.price;
+  });
+
+  tbody.innerHTML = html;
 }
 
 loadBtcData();
