@@ -104,7 +104,6 @@ title: Bitcoin Long-Term Trend
   <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
     <button id="btcMa12Toggle" class="ctrl-btn active" onclick="toggleBtcMA(12)">MA-12</button>
     <button id="btcMa24Toggle" class="ctrl-btn active" onclick="toggleBtcMA(24)">MA-24</button>
-    <button id="btcMa48Toggle" class="ctrl-btn active" onclick="toggleBtcMA(48)">MA-48</button>
     <button id="rainbowToggle" class="ctrl-btn active" onclick="toggleRainbow()">
       <span class="en-only">🌈 Rainbow</span><span class="ko-only">🌈 레인보우</span>
     </button>
@@ -574,7 +573,7 @@ const fmtBtcDate = d => { const [y,m] = d.split('-').map(Number); return `${MONT
 let btcChart, btcRsiChart;
 let btcDates = [], btcPrices = [];
 let showRainbow = true;
-let showBtcMA = {12:true,24:true,48:true};
+let showBtcMA = {12:true,24:true};
 let btcSharedCrossIdx = null;
 let _openBtcPanelMarker = null;
 
@@ -798,19 +797,6 @@ function updateBtcOverlay(ch) {
       const d = new Date(lastDate); d.setDate(d.getDate() + daysAhead);
       return Math.max(1, Math.round((d - GENESIS) / 86400000));
     }
-
-    // Build power law center path from last data point to ~Dec 2029
-    let predPts = '';
-    for (let da = 0; da <= 1300; da += 20) {
-      const fi = futureIdx(da);
-      const px = xS.getPixelForValue(fi);
-      if (px > ca.right + 5) break;
-      const py = yS.getPixelForValue(plPrice(futureDays(da), 0));
-      if (py < ca.top || py > ca.bottom) { predPts += ''; continue; }
-      predPts += (predPts ? ' ' : '') + `${px.toFixed(1)},${py.toFixed(1)}`;
-    }
-    if (predPts)
-      htmlClipped += `<polyline points="${predPts}" fill="none" stroke="rgba(180,180,60,0.45)" stroke-width="1.5" stroke-dasharray="5,4"/>`;
 
     // Estimated next peak: ~Sep 2029 = ~1215 days from last data (Jun 2026→Sep 2029)
     // Use Halving 5 (Mar 2028) + 18 months = Sep 2029
@@ -1109,7 +1095,6 @@ function initBtcChart() {
         {data:btcPrices.map((p,i)=>({x:i,y:p})),borderColor:'#f7931a',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,label:'Bitcoin'},
         {data:getBtcMaData(12),borderColor:'#82aaff',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-12 (1Y)'},
         {data:getBtcMaData(24),borderColor:'#ff9800',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-24 (2Y)'},
-        {data:getBtcMaData(48),borderColor:'#ef9f27',borderWidth:1,borderDash:[6,4],pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-48 (4Y)'},
       ]
     },
     options:{
@@ -1410,6 +1395,28 @@ async function loadBtcData(){
         if (appended > 0) console.log('Appended', appended, 'days from CoinGecko API');
       }
     } catch(e) { console.log('CoinGecko gap-fill unavailable:', e.message); }
+
+    // 3b. Fetch live current price to ensure today is included (captures intraday moves)
+    try {
+      const liveR = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',
+        {signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined});
+      if (liveR.ok) {
+        const liveJson = await liveR.json();
+        const livePrice = liveJson?.bitcoin?.usd;
+        const todayStr = new Date().toISOString().slice(0,10);
+        if (livePrice > 0) {
+          const lastIdx = btcDates.length - 1;
+          if (btcDates[lastIdx] === todayStr) {
+            // Update today's entry to current price if it's a new low (captures intraday lows)
+            btcPrices[lastIdx] = Math.min(btcPrices[lastIdx], livePrice);
+          } else if (todayStr > btcDates[lastIdx]) {
+            btcDates.push(todayStr);
+            btcPrices.push(livePrice);
+            if (!apiStartDate) apiStartDate = todayStr;
+          }
+        }
+      }
+    } catch(e) { console.log('Live price unavailable:', e.message); }
   }
 
   // Filter to 2012-01-01 and later
