@@ -3,7 +3,8 @@ layout: default
 title: About
 ---
 <style>
-.about-content ul + h2 { margin-top: 1.9em; }
+.about-content ul + h2 { margin-top: 1.25em; }
+.about-content ul + p { margin-top: 1.4em; }
 </style>
 <div style="padding: 32px 0 20px;">
   <h1>About</h1>
