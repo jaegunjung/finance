@@ -2,6 +2,9 @@
 layout: default
 title: About
 ---
+<style>
+.about-content ul + h2 { margin-top: 2.8em; }
+</style>
 <div style="padding: 32px 0 20px;">
   <h1>About</h1>
 </div>
@@ -48,6 +51,23 @@ title: About
       <li><strong>Macro regime tagging</strong> — rate cycles, recession bands, and Fed policy shifts overlaid on asset returns</li>
       <li><strong>Data-first, narrative-second</strong> — every chart is built from raw public data (FRED, Yahoo Finance, CoinGecko) before any narrative is attached</li>
     </ul>
+    <p>
+      One pattern I keep seeing in markets: investors obsess over <em>price</em> (the Y-axis) while completely overlooking
+      <em>time</em> (the X-axis). How fast to react, when to sit tight — emotion crowds out the one variable that is entirely
+      objective and impossible to manipulate. This site is built to fix that blind spot.
+    </p>
+    <p>
+      My goal is to help investors quantify uncertainty rather than react to noise — to plan rather than panic-trade.
+      I want to see fewer people chasing leveraged short-term patterns that erode both capital and peace of mind.
+      I also want to push back against generic rules-of-thumb that ignore asset characteristics entirely:
+      "buy at the knee, sell at the shoulder," "sell when price touches the 200-day MA" —
+      advice that sounds clean but gives beginners false precision without context.
+    </p>
+    <p>
+      What I offer instead: log-scale trend lines, time gaps between historical peaks and troughs,
+      and cycle-aware positioning — tools grounded in common sense and historical evidence,
+      not pattern-matching for its own sake.
+    </p>
 
     <h2>Why Trust This Analysis</h2>
     <p>
@@ -127,6 +147,20 @@ title: About
       <li><strong>매크로 국면 태깅</strong> — 금리 사이클, 경기침체 구간, 연준 정책 전환을 자산 수익률에 오버레이</li>
       <li><strong>데이터 우선, 서사는 그 다음</strong> — 모든 차트는 공개 원시 데이터(FRED, Yahoo Finance, CoinGecko)로 먼저 구성한 후 해석을 붙입니다</li>
     </ul>
+    <p>
+      주식이나 코인을 투자하다 보면 가격(Y축)의 값을 맞추느라 너무나도 분명한 시간(X축)을 간과하기 쉽습니다.
+      얼마나 빨리 대응할지, 언제까지 관망할지 — 감정에 치우치다 보면 이 객관적인 시간의 흐름을 놓치기 쉽습니다.
+      저는 이 사이트를 통해 뇌동 매매를 줄이고, 불확실성을 정량화하면서 시장을 예측하고 대응할 수 있는 프레임워크를 투자자들과 나누고자 합니다.
+    </p>
+    <p>
+      레버리지를 동반한 단기 패턴 매매로 영혼을 갉아먹는 투자를 하지 않길 바랍니다.
+      또한 "무릎에 사서 어깨에 팔아라", "200일 이평선에 닿으면 팔아라"처럼
+      종목의 특성을 무시한 채 초보 투자자들을 혼란스럽게 만드는 단편적 규칙들에 휘둘리지 않길 바랍니다.
+    </p>
+    <p>
+      이 사이트가 제시하는 것은 로그 스케일 추세선, 고점·저점 간 시간 간격, 사이클 기반 포지셔닝 —
+      패턴 맞추기가 아닌 상식과 역사적 근거에 기반한 분석 툴입니다.
+    </p>
 
     <h2>이 분석을 신뢰할 수 있는 이유</h2>
     <p>
