@@ -28,24 +28,20 @@
       <span>Reddit</span>
     </a>
 
-    <!-- Native Share (mobile only — shown via CSS pointer:coarse) -->
-    <button class="share-btn native-share" onclick="
-      navigator.share({title: '{{ page.title_en | default: page.title }}', url: '{{ share_url }}'}).catch(function(){});
-    ">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
-      </svg>
-      <span>Share</span>
-    </button>
-
-    <!-- Copy Link -->
+    <!-- Copy Link (desktop) / Share Sheet (mobile) -->
     <button class="share-btn copy-link" onclick="
-      navigator.clipboard.writeText('{{ share_url }}').then(function(){
-        var btn = event.currentTarget;
-        var span = btn.querySelector('span');
-        span.textContent = '복사됨!';
-        setTimeout(function(){ span.textContent = '링크 복사'; }, 2000);
-      });
+      var btn = event.currentTarget;
+      var span = btn.querySelector('span');
+      var url = '{{ share_url }}';
+      var title = '{{ page.title_en | default: page.title }}';
+      if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+        navigator.share({title: title, url: url}).catch(function(){});
+      } else {
+        navigator.clipboard.writeText(url).then(function(){
+          span.textContent = '복사됨!';
+          setTimeout(function(){ span.textContent = '링크 복사'; }, 2000);
+        });
+      }
     ">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
