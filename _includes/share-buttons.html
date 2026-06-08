@@ -28,16 +28,20 @@
       <span>Reddit</span>
     </a>
 
-    <!-- KakaoTalk -->
-    <a class="share-btn kakao"
-       href="https://sharer.kakao.com/talk/friends/picker/link?app_key=KAKAO_APP_KEY&url={{ share_url | uri_escape }}"
-       target="_blank" rel="noopener"
-       onclick="if(!window.Kakao||!Kakao.isInitialized()){alert('카카오 공유는 Kakao SDK 설정이 필요합니다.');return false;}">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 3C6.48 3 2 6.477 2 10.8c0 2.695 1.652 5.063 4.135 6.482-.182.664-.66 2.406-.755 2.777-.118.464.17.458.357.333.147-.097 2.33-1.578 3.274-2.218.645.09 1.307.138 1.989.138 5.52 0 10-3.477 10-7.8C22 6.477 17.52 3 12 3z"/>
+    <!-- Copy Link -->
+    <button class="share-btn copy-link" onclick="
+      navigator.clipboard.writeText('{{ share_url }}').then(function(){
+        var btn = event.currentTarget;
+        var span = btn.querySelector('span');
+        span.textContent = '복사됨!';
+        setTimeout(function(){ span.textContent = '링크 복사'; }, 2000);
+      });
+    ">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
       </svg>
-      <span>카카오톡</span>
-    </a>
+      <span>링크 복사</span>
+    </button>
 
     <!-- LinkedIn -->
     <a class="share-btn linkedin"
