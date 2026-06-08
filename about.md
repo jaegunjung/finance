@@ -16,6 +16,7 @@ title: About
     <h2>Who I Am</h2>
     <p>
       I'm JJ — a data engineer and independent market analyst based in the U.S.
+      (You can find my engineering and portfolio work on my <a href="https://jaegunjung.github.io/" target="_blank" rel="noopener">personal site</a>.)
       By day I work with large-scale data pipelines; by night I apply the same quantitative rigor to financial markets.
       I've been studying market cycles, historical price behavior, and long-term trends for over a decade,
       with a particular focus on U.S. equities, crypto assets, and global macro.
@@ -113,6 +114,7 @@ title: About
     <h2>작성자 소개</h2>
     <p>
       저는 JJ — 미국 거주 데이터 엔지니어이자 독립 시장 분석가입니다.
+      (엔지니어링 및 포트폴리오 작업은 <a href="https://jaegunjung.github.io/" target="_blank" rel="noopener">개인 사이트</a>에서 확인하실 수 있습니다.)
       본업으로는 대규모 데이터 파이프라인을 다루고, 퇴근 후에는 동일한 정량적 방법론을 금융 시장에 적용합니다.
       미국 주식, 크립토, 글로벌 매크로를 중심으로 시장 사이클과 장기 추세를 10년 이상 연구해 왔습니다.
     </p>
