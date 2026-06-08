@@ -649,5 +649,9 @@ html.ko-mode .lang-en { display: none; }
 .share-btn.x:hover     { color: #fff; border-color: #fff; }
 .share-btn.reddit:hover  { color: #ff4500; border-color: #ff4500; }
 .share-btn.kakao:hover   { color: #fee500; border-color: #fee500; }
-.share-btn.linkedin:hover  { color: #0a66c2; border-color: #0a66c2; }
-.share-btn.instagram:hover { color: #e1306c; border-color: #e1306c; }
+.share-btn.linkedin:hover    { color: #0a66c2; border-color: #0a66c2; }
+/* Native share button: hidden on desktop (mouse), visible on touch devices only */
+.share-btn.native-share { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .share-btn.native-share { display: inline-flex; }
+}
