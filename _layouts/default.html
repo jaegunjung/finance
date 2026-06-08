@@ -6,6 +6,13 @@
   <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
   <meta name="description" content="{% if page.description %}{{ page.description }}{% elsif page.excerpt %}{{ page.excerpt | strip_html | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
   <link rel="icon" type="image/png" href="{{ '/assets/images/jj-logo.png' | relative_url }}">
+  <!-- Open Graph / Share preview -->
+  <meta property="og:type"        content="website">
+  <meta property="og:site_name"   content="{{ site.title }}">
+  <meta property="og:title"       content="{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}">
+  <meta property="og:description" content="{% if page.description %}{{ page.description }}{% elsif page.excerpt %}{{ page.excerpt | strip_html | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
+  <meta property="og:url"         content="{{ page.url | absolute_url }}">
+  <meta property="og:image"       content="{{ site.url }}/finance/assets/images/jj-og-logo.svg">
   <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
   <script>
     // Apply saved language before first paint to avoid flash
