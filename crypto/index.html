@@ -1290,7 +1290,14 @@ document.querySelectorAll('.btc-range-btn').forEach(btn=>{
     btn.classList.add('active');
     const months=parseInt(btn.dataset.months);
     if(!months){btcChart.resetZoom();if(btcRsiChart)btcRsiChart.resetZoom();}
-    else{const max=btcDates.length-1;const rng={min:Math.max(0,max-months),max};btcChart.zoomScale('x',rng);if(btcRsiChart)btcRsiChart.zoomScale('x',rng,'none');}
+    else{
+      const isDaily=btcDates.length>0&&btcDates[0].length===10;
+      const daysBack=Math.round(months*(isDaily?30.44:1));
+      const xMax=window.btcXMax||btcDates.length-1;
+      const xMin=Math.max(window.btcXMin||0,(btcDates.length-1)-daysBack);
+      const rng={min:xMin,max:xMax};
+      btcChart.zoomScale('x',rng);if(btcRsiChart)btcRsiChart.zoomScale('x',rng,'none');
+    }
   });
 });
 

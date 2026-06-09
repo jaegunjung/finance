@@ -352,6 +352,10 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
 .post-content ul, .post-content ol { padding-left: 1.5em; margin-bottom: 1.2em; }
 .post-content li { margin-bottom: 0.3em; }
 .post-content strong { color: var(--text-primary); font-weight: 600; }
+.post-content table { border-collapse: collapse; width: 100%; margin-bottom: 1.2em; }
+.post-content table th, .post-content table td { padding: 6px 20px 6px 8px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.post-content table th { color: var(--text-primary); font-weight: 600; border-bottom: 2px solid var(--border); }
+.post-content table td { color: var(--text-secondary); }
 .post-content code {
   background: var(--bg-secondary);
   padding: 2px 6px;

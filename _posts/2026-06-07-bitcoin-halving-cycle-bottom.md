@@ -21,6 +21,10 @@ The short answer from four cycles of data: it depends on where you are in the ha
 
 ## The Halving Clock: 14 Months In
 
+<div style="margin-bottom:24px;">
+  <iframe src="{{ '/crypto/embed-chart.html' | relative_url }}" style="width:100%;height:600px;border:none;display:block;border-radius:8px;" scrolling="no" loading="lazy"></iframe>
+</div>
+
 The most recent halving occurred in **April 2024**. As of June 2026, we are approximately **14 months post-halving**.
 
 Here is what those 14 months have looked like in prior cycles:
@@ -100,6 +104,10 @@ The X-axis (time) is telling you something. Don't let the Y-axis (price) be the 
 4번의 사이클 데이터가 주는 짧은 답: 반감기 시계에서 지금이 몇 시인지에 달려 있다. 그리고 지금 그 시계는 꽤 구체적인 것을 가리키고 있다.
 
 ## 반감기 시계: 14개월째
+
+<div style="margin-bottom:24px;">
+  <iframe src="{{ '/crypto/embed-chart.html' | relative_url }}" style="width:100%;height:600px;border:none;display:block;border-radius:8px;" scrolling="no" loading="lazy"></iframe>
+</div>
 
 가장 최근 반감기는 **2024년 4월**이었다. 2026년 6월 현재, 반감기 후 약 **14개월**이 지났다.
 

@@ -1,0 +1,322 @@
+---
+layout: none
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100%;overflow:hidden;}
+:root{
+  --bg-card:#161b22;--border:#30363d;--text-primary:#e6edf3;--text-secondary:#8b949e;
+  --text-muted:#484f58;--accent-blue:#3B8BD4;--accent-green:#3fb950;
+}
+.range-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.range-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-secondary);font-size:0.8rem;cursor:pointer;transition:all 0.15s;}
+.range-btn:hover{background:var(--bg-card);color:var(--text-primary);}
+.range-btn.active{background:var(--accent-blue);color:#fff;border-color:var(--accent-blue);}
+.ctrl-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-secondary);font-size:0.8rem;cursor:pointer;transition:all 0.15s;}
+.ctrl-btn:hover{background:var(--bg-card);color:var(--text-primary);}
+.ctrl-btn.active{background:var(--accent-green);color:#fff;border-color:var(--accent-green);}
+#wrap{padding:10px 12px 8px;display:flex;flex-direction:column;height:100%;}
+#controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;}
+#chartContainer{position:relative;flex:1;min-height:0;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+#btcChart{position:absolute;top:0;left:0;width:100%;height:100%;}
+#btcSvg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;}
+#btcMarkerTooltip{position:absolute;display:none;pointer-events:none;z-index:10;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:8px 12px;min-width:160px;}
+#btcMarkerTooltip .tt-date{font-weight:600;color:var(--text-primary);font-size:0.875rem;}
+#btcMarkerTooltip .tt-price,.tt-title{color:var(--text-secondary);font-size:0.8rem;margin:2px 0;}
+#btcChartLoading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;}
+.rainbow-legend{display:flex;flex-wrap:wrap;gap:5px;font-size:0.68rem;color:var(--text-secondary);margin-top:4px;}
+.rainbow-legend span{display:flex;align-items:center;gap:3px;}
+.rainbow-legend .swatch{width:10px;height:10px;border-radius:2px;display:inline-block;}
+.hint{color:var(--text-muted);font-size:0.7rem;margin-top:3px;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="controls">
+    <div class="range-row">
+      <button class="btc-range-btn range-btn" data-months="24">2Y</button>
+      <button class="btc-range-btn range-btn" data-months="60">5Y</button>
+      <button class="btc-range-btn range-btn" data-months="120">10Y</button>
+      <button class="btc-range-btn range-btn active" data-months="0">All</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
+      <button id="btcMa12Toggle" class="ctrl-btn active" onclick="toggleBtcMA(12)">MA-12</button>
+      <button id="btcMa24Toggle" class="ctrl-btn active" onclick="toggleBtcMA(24)">MA-24</button>
+      <button id="rainbowToggle" class="ctrl-btn active" onclick="toggleRainbow()">🌈 Rainbow</button>
+    </div>
+  </div>
+  <div id="chartContainer">
+    <div id="btcChartLoading">Loading data...</div>
+    <canvas id="btcChart" style="touch-action:pan-y;"></canvas>
+    <svg id="btcSvg"></svg>
+    <div id="btcMarkerTooltip">
+      <div class="tt-date" id="btcTtDate"></div>
+      <div class="tt-price" id="btcTtPrice"></div>
+      <div class="tt-title" id="btcTtTitle"></div>
+    </div>
+  </div>
+  <div class="rainbow-legend" id="rainbowLegend" style="margin-top:5px;">
+    <span><span class="swatch" style="background:#ff0000"></span>Maximum Bubble</span>
+    <span><span class="swatch" style="background:#ff4500"></span>Sell. Seriously.</span>
+    <span><span class="swatch" style="background:#ff8c00"></span>FOMO intensifies</span>
+    <span><span class="swatch" style="background:#ffd700"></span>Is this a bubble?</span>
+    <span><span class="swatch" style="background:#adff2f"></span>HODL</span>
+    <span><span class="swatch" style="background:#00ff7f"></span>Still cheap</span>
+    <span><span class="swatch" style="background:#00bfff"></span>Accumulate</span>
+    <span><span class="swatch" style="background:#1e90ff"></span>BUY!</span>
+    <span><span class="swatch" style="background:#8a2be2"></span>Fire sale!</span>
+  </div>
+  <div class="hint">Scroll to zoom · Drag to pan · Double-click to reset</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script>
+const GENESIS=new Date('2009-01-03');
+const BTC_ANCHORS={'2010-07':0.08,'2011-06':29.6,'2011-11':2.0,'2012-11':12.3,'2013-04':230,'2013-07':65,'2013-12':1163,'2014-06':600,'2015-01':172,'2015-10':300,'2016-07':650,'2017-03':1100,'2017-12':19783,'2018-06':7500,'2018-12':3122,'2019-06':10800,'2019-12':7300,'2020-03':4106,'2020-08':11700,'2020-12':28990,'2021-04':63000,'2021-07':29800,'2021-11':68789,'2022-01':38500,'2022-06':19000,'2022-11':15476,'2023-01':16600,'2023-06':30700,'2023-12':42700,'2024-01':43600,'2024-03':73750,'2024-06':60500,'2024-08':58000,'2024-11':98000,'2025-01':109000,'2025-04':85000,'2025-05':100000,'2025-06':106000,'2025-07':112000,'2025-08':117000,'2025-09':115000,'2025-10':121000,'2025-11':95000,'2025-12':89000,'2026-01':92000,'2026-02':63000,'2026-05':103000};
+const HALVINGS=[{date:'2012-11',label:'Halving 1'},{date:'2016-07',label:'Halving 2'},{date:'2020-05',label:'Halving 3'},{date:'2024-04',label:'Halving 4'},{date:'2028-03',label:'Halving 5 (est.)',estimated:true}];
+const BTC_PEAKS=[
+  {date:'2011-06',price:29.6,en:'First Major Bubble',ko:'첫 버블 정점',type:'peak'},
+  {date:'2013-12',price:1163,en:'China Adoption Peak',ko:'중국 채택 정점',type:'peak'},
+  {date:'2017-12',price:19783,en:'Retail FOMO Peak',ko:'개인 FOMO 정점',type:'peak'},
+  {date:'2021-04',price:63000,en:'Coinbase IPO Euphoria',ko:'코인베이스 IPO 기대 정점',type:'peak'},
+  {date:'2021-11',price:68789,en:'All-Time High $69K',ko:'역대 최고점 $69K',type:'peak'},
+  {date:'2024-03',price:73750,en:'Spot ETF Launch Peak',ko:'현물 ETF 출시 정점',type:'peak'},
+  {date:'2025-01',price:109000,en:'Trump Pre-Inauguration High',ko:'트럼프 취임 전날 신고점',type:'peak'},
+  {date:'2025-10',price:124773,en:'New ATH — GENIUS Act Era',ko:'GENIUS Act 시대 신역대 최고가',type:'peak'},
+];
+const BTC_TROUGHS=[
+  {date:'2011-11',price:2.0,en:'Mt.Gox Hack Crash',ko:'마운트곡스 해킹 붕괴',type:'trough'},
+  {date:'2015-01',price:172,en:'Mt.Gox Bankruptcy Bottom',ko:'마운트곡스 파산 바닥',type:'trough'},
+  {date:'2018-12',price:3122,en:'ICO Bust Bottom',ko:'ICO 버블 붕괴 바닥',type:'trough'},
+  {date:'2020-03',price:4106,en:'COVID Crash',ko:'코로나 폭락 바닥',type:'trough'},
+  {date:'2022-11',price:15476,en:'FTX Collapse',ko:'FTX 파산 바닥',type:'trough'},
+  {date:'2024-08',price:58000,en:'Yen Carry Trade Unwind',ko:'엔 캐리 청산 급락',type:'trough'},
+  {date:'2026-02',price:62853,en:'DeepSeek AI & Tariff Crash',ko:'딥시크 AI 충격·관세 전쟁 급락',type:'trough'},
+];
+const BTC_MARKERS=[...BTC_PEAKS,...BTC_TROUGHS].sort((a,b)=>a.date.localeCompare(b.date));
+
+const PL_A=5.84,PL_B=-17.01,BAND_HALF=0.1;
+const RAINBOW_BANDS=[
+  {label:'Maximum Bubble',color:'rgba(255,0,0,0.35)',offset:4},
+  {label:'Sell. Seriously.',color:'rgba(255,69,0,0.3)',offset:3},
+  {label:'FOMO intensifies',color:'rgba(255,140,0,0.3)',offset:2},
+  {label:'Is this a bubble?',color:'rgba(255,215,0,0.3)',offset:1},
+  {label:'HODL',color:'rgba(173,255,47,0.25)',offset:0},
+  {label:'Still cheap',color:'rgba(0,255,127,0.25)',offset:-1},
+  {label:'Accumulate',color:'rgba(0,191,255,0.25)',offset:-2},
+  {label:'BUY!',color:'rgba(30,144,255,0.3)',offset:-3},
+  {label:'Fire sale!',color:'rgba(138,43,226,0.3)',offset:-4},
+];
+
+function plPrice(days,off){return Math.pow(10,PL_A*Math.log10(days)+PL_B+off*BAND_HALF);}
+function daysSinceGenesis(ds){const p=ds.split('-').map(Number);const d=p.length>=3?new Date(p[0],p[1]-1,p[2]):new Date(p[0],p[1]-1,15);return Math.max(1,Math.round((d-GENESIS)/86400000));}
+const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtBtcDate=d=>{const[y,m]=d.split('-').map(Number);return`${MONTH_NAMES[m-1]} ${y}`;};
+
+let btcChart,btcDates=[],btcPrices=[],showRainbow=true,showBtcMA={12:true,24:true};
+
+function computeBtcSMA(arr,period){return arr.map((_,i)=>{if(i<period-1)return null;let s=0;for(let j=i-period+1;j<=i;j++)s+=arr[j];return s/period;});}
+const MA_DAYS={12:365,24:730};
+function getBtcMaData(period){const days=MA_DAYS[period]||period;return computeBtcSMA(btcPrices,days).map((v,i)=>({x:i,y:v===null?NaN:v}));}
+
+function toggleBtcMA(period){
+  showBtcMA[period]=!showBtcMA[period];
+  document.getElementById(`btcMa${period}Toggle`).classList.toggle('active',showBtcMA[period]);
+  if(!btcChart)return;
+  const dsIdx={12:1,24:2}[period];
+  btcChart.data.datasets[dsIdx].hidden=!showBtcMA[period];
+  btcChart.update('none');
+}
+function toggleRainbow(){
+  showRainbow=!showRainbow;
+  document.getElementById('rainbowToggle').classList.toggle('active',showRainbow);
+  document.getElementById('rainbowLegend').style.display=showRainbow?'flex':'none';
+  updateBtcOverlay(btcChart);
+}
+
+function btcDateToIdx(ds){if(ds.length===7){const i=btcDates.findIndex(d=>d.slice(0,7)===ds);return i;}return btcDates.indexOf(ds);}
+
+function buildBtcData(apiData){
+  const merged={};
+  for(const[k,v]of Object.entries(BTC_ANCHORS))merged[k]=v;
+  if(apiData){for(const[ts,price]of apiData.prices){const d=new Date(ts);const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;merged[key]=price;}}
+  const keys=Object.keys(merged).sort();
+  const[sy,sm]=keys[0].split('-').map(Number);const[ey,em]=keys[keys.length-1].split('-').map(Number);
+  let prevVal=null;
+  for(let y=sy,m=sm;y*12+m<=ey*12+em;){const k=`${y}-${String(m).padStart(2,'0')}`;if(!merged[k])merged[k]=prevVal;else prevVal=merged[k];if(++m>12){m=1;y++;}}
+  const sorted=Object.entries(merged).filter(([,v])=>v!=null).sort(([a],[b])=>a.localeCompare(b));
+  btcDates=sorted.map(([k])=>k);btcPrices=sorted.map(([,v])=>v);
+}
+
+function detectBtcMarker(mx,my){
+  if(!btcChart)return null;
+  const xS=btcChart.scales.x,yS=btcChart.scales.y,ca=btcChart.chartArea;
+  for(const m of BTC_MARKERS){
+    if(m.idx==null||m.idx<0)continue;
+    const px=xS.getPixelForValue(m.idx),py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
+    if(px<ca.left-5||px>ca.right+5)continue;
+    if(Math.abs(mx-px)<10&&Math.abs(my-py)<10)return m;
+  }
+  return null;
+}
+
+function showBtcTooltip(m,mx,my){
+  const tt=document.getElementById('btcMarkerTooltip');
+  document.getElementById('btcTtDate').textContent=fmtBtcDate(m.date);
+  document.getElementById('btcTtPrice').textContent='$'+(btcPrices[m.idx]??m.price).toLocaleString(undefined,{maximumFractionDigits:0});
+  document.getElementById('btcTtTitle').textContent=m.en;
+  tt.style.display='block';
+  const cw=document.getElementById('chartContainer').offsetWidth,ch=document.getElementById('chartContainer').offsetHeight;
+  let lx=mx+12,ly=my-80;if(lx+180>cw)lx=mx-192;if(ly<0)ly=my+12;if(ly+90>ch)ly=ch-90;
+  tt.style.left=lx+'px';tt.style.top=ly+'px';
+}
+function hideBtcTooltip(){document.getElementById('btcMarkerTooltip').style.display='none';}
+
+function updateBtcOverlay(ch){
+  const svg=document.getElementById('btcSvg');
+  if(!ch||!ch.chartArea)return;
+  const ca=ch.chartArea,xS=ch.scales.x,yS=ch.scales.y;
+  let html=`<defs><clipPath id="bca"><rect x="${ca.left}" y="${ca.top}" width="${ca.right-ca.left}" height="${ca.bottom-ca.top}"/></clipPath></defs>`;
+  let hC=`<g clip-path="url(#bca)">`,hU=``;
+
+  if(showRainbow){
+    const mn0=xS.getValueForPixel(ca.left),mn1=xS.getValueForPixel(ca.right);
+    for(let bi=0;bi<RAINBOW_BANDS.length;bi++){
+      const band=RAINBOW_BANDS[bi];const topOff=band.offset+0.5,botOff=band.offset-0.5;
+      const nPts=60;let pts='';
+      for(let t=0;t<=nPts;t++){const frac=t/nPts;const idx=mn0+(mn1-mn0)*frac;if(idx<0)continue;const ri=Math.round(idx);let dateKey;if(ri>=0&&ri<btcDates.length){dateKey=btcDates[ri];}else if(ri<0){continue;}else{const ld=new Date(btcDates[btcDates.length-1]);ld.setDate(ld.getDate()+(ri-(btcDates.length-1)));dateKey=ld.toISOString().slice(0,10);}const days=daysSinceGenesis(dateKey);const px=xS.getPixelForValue(idx);const py=yS.getPixelForValue(plPrice(days,topOff));pts+=`${px},${py} `;}
+      for(let t=nPts;t>=0;t--){const frac=t/nPts;const idx=mn0+(mn1-mn0)*frac;if(idx<0)continue;const ri=Math.round(idx);let dateKey;if(ri>=0&&ri<btcDates.length){dateKey=btcDates[ri];}else if(ri<0){continue;}else{const ld=new Date(btcDates[btcDates.length-1]);ld.setDate(ld.getDate()+(ri-(btcDates.length-1)));dateKey=ld.toISOString().slice(0,10);}const days=daysSinceGenesis(dateKey);const px=xS.getPixelForValue(idx);const py=yS.getPixelForValue(plPrice(days,botOff));pts+=`${px},${py} `;}
+      hC+=`<polygon points="${pts.trim()}" fill="${band.color}"/>`;
+    }
+  }
+
+  for(const m of BTC_MARKERS){
+    if(m.idx==null||m.idx<0)continue;
+    const px=xS.getPixelForValue(m.idx),py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
+    if(px<ca.left-6||px>ca.right+6||py<ca.top-6||py>ca.bottom+6)continue;
+    if(m.type==='peak')hC+=`<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
+    else hC+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
+  }
+
+  for(const h of HALVINGS){
+    let hIdx;const idx=btcDateToIdx(h.date);
+    if(idx>=0){hIdx=idx;}else if(h.estimated){const _f=new Date(btcDates[0].slice(0,10));const _t=new Date(h.date+'-15');const _isD=btcDates[0].length===10;hIdx=_isD?Math.floor((_t-_f)/86400000):((_t.getFullYear()-_f.getFullYear())*12+(_t.getMonth()-_f.getMonth()));}else{const fd=new Date(btcDates[0].slice(0,10));const hd=new Date(h.date+'-15');hIdx=Math.floor((hd-fd)/86400000);}
+    const px=xS.getPixelForValue(hIdx);
+    if(px<ca.left||px>ca.right)continue;
+    const dash=h.estimated?'3,5':'6,4';const opacity=h.estimated?0.3:0.5;
+    hU+=`<line x1="${px}" y1="${ca.top-78}" x2="${px}" y2="${ca.bottom}" stroke="rgba(255,255,255,${opacity})" stroke-width="1" stroke-dasharray="${dash}"/>`;
+    hU+=`<text x="${px+4}" y="${ca.top+16}" fill="rgba(255,255,255,${opacity*1.5})" font-size="10">${h.label}</text>`;
+  }
+  html+=hC+'</g><g>'+hU+'</g>';
+  svg.innerHTML=html;
+}
+
+function initBtcChart(){
+  BTC_MARKERS.forEach(m=>{
+    const prefix=m.date;const monthIndices=[];
+    for(let i=0;i<btcDates.length;i++){if(btcDates[i].slice(0,7)===prefix)monthIndices.push(i);}
+    if(monthIndices.length===0){m.idx=-1;return;}
+    if(m.type==='peak'){m.idx=monthIndices.reduce((best,i)=>btcPrices[i]>btcPrices[best]?i:best,monthIndices[0]);}
+    else{m.idx=monthIndices.reduce((best,i)=>btcPrices[i]<btcPrices[best]?i:best,monthIndices[0]);}
+  });
+
+  const canvas=document.getElementById('btcChart');
+  const ctx=canvas.getContext('2d');
+  let crossX,crossY;
+
+  const crosshairPlugin={id:'btcCrosshair',afterDraw(ch){if(crossX===undefined)return;const{ctx:c,chartArea:ca}=ch;if(crossX<ca.left||crossX>ca.right||crossY<ca.top||crossY>ca.bottom)return;c.save();c.strokeStyle='rgba(139,148,158,0.3)';c.lineWidth=1;c.beginPath();c.moveTo(crossX,ca.top);c.lineTo(crossX,ca.bottom);c.stroke();c.beginPath();c.moveTo(ca.left,crossY);c.lineTo(ca.right,crossY);c.stroke();c.restore();}};
+
+  const btcSixMoIdx=[];
+  {const seen=new Set();for(let i=0;i<btcDates.length;i++){const m=btcDates[i].slice(5,7);if(m==='01'||m==='07'){const key=btcDates[i].slice(0,7);if(!seen.has(key)){seen.add(key);btcSixMoIdx.push(i);}}}}
+
+  btcChart=new Chart(ctx,{
+    type:'line',
+    data:{datasets:[
+      {data:btcPrices.map((p,i)=>({x:i,y:p})),borderColor:'#f7931a',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,label:'Bitcoin'},
+      {data:getBtcMaData(12),borderColor:'#82aaff',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-12'},
+      {data:getBtcMaData(24),borderColor:'#ff9800',borderWidth:1.5,pointRadius:0,tension:0,parsing:false,spanGaps:false,label:'MA-24'},
+    ]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:false,
+      layout:{padding:{top:88,bottom:20}},
+      scales:{
+        x:{type:'linear',min:window.btcXMin||0,max:window.btcXMax||btcDates.length-1,grid:{color:'rgba(48,54,61,0.8)'},
+           afterBuildTicks(scale){const lo=Math.floor(scale.min??0),hi=Math.ceil(scale.max??btcDates.length);const ticks=btcSixMoIdx.filter(v=>v>=lo&&v<=hi).map(v=>({value:v}));const future=(window.btcFutureTicks||[]).filter(t=>t.value>=lo&&t.value<=hi).map(t=>({value:t.value}));const all=[...ticks,...future];if(all.length)scale.ticks=all;},
+           ticks:{color:'#8b949e',font:{size:10},callback:(val)=>{const i=Math.round(val);if(i>=0&&i<btcDates.length){const m=btcDates[i].slice(5,7);return m==='01'?btcDates[i].slice(0,4):(m==='07'?'Jul':'');}const ft=(window.btcFutureTicks||[]).find(t=>Math.abs(t.value-i)<1);return ft?ft.label:'';}}},
+        y:{type:'logarithmic',max:1000000,grid:{color:'rgba(48,54,61,0.8)'},ticks:{color:'#8b949e',font:{size:11},callback:v=>{const vals=[0.01,0.1,1,10,100,1000,10000,100000,200000,300000,500000,1000000];if(!vals.some(vv=>Math.abs(v-vv)/vv<0.01))return'';if(v>=1000000)return'$1M';if(v>=1000)return'$'+(v/1000).toFixed(0)+'K';return v>=1?v.toLocaleString():`$${v}`;}}}
+      },
+      plugins:{
+        decimation:{enabled:false},legend:{display:false},
+        tooltip:{mode:'index',intersect:false,backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e',padding:10,displayColors:false,
+          callbacks:{
+            title:items=>{if(!items[0]||!items[0].parsed)return'';const i=Math.round(items[0].parsed.x);const d=btcDates[i]||'2010-01-01';return d.slice(0,10);},
+            label:item=>{if(!item.parsed||isNaN(item.parsed.y))return null;if(item.datasetIndex===0)return'BTC: $'+item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0});const lbls=['','MA-365d (1Y)','MA-730d (2Y)'];return`${lbls[item.datasetIndex]}: $${item.parsed.y.toLocaleString(undefined,{maximumFractionDigits:0})}`;}
+          }
+        },
+        zoom:{zoom:{wheel:{enabled:true,speed:0.1},pinch:{enabled:false},mode:'x',onZoomComplete:()=>updateBtcOverlay(btcChart)},pan:{enabled:true,mode:'x',onPanComplete:()=>updateBtcOverlay(btcChart)},limits:{x:{min:window.btcXMin||0,max:(window.btcXMax||btcDates.length-1)+24,minRange:3}}}
+      }
+    },
+    plugins:[crosshairPlugin,{id:'btcOverlay',afterDraw(ch){updateBtcOverlay(ch);}}]
+  });
+
+  canvas.style.touchAction='pan-y';
+  canvas.addEventListener('dblclick',()=>btcChart.resetZoom());
+  canvas.addEventListener('mousemove',e=>{
+    const rect=canvas.getBoundingClientRect();const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    crossX=mx;crossY=my;
+    const found=detectBtcMarker(mx,my);
+    canvas.style.cursor=found?'pointer':'default';
+    if(found)showBtcTooltip(found,mx,my);else hideBtcTooltip();
+    btcChart.draw();
+  });
+  canvas.addEventListener('mouseleave',()=>{crossX=crossY=undefined;hideBtcTooltip();btcChart.draw();});
+}
+
+document.querySelectorAll('.btc-range-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.btc-range-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const months=parseInt(btn.dataset.months);
+    if(!months)btcChart.resetZoom();
+    else{
+      const isDaily=btcDates.length>0&&btcDates[0].length===10;
+      const daysBack=Math.round(months*(isDaily?30.44:1));
+      const xMax=window.btcXMax||btcDates.length-1;
+      const xMin=Math.max(window.btcXMin||0,(btcDates.length-1)-daysBack);
+      btcChart.zoomScale('x',{min:xMin,max:xMax});
+    }
+  });
+});
+
+async function loadBtcData(){
+  let dataSource='hardcoded';
+  try{const csvUrl='{{ "/crypto/data/btc_daily.csv" | relative_url }}';const r=await fetch(csvUrl);if(r.ok){const text=await r.text();const result=Papa.parse(text.trim(),{header:true,skipEmptyLines:true});if(result.data&&result.data.length>0){const dates=[],prices=[];for(const row of result.data){const d=(row.date||'').trim();const p=parseFloat(row.open_price_usd);if(!d||isNaN(p)||p<=0)continue;dates.push(d);prices.push(p);}if(dates.length>0){btcDates=dates;btcPrices=prices;dataSource='csv';}}}}catch(e){}
+  if(dataSource==='hardcoded'){try{const r=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=max&interval=monthly',{signal:AbortSignal.timeout?AbortSignal.timeout(5000):undefined});if(r.ok){buildBtcData(await r.json());dataSource='api';}}catch(e){}if(dataSource==='hardcoded')buildBtcData(null);}
+  if(dataSource==='csv'&&btcDates.length>0){try{const r=await fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30&interval=daily',{signal:AbortSignal.timeout?AbortSignal.timeout(5000):undefined});if(r.ok){const json=await r.json();const last=btcDates[btcDates.length-1];for(const[ts,price]of json.prices){const d=new Date(ts);const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;if(ds>last&&price>0){btcDates.push(ds);btcPrices.push(price);}}}}catch(e){}}
+
+  const startDate='2012-01-01';const si=btcDates.findIndex(d=>d>=startDate);if(si>0){btcDates=btcDates.slice(si);btcPrices=btcPrices.slice(si);}
+
+  const _halvingOne=new Date('2012-11-15');const _firstData=new Date(btcDates[0].slice(0,10));
+  const _daysBefore=Math.floor((_halvingOne-_firstData)/86400000);
+  window.btcXMin=Math.min(0,_daysBefore-15);
+  const _targetDate=new Date('2030-01-01');const _isDaily=btcDates[0].length===10;
+  if(_isDaily)window.btcXMax=Math.floor((_targetDate-_firstData)/86400000);
+  else{const _m=(_targetDate.getFullYear()-_firstData.getFullYear())*12+(_targetDate.getMonth()-_firstData.getMonth());window.btcXMax=_m;}
+  window.btcFutureTicks=[];
+  const _lastD=new Date(btcDates[btcDates.length-1].slice(0,10));
+  for(let _fd=new Date(_lastD);_fd<=_targetDate;_fd.setMonth(_fd.getMonth()+1)){const _fm=_fd.getMonth();if(_fm===0||_fm===6){const _daysAhead=Math.round((_fd-_lastD)/86400000);const _fidx=_isDaily?btcDates.length-1+_daysAhead:btcDates.length-1+Math.round(_daysAhead/30.44);const _lbl=_fm===0?String(_fd.getFullYear()):'Jul';window.btcFutureTicks.push({value:_fidx,label:_lbl});}}
+
+  initBtcChart();
+  document.getElementById('btcChartLoading').style.display='none';
+}
+loadBtcData();
+</script>
+</body>
+</html>
