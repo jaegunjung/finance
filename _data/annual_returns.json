@@ -1,0 +1,172 @@
+{
+  "symbols": [
+    {
+      "ticker": "MU",
+      "name": "Micron Technology",
+      "category": "stock",
+      "returns": {
+        "2020": 41.61,
+        "2021": 19.18,
+        "2022": -38.92,
+        "2023": 42.32,
+        "2024": -1.56,
+        "2025": 213.71,
+        "2026_ytd": 128.9
+      }
+    },
+    {
+      "ticker": "WDC",
+      "name": "Western Digital",
+      "category": "stock",
+      "returns": {
+        "2020": -13.65,
+        "2021": 15.56,
+        "2022": -39.02,
+        "2023": 19.16,
+        "2024": 4.16,
+        "2025": 251.0,
+        "2026_ytd": 110.68
+      }
+    },
+    {
+      "ticker": "STX",
+      "name": "Seagate Technology",
+      "category": "stock",
+      "returns": {
+        "2020": 13.81,
+        "2021": 75.1,
+        "2022": -49.47,
+        "2023": 30.17,
+        "2024": 2.92,
+        "2025": 190.58,
+        "2026_ytd": 115.43
+      }
+    },
+    {
+      "ticker": "CIEN",
+      "name": "Ciena Corporation",
+      "category": "stock",
+      "returns": {
+        "2020": 29.95,
+        "2021": 44.17,
+        "2022": -23.12,
+        "2023": -13.48,
+        "2024": 60.02,
+        "2025": 168.38,
+        "2026_ytd": 85.33
+      }
+    },
+    {
+      "ticker": "LITE",
+      "name": "Lumentum Holdings",
+      "category": "stock",
+      "returns": {
+        "2020": 25.12,
+        "2021": 12.76,
+        "2022": -48.59,
+        "2023": -12.89,
+        "2024": 52.8,
+        "2025": 333.33,
+        "2026_ytd": 128.51
+      }
+    },
+    {
+      "ticker": "BE",
+      "name": "Bloom Energy",
+      "category": "stock",
+      "returns": {
+        "2020": 263.71,
+        "2021": -37.18,
+        "2022": 26.79,
+        "2023": -40.63,
+        "2024": 96.2,
+        "2025": 268.49,
+        "2026_ytd": 67.52
+      }
+    },
+    {
+      "ticker": "DRAM",
+      "name": "DRAM ETF",
+      "category": "index",
+      "returns": {
+        "2020": null,
+        "2021": null,
+        "2022": null,
+        "2023": null,
+        "2024": null,
+        "2025": null,
+        "2026_ytd": 53.88
+      }
+    },
+    {
+      "ticker": "AIPO",
+      "name": "ProShares AIPO ETF",
+      "category": "index",
+      "returns": {
+        "2020": null,
+        "2021": null,
+        "2022": null,
+        "2023": null,
+        "2024": null,
+        "2025": 7.48,
+        "2026_ytd": 28.07
+      }
+    },
+    {
+      "ticker": "SOXX",
+      "name": "iShares Semiconductor ETF",
+      "category": "index",
+      "returns": {
+        "2020": 57.45,
+        "2021": 39.32,
+        "2022": -26.78,
+        "2023": 43.78,
+        "2024": 10.83,
+        "2025": 38.83,
+        "2026_ytd": 65.12
+      }
+    },
+    {
+      "ticker": "EWY",
+      "name": "iShares MSCI South Korea ETF",
+      "category": "index",
+      "returns": {
+        "2020": 49.26,
+        "2021": -11.61,
+        "2022": -21.98,
+        "2023": 3.25,
+        "2024": -14.43,
+        "2025": 80.14,
+        "2026_ytd": 51.65
+      }
+    },
+    {
+      "ticker": "WGMI",
+      "name": "Valkyrie Bitcoin Miners ETF",
+      "category": "index",
+      "returns": {
+        "2020": null,
+        "2021": null,
+        "2022": -82.98,
+        "2023": 102.7,
+        "2024": 70.96,
+        "2025": 69.71,
+        "2026_ytd": 45.92
+      }
+    },
+    {
+      "ticker": "SPY",
+      "name": "SPDR S&P 500 ETF",
+      "category": "index",
+      "returns": {
+        "2020": 17.88,
+        "2021": 29.6,
+        "2022": -14.01,
+        "2023": 18.23,
+        "2024": 22.52,
+        "2025": 14.3,
+        "2026_ytd": 7.12
+      }
+    }
+  ]
+}
