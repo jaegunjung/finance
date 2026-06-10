@@ -1,0 +1,15 @@
+{
+  "name": "jj-finance-integration-tests",
+  "version": "1.0.0",
+  "description": "Playwright integration tests for JJ Financial Analysis — driven by git log analysis",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}

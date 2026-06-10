@@ -1,0 +1,197 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # JOB 1 — git log 분석: 버그 패턴 추출 → 아티팩트 저장
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  analyze-commits:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 전체 히스토리 필요
+
+      - name: Analyze git log for bug patterns
+        shell: bash
+        run: |
+          LOG=$(git log --oneline -100)
+          echo "$LOG"
+
+          echo "=== 전체 커밋 (최근 100개) ===" > commit_analysis.txt
+          echo "$LOG"                           >> commit_analysis.txt
+
+          echo ""                                    >> commit_analysis.txt
+          echo "=== fix/bug/error 포함 커밋 ===" >> commit_analysis.txt
+          echo "$LOG" | grep -iE '(fix|error|bug|broken|wrong|incorrect|revert|hotfix|regression|broke|crash|fail)' \
+            >> commit_analysis.txt || echo "(없음)" >> commit_analysis.txt
+
+          echo ""                                         >> commit_analysis.txt
+          echo "=== chart/button/state 관련 커밋 ===" >> commit_analysis.txt
+          echo "$LOG" | grep -iE '(chart|button|state|dataset|range|date|start|end|zoom|filter|rsi|ma-)' \
+            >> commit_analysis.txt || echo "(없음)" >> commit_analysis.txt
+
+          echo ""                                       >> commit_analysis.txt
+          echo "=== layout/404/front-matter 관련 ===" >> commit_analysis.txt
+          echo "$LOG" | grep -iE '(layout|404|frontmatter|front.matter|pages|permalink)' \
+            >> commit_analysis.txt || echo "(없음)" >> commit_analysis.txt
+
+          echo ""                                       >> commit_analysis.txt
+          echo "=== API/데이터 관련 커밋 ===" >> commit_analysis.txt
+          echo "$LOG" | grep -iE '(api|fetch|data|csv|json|alpha.vantage|coingecko|fred|yfinance)' \
+            >> commit_analysis.txt || echo "(없음)" >> commit_analysis.txt
+
+          echo ""                                          >> commit_analysis.txt
+          echo "=== 기능별 반복 수정 횟수 ===" >> commit_analysis.txt
+          for kw in chart button layout state api returns table nav crypto stock envx btc eth rsi date range; do
+            cnt=$(echo "$LOG" | grep -ic "$kw" || true)
+            [ "$cnt" -gt 0 ] && echo "  $kw: ${cnt}회" >> commit_analysis.txt
+          done
+
+          cat commit_analysis.txt
+
+      - name: Upload commit analysis artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: commit-analysis
+          path: commit_analysis.txt
+          retention-days: 7
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # JOB 2 — Jekyll 빌드 → Playwright 통합 테스트
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: analyze-commits
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Ruby / Bundler ──────────────────────────────────────────
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      # ── Jekyll 빌드 ─────────────────────────────────────────────
+      - name: Build Jekyll site
+        run: bundle exec jekyll build --destination _site
+        env:
+          JEKYLL_ENV: production
+
+      # ── 정적 검사: layout:none → 404 버그 ───────────────────────
+      - name: Static check — layout:none in built HTML
+        run: |
+          echo "=== _site/ 내 'layout: none' 텍스트 검색 ==="
+          if grep -rl "layout: none" _site/ --include="*.html" 2>/dev/null | grep .; then
+            echo "❌ FAIL: 빌드 산출물에 'layout: none' 텍스트가 존재합니다."
+            echo "   해당 파일의 front matter를 'layout: null' 로 수정하거나 layout 키를 제거하세요."
+            exit 1
+          fi
+          echo "✅ layout:none 오염 없음"
+
+      # ── git log → JSON (테스트 파일에서 참조) ───────────────────
+      - name: Export git log for test context
+        run: |
+          git log --oneline -100 > /tmp/git_log.txt
+
+          node -e "
+            const fs = require('fs');
+            const lines = fs.readFileSync('/tmp/git_log.txt','utf8').trim().split('\n');
+            const keywords = ['fix','error','bug','broken','wrong','incorrect',
+              'chart','button','state','layout','404','date','range','dataset',
+              'rsi','api','returns','table','csv','auth','revert','crash'];
+            const freq = {};
+            keywords.forEach(k => {
+              freq[k] = lines.filter(l => l.toLowerCase().includes(k)).length;
+            });
+            // 버그 수정이 2회 이상 발생한 기능 목록
+            const repeated = Object.entries(freq)
+              .filter(([,v]) => v >= 2)
+              .sort(([,a],[,b]) => b - a)
+              .map(([k]) => k);
+            const out = { freq, repeated, totalBugFixes: lines.filter(l =>
+              /fix|error|bug|broken|wrong|incorrect/i.test(l)).length };
+            fs.writeFileSync('/tmp/commit_freq.json', JSON.stringify(out, null, 2));
+            console.log('반복 수정 기능:', repeated.join(', ') || '없음');
+            console.log('총 버그 수정 커밋:', out.totalBugFixes);
+          "
+
+      # ── Node.js ─────────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # ── Jekyll 서버 기동 ────────────────────────────────────────
+      - name: Start Jekyll server
+        run: |
+          bundle exec jekyll serve \
+            --port 4000 \
+            --host 0.0.0.0 \
+            --no-watch \
+            --skip-initial-build \
+            --destination _site &
+          echo $! > jekyll.pid
+
+          echo "Jekyll 서버 대기 중..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:4000/finance/ > /dev/null 2>&1; then
+              echo "✅ 서버 준비 완료 (시도 ${i}회)"
+              break
+            fi
+            [ "$i" -eq 60 ] && { echo "❌ 서버 기동 타임아웃"; exit 1; }
+            sleep 1
+          done
+
+      # ── Playwright 테스트 ───────────────────────────────────────
+      - name: Run integration tests
+        run: npm test
+        env:
+          BASE_URL: "http://localhost:4000"
+          CI: "true"
+          GIT_LOG_PATH: "/tmp/git_log.txt"
+          COMMIT_FREQ_JSON: "/tmp/commit_freq.json"
+
+      # ── 정리 ────────────────────────────────────────────────────
+      - name: Stop Jekyll server
+        if: always()
+        run: |
+          [ -f jekyll.pid ] && kill "$(cat jekyll.pid)" 2>/dev/null || true
+
+      - name: Upload Playwright HTML report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-screenshots
+          path: test-results/**/*.png
+          retention-days: 14
