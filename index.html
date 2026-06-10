@@ -310,7 +310,7 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
 
   const ALL_STOCKS = [
     ...STOCKS.map(s => ({ ...s, only2026: false })),
-    ...AI_CAPEX.map(s => ({ ...s, only2026: true })),
+    ...AI_CAPEX.map(s => ({ ...s, only2026: false })),
   ];
 
   const SPLITS = { NVDA: [{ date:'2024-06-10', factor:10 }] };
