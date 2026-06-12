@@ -495,9 +495,14 @@ async function importSubmit() {
   const checkedPorts = new Set(
     [...document.querySelectorAll('.import-port-cb:checked')].map(c => c.dataset.portName)
   );
-  const rowsToImport = checkedPorts.size > 0
-    ? _importParsed.rows.filter(r => !r.portfolio_name || checkedPorts.has(r.portfolio_name))
-    : _importParsed.rows;
+  // Always include split rows for any symbol that has a transaction being imported
+  // (splits are global — they apply regardless of which portfolio holds the stock)
+  const nonSplitRows = checkedPorts.size > 0
+    ? _importParsed.rows.filter(r => r.type !== 'split' && (!r.portfolio_name || checkedPorts.has(r.portfolio_name)))
+    : _importParsed.rows.filter(r => r.type !== 'split');
+  const importedSymbols = new Set(nonSplitRows.map(r => r.symbol).filter(Boolean));
+  const splitRows = _importParsed.rows.filter(r => r.type === 'split' && importedSymbols.has(r.symbol));
+  const rowsToImport = [...nonSplitRows, ...splitRows];
 
   // nameToId: csvName → existing portfolio id OR 'new'
   const nameToId = {};

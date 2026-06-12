@@ -273,6 +273,8 @@ title: 포트폴리오
 // Jekyll baseurl-aware data paths
 const _STOCKS_BASE  = '{{ "/assets/data/stocks/" | relative_url }}';
 const _CRYPTO_SYMS  = ['BTC','ETH','PEPE'];
+const _STOCK_URL    = '{{ "/stock/" | relative_url }}';
+const _CRYPTO_URL   = '{{ "/crypto/" | relative_url }}';
 
 let portPortfolios = [];
 let portActivePortfolioId = null;
@@ -531,7 +533,7 @@ async function portLoadHoldings() {
 
     return `<tr>
       <td>
-        <div class="h-ticker">${sym}</div>
+        <div class="h-ticker"><a href="${_CRYPTO_SYMS.includes(sym) ? _CRYPTO_URL : _STOCK_URL + sym + '/'}" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='inherit'">${sym}</a></div>
         <div class="h-price">${priceStr}</div>
         ${remainingShares > 0.0001 ? `<div class="h-shares">${fN(remainingShares)} sh @ ${fA(avgCost)}</div>` : ''}
       </td>
@@ -672,7 +674,7 @@ async function portLoadTxns() {
     tr.innerHTML = `
       <td><input type="checkbox" class="txn-cb" data-id="${t.id}" onchange="portCbChange()" style="cursor:pointer; accent-color:var(--accent-blue);"></td>
       <td style="color:var(--text-secondary); white-space:nowrap;">${t.trade_date}</td>
-      <td style="font-weight:600; color:var(--text-primary);">${t.symbol}</td>
+      <td style="font-weight:600;"><a href="${_CRYPTO_SYMS.includes(t.symbol) ? _CRYPTO_URL : _STOCK_URL + t.symbol + '/'}" style="color:var(--text-primary);text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'">${t.symbol}</a></td>
       <td>${typeCell}</td>
       <td style="text-align:right; color:var(--text-secondary);">${fmtN(t.shares)}</td>
       <td style="text-align:right; color:var(--text-secondary);">${t.price != null ? '$' + fmtN(t.price) : '—'}</td>

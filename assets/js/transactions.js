@@ -199,16 +199,10 @@
       const sh  = Number(t.shares) || 0;
       const amt = Number(t.amount) || 0;
 
-      if (t.type === 'split' && sh > 0 && shares > 0) {
-        // split ratio = new shares / old shares; store as notes or ignore price
-        // Treat shares as new total if sh > shares, else as ratio
-        if (sh > shares) {
-          // absolute new total
-          shares = sh;
-          // avg cost adjusts: cost stays same, shares change
-        } else {
-          shares *= sh; // sh is a multiplier (e.g. 10 = 10-for-1)
-        }
+      if (t.type === 'split' && sh >= 2 && shares > 0) {
+        // sh is always the split ratio (e.g. 20 for 20:1 AMZN split)
+        // cost stays the same; shares multiply by ratio; avg cost divides
+        shares *= sh;
         continue;
       }
 

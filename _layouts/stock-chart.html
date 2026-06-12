@@ -1013,9 +1013,15 @@ function updateYAxisToVisible(lo, hi) {
   const visible = prices.slice(lo, hi + 1).filter(p => p != null && !isNaN(p) && p > 0);
   if (!visible.length) return;
   const minP = Math.min(...visible), maxP = Math.max(...visible);
-  const pad = (maxP - minP) * 0.08 || maxP * 0.05;
-  chart.options.scales.y.min = Math.max(0, minP - pad);
-  chart.options.scales.y.max = maxP + pad;
+  const isLog = chart.options.scales.y.type === 'logarithmic';
+  if (isLog) {
+    chart.options.scales.y.min = minP * 0.90;
+    chart.options.scales.y.max = maxP * 1.10;
+  } else {
+    const pad = (maxP - minP) * 0.08 || maxP * 0.05;
+    chart.options.scales.y.min = Math.max(0, minP - pad);
+    chart.options.scales.y.max = maxP + pad;
+  }
   chart.update('none');
 }
 

@@ -654,8 +654,8 @@ function toggleBtcTrades() {
     showBtcMarkers = false;
     document.getElementById('rainbowToggle').classList.remove('active');
     document.getElementById('rainbowLegend').style.display = 'none';
-    // Always reload so trades are fresh
-    if (window.txns) window.txns.loadChartTransactions('BTC');
+    // Load BTC + common BTC ETFs (ARKB, GBTC, IBIT, FBTC, BTCO)
+    if (window.txns) btcLoadAllTrades();
   } else {
     // Restore rainbow + markers
     showRainbow = true;
@@ -1510,7 +1510,7 @@ async function loadBtcData(){
     window._tpPrices = btcPrices;
     window._tpRedrawCallback = () => { if (btcChart) btcChart.update('none'); };
     if (window.tradePanelCheckAuth) window.tradePanelCheckAuth();
-    if (window.txns) window.txns.loadChartTransactions('BTC').catch(()=>{});
+    if (window.txns) btcLoadAllTrades();
     const loader = document.getElementById('btcChartLoading');
     if (loader) loader.style.display = 'none';
     updateDataSourceNote(dataSource, csvEndDate, apiStartDate);
@@ -1633,6 +1633,17 @@ function buildHalvingTable() {
   tbody.innerHTML = html;
   window.btcCycleTimings = cycleTimings;
   if (btcChart) btcChart.update('none');
+}
+
+// ── Load BTC + BTC ETF transactions ─────────────────────────────────────────
+const BTC_SYMBOLS = ['BTC', 'ARKB', 'GBTC', 'IBIT', 'FBTC', 'BTCO'];
+async function btcLoadAllTrades() {
+  if (!window.txns) return;
+  try {
+    const results = await Promise.all(BTC_SYMBOLS.map(s => window.txns.getTransactions(s, null).catch(() => [])));
+    window.chartTxns = results.flat();
+    if (btcChart) btcChart.update('none');
+  } catch(e) { console.warn('[btc] trade load error:', e.message); }
 }
 
 loadBtcData();
