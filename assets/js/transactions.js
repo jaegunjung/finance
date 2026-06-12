@@ -88,14 +88,15 @@
     const { sb, user } = requireAuth();
     let query = sb
       .from('transactions')
-      .select('*')
+      .select('*, portfolios(name)')
       .eq('user_id', user.id)
       .order('trade_date', { ascending: true });
     if (symbol) query = query.eq('symbol', symbol.toUpperCase());
     if (portfolioId) query = query.eq('portfolio_id', portfolioId);
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    // Flatten portfolio name for convenience
+    return (data || []).map(t => ({ ...t, portfolio_name: t.portfolios?.name || null }));
   }
 
   async function addTransaction(data) {
@@ -307,7 +308,7 @@
       if (s === 'sell' || s === 's' || s === 'sold') return 'sell';
       if (s === 'buy_to_cover' || s === 'buy to cover') return 'buy_to_cover';
       if (s === 'sell_short' || s === 'sell short' || s === 'short') return 'sell_short';
-      if (s === 'drip') return 'drip';
+      if (s === 'drip' || s === 'dividend reinvest' || s === 'reinvest' || s.includes('reinvest')) return 'drip';
       if (s === 'dividend' || s === 'div') return 'dividend';
       if (s === 'interest') return 'interest';
       if (s === 'split' || s === 'stock split') return 'split';
