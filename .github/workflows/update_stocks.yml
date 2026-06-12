@@ -26,6 +26,12 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
+      - name: Sync new symbols from Supabase
+        run: python scripts/sync_symbols.py
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
       - name: Update stock CSVs
         run: python scripts/update_stocks.py
         env:
@@ -35,7 +41,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets/data/stocks/
+          git add assets/data/stocks/ config/symbols.json stock/
           if git diff --staged --quiet; then
             echo "No data changes to commit."
           else

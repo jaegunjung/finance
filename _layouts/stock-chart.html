@@ -1309,7 +1309,8 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 // ── Trade Panel ──────────────────────────────────────────────────────────────
-const TRADE_SYMBOLS = ['SPY','DIA','AMZN','ENVX','AAPL','VFIAX','TSLA','QQQ','META','GOOG','NVDA','GSPC','DJI','BTC','ETH','PEPE'];
+// Any authenticated user can add trades for any symbol
+const TRADE_SYMBOLS = { includes: () => true };
 let tpOpen = false;
 
 function tradePanelToggle() {
