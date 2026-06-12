@@ -579,7 +579,7 @@ function _buildPortFilter() {
 function _setPortFilter(name) {
   _activePortFilter = name;
   _buildPortFilter();
-  if (window.chart) updateOverlay(window.chart);
+  if (chart) updateOverlay(chart);
 }
 
 // ── SVG overlay ──

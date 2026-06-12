@@ -209,7 +209,7 @@
 
       if (buyTypes.has(t.type)) {
         shares += sh;
-        cost   += amt;
+        if (t.type !== 'drip') cost += amt; // DRIP adds shares but not cost basis
       } else if (sellTypes.has(t.type) && sh > 0) {
         const avgCostPerShare = shares > 0 ? cost / shares : 0;
         const saleProfit = amt - avgCostPerShare * sh;
