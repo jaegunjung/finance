@@ -169,6 +169,7 @@ title: 포트폴리오
           </select>
           <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
           <button id="portBulkDelBtn" onclick="portBulkDelete()" style="display:none; padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.4); background:rgba(248,81,73,0.08); color:rgba(248,81,73,0.9); cursor:pointer; font-size:0.8rem;" title="Delete selected">🗑 <span id="portBulkDelCount"></span></button>
+          <button id="portDeleteAllBtn" onclick="portDeleteAll()" style="padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.25); background:none; color:rgba(248,81,73,0.6); cursor:pointer; font-size:0.8rem;" title="Delete all transactions in current filter">🗑 전체삭제</button>
         </div>
       </div>
       <div id="portSummaryRow" style="display:none; padding:0 18px 12px; gap:24px; flex-wrap:wrap;">
@@ -824,12 +825,34 @@ async function portBulkDelete() {
 
   const ids = checked.map(c => c.dataset.id);
   try {
-    for (const id of ids) await window.txns.deleteTransaction(id);
+    // Single batch call instead of N individual calls
+    await window.txns.deleteTransactions(ids);
     portLoadTxns();
   } catch(e) {
     alert('삭제 실패: ' + e.message);
     btn.disabled = false;
     portCbChange();
+  }
+}
+
+async function portDeleteAll() {
+  const symbolFilter = document.getElementById('portSymbolFilter').value || null;
+  const scope = [
+    portActivePortfolioId ? `현재 포트폴리오` : `전체 포트폴리오`,
+    symbolFilter ? `(${symbolFilter})` : '',
+  ].join(' ').trim();
+  if (!confirm(`${scope}의 거래내역을 전부 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+  const btn = document.getElementById('portDeleteAllBtn');
+  btn.textContent = '삭제 중…'; btn.disabled = true;
+  try {
+    const n = await window.txns.deleteAllTransactions(portActivePortfolioId, symbolFilter);
+    alert(`${n}건 삭제 완료.`);
+    portLoadTxns();
+  } catch(e) {
+    alert('삭제 실패: ' + e.message);
+  } finally {
+    btn.textContent = '🗑 전체삭제'; btn.disabled = false;
   }
 }
 

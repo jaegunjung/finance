@@ -411,6 +411,39 @@
     return { imported: (data || []).length, errors: [] };
   }
 
+  // ── Batch delete by ID list ───────────────────────────────────────────────
+  // Single Supabase call instead of N calls — critical for large selections
+  async function deleteTransactions(ids) {
+    const { sb, user } = requireAuth();
+    if (!ids || !ids.length) return 0;
+    // Supabase IN filter: split into chunks of 500 to stay within URL length limits
+    const CHUNK = 500;
+    let deleted = 0;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunk = ids.slice(i, i + CHUNK);
+      const { data, error } = await sb
+        .from('transactions')
+        .delete()
+        .in('id', chunk)
+        .eq('user_id', user.id)
+        .select('id');
+      if (error) throw error;
+      deleted += (data || []).length;
+    }
+    return deleted;
+  }
+
+  // ── Delete ALL transactions matching portfolio/symbol filter ──────────────
+  async function deleteAllTransactions(portfolioId, symbol) {
+    const { sb, user } = requireAuth();
+    let query = sb.from('transactions').delete().eq('user_id', user.id);
+    if (portfolioId) query = query.eq('portfolio_id', portfolioId);
+    if (symbol)      query = query.eq('symbol', symbol.toUpperCase());
+    const { data, error } = await query.select('id');
+    if (error) throw error;
+    return (data || []).length;
+  }
+
   // ── Load chart transactions ───────────────────────────────────────────────
   // Called after chart data is ready; populates window.chartTxns then redraws overlay
   async function loadChartTransactions(symbol) {
@@ -439,6 +472,8 @@
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    deleteTransactions,
+    deleteAllTransactions,
     computePnL,
     parseMspCsv,
     importTransactions,

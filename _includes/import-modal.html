@@ -105,6 +105,17 @@
         <span id="importWarnMsg" style="color:rgba(255,180,0,0.9); font-size:0.8rem;"></span>
       </div>
 
+      <!-- Portfolio filter checkboxes (shown when CSV has Portfolio column) -->
+      <div id="importPortfolioFilter" style="display:none; margin-bottom:12px;">
+        <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-muted); margin-bottom:8px;">
+          가져올 포트폴리오 선택
+        </div>
+        <div id="importPortfolioCheckboxes" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        <div style="margin-top:6px; font-size:0.76rem; color:var(--text-muted);">
+          <span id="importPortfolioFilterCount"></span>
+        </div>
+      </div>
+
       <!-- Preview table (first 10 rows) -->
       <div style="overflow-x:auto; border-radius:6px; border:1px solid var(--border);">
         <table id="importPreviewTable" style="
@@ -339,11 +350,29 @@ function importRenderPreview({ rows, format }) {
   const hasPortCol = rows.some(r => r.portfolio_name);
   const portSelWrap = document.getElementById('importPortfolioSelWrap');
   const portAutoNote = document.getElementById('importPortfolioAutoNote');
-  if (portSelWrap) portSelWrap.style.display = hasPortCol ? 'none' : '';
-  if (portAutoNote) portAutoNote.style.display = hasPortCol ? '' : 'none';
-  if (portAutoNote && hasPortCol) {
-    const names = [...new Set(rows.map(r => r.portfolio_name).filter(Boolean))];
-    portAutoNote.textContent = `☁️ Portfolio 컬럼 감지됨 — 자동 생성: ${names.join(', ')}`;
+  const portFilter = document.getElementById('importPortfolioFilter');
+
+  if (hasPortCol) {
+    // Hide manual portfolio selector; show checkbox filter instead
+    if (portSelWrap) portSelWrap.style.display = 'none';
+    if (portAutoNote) portAutoNote.style.display = 'none';
+    const names = [...new Set(rows.map(r => r.portfolio_name).filter(Boolean))].sort();
+    const cbWrap = document.getElementById('importPortfolioCheckboxes');
+    cbWrap.innerHTML = '';
+    for (const name of names) {
+      const count = rows.filter(r => r.portfolio_name === name).length;
+      const label = document.createElement('label');
+      label.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:0.82rem;cursor:pointer;';
+      label.innerHTML = `<input type="checkbox" checked data-port-name="${name.replace(/"/g,'&quot;')}" onchange="importPortFilterChange()" style="accent-color:var(--accent-blue);cursor:pointer;"> ${name} <span style="color:var(--text-muted);font-size:0.75rem;">(${count})</span>`;
+      cbWrap.appendChild(label);
+    }
+    if (portFilter) portFilter.style.display = '';
+    importPortFilterChange(); // sync count
+  } else {
+    if (portSelWrap) portSelWrap.style.display = '';
+    if (portAutoNote) portAutoNote.style.display = 'none';
+    if (portFilter) portFilter.style.display = 'none';
+    importUpdateSubmitBtn(rows.length);
   }
 
   const tbody = document.getElementById('importPreviewBody');
@@ -375,16 +404,30 @@ function importRenderPreview({ rows, format }) {
     tbody.appendChild(tr);
   }
 
+  if (!hasPortCol) {
+    if (rows.length === 0) importShowStatus('error', 'No valid rows found. Check that your CSV has Date, Type, and Amount columns.');
+  }
+}
+
+function importPortFilterChange() {
+  if (!_importParsed) return;
+  const checked = new Set(
+    [...document.querySelectorAll('#importPortfolioCheckboxes input:checked')].map(c => c.dataset.portName)
+  );
+  const filtered = _importParsed.rows.filter(r => !r.portfolio_name || checked.has(r.portfolio_name));
+  const countEl = document.getElementById('importPortfolioFilterCount');
+  if (countEl) countEl.textContent = `선택된 행: ${filtered.length} / ${_importParsed.rows.length}`;
+  importUpdateSubmitBtn(filtered.length);
+}
+
+function importUpdateSubmitBtn(count) {
   const btn = document.getElementById('importSubmitBtn');
-  if (rows.length > 0) {
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    btn.style.pointerEvents = '';
-    btn.textContent = `Import ${rows.length} row${rows.length !== 1 ? 's' : ''}`;
+  if (count > 0) {
+    btn.disabled = false; btn.style.opacity = '1'; btn.style.pointerEvents = '';
+    btn.textContent = `Import ${count} row${count !== 1 ? 's' : ''}`;
   } else {
     btn.disabled = true; btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none';
     btn.textContent = 'Import';
-    importShowStatus('error', 'No valid rows found. Check that your CSV has Date, Type, and Amount columns.');
   }
 }
 
@@ -410,8 +453,14 @@ async function importSubmit() {
     }
   }
 
+  // Apply portfolio checkbox filter if active
+  const checkedPorts = [...document.querySelectorAll('#importPortfolioCheckboxes input:checked')];
+  const rowsToImport = checkedPorts.length > 0
+    ? _importParsed.rows.filter(r => !r.portfolio_name || checkedPorts.some(c => c.dataset.portName === r.portfolio_name))
+    : _importParsed.rows;
+
   try {
-    const { imported } = await window.txns.importTransactions(_importParsed.rows, portfolioId);
+    const { imported } = await window.txns.importTransactions(rowsToImport, portfolioId);
     importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.`);
     btn.textContent = 'Done!';
     // Refresh chart txns if on a stock page
