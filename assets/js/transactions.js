@@ -436,6 +436,14 @@
     return (data || []).length;
   }
 
+  // ── Delete a portfolio ───────────────────────────────────────────────────
+  async function deletePortfolio(portfolioId) {
+    const { sb, user } = requireAuth();
+    const { error } = await sb.from('portfolios').delete()
+      .eq('id', portfolioId).eq('user_id', user.id);
+    if (error) throw error;
+  }
+
   // ── Load chart transactions ───────────────────────────────────────────────
   // Called after chart data is ready; populates window.chartTxns then redraws overlay
   async function loadChartTransactions(symbol) {
@@ -466,6 +474,7 @@
     deleteTransaction,
     deleteTransactions,
     deleteAllTransactions,
+    deletePortfolio,
     computePnL,
     parseMspCsv,
     importTransactions,

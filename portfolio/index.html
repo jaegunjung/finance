@@ -102,6 +102,7 @@ title: 포트폴리오
       background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px;
       color:var(--text-primary); padding:6px 12px; font-size:0.85rem; cursor:pointer; min-width:160px;
     "></select>
+    <button id="portDeletePortfolioBtn" onclick="portDeletePortfolio()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(248,81,73,0.35); background:none; color:rgba(248,81,73,0.7); cursor:pointer; font-size:0.8rem;" title="이 포트폴리오 삭제">🗑 삭제</button>
     <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
   </div>
 
@@ -345,7 +346,29 @@ function portRenderTabs() {
 function portDropdownChange() {
   const sel = document.getElementById('portDropdown');
   portActivePortfolioId = sel.value || null;
+  // 포트폴리오 선택됐을 때만 삭제 버튼 표시
+  document.getElementById('portDeletePortfolioBtn').style.display =
+    portActivePortfolioId ? '' : 'none';
   portSwitchView(portActiveView);
+}
+
+async function portDeletePortfolio() {
+  if (!portActivePortfolioId) return;
+  const name = portPortfolios.find(p => p.id === portActivePortfolioId)?.name || '선택된 포트폴리오';
+  if (!confirm(`"${name}" 포트폴리오를 삭제하시겠습니까?\n\n포트폴리오만 삭제되고 거래내역은 유지됩니다.`)) return;
+
+  const btn = document.getElementById('portDeletePortfolioBtn');
+  btn.textContent = '삭제 중…'; btn.disabled = true;
+  try {
+    await window.txns.deletePortfolio(portActivePortfolioId);
+    portActivePortfolioId = null;
+    await portLoadPortfolios();
+    document.getElementById('portDeletePortfolioBtn').style.display = 'none';
+    portSwitchView(portActiveView);
+  } catch(e) {
+    alert('삭제 실패: ' + e.message);
+    btn.textContent = '🗑 삭제'; btn.disabled = false;
+  }
 }
 
 // ── Fetch price + 24h change ──
