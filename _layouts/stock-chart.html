@@ -68,6 +68,7 @@ layout: default
   border-radius: 0 0 8px 8px;
 }
 .ctrl-btn.zoom-active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.ctrl-btn.zoom-reset  { background: rgba(248,81,73,0.15); color: rgba(248,81,73,0.9); border-color: rgba(248,81,73,0.45); }
 
 .chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 4px; }
 
@@ -678,9 +679,21 @@ function updateOverlay(ch) {
 
   // ── Transaction circles (clipped to chart area) ───────────────────────
   const chartTxns = window.chartTxns || [];
-  if (chartTxns.length > 0) {
+  // Build split map for price adjustment: symbol → [{date, ratio}]
+  const _splitMap = {};
+  for (const t of chartTxns) {
+    if (t.type === 'split' && t.shares && t.trade_date) {
+      (_splitMap[t.symbol] = _splitMap[t.symbol] || []).push({ date: t.trade_date, ratio: Number(t.shares) });
+    }
+  }
+  function _splitFactor(sym, tradeDate) {
+    return (_splitMap[sym] || []).filter(s => s.date > tradeDate).reduce((a, s) => a * s.ratio, 1);
+  }
+
+  const tradeTxns = chartTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
+  if (tradeTxns.length > 0) {
     html += `<g clip-path="url(#ca)">`;
-    for (const t of chartTxns) {
+    for (const t of tradeTxns) {
       // Find nearest past trading day (handles weekends / holidays stored in DB)
       let idx = dateToIdx[t.trade_date];
       if (idx == null) {
@@ -696,7 +709,9 @@ function updateOverlay(ch) {
       if (cx < ca.left || cx > ca.right) continue;
       const amount = Math.abs(Number(t.amount) || 0);
       const r = Math.min(Math.max(Math.sqrt(amount / 1000) * 8 + 5, 6), 28);
-      const price = t.price != null ? Number(t.price) : prices[idx];
+      const rawPrice = t.price != null ? Number(t.price) : prices[idx];
+      const factor = _splitFactor(t.symbol, t.trade_date);
+      const price = factor > 1 ? rawPrice / factor : rawPrice;
       const cy2 = yS.getPixelForValue(price || prices[idx] || 1);
       const fill   = t.type === 'buy' ? 'rgba(63,185,80,0.35)'  : 'rgba(248,81,73,0.35)';
       const stroke = t.type === 'buy' ? 'rgba(63,185,80,0.8)'   : 'rgba(248,81,73,0.8)';
@@ -905,11 +920,11 @@ function initChart() {
             wheel: { enabled: true },
             pinch: { enabled: true },
             mode: 'x',
-            onZoom: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); }
+            onZoom: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); updateYAxisToVisible(c.scales.x.min, c.scales.x.max); }
           },
           pan: {
             enabled: true, mode: 'x',
-            onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); }
+            onPan: ({ chart: c }) => { updateOverlay(c); if (rsiChart) rsiChart.zoomScale('x', c.scales.x, 'none'); syncVolumeRange(c.scales.x.min, c.scales.x.max); updateYAxisToVisible(c.scales.x.min, c.scales.x.max); }
           },
           limits: { x: { min: 0, max: futureMax + 168 } }  // right cap: prediction end + ~8 months
         },
@@ -988,6 +1003,20 @@ function initChart() {
     afterRender(c) { if (c === chart) updateOverlay(c); }
   };
   Chart.register(afterRenderPlugin);
+}
+
+// ── Y-axis dynamic range ──
+function updateYAxisToVisible(lo, hi) {
+  if (!chart) return;
+  lo = Math.max(0, Math.floor(lo ?? chart.scales.x.min));
+  hi = Math.min(prices.length - 1, Math.ceil(hi ?? chart.scales.x.max));
+  const visible = prices.slice(lo, hi + 1).filter(p => p != null && !isNaN(p) && p > 0);
+  if (!visible.length) return;
+  const minP = Math.min(...visible), maxP = Math.max(...visible);
+  const pad = (maxP - minP) * 0.08 || maxP * 0.05;
+  chart.options.scales.y.min = Math.max(0, minP - pad);
+  chart.options.scales.y.max = maxP + pad;
+  chart.update('none');
 }
 
 // ── Volume range sync ──
@@ -1165,6 +1194,7 @@ document.querySelectorAll('[data-days]').forEach(btn => {
     chart.zoomScale('x', range, 'none');
     if (rsiChart) rsiChart.zoomScale('x', range, 'none');
     syncVolumeRange(range.min, range.max);
+    updateYAxisToVisible(range.min, range.max);
     updateOverlay(chart);
   });
 });
@@ -1617,52 +1647,69 @@ window._tpRedrawCallback = function() {
   if (_gainPanelOpen) renderGainPanel();
 };
 
-// ── Rectangle Zoom Toggle ──
-let zoomRectMode = false;
-function toggleZoomRect() {
-  zoomRectMode = !zoomRectMode;
-  const btn = document.getElementById('zoomRectBtn');
-  if (btn) btn.classList.toggle('zoom-active', zoomRectMode);
+// ── Rectangle Zoom Toggle — 3-state: idle → selecting → zoomed ──
+let zoomState = 'idle'; // 'idle' | 'selecting' | 'zoomed'
 
-  if (!chart) return;
-  const zoomOpts = chart.options.plugins.zoom;
-  if (zoomRectMode) {
-    zoomOpts.zoom.drag  = { enabled: true, backgroundColor: 'rgba(88,166,255,0.12)', borderColor: 'rgba(88,166,255,0.5)', borderWidth: 1 };
-    zoomOpts.zoom.wheel = { enabled: false };
-    zoomOpts.zoom.mode  = 'xy';
-    zoomOpts.zoom.onZoomComplete = () => {
-      setTimeout(() => {
-        zoomRectMode = false;
-        const b = document.getElementById('zoomRectBtn');
-        if (b) b.classList.remove('zoom-active');
-        const zo = chart.options.plugins.zoom;
-        zo.zoom.drag  = { enabled: false };
-        zo.zoom.wheel = { enabled: true };
-        zo.zoom.mode  = 'x';
-        zo.zoom.onZoomComplete = null;
-        zo.pan.enabled = true;
-        document.getElementById('stockChart').style.cursor = '';
-        chart.update('none');
-      }, 0);
-    };
-    zoomOpts.pan.enabled = false;
-    document.getElementById('stockChart').style.cursor = 'crosshair';
+function _updateZoomBtn() {
+  const btn = document.getElementById('zoomRectBtn');
+  if (!btn) return;
+  const canvas = document.getElementById('stockChart');
+  if (zoomState === 'idle') {
+    btn.innerHTML = '⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span>';
+    btn.classList.remove('zoom-active', 'zoom-reset');
+    if (canvas) canvas.style.cursor = '';
+  } else if (zoomState === 'selecting') {
+    btn.innerHTML = '✕ <span class="en-only">Cancel</span><span class="ko-only">취소</span>';
+    btn.classList.add('zoom-active'); btn.classList.remove('zoom-reset');
+    if (canvas) canvas.style.cursor = 'crosshair';
   } else {
-    zoomOpts.zoom.drag  = { enabled: false };
-    zoomOpts.zoom.wheel = { enabled: true };
-    zoomOpts.zoom.mode  = 'x';
-    zoomOpts.zoom.onZoomComplete = null;
-    zoomOpts.pan.enabled = true;
-    document.getElementById('stockChart').style.cursor = '';
+    btn.innerHTML = '↩ <span class="en-only">Reset Zoom</span><span class="ko-only">줌 초기화</span>';
+    btn.classList.remove('zoom-active'); btn.classList.add('zoom-reset');
+    if (canvas) canvas.style.cursor = '';
+  }
+}
+
+function toggleZoomRect() {
+  if (!chart) return;
+  const zOpts = chart.options.plugins.zoom;
+
+  if (zoomState === 'zoomed') {
+    // Single click to reset
+    zoomState = 'idle';
+    zOpts.zoom.drag = { enabled: false }; zOpts.zoom.wheel = { enabled: true };
+    zOpts.zoom.mode = 'x'; zOpts.zoom.onZoomComplete = null; zOpts.pan.enabled = true;
     chart.resetZoom();
     const allRange = { min: 0, max: futureMax };
     if (rsiChart) rsiChart.zoomScale('x', allRange, 'none');
     syncVolumeRange(0, futureMax);
+    updateYAxisToVisible(0, prices.length - 1);
     updateOverlay(chart);
     document.querySelectorAll('.range-btn').forEach(b => b.classList.toggle('active', b.dataset.days === '0'));
-    return;
+  } else if (zoomState === 'selecting') {
+    // Cancel drag mode
+    zoomState = 'idle';
+    zOpts.zoom.drag = { enabled: false }; zOpts.zoom.wheel = { enabled: true };
+    zOpts.zoom.mode = 'x'; zOpts.zoom.onZoomComplete = null; zOpts.pan.enabled = true;
+    chart.update('none');
+  } else {
+    // Enter drag-select mode
+    zoomState = 'selecting';
+    zOpts.zoom.drag = { enabled: true, backgroundColor: 'rgba(88,166,255,0.12)', borderColor: 'rgba(88,166,255,0.5)', borderWidth: 1 };
+    zOpts.zoom.wheel = { enabled: false }; zOpts.zoom.mode = 'xy'; zOpts.pan.enabled = false;
+    zOpts.zoom.onZoomComplete = () => {
+      setTimeout(() => {
+        zoomState = 'zoomed';
+        const zo = chart.options.plugins.zoom;
+        zo.zoom.drag = { enabled: false }; zo.zoom.wheel = { enabled: true };
+        zo.zoom.mode = 'x'; zo.zoom.onZoomComplete = null; zo.pan.enabled = true;
+        updateYAxisToVisible();
+        _updateZoomBtn();
+        chart.update('none');
+      }, 0);
+    };
+    chart.update('none');
   }
-  chart.update('none');
+  _updateZoomBtn();
 }
 
 </script>

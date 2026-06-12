@@ -22,6 +22,7 @@ description_ko: "로그 스케일 회귀와 반감기 사이클을 활용한 비
 .ctrl-btn:hover { background: var(--bg-card); color: var(--text-primary); }
 .ctrl-btn.active { background: var(--accent-green); color: #fff; border-color: var(--accent-green); }
 .ctrl-btn.zoom-active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.ctrl-btn.zoom-reset  { background: rgba(248,81,73,0.15); color: rgba(248,81,73,0.9); border-color: rgba(248,81,73,0.45); }
 
 #btcChartContainer {
   position: relative; width: 100%; height: 520px;
@@ -653,10 +654,8 @@ function toggleBtcTrades() {
     showBtcMarkers = false;
     document.getElementById('rainbowToggle').classList.remove('active');
     document.getElementById('rainbowLegend').style.display = 'none';
-    // Load trades if not yet loaded
-    if (window.txns && (!window.chartTxns || !window.chartTxns.length)) {
-      window.txns.loadChartTransactions('BTC');
-    }
+    // Always reload so trades are fresh
+    if (window.txns) window.txns.loadChartTransactions('BTC');
   } else {
     // Restore rainbow + markers
     showRainbow = true;
@@ -1089,7 +1088,9 @@ function initBtcChart() {
   const btcTxnPlugin = {
     id: 'btcTxn',
     afterDraw(ch) {
-      const txns = window.chartTxns || [];
+      if (!showBtcTrades) return;
+      const allTxns = window.chartTxns || [];
+      const txns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
       if (!txns.length) return;
       const dIdx = {};
       btcDates.forEach((d, i) => dIdx[d.slice(0,10)] = i);
@@ -1186,9 +1187,9 @@ function initBtcChart() {
         },
         zoom:{
           zoom:{wheel:{enabled:true,speed:0.1},pinch:{enabled:false},mode:'x',
-                onZoomComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
+                onZoomComplete:({chart:c})=>{syncBtcRsiZoom();updateBtcOverlay(c);btcUpdateYAxis(c.scales.x.min,c.scales.x.max);}},
           pan:{enabled:true,mode:'x',
-               onPanComplete:()=>{syncBtcRsiZoom();updateBtcOverlay(btcChart);}},
+               onPanComplete:({chart:c})=>{syncBtcRsiZoom();updateBtcOverlay(c);btcUpdateYAxis(c.scales.x.min,c.scales.x.max);}},
           limits:{x:{min:window.btcXMin||0,max:(window.btcXMax||btcDates.length-1)+24,minRange:3}}
         }
       }
@@ -1324,14 +1325,17 @@ document.querySelectorAll('.btc-range-btn').forEach(btn=>{
     document.querySelectorAll('.btc-range-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     const months=parseInt(btn.dataset.months);
-    if(!months){btcChart.resetZoom();if(btcRsiChart)btcRsiChart.resetZoom();}
-    else{
+    if(!months){
+      btcChart.resetZoom();if(btcRsiChart)btcRsiChart.resetZoom();
+      btcUpdateYAxis(0, btcDates.length-1);
+    } else {
       const isDaily=btcDates.length>0&&btcDates[0].length===10;
       const daysBack=Math.round(months*(isDaily?30.44:1));
       const xMax=window.btcXMax||btcDates.length-1;
       const xMin=Math.max(window.btcXMin||0,(btcDates.length-1)-daysBack);
       const rng={min:xMin,max:xMax};
-      btcChart.zoomScale('x',rng);if(btcRsiChart)btcRsiChart.zoomScale('x',rng,'none');
+      btcChart.zoomScale('x',rng,'none');if(btcRsiChart)btcRsiChart.zoomScale('x',rng,'none');
+      btcUpdateYAxis(xMin, xMax);
     }
   });
 });
@@ -1633,46 +1637,73 @@ function buildHalvingTable() {
 
 loadBtcData();
 
-// ── Rectangle zoom for BTC ──────────────────────────────────────────────────
-let _btcZoomRect = false;
-function btcToggleZoomRect() {
-  _btcZoomRect = !_btcZoomRect;
+// ── BTC y-axis dynamic range ─────────────────────────────────────────────────
+function btcUpdateYAxis(lo, hi) {
+  if (!btcChart) return;
+  lo = Math.max(0, Math.floor(lo ?? btcChart.scales.x.min));
+  hi = Math.min(btcPrices.length - 1, Math.ceil(hi ?? btcChart.scales.x.max));
+  const visible = btcPrices.slice(lo, hi + 1).filter(p => p != null && !isNaN(p) && p > 0);
+  if (!visible.length) return;
+  const minP = Math.min(...visible), maxP = Math.max(...visible);
+  btcChart.options.scales.y.min = minP * 0.88;
+  btcChart.options.scales.y.max = maxP * 1.12;
+  btcChart.update('none');
+}
+
+// ── Rectangle zoom for BTC — 3-state: idle → selecting → zoomed ─────────────
+let _btcZoomState = 'idle';
+function _updateBtcZoomBtn() {
   const btn = document.getElementById('btcZoomRectBtn');
-  if (btn) btn.classList.toggle('zoom-active', _btcZoomRect);
+  if (!btn) return;
+  const canvas = document.getElementById('btcChart');
+  if (_btcZoomState === 'idle') {
+    btn.innerHTML = '⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span>';
+    btn.classList.remove('zoom-active', 'zoom-reset');
+    if (canvas) canvas.style.cursor = '';
+  } else if (_btcZoomState === 'selecting') {
+    btn.innerHTML = '✕ <span class="en-only">Cancel</span><span class="ko-only">취소</span>';
+    btn.classList.add('zoom-active'); btn.classList.remove('zoom-reset');
+    if (canvas) canvas.style.cursor = 'crosshair';
+  } else {
+    btn.innerHTML = '↩ <span class="en-only">Reset Zoom</span><span class="ko-only">줌 초기화</span>';
+    btn.classList.remove('zoom-active'); btn.classList.add('zoom-reset');
+    if (canvas) canvas.style.cursor = '';
+  }
+}
+
+function btcToggleZoomRect() {
   if (!btcChart) return;
   const zOpts = btcChart.options.plugins.zoom;
-  if (_btcZoomRect) {
-    zOpts.zoom.drag  = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1 };
-    zOpts.zoom.wheel = { enabled:false };
-    zOpts.zoom.mode  = 'xy';
+  if (_btcZoomState === 'zoomed') {
+    _btcZoomState = 'idle';
+    zOpts.zoom.drag = { enabled:false }; zOpts.zoom.wheel = { enabled:true, speed:0.1 };
+    zOpts.zoom.mode = 'x'; zOpts.zoom.onZoomComplete = null; zOpts.pan.enabled = true;
+    btcChart.resetZoom();
+    btcUpdateYAxis(0, btcDates.length - 1);
+    syncBtcRsiZoom(); updateBtcOverlay(btcChart);
+  } else if (_btcZoomState === 'selecting') {
+    _btcZoomState = 'idle';
+    zOpts.zoom.drag = { enabled:false }; zOpts.zoom.wheel = { enabled:true, speed:0.1 };
+    zOpts.zoom.mode = 'x'; zOpts.zoom.onZoomComplete = null; zOpts.pan.enabled = true;
+    btcChart.update('none');
+  } else {
+    _btcZoomState = 'selecting';
+    zOpts.zoom.drag = { enabled:true, backgroundColor:'rgba(88,166,255,0.12)', borderColor:'rgba(88,166,255,0.5)', borderWidth:1 };
+    zOpts.zoom.wheel = { enabled:false }; zOpts.zoom.mode = 'xy'; zOpts.pan.enabled = false;
     zOpts.zoom.onZoomComplete = () => {
       setTimeout(() => {
-        _btcZoomRect = false;
-        const b = document.getElementById('btcZoomRectBtn');
-        if (b) b.classList.remove('zoom-active');
+        _btcZoomState = 'zoomed';
         const zo = btcChart.options.plugins.zoom;
-        zo.zoom.drag = { enabled:false };
-        zo.zoom.wheel = { enabled:true, speed:0.1 };
-        zo.zoom.mode = 'x';
-        zo.zoom.onZoomComplete = null;
-        zo.pan.enabled = true;
-        document.getElementById('btcChart').style.cursor = '';
+        zo.zoom.drag = { enabled:false }; zo.zoom.wheel = { enabled:true, speed:0.1 };
+        zo.zoom.mode = 'x'; zo.zoom.onZoomComplete = null; zo.pan.enabled = true;
+        btcUpdateYAxis();
+        _updateBtcZoomBtn();
         btcChart.update('none');
       }, 0);
     };
-    zOpts.pan.enabled = false;
-    document.getElementById('btcChart').style.cursor = 'crosshair';
-  } else {
-    zOpts.zoom.drag  = { enabled:false };
-    zOpts.zoom.wheel = { enabled:true, speed:0.1 };
-    zOpts.zoom.mode  = 'x';
-    zOpts.pan.enabled = true;
-    document.getElementById('btcChart').style.cursor = '';
-    btcChart.resetZoom();
-    syncBtcRsiZoom();
-    updateBtcOverlay(btcChart);
+    btcChart.update('none');
   }
-  btcChart.update('none');
+  _updateBtcZoomBtn();
 }
 
 // Re-render BTC detail panel when language is toggled while it's open
