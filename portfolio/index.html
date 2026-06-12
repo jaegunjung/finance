@@ -168,6 +168,7 @@ title: 포트폴리오
             <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="PEPE">PEPE</option>
           </select>
           <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
+          <button id="portBulkDelBtn" onclick="portBulkDelete()" style="display:none; padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.4); background:rgba(248,81,73,0.08); color:rgba(248,81,73,0.9); cursor:pointer; font-size:0.8rem;" title="Delete selected">🗑 <span id="portBulkDelCount"></span></button>
         </div>
       </div>
       <div id="portSummaryRow" style="display:none; padding:0 18px 12px; gap:24px; flex-wrap:wrap;">
@@ -179,6 +180,7 @@ title: 포트폴리오
         <table class="txn-table">
           <thead>
             <tr>
+              <th style="width:32px;"><input type="checkbox" id="portSelectAll" onchange="portToggleSelectAll(this)" style="cursor:pointer; accent-color:var(--accent-blue);"></th>
               <th>Date</th><th>Symbol</th><th>Type</th>
               <th style="text-align:right;">Shares</th><th style="text-align:right;">Price</th>
               <th style="text-align:right;">Amount</th><th style="text-align:right;">Commission</th>
@@ -642,7 +644,9 @@ async function portLoadTxns() {
     const commCell = t.commission != null && Number(t.commission) > 0
       ? `$${fmtN(t.commission)}`
       : `<span style="color:var(--text-muted);">—</span>`;
+    tr.dataset.id = t.id;
     tr.innerHTML = `
+      <td><input type="checkbox" class="txn-cb" data-id="${t.id}" onchange="portCbChange()" style="cursor:pointer; accent-color:var(--accent-blue);"></td>
       <td style="color:var(--text-secondary); white-space:nowrap;">${t.trade_date}</td>
       <td style="font-weight:600; color:var(--text-primary);">${t.symbol}</td>
       <td>${typeCell}</td>
@@ -787,6 +791,45 @@ async function portDeleteTxn(id, btn) {
   } catch(e) {
     alert('Delete failed: ' + e.message);
     btn.disabled = false;
+  }
+}
+
+// ── Bulk select / delete ──────────────────────────────────────────────────
+function portCbChange() {
+  const cbs = [...document.querySelectorAll('.txn-cb')];
+  const checked = cbs.filter(c => c.checked);
+  const allChk = document.getElementById('portSelectAll');
+  if (allChk) {
+    allChk.indeterminate = checked.length > 0 && checked.length < cbs.length;
+    allChk.checked = cbs.length > 0 && checked.length === cbs.length;
+  }
+  const btn = document.getElementById('portBulkDelBtn');
+  const cnt = document.getElementById('portBulkDelCount');
+  if (btn) btn.style.display = checked.length > 0 ? '' : 'none';
+  if (cnt) cnt.textContent = `Delete ${checked.length}`;
+}
+
+function portToggleSelectAll(chk) {
+  document.querySelectorAll('.txn-cb').forEach(c => { c.checked = chk.checked; });
+  portCbChange();
+}
+
+async function portBulkDelete() {
+  const checked = [...document.querySelectorAll('.txn-cb:checked')];
+  if (!checked.length) return;
+  if (!confirm(`선택한 ${checked.length}건을 삭제하시겠습니까?`)) return;
+
+  const btn = document.getElementById('portBulkDelBtn');
+  btn.textContent = '삭제 중…'; btn.disabled = true;
+
+  const ids = checked.map(c => c.dataset.id);
+  try {
+    for (const id of ids) await window.txns.deleteTransaction(id);
+    portLoadTxns();
+  } catch(e) {
+    alert('삭제 실패: ' + e.message);
+    btn.disabled = false;
+    portCbChange();
   }
 }
 
