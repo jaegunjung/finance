@@ -33,7 +33,20 @@
       </div>
     </div>
 
+    <!-- Import source tabs -->
+    <div style="display:flex; gap:6px; margin-bottom:14px;">
+      <button id="importTabFile" onclick="importSwitchTab('file')" style="
+        padding:6px 14px; border-radius:20px; border:1px solid var(--accent-blue);
+        background:var(--accent-blue); color:#fff; font-size:0.8rem; cursor:pointer; font-weight:600;
+      ">📄 Local File</button>
+      <button id="importTabGdrive" onclick="importSwitchTab('gdrive')" style="
+        padding:6px 14px; border-radius:20px; border:1px solid var(--border);
+        background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer;
+      ">☁️ Google Drive</button>
+    </div>
+
     <!-- File upload / drag-drop -->
+    <div id="importPanelFile">
     <div id="importDropZone" style="
       border:2px dashed var(--border); border-radius:8px; padding:32px 20px;
       text-align:center; cursor:pointer; transition:border-color 0.2s, background 0.2s;
@@ -48,6 +61,36 @@
       <div style="color:var(--text-secondary); font-size:0.88rem;">Drag &amp; drop a CSV file here, or <strong style="color:var(--accent-blue);">browse</strong></div>
       <div style="color:var(--text-muted); font-size:0.76rem; margin-top:4px;">Supports MSP export or any trade CSV with headers</div>
       <input id="importFileInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importFileSelected(event)">
+    </div>
+    </div>
+
+    <!-- Google Drive panel -->
+    <div id="importPanelGdrive" style="display:none; margin-bottom:16px;">
+      <div style="
+        border:2px dashed var(--border); border-radius:8px; padding:32px 20px;
+        text-align:center; background:var(--bg-secondary);
+      ">
+        <div style="font-size:2rem; margin-bottom:8px;">☁️</div>
+        <div style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:14px;">
+          Google Drive에서 CSV 파일을 선택하세요
+        </div>
+        <button onclick="importGdriveOpen()" style="
+          padding:9px 22px; border-radius:8px; border:none;
+          background:#4285f4; color:#fff; font-size:0.88rem; font-weight:600;
+          cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+        ">
+          <svg width="18" height="18" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+            <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+            <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+            <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+            <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+            <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+            <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+          </svg>
+          Google Drive에서 선택
+        </button>
+        <div id="importGdriveStatus" style="margin-top:10px; font-size:0.78rem; color:var(--text-muted);"></div>
+      </div>
     </div>
 
     <!-- Detected format badge + preview -->
@@ -103,6 +146,108 @@
 <script>
 // ── Import Modal State ──────────────────────────────────────────────────────
 let _importParsed = null;  // { rows, format }
+let _importTab = 'file';
+
+function importSwitchTab(tab) {
+  _importTab = tab;
+  document.getElementById('importPanelFile').style.display    = tab === 'file'    ? '' : 'none';
+  document.getElementById('importPanelGdrive').style.display  = tab === 'gdrive'  ? '' : 'none';
+  const tabFile   = document.getElementById('importTabFile');
+  const tabGdrive = document.getElementById('importTabGdrive');
+  const activeStyle   = 'padding:6px 14px;border-radius:20px;border:1px solid var(--accent-blue);background:var(--accent-blue);color:#fff;font-size:0.8rem;cursor:pointer;font-weight:600;';
+  const inactiveStyle = 'padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-secondary);font-size:0.8rem;cursor:pointer;';
+  tabFile.style.cssText   = tab === 'file'   ? activeStyle : inactiveStyle;
+  tabGdrive.style.cssText = tab === 'gdrive' ? activeStyle : inactiveStyle;
+}
+
+// ── Google Drive Picker ─────────────────────────────────────────────────────
+// Requires Google API key + OAuth Client ID configured in window._GDRIVE_CONFIG
+const _GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+let _gdriveTokenClient = null;
+let _gdriveAccessToken = null;
+let _gdrivePickerLoaded = false;
+
+function importGdriveLoadScripts(cb) {
+  let pending = 2;
+  function done() { if (--pending === 0) cb(); }
+  if (!document.getElementById('_gapi_script')) {
+    const s = document.createElement('script');
+    s.id = '_gapi_script'; s.src = 'https://apis.google.com/js/api.js';
+    s.onload = () => { gapi.load('picker', () => { _gdrivePickerLoaded = true; done(); }); };
+    document.head.appendChild(s);
+  } else {
+    if (_gdrivePickerLoaded) done(); else gapi.load('picker', () => { _gdrivePickerLoaded = true; done(); });
+  }
+  if (!document.getElementById('_gis_script')) {
+    const s = document.createElement('script');
+    s.id = '_gis_script'; s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = done;
+    document.head.appendChild(s);
+  } else { done(); }
+}
+
+function importGdriveOpen() {
+  const cfg = window._GDRIVE_CONFIG;
+  if (!cfg || !cfg.apiKey || !cfg.clientId) {
+    importGdriveSetStatus('⚠️ Google Drive 설정이 없습니다. 관리자에게 문의하세요.');
+    return;
+  }
+  importGdriveSetStatus('Google 라이브러리 로딩 중…');
+  importGdriveLoadScripts(() => {
+    if (_gdriveAccessToken) {
+      importGdriveShowPicker(cfg);
+    } else {
+      _gdriveTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: cfg.clientId,
+        scope: _GDRIVE_SCOPE,
+        callback: (resp) => {
+          if (resp.error) { importGdriveSetStatus('❌ Google 인증 실패: ' + resp.error); return; }
+          _gdriveAccessToken = resp.access_token;
+          importGdriveShowPicker(cfg);
+        },
+      });
+      importGdriveSetStatus('Google 계정 로그인 중…');
+      _gdriveTokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+  });
+}
+
+function importGdriveShowPicker(cfg) {
+  importGdriveSetStatus('Google Drive 파일 선택기 열기…');
+  const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+    .setMimeTypes('text/csv,text/plain,application/vnd.ms-excel')
+    .setSelectFolderEnabled(false);
+  const picker = new google.picker.PickerBuilder()
+    .addView(view)
+    .setOAuthToken(_gdriveAccessToken)
+    .setDeveloperKey(cfg.apiKey)
+    .setCallback(importGdrivePickerCallback)
+    .build();
+  picker.setVisible(true);
+  importGdriveSetStatus('');
+}
+
+function importGdrivePickerCallback(data) {
+  if (data.action !== google.picker.Action.PICKED) return;
+  const file = data.docs?.[0];
+  if (!file) return;
+  importGdriveSetStatus(`📥 다운로드 중: ${file.name}…`);
+  fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+    headers: { Authorization: 'Bearer ' + _gdriveAccessToken },
+  })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(text => {
+      importGdriveSetStatus(`✓ ${file.name} 로드 완료`);
+      if (!window.txns) { importShowStatus('error', 'Transaction module not loaded.'); return; }
+      _importParsed = window.txns.parseMspCsv(text);
+      importRenderPreview(_importParsed);
+    })
+    .catch(e => importGdriveSetStatus('❌ 다운로드 실패: ' + e.message));
+}
+
+function importGdriveSetStatus(msg) {
+  document.getElementById('importGdriveStatus').textContent = msg;
+}
 
 function importModalOpen() {
   document.getElementById('importModal').style.display = 'block';
@@ -118,6 +263,8 @@ function importModalClose() {
   document.getElementById('importPreviewArea').style.display = 'none';
   document.getElementById('importStatus').style.display = 'none';
   document.getElementById('importFileInput').value = '';
+  importSwitchTab('file');
+  importGdriveSetStatus('');
   const btn = document.getElementById('importSubmitBtn');
   btn.disabled = true; btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none';
   btn.textContent = 'Import';

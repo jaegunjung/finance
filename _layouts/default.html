@@ -50,6 +50,12 @@
   </main>
   {% include footer.html %}
   {% include import-modal.html %}
+  <script>
+    window._GDRIVE_CONFIG = {
+      apiKey:   "{{ site.gdrive_api_key }}",
+      clientId: "{{ site.gdrive_client_id }}"
+    };
+  </script>
   <script src="{{ '/assets/js/auth.js' | relative_url }}"></script>
   <script src="{{ '/assets/js/transactions.js' | relative_url }}"></script>
   <script>

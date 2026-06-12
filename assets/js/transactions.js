@@ -258,10 +258,12 @@
     const fieldMap = {
       symbol:     ['symbol', 'ticker', 'stock'],
       trade_date: ['date', 'trade date', 'transaction date', 'tradedate'],
+      trade_time: ['transaction time', 'trade time', 'time'],
       type:       ['type', 'action', 'transaction', 'buy/sell'],
-      shares:     ['shares', 'quantity', 'qty', 'units'],
-      price:      ['price', 'unit price', 'cost price', 'avg price'],
-      amount:     ['amount', 'total', 'total amount', 'value', 'cost'],
+      shares:     ['shares owned', 'shares', 'quantity', 'qty', 'units'],
+      price:      ['cost per share', 'price', 'unit price', 'cost price', 'avg price'],
+      amount:     ['amount', 'total', 'total amount', 'value'],
+      commission: ['commission', 'fee', 'fees'],
       notes:      ['notes', 'note', 'memo', 'comment', 'comments'],
       portfolio:  ['portfolio', 'account', 'portfolio name'],
     };
@@ -289,13 +291,13 @@
     function parseDate(str) {
       if (!str) return null;
       str = str.trim();
+      // YYYY-MM-DD (possibly followed by time/timezone like "2021-01-31 GMT-0800")
+      const m2 = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
       // MM/DD/YYYY
       const m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
       if (m1) return `${m1[3]}-${m1[1].padStart(2,'0')}-${m1[2].padStart(2,'0')}`;
-      // YYYY-MM-DD
-      const m2 = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (m2) return str;
-      // M/D/YY or M/D/YYYY
+      // M/D/YY
       const m3 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
       if (m3) {
         const yr = parseInt(m3[3]) + (parseInt(m3[3]) >= 50 ? 1900 : 2000);
@@ -334,19 +336,21 @@
 
       const symbol = cols.symbol >= 0 ? f[cols.symbol]?.toUpperCase() : null;
       const trade_date = parseDate(cols.trade_date >= 0 ? f[cols.trade_date] : null);
+      const trade_time = cols.trade_time >= 0 ? (f[cols.trade_time] || null) : null;
       const type = parseType(cols.type >= 0 ? f[cols.type] : null);
       const shares = parseNum(cols.shares >= 0 ? f[cols.shares] : null);
       const price  = parseNum(cols.price  >= 0 ? f[cols.price]  : null);
       let   amount = parseNum(cols.amount >= 0 ? f[cols.amount] : null);
+      const commission = parseNum(cols.commission >= 0 ? f[cols.commission] : null);
       const notes  = cols.notes >= 0 ? (f[cols.notes] || null) : null;
       const portfolio_name = cols.portfolio >= 0 ? (f[cols.portfolio] || null) : null;
 
-      // Auto-compute amount if missing
+      // Auto-compute amount if missing (MSP has no amount column — shares × price)
       if (amount == null && shares != null && price != null) amount = shares * price;
 
       if (!trade_date || !type || amount == null) continue;  // skip invalid rows
 
-      rows.push({ symbol, trade_date, type, shares, price, amount, notes, portfolio_name });
+      rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, notes, portfolio_name });
     }
 
     return { rows, format };
@@ -366,7 +370,7 @@
       shares:       r.shares != null ? Number(r.shares) : null,
       price:        r.price  != null ? Number(r.price)  : null,
       amount:       Number(r.amount),
-      commission:   0,
+      commission:   r.commission != null ? Number(r.commission) : 0,
       notes:        r.notes || null,
       source:       'import',
     }));
