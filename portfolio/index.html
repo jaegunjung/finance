@@ -45,6 +45,19 @@ title: 포트폴리오
 .h-foot   { background:var(--bg-secondary); font-weight:600; }
 .h-foot td { border-top:2px solid var(--border); border-bottom:none; padding:10px 12px; }
 
+/* Sort / filter */
+.sort-icon { display:inline-block; margin-left:4px; opacity:0.35; font-size:0.65rem; }
+.sort-icon.asc::after  { content:'▲'; }
+.sort-icon.desc::after { content:'▼'; }
+.sort-icon.active { opacity:1; color:var(--accent-blue); }
+.txn-table th.sortable { cursor:pointer; user-select:none; }
+.txn-table th.sortable:hover { color:var(--text-primary); }
+.filter-row td { padding:4px 6px; background:var(--bg-card); border-bottom:1px solid var(--border); }
+.col-filter { width:100%; background:var(--bg-secondary); border:1px solid var(--border); border-radius:4px;
+  color:var(--text-primary); font-size:0.72rem; padding:3px 6px; box-sizing:border-box; }
+.col-filter:focus { outline:none; border-color:var(--accent-blue); }
+.col-filter::placeholder { color:var(--text-muted); }
+
 /* Common */
 .port-section-label { font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px; }
 .port-add-btn { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer; }
@@ -183,10 +196,36 @@ title: 포트폴리오
           <thead>
             <tr>
               <th style="width:32px;"><input type="checkbox" id="portSelectAll" onchange="portToggleSelectAll(this)" style="cursor:pointer; accent-color:var(--accent-blue);"></th>
-              <th>Date</th><th>Symbol</th><th>Type</th>
-              <th style="text-align:right;">Shares</th><th style="text-align:right;">Price</th>
-              <th style="text-align:right;">Amount</th><th style="text-align:right;">Commission</th>
+              <th class="sortable" onclick="txnSortBy('trade_date')">Date<span class="sort-icon desc active" id="si_trade_date"></span></th>
+              <th class="sortable" onclick="txnSortBy('symbol')">Symbol<span class="sort-icon" id="si_symbol"></span></th>
+              <th class="sortable" onclick="txnSortBy('type')">Type<span class="sort-icon" id="si_type"></span></th>
+              <th class="sortable" style="text-align:right;" onclick="txnSortBy('shares')">Shares<span class="sort-icon" id="si_shares"></span></th>
+              <th class="sortable" style="text-align:right;" onclick="txnSortBy('price')">Price<span class="sort-icon" id="si_price"></span></th>
+              <th class="sortable" style="text-align:right;" onclick="txnSortBy('amount')">Amount<span class="sort-icon" id="si_amount"></span></th>
+              <th style="text-align:right;">Commission</th>
               <th>Notes</th><th>Source</th><th></th>
+            </tr>
+            <tr class="filter-row">
+              <td></td>
+              <td><input class="col-filter" id="cf_date" placeholder="날짜 필터" oninput="txnApplyFilter()"></td>
+              <td><input class="col-filter" id="cf_symbol" placeholder="종목" oninput="txnApplyFilter()"></td>
+              <td>
+                <select class="col-filter" id="cf_type" onchange="txnApplyFilter()" style="padding:3px 4px;">
+                  <option value="">전체</option>
+                  <option value="buy">Buy</option>
+                  <option value="sell">Sell</option>
+                  <option value="dividend">Dividend</option>
+                  <option value="drip">DRIP</option>
+                  <option value="split">Split</option>
+                  <option value="buy_to_cover">Buy to Cover</option>
+                  <option value="sell_short">Sell Short</option>
+                </select>
+              </td>
+              <td></td><td></td>
+              <td><input class="col-filter" id="cf_amount" placeholder="금액 필터" oninput="txnApplyFilter()" style="text-align:right;"></td>
+              <td></td>
+              <td><input class="col-filter" id="cf_notes" placeholder="노트 검색" oninput="txnApplyFilter()"></td>
+              <td></td><td></td>
             </tr>
           </thead>
           <tbody id="portTxnBody"></tbody>
@@ -480,8 +519,8 @@ async function portLoadHoldings() {
   const fN  = (n, max=4) => Number(n).toLocaleString(undefined,{maximumFractionDigits:max});
 
   // Build rows: positions with shares first, then closed positions
-  const openRows   = [];
-  const closedRows = [];
+  let openRows   = [];
+  let closedRows = [];
 
   let totalValue = 0, totalCostAll = 0, totalUnrealGain = 0, totalRealGain = 0;
 
@@ -519,8 +558,60 @@ async function portLoadHoldings() {
     else if (realizedGain !== 0)   closedRows.push(row);
   }
 
-  // Sort open by current value desc
-  openRows.sort((a,b) => (b.curValue ?? 0) - (a.curValue ?? 0));
+  // Store for re-render (sort/filter)
+  _holdingsOpenRows   = openRows;
+  _holdingsClosedRows = closedRows;
+  _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain };
+
+  loadEl.style.display    = 'none';
+  contentEl.style.display = '';
+  portRenderHoldings();
+}
+
+// ── Holdings sort / filter state ──
+let _holdingsOpenRows = [], _holdingsClosedRows = [], _holdingsTotals = {};
+let _holdingsSort   = { col: 'curValue', dir: -1 };
+let _holdingsFilter = '';
+
+function holdingsSortBy(col) {
+  if (_holdingsSort.col === col) _holdingsSort.dir *= -1;
+  else { _holdingsSort.col = col; _holdingsSort.dir = -1; }
+  portRenderHoldings();
+}
+
+function holdingsApplyFilter(val) {
+  _holdingsFilter = (val || '').trim().toLowerCase();
+  portRenderHoldings();
+}
+
+function portRenderHoldings() {
+  const contentEl = document.getElementById('portHoldingsContent');
+  if (!contentEl) return;
+
+  const fA  = (n, dec=2) => '$' + Math.abs(Number(n)).toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const fS  = n => (n >= 0 ? '+' : '−') + fA(n);
+  const fP  = n => (n >= 0 ? '+' : '') + Number(n).toFixed(2) + '%';
+  const cls = n => n >= 0 ? 'h-pos' : 'h-neg';
+  const fN  = (n, max=4) => Number(n).toLocaleString(undefined,{maximumFractionDigits:max});
+
+  const sortFn = (a, b) => {
+    const col = _holdingsSort.col, dir = _holdingsSort.dir;
+    const map = { sym:'sym', curValue:'curValue', todayVal:'todayVal', allTimeGain:'allTimeGain' };
+    let va = a[map[col] ?? col] ?? -Infinity;
+    let vb = b[map[col] ?? col] ?? -Infinity;
+    if (typeof va === 'string') return va.localeCompare(vb) * dir;
+    return (va - vb) * dir;
+  };
+
+  const filter = r => !_holdingsFilter || r.sym.toLowerCase().includes(_holdingsFilter);
+
+  let openRows   = [..._holdingsOpenRows].filter(filter).sort(sortFn);
+  let closedRows = [..._holdingsClosedRows].filter(filter).sort(sortFn);
+
+  const siIcon = (col) => {
+    if (_holdingsSort.col !== col) return `<span class="sort-icon desc"></span>`;
+    return `<span class="sort-icon ${_holdingsSort.dir === 1 ? 'asc' : 'desc'} active"></span>`;
+  };
 
   const buildRow = (row) => {
     const { sym, price, remainingShares, avgCost, totalCost, curValue,
@@ -547,53 +638,55 @@ async function portLoadHoldings() {
     </tr>`;
   };
 
-  let html = `<div class="card" style="padding:0; overflow:hidden;">
+  const { totalValue, totalCostAll, totalUnrealGain, totalRealGain } = _holdingsTotals;
+
+  const thStyle = 'cursor:pointer;user-select:none;';
+  let html = `<div class="card" style="padding:0;overflow:hidden;">
+    <div style="padding:12px 14px 8px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">
+      <span style="font-size:0.7rem;color:var(--text-muted);">🔍</span>
+      <input type="text" placeholder="종목 검색…" value="${_holdingsFilter}"
+        oninput="holdingsApplyFilter(this.value)"
+        style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.78rem;padding:4px 8px;width:140px;">
+    </div>
     <table class="h-table">
       <thead><tr>
-        <th><span class="en-only">Ticker</span><span class="ko-only">종목</span></th>
-        <th><span class="en-only">Value / Cost</span><span class="ko-only">평가 / 비용</span></th>
-        <th><span class="en-only">Today</span><span class="ko-only">오늘</span></th>
-        <th><span class="en-only">Total</span><span class="ko-only">총 손익</span></th>
+        <th style="${thStyle}" onclick="holdingsSortBy('sym')"><span class="en-only">Ticker</span><span class="ko-only">종목</span>${siIcon('sym')}</th>
+        <th style="${thStyle}" onclick="holdingsSortBy('curValue')"><span class="en-only">Value / Cost</span><span class="ko-only">평가 / 비용</span>${siIcon('curValue')}</th>
+        <th style="${thStyle}" onclick="holdingsSortBy('todayVal')"><span class="en-only">Today</span><span class="ko-only">오늘</span>${siIcon('todayVal')}</th>
+        <th style="${thStyle}" onclick="holdingsSortBy('allTimeGain')"><span class="en-only">Total</span><span class="ko-only">총 손익</span>${siIcon('allTimeGain')}</th>
       </tr></thead>
       <tbody>`;
 
   if (openRows.length) html += openRows.map(buildRow).join('');
+  else html += `<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem;">검색 결과 없음</td></tr>`;
 
   if (closedRows.length) {
-    html += `<tr><td colspan="4" style="padding:6px 12px; font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); background:var(--bg-secondary);">
+    html += `<tr><td colspan="4" style="padding:6px 12px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-blue);background:var(--bg-secondary);">
       <span class="en-only">Closed Positions</span><span class="ko-only">청산 포지션</span></td></tr>`;
     html += closedRows.map(buildRow).join('');
   }
 
-  // Footer totals
-  const totalTodayVal = openRows.reduce((s,r) => s + (r.todayVal ?? 0), 0);
+  // Footer totals (use all open rows for totals, not filtered)
+  const allOpen = _holdingsOpenRows;
+  const totalTodayVal = allOpen.reduce((s,r) => s + (r.todayVal ?? 0), 0);
   const totalTodayPct = totalCostAll > 0 ? totalTodayVal / totalCostAll * 100 : 0;
-  const grandTotal    = totalUnrealGain + totalRealGain;
+  const grandTotal    = (totalUnrealGain ?? 0) + (totalRealGain ?? 0);
   const grandPct      = totalCostAll > 0 ? grandTotal / totalCostAll * 100 : 0;
   html += `</tbody>
     <tfoot>
       <tr class="h-foot">
         <td><span class="en-only">Unrealized Total</span><span class="ko-only">평가 합계</span></td>
-        <td>
-          <div class="h-val">${totalValue > 0 ? fA(totalValue) : '—'}</div>
-          <div class="h-sub">${fA(totalCostAll)}</div>
+        <td><div class="h-val">${totalValue > 0 ? fA(totalValue) : '—'}</div><div class="h-sub">${fA(totalCostAll)}</div></td>
+        <td>${totalTodayVal !== 0
+          ? `<div class="${cls(totalTodayVal)}">${fS(totalTodayVal)}</div><div class="${cls(totalTodayPct)} h-sub">${fP(totalTodayPct)}</div>`
+          : `<div style="color:var(--text-muted);">—</div>`}
         </td>
-        <td>
-          ${totalTodayVal !== 0
-            ? `<div class="${cls(totalTodayVal)}">${fS(totalTodayVal)}</div><div class="${cls(totalTodayPct)} h-sub">${fP(totalTodayPct)}</div>`
-            : `<div style="color:var(--text-muted);">—</div>`}
-        </td>
-        <td>
-          <div class="${cls(grandTotal)}">${fS(grandTotal)}</div>
-          <div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>
-        </td>
+        <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div></td>
       </tr>
     </tfoot>
     </table></div>`;
 
-  loadEl.style.display    = 'none';
-  contentEl.innerHTML     = html;
-  contentEl.style.display = '';
+  contentEl.innerHTML = html;
 }
 
 async function portLoadTxns() {
@@ -659,40 +752,96 @@ async function portLoadTxns() {
     if (tableWrap) tableWrap.style.display = '';
   }
 
-  const fmtN = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
-  const sorted = [...txns].sort((a, b) => b.trade_date.localeCompare(a.trade_date));
+  portRenderTxnRows();
+}
 
-  for (const t of sorted) {
+// ── Transaction table sort / filter state ──
+let _txnSort = { col: 'trade_date', dir: -1 }; // dir: -1=desc, 1=asc
+
+function txnSortBy(col) {
+  if (_txnSort.col === col) _txnSort.dir *= -1;
+  else { _txnSort.col = col; _txnSort.dir = col === 'trade_date' ? -1 : 1; }
+  _updateSortIcons();
+  portRenderTxnRows();
+}
+
+function txnApplyFilter() { portRenderTxnRows(); }
+
+function _updateSortIcons() {
+  const cols = ['trade_date','symbol','type','shares','price','amount'];
+  for (const c of cols) {
+    const el = document.getElementById('si_' + c);
+    if (!el) continue;
+    el.className = 'sort-icon';
+    if (_txnSort.col === c) el.className += (_txnSort.dir === 1 ? ' asc' : ' desc') + ' active';
+    else el.className += ' desc';
+  }
+}
+
+function portRenderTxnRows() {
+  const body = document.getElementById('portTxnBody');
+  const empty = document.getElementById('portTxnEmpty');
+  if (!body) return;
+
+  const fDate   = (document.getElementById('cf_date')   || {}).value?.trim().toLowerCase() || '';
+  const fSym    = (document.getElementById('cf_symbol') || {}).value?.trim().toLowerCase() || '';
+  const fType   = (document.getElementById('cf_type')   || {}).value || '';
+  const fAmt    = (document.getElementById('cf_amount') || {}).value?.trim() || '';
+  const fNotes  = (document.getElementById('cf_notes')  || {}).value?.trim().toLowerCase() || '';
+
+  let rows = portAllTxns || [];
+  if (fDate)  rows = rows.filter(t => t.trade_date.includes(fDate));
+  if (fSym)   rows = rows.filter(t => t.symbol.toLowerCase().includes(fSym));
+  if (fType)  rows = rows.filter(t => t.type === fType);
+  if (fAmt)   rows = rows.filter(t => String(t.amount || '').includes(fAmt));
+  if (fNotes) rows = rows.filter(t => (t.notes || '').toLowerCase().includes(fNotes));
+
+  const col = _txnSort.col, dir = _txnSort.dir;
+  rows = [...rows].sort((a, b) => {
+    let va = a[col] ?? '', vb = b[col] ?? '';
+    if (['shares','price','amount'].includes(col)) { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * dir; }
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+
+  if (!rows.length) {
+    body.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const fmtN = n => n != null ? Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—';
+  const frag = document.createDocumentFragment();
+  for (const t of rows) {
     const tr = document.createElement('tr');
     const typeLabel = TYPE_LABELS[t.type] || t.type;
     const typeCell = `<span class="${typeClass(t.type)}">${typeLabel}</span>`;
-    const srcBadge = t.source === 'import'
-      ? `<span style="font-size:0.7rem; color:var(--text-muted); background:var(--bg-secondary); padding:1px 6px; border-radius:10px; border:1px solid var(--border);">import</span>`
-      : t.source === 'auto'
-        ? `<span style="font-size:0.7rem; color:var(--text-muted); background:var(--bg-secondary); padding:1px 6px; border-radius:10px; border:1px solid var(--border);">auto</span>`
-        : `<span style="font-size:0.7rem; color:var(--text-muted);">manual</span>`;
+    const srcBadge = t.source === 'import' || t.source === 'auto'
+      ? `<span style="font-size:0.7rem;color:var(--text-muted);background:var(--bg-secondary);padding:1px 6px;border-radius:10px;border:1px solid var(--border);">${t.source}</span>`
+      : `<span style="font-size:0.7rem;color:var(--text-muted);">manual</span>`;
     const commCell = t.commission != null && Number(t.commission) > 0
       ? `$${fmtN(t.commission)}`
       : `<span style="color:var(--text-muted);">—</span>`;
     tr.dataset.id = t.id;
     tr.innerHTML = `
-      <td><input type="checkbox" class="txn-cb" data-id="${t.id}" onchange="portCbChange()" style="cursor:pointer; accent-color:var(--accent-blue);"></td>
-      <td style="color:var(--text-secondary); white-space:nowrap;">${t.trade_date}</td>
+      <td><input type="checkbox" class="txn-cb" data-id="${t.id}" onchange="portCbChange()" style="cursor:pointer;accent-color:var(--accent-blue);"></td>
+      <td style="color:var(--text-secondary);white-space:nowrap;">${t.trade_date}</td>
       <td style="font-weight:600;">${_AVAILABLE_SYMS.has(t.symbol) ? `<a href="${_CRYPTO_SYMS.includes(t.symbol) ? _CRYPTO_URL : _STOCK_URL + t.symbol + '/'}" style="color:var(--text-primary);text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'">${t.symbol}</a>` : t.symbol}</td>
       <td>${typeCell}</td>
-      <td style="text-align:right; color:var(--text-secondary);">${fmtN(t.shares)}</td>
-      <td style="text-align:right; color:var(--text-secondary);">${t.price != null ? '$' + fmtN(t.price) : '—'}</td>
-      <td style="text-align:right; font-weight:600; color:var(--text-primary);">$${fmtN(t.amount)}</td>
-      <td style="text-align:right; color:var(--text-secondary);">${commCell}</td>
-      <td style="color:var(--text-muted); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(t.notes||'').replace(/"/g,'&quot;')}">${t.notes || ''}</td>
+      <td style="text-align:right;color:var(--text-secondary);">${fmtN(t.shares)}</td>
+      <td style="text-align:right;color:var(--text-secondary);">${t.price != null ? '$' + fmtN(t.price) : '—'}</td>
+      <td style="text-align:right;font-weight:600;color:var(--text-primary);">$${fmtN(t.amount)}</td>
+      <td style="text-align:right;color:var(--text-secondary);">${commCell}</td>
+      <td style="color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(t.notes||'').replace(/"/g,'&quot;')}">${t.notes||''}</td>
       <td>${srcBadge}</td>
       <td style="white-space:nowrap;">
         <button class="edit-btn" title="Edit" onclick="editModalOpen('${t.id}')">✏️</button>
         <button class="del-btn" title="Delete" onclick="portDeleteTxn('${t.id}', this)">🗑</button>
-      </td>
-    `;
-    body.appendChild(tr);
+      </td>`;
+    frag.appendChild(tr);
   }
+  body.innerHTML = '';
+  body.appendChild(frag);
 }
 
 // ── Per-symbol Gain view (Item 10) ──

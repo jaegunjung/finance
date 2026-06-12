@@ -70,6 +70,12 @@ layout: default
 .ctrl-btn.zoom-active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
 .ctrl-btn.zoom-reset  { background: rgba(248,81,73,0.15); color: rgba(248,81,73,0.9); border-color: rgba(248,81,73,0.45); }
 
+/* Portfolio filter pills (trade overlay) */
+#portFilterRow { display:none; flex-wrap:wrap; gap:5px; margin-bottom:6px; align-items:center; }
+.pf-btn { padding:3px 10px; border-radius:14px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:0.75rem; cursor:pointer; transition:all 0.15s; }
+.pf-btn:hover { background:var(--bg-card); color:var(--text-primary); }
+.pf-btn.active { color:#fff; }
+
 .chart-hint { color: var(--text-muted); font-size: 0.75rem; margin-bottom: 4px; }
 
 /* ── Gain Panel ── */
@@ -130,6 +136,8 @@ layout: default
     <button id="fullscreenBtn" class="ctrl-btn" onclick="toggleFullscreen()" title="Fullscreen">⤢</button>
   </div>
 </div>
+
+<div id="portFilterRow"></div>
 
 <div id="customRangeRow" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; align-items:center; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px;">
   <span style="color:var(--text-secondary); font-size:0.79rem;">
@@ -516,6 +524,64 @@ function getRsiData() {
   };
 }
 
+// ── Portfolio filter for trade circles ──
+const _PORT_PALETTE = [
+  { stroke: 'rgba(88,166,255,{a})',  dash: '' },        // blue   solid
+  { stroke: 'rgba(255,160,50,{a})',  dash: '6,3' },     // orange dashed
+  { stroke: 'rgba(190,80,255,{a})',  dash: '3,3' },     // purple dotted
+  { stroke: 'rgba(50,210,140,{a})',  dash: '8,3,2,3' }, // teal   dash-dot
+  { stroke: 'rgba(255,80,160,{a})',  dash: '6,3' },     // pink   dashed
+  { stroke: 'rgba(220,210,50,{a})',  dash: '' },         // gold   solid
+  { stroke: 'rgba(255,120,80,{a})',  dash: '3,3' },     // coral  dotted
+];
+const _portColorMap = {};  // portfolio_name → palette entry
+let _portColorIdx   = 0;
+let _activePortFilter = null; // null = All
+
+function _getPortStyle(portName) {
+  if (!portName) return _PORT_PALETTE[0];
+  if (!_portColorMap[portName]) {
+    _portColorMap[portName] = _PORT_PALETTE[_portColorIdx % _PORT_PALETTE.length];
+    _portColorIdx++;
+  }
+  return _portColorMap[portName];
+}
+
+function _buildPortFilter() {
+  const row = document.getElementById('portFilterRow');
+  if (!row) return;
+  const txns = window.chartTxns || [];
+  const tradeTxns = txns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
+  // Collect unique portfolio names (assign colors in encounter order)
+  const ports = [];
+  const seen = new Set();
+  for (const t of tradeTxns) {
+    const p = t.portfolio_name || '(없음)';
+    if (!seen.has(p)) { seen.add(p); ports.push(p); _getPortStyle(p); }
+  }
+  if (ports.length <= 1) { row.style.display = 'none'; return; }
+
+  let html = `<span style="font-size:0.72rem;color:var(--text-muted);margin-right:4px;">포트폴리오:</span>`;
+  const allActive = _activePortFilter === null;
+  html += `<button class="pf-btn${allActive ? ' active' : ''}" onclick="_setPortFilter(null)" style="${allActive ? 'background:var(--accent-blue);border-color:var(--accent-blue);' : ''}">All</button>`;
+  for (const p of ports) {
+    const style = _getPortStyle(p);
+    const col = style.stroke.replace('{a}', '1');
+    const isActive = _activePortFilter === p;
+    html += `<button class="pf-btn${isActive ? ' active' : ''}" onclick="_setPortFilter('${p.replace(/'/g,"\\'")}')"`
+      + ` style="${isActive ? `background:${col};border-color:${col};` : `color:${col};border-color:${col};`}">`
+      + `${p}</button>`;
+  }
+  row.innerHTML = html;
+  row.style.display = 'flex';
+}
+
+function _setPortFilter(name) {
+  _activePortFilter = name;
+  _buildPortFilter();
+  if (window.chart) updateOverlay(window.chart);
+}
+
 // ── SVG overlay ──
 function updateOverlay(ch) {
   const svg = document.getElementById('channelSvg');
@@ -695,7 +761,8 @@ function updateOverlay(ch) {
     return (_splitMap[sym] || []).filter(s => s.date > tradeDate).reduce((a, s) => a * s.ratio, 1);
   }
 
-  const tradeTxns = chartTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
+  let tradeTxns = chartTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
+  if (_activePortFilter !== null) tradeTxns = tradeTxns.filter(t => (t.portfolio_name || '(없음)') === _activePortFilter);
   if (tradeTxns.length > 0) {
     html += `<g clip-path="url(#ca)">`;
     for (const t of tradeTxns) {
@@ -718,14 +785,19 @@ function updateOverlay(ch) {
       const factor = _splitFactor(t.symbol, t.trade_date);
       const price = factor > 1 ? rawPrice / factor : rawPrice;
       const cy2 = yS.getPixelForValue(price || prices[idx] || 1);
-      const fill   = t.type === 'buy' ? 'rgba(63,185,80,0.35)'  : 'rgba(248,81,73,0.35)';
-      const stroke = t.type === 'buy' ? 'rgba(63,185,80,0.8)'   : 'rgba(248,81,73,0.8)';
-      const label  = t.type === 'buy' ? 'B' : 'S';
-      const labelColor = t.type === 'buy' ? 'rgba(63,185,80,1)' : 'rgba(248,81,73,1)';
+      const isBuy = ['buy','drip','buy_to_cover'].includes(t.type);
+      const fill  = isBuy ? 'rgba(63,185,80,0.30)' : 'rgba(248,81,73,0.30)';
+      const label = isBuy ? 'B' : 'S';
+      const labelColor = isBuy ? 'rgba(63,185,80,1)' : 'rgba(248,81,73,1)';
+      // Portfolio-specific stroke color & dash
+      const portStyle  = _getPortStyle(t.portfolio_name || '(없음)');
+      const portStroke = portStyle.stroke.replace('{a}', '0.9');
+      const dashAttr   = portStyle.dash ? ` stroke-dasharray="${portStyle.dash}"` : '';
       const amt$ = '$' + Number(amount).toLocaleString(undefined, { maximumFractionDigits: 0 });
       const shares = t.shares != null ? ` · ${Number(t.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })} sh` : '';
-      const tipText = `${t.type.toUpperCase()} ${t.symbol} ${amt$}${shares}\n${t.trade_date}${t.notes ? '\n' + t.notes : ''}`;
-      html += `<circle cx="${cx}" cy="${cy2}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" style="pointer-events:all; cursor:pointer;"><title>${tipText}</title></circle>`;
+      const portLabel  = t.portfolio_name ? ` [${t.portfolio_name}]` : '';
+      const tipText = `${t.type.toUpperCase()} ${t.symbol} ${amt$}${shares}\n${t.trade_date}${portLabel}${t.notes ? '\n' + t.notes : ''}`;
+      html += `<circle cx="${cx}" cy="${cy2}" r="${r}" fill="${fill}" stroke="${portStroke}" stroke-width="2"${dashAttr} style="pointer-events:all; cursor:pointer;"><title>${tipText}</title></circle>`;
       html += `<text x="${cx}" y="${cy2 + 4}" fill="${labelColor}" font-size="9" font-weight="700" text-anchor="middle" font-family="monospace" style="pointer-events:none;">${label}</text>`;
     }
     html += `</g>`;
@@ -1656,6 +1728,7 @@ window._tpRedrawCallback = function() {
   const btn = document.getElementById('gainPanelBtn');
   if (btn) btn.style.display = hasTrades ? 'flex' : 'none';
   if (_gainPanelOpen) renderGainPanel();
+  _buildPortFilter();
 };
 
 // ── Rectangle Zoom Toggle — 3-state: idle → selecting → zoomed ──
