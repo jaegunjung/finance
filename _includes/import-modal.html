@@ -514,6 +514,11 @@ async function importSubmit() {
     if (window.SYMBOL && window.txns.loadChartTransactions) {
       window.txns.loadChartTransactions(window.SYMBOL);
     }
+    // Refresh portfolio dropdown if on portfolio page
+    if (typeof portLoadPortfolios === 'function') {
+      await portLoadPortfolios();
+      portSwitchView(portActiveView);
+    }
     setTimeout(() => importModalClose(), 2200);
   } catch(e) {
     importShowStatus('error', 'Import failed: ' + e.message);
