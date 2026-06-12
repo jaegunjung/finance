@@ -679,7 +679,22 @@ function updateOverlay(ch) {
 
   // ── Transaction circles (clipped to chart area) ───────────────────────
   const chartTxns = window.chartTxns || [];
-  // MSP already stores split-adjusted cost basis — use stored price directly
+  // Build split map — deduplicate by (symbol+date) since MSP repeats splits per portfolio
+  const _splitMap = {};
+  const _seenSplits = new Set();
+  for (const t of chartTxns) {
+    if (t.type === 'split' && t.shares && t.trade_date) {
+      const key = `${t.symbol}|${t.trade_date}`;
+      if (!_seenSplits.has(key)) {
+        _seenSplits.add(key);
+        (_splitMap[t.symbol] = _splitMap[t.symbol] || []).push({ date: t.trade_date, ratio: Number(t.shares) });
+      }
+    }
+  }
+  function _splitFactor(sym, tradeDate) {
+    return (_splitMap[sym] || []).filter(s => s.date > tradeDate).reduce((a, s) => a * s.ratio, 1);
+  }
+
   const tradeTxns = chartTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
   if (tradeTxns.length > 0) {
     html += `<g clip-path="url(#ca)">`;
@@ -699,7 +714,9 @@ function updateOverlay(ch) {
       if (cx < ca.left || cx > ca.right) continue;
       const amount = Math.abs(Number(t.amount) || 0);
       const r = Math.min(Math.max(Math.sqrt(amount / 1000) * 8 + 5, 6), 28);
-      const price = t.price != null ? Number(t.price) : prices[idx];
+      const rawPrice = t.price != null ? Number(t.price) : prices[idx];
+      const factor = _splitFactor(t.symbol, t.trade_date);
+      const price = factor > 1 ? rawPrice / factor : rawPrice;
       const cy2 = yS.getPixelForValue(price || prices[idx] || 1);
       const fill   = t.type === 'buy' ? 'rgba(63,185,80,0.35)'  : 'rgba(248,81,73,0.35)';
       const stroke = t.type === 'buy' ? 'rgba(63,185,80,0.8)'   : 'rgba(248,81,73,0.8)';

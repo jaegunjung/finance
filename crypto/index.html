@@ -1639,7 +1639,7 @@ function buildHalvingTable() {
 async function btcLoadAllTrades() {
   if (!window.txns) return;
   try {
-    window.chartTxns = await window.txns.getTransactions('BTC', null);
+    window.chartTxns = await window.txns.getTransactions('BTC-USD', null);
     if (btcChart) btcChart.update('none');
   } catch(e) { console.warn('[btc] trade load error:', e.message); }
 }

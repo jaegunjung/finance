@@ -342,6 +342,30 @@
       // Auto-compute amount if missing (MSP has no amount column — shares × price)
       if (amount == null && shares != null && price != null) amount = shares * price;
 
+      // ── MSP special: USD=CASH rows with crypto/dividend notes ──────────────
+      if (symbol === 'USD=CASH' && notes && trade_date) {
+        const noteLower = notes.toLowerCase();
+        // BTC-USD cash flows: "Purchased BTC-USD" = buy BTC (Sell USD), "Sold BTC-USD" = sell BTC (Buy USD)
+        const btcMatch = noteLower.match(/(?:purchased|sold)\s+btc-usd/);
+        if (btcMatch) {
+          const isBuy = noteLower.startsWith('purchased');
+          rows.push({ symbol: 'BTC-USD', trade_date, trade_time,
+            type: isBuy ? 'buy' : 'sell', shares: null, price: null,
+            amount: Math.abs(Number(amount) || 0), commission: 0, notes, portfolio_name });
+          continue;
+        }
+        // Dividends: "Dividends from XXXX - ..."
+        const divMatch = notes.match(/^Dividends from ([A-Z0-9.\-]+)/i);
+        if (divMatch && amount != null) {
+          rows.push({ symbol: divMatch[1].toUpperCase(), trade_date, trade_time,
+            type: 'dividend', shares: null, price: null,
+            amount: Math.abs(Number(amount)), commission: 0, notes, portfolio_name });
+          continue;
+        }
+        // Generic USD=CASH (deposits/withdrawals/interest) — skip for now
+        continue;
+      }
+
       if (!trade_date || !type || amount == null) continue;  // skip invalid rows
 
       rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, notes, portfolio_name });
