@@ -357,39 +357,31 @@
   }
 
   // ── Import transactions to Supabase ───────────────────────────────────────
-  async function importTransactions(rows, portfolioId) {
+  // nameToId: optional map of { csvPortfolioName → existing_portfolio_id | 'new' }
+  //   'new'  → create a new portfolio with that name
+  //   uuid   → use the existing portfolio
+  //   absent → null (no portfolio assigned)
+  async function importTransactions(rows, portfolioId, nameToId) {
     const { sb, user } = requireAuth();
     if (!rows || rows.length === 0) return { imported: 0, errors: [] };
 
-    // If rows have portfolio_name, auto-create portfolios and map names → ids
-    const hasPortfolioCol = rows.some(r => r.portfolio_name);
-    let nameToId = {};
-
-    if (hasPortfolioCol && !portfolioId) {
-      // Fetch existing portfolios
-      const { data: existing } = await sb
-        .from('portfolios')
-        .select('id, name')
-        .eq('user_id', user.id);
-      for (const p of (existing || [])) nameToId[p.name] = p.id;
-
-      // Create missing ones
-      const needed = [...new Set(rows.map(r => r.portfolio_name).filter(Boolean))];
-      for (const name of needed) {
-        if (!nameToId[name]) {
-          const { data: created, error } = await sb
-            .from('portfolios')
-            .insert({ user_id: user.id, name })
-            .select()
-            .single();
-          if (!error && created) nameToId[name] = created.id;
-        }
+    // Resolve 'new' entries: create portfolios for any nameToId value === 'new'
+    const resolvedMap = { ...(nameToId || {}) };
+    for (const [csvName, val] of Object.entries(resolvedMap)) {
+      if (val === 'new') {
+        const { data: created, error } = await sb
+          .from('portfolios')
+          .insert({ user_id: user.id, name: csvName })
+          .select()
+          .single();
+        if (!error && created) resolvedMap[csvName] = created.id;
+        else delete resolvedMap[csvName];
       }
     }
 
     const toInsert = rows.map(r => ({
       user_id:      user.id,
-      portfolio_id: portfolioId || (r.portfolio_name ? (nameToId[r.portfolio_name] || null) : null),
+      portfolio_id: portfolioId || (r.portfolio_name ? (resolvedMap[r.portfolio_name] ?? null) : null),
       symbol:       (r.symbol || '').toUpperCase(),
       trade_date:   r.trade_date,
       type:         r.type,

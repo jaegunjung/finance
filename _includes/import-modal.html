@@ -287,20 +287,22 @@ document.getElementById('importModal').addEventListener('click', function(e) {
   if (e.target === this) importModalClose();
 });
 
+let _existingPortfolios = [];  // cached from Supabase on modal open
+
 async function importLoadPortfolios() {
   const sel = document.getElementById('importPortfolioSel');
   sel.innerHTML = '<option value="">— Select portfolio —</option>';
   if (!window.txns) return;
   try {
-    const portfolios = await window.txns.getPortfolios();
-    for (const p of portfolios) {
+    _existingPortfolios = await window.txns.getPortfolios();
+    for (const p of _existingPortfolios) {
       const opt = document.createElement('option');
       opt.value = p.id; opt.textContent = p.name;
       sel.appendChild(opt);
     }
-    if (portfolios.length === 1) sel.value = portfolios[0].id;
+    if (_existingPortfolios.length === 1) sel.value = _existingPortfolios[0].id;
   } catch(e) {
-    // Not logged in or error — silent
+    _existingPortfolios = [];
   }
 }
 
@@ -353,21 +355,48 @@ function importRenderPreview({ rows, format }) {
   const portFilter = document.getElementById('importPortfolioFilter');
 
   if (hasPortCol) {
-    // Hide manual portfolio selector; show checkbox filter instead
     if (portSelWrap) portSelWrap.style.display = 'none';
     if (portAutoNote) portAutoNote.style.display = 'none';
     const names = [...new Set(rows.map(r => r.portfolio_name).filter(Boolean))].sort();
     const cbWrap = document.getElementById('importPortfolioCheckboxes');
     cbWrap.innerHTML = '';
+
     for (const name of names) {
       const count = rows.filter(r => r.portfolio_name === name).length;
-      const label = document.createElement('label');
-      label.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--bg-secondary);font-size:0.82rem;cursor:pointer;';
-      label.innerHTML = `<input type="checkbox" checked data-port-name="${name.replace(/"/g,'&quot;')}" onchange="importPortFilterChange()" style="accent-color:var(--accent-blue);cursor:pointer;"> ${name} <span style="color:var(--text-muted);font-size:0.75rem;">(${count})</span>`;
-      cbWrap.appendChild(label);
+      // Case-insensitive match against existing portfolios
+      const matched = _existingPortfolios.find(p => p.name.toLowerCase() === name.toLowerCase());
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);';
+
+      // Build options for mapping dropdown
+      const existingOpts = _existingPortfolios.map(p =>
+        `<option value="${p.id}" ${matched && matched.id === p.id ? 'selected' : ''}>${p.name}</option>`
+      ).join('');
+
+      row.innerHTML = `
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;">
+          <input type="checkbox" checked class="import-port-cb" data-port-name="${name.replace(/"/g,'&quot;')}"
+            onchange="importPortFilterChange()" style="accent-color:var(--accent-blue);cursor:pointer;">
+          <span style="font-weight:600;font-size:0.85rem;">${name}</span>
+          <span style="color:var(--text-muted);font-size:0.75rem;">(${count}건)</span>
+        </label>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text-muted);">
+          <span>→ 매핑:</span>
+          <select class="import-port-map" data-port-name="${name.replace(/"/g,'&quot;')}"
+            onchange="importPortFilterChange()" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);padding:3px 8px;font-size:0.8rem;">
+            <option value="new" ${!matched ? 'selected' : ''}>(신규 생성: "${name}")</option>
+            ${existingOpts}
+          </select>
+        </div>
+        <span class="import-port-badge" style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:${matched ? 'rgba(63,185,80,0.12)' : 'rgba(88,166,255,0.12)'};color:${matched ? 'rgba(63,185,80,0.9)' : 'rgba(88,166,255,0.9)'};white-space:nowrap;">
+          ${matched ? '✓ 매핑됨' : '+ 신규'}
+        </span>
+      `;
+      cbWrap.appendChild(row);
     }
     if (portFilter) portFilter.style.display = '';
-    importPortFilterChange(); // sync count
+    importPortFilterChange();
   } else {
     if (portSelWrap) portSelWrap.style.display = '';
     if (portAutoNote) portAutoNote.style.display = 'none';
@@ -412,8 +441,17 @@ function importRenderPreview({ rows, format }) {
 function importPortFilterChange() {
   if (!_importParsed) return;
   const checked = new Set(
-    [...document.querySelectorAll('#importPortfolioCheckboxes input:checked')].map(c => c.dataset.portName)
+    [...document.querySelectorAll('.import-port-cb:checked')].map(c => c.dataset.portName)
   );
+  // Update badges when mapping dropdown changes
+  document.querySelectorAll('.import-port-map').forEach(sel => {
+    const badge = sel.closest('div').parentElement.querySelector('.import-port-badge');
+    if (!badge) return;
+    const isNew = sel.value === 'new';
+    badge.textContent = isNew ? '+ 신규' : '✓ 매핑됨';
+    badge.style.background = isNew ? 'rgba(88,166,255,0.12)' : 'rgba(63,185,80,0.12)';
+    badge.style.color = isNew ? 'rgba(88,166,255,0.9)' : 'rgba(63,185,80,0.9)';
+  });
   const filtered = _importParsed.rows.filter(r => !r.portfolio_name || checked.has(r.portfolio_name));
   const countEl = document.getElementById('importPortfolioFilterCount');
   if (countEl) countEl.textContent = `선택된 행: ${filtered.length} / ${_importParsed.rows.length}`;
@@ -453,14 +491,23 @@ async function importSubmit() {
     }
   }
 
-  // Apply portfolio checkbox filter if active
-  const checkedPorts = [...document.querySelectorAll('#importPortfolioCheckboxes input:checked')];
-  const rowsToImport = checkedPorts.length > 0
-    ? _importParsed.rows.filter(r => !r.portfolio_name || checkedPorts.some(c => c.dataset.portName === r.portfolio_name))
+  // Build portfolio mapping from checkboxes + mapping dropdowns
+  const checkedPorts = new Set(
+    [...document.querySelectorAll('.import-port-cb:checked')].map(c => c.dataset.portName)
+  );
+  const rowsToImport = checkedPorts.size > 0
+    ? _importParsed.rows.filter(r => !r.portfolio_name || checkedPorts.has(r.portfolio_name))
     : _importParsed.rows;
 
+  // nameToId: csvName → existing portfolio id OR 'new'
+  const nameToId = {};
+  document.querySelectorAll('.import-port-map').forEach(sel => {
+    const csvName = sel.dataset.portName;
+    if (checkedPorts.has(csvName)) nameToId[csvName] = sel.value; // uuid or 'new'
+  });
+
   try {
-    const { imported } = await window.txns.importTransactions(rowsToImport, portfolioId);
+    const { imported } = await window.txns.importTransactions(rowsToImport, portfolioId, nameToId);
     importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.`);
     btn.textContent = 'Done!';
     // Refresh chart txns if on a stock page
