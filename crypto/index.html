@@ -110,6 +110,10 @@ description_ko: "로그 스케일 회귀와 반감기 사이클을 활용한 비
       <span class="en-only">🌈 Rainbow</span><span class="ko-only">🌈 레인보우</span>
     </button>
     <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+    <button id="btcTradesToggle" class="ctrl-btn" onclick="toggleBtcTrades()" title="Show my trades">
+      <span class="en-only">📊 Trades</span><span class="ko-only">📊 거래</span>
+    </button>
+    <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
     <button id="btcZoomRectBtn" class="ctrl-btn" onclick="btcToggleZoomRect()" title="Rectangle zoom">⬚ <span class="en-only">Zoom</span><span class="ko-only">영역 줌</span></button>
   </div>
 </div>
@@ -575,6 +579,8 @@ const fmtBtcDate = d => { const [y,m] = d.split('-').map(Number); return `${MONT
 let btcChart, btcRsiChart;
 let btcDates = [], btcPrices = [];
 let showRainbow = true;
+let showBtcMarkers = true;
+let showBtcTrades = false;
 let showBtcMA = {12:true,24:true};
 let btcSharedCrossIdx = null;
 let _openBtcPanelMarker = null;
@@ -634,6 +640,33 @@ function toggleRainbow() {
   document.getElementById('rainbowToggle').classList.toggle('active', showRainbow);
   document.getElementById('rainbowLegend').style.display = showRainbow ? 'flex' : 'none';
   updateBtcOverlay(btcChart);
+}
+
+function toggleBtcTrades() {
+  showBtcTrades = !showBtcTrades;
+  const btn = document.getElementById('btcTradesToggle');
+  btn.classList.toggle('active', showBtcTrades);
+
+  if (showBtcTrades) {
+    // Hide rainbow + markers to reduce chart noise
+    showRainbow = false;
+    showBtcMarkers = false;
+    document.getElementById('rainbowToggle').classList.remove('active');
+    document.getElementById('rainbowLegend').style.display = 'none';
+    // Load trades if not yet loaded
+    if (window.txns && (!window.chartTxns || !window.chartTxns.length)) {
+      window.txns.loadChartTransactions('BTC');
+    }
+  } else {
+    // Restore rainbow + markers
+    showRainbow = true;
+    showBtcMarkers = true;
+    document.getElementById('rainbowToggle').classList.add('active');
+    document.getElementById('rainbowLegend').style.display = 'flex';
+    window.chartTxns = [];
+  }
+
+  if (btcChart) { updateBtcOverlay(btcChart); btcChart.update('none'); }
 }
 
 function btcDateToIdx(dateStr) {
@@ -774,13 +807,15 @@ function updateBtcOverlay(ch) {
     }
   }
 
-  // Markers (clipped to chart area)
-  for (const m of BTC_MARKERS) {
-    if (m.idx==null||m.idx<0) continue;
-    const px=xS.getPixelForValue(m.idx), py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
-    if(px<ca.left-6||px>ca.right+6||py<ca.top-6||py>ca.bottom+6) continue;
-    if(m.type==='peak') htmlClipped+=`<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
-    else htmlClipped+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
+  // Markers (clipped to chart area) — hidden when trades overlay is active
+  if (showBtcMarkers) {
+    for (const m of BTC_MARKERS) {
+      if (m.idx==null||m.idx<0) continue;
+      const px=xS.getPixelForValue(m.idx), py=yS.getPixelForValue(btcPrices[m.idx]??m.price);
+      if(px<ca.left-6||px>ca.right+6||py<ca.top-6||py>ca.bottom+6) continue;
+      if(m.type==='peak') htmlClipped+=`<polygon points="${px},${py-8} ${px-5},${py+4} ${px+5},${py+4}" fill="#f85149" opacity="0.85"/>`;
+      else htmlClipped+=`<polygon points="${px},${py+8} ${px-5},${py-4} ${px+5},${py-4}" fill="#58a6ff" opacity="0.85"/>`;
+    }
   }
 
   // ── Prediction line (power law center, dashed, from last data → 2030) ──

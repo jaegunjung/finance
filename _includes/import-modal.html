@@ -18,7 +18,8 @@
     <!-- Portfolio selector -->
     <div style="margin-bottom:16px;">
       <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">Portfolio</label>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <div id="importPortfolioAutoNote" style="display:none; font-size:0.82rem; color:rgba(63,185,80,0.9); padding:6px 10px; background:rgba(63,185,80,0.08); border:1px solid rgba(63,185,80,0.25); border-radius:6px; margin-bottom:8px;"></div>
+      <div id="importPortfolioSelWrap" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         <select id="importPortfolioSel" style="
           background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px;
           color:var(--text-primary); padding:6px 10px; font-size:0.85rem; flex:1; min-width:160px;
@@ -333,6 +334,17 @@ function importRenderPreview({ rows, format }) {
 
   const warnEl = document.getElementById('importWarnMsg');
   warnEl.textContent = '';
+
+  // If CSV has portfolio_name column, hide manual selector and show auto-assign notice
+  const hasPortCol = rows.some(r => r.portfolio_name);
+  const portSelWrap = document.getElementById('importPortfolioSelWrap');
+  const portAutoNote = document.getElementById('importPortfolioAutoNote');
+  if (portSelWrap) portSelWrap.style.display = hasPortCol ? 'none' : '';
+  if (portAutoNote) portAutoNote.style.display = hasPortCol ? '' : 'none';
+  if (portAutoNote && hasPortCol) {
+    const names = [...new Set(rows.map(r => r.portfolio_name).filter(Boolean))];
+    portAutoNote.textContent = `☁️ Portfolio 컬럼 감지됨 — 자동 생성: ${names.join(', ')}`;
+  }
 
   const tbody = document.getElementById('importPreviewBody');
   tbody.innerHTML = '';

@@ -95,10 +95,13 @@ title: 포트폴리오
 <!-- Main portfolio UI (shown when logged in) -->
 <div id="portMain" style="display:none;">
 
-  <!-- Portfolio filter tabs row -->
+  <!-- Portfolio filter dropdown row -->
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
     <div class="port-section-label" style="margin-bottom:0;">Portfolio:</div>
-    <div id="portTabsRow" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+    <select id="portDropdown" onchange="portDropdownChange()" style="
+      background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px;
+      color:var(--text-primary); padding:6px 12px; font-size:0.85rem; cursor:pointer; min-width:160px;
+    "></select>
     <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
   </div>
 
@@ -320,24 +323,26 @@ async function portLoadPortfolios() {
 }
 
 function portRenderTabs() {
-  const row = document.getElementById('portTabsRow');
-  row.innerHTML = '';
+  const sel = document.getElementById('portDropdown');
+  sel.innerHTML = '';
 
-  const reload = () => { portRenderTabs(); portSwitchView(portActiveView); };
-
-  const allBtn = document.createElement('button');
-  allBtn.className = 'port-tab' + (portActivePortfolioId === null ? ' active' : '');
-  allBtn.textContent = 'All';
-  allBtn.onclick = () => { portActivePortfolioId = null; reload(); };
-  row.appendChild(allBtn);
+  const allOpt = document.createElement('option');
+  allOpt.value = ''; allOpt.textContent = 'All';
+  sel.appendChild(allOpt);
 
   for (const p of portPortfolios) {
-    const btn = document.createElement('button');
-    btn.className = 'port-tab' + (portActivePortfolioId === p.id ? ' active' : '');
-    btn.textContent = p.name;
-    btn.onclick = () => { portActivePortfolioId = p.id; reload(); };
-    row.appendChild(btn);
+    const opt = document.createElement('option');
+    opt.value = p.id; opt.textContent = p.name;
+    sel.appendChild(opt);
   }
+
+  sel.value = portActivePortfolioId || '';
+}
+
+function portDropdownChange() {
+  const sel = document.getElementById('portDropdown');
+  portActivePortfolioId = sel.value || null;
+  portSwitchView(portActiveView);
 }
 
 // ── Fetch price + 24h change ──
