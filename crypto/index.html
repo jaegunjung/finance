@@ -1112,8 +1112,8 @@ function initBtcChart() {
         if (cx < ca.left || cx > ca.right) continue;
         const amt = Math.abs(Number(t.amount) || 0);
         const r = Math.min(Math.max(Math.sqrt(amt / 1000) * 8 + 5, 6), 28);
-        const pr = t.price != null ? Number(t.price) : btcPrices[idx];
-        const cy = yS.getPixelForValue(pr || 1);
+        // Use the chart's actual BTC price at trade date (stored price may be total amount, not per-BTC)
+        const cy = yS.getPixelForValue(btcPrices[idx] || 1);
         if (cy < ca.top || cy > ca.bottom) continue;
         const isBuy = ['buy','drip','buy_to_cover'].includes(t.type);
         c.beginPath(); c.arc(cx, cy, r, 0, 2 * Math.PI);
@@ -1635,13 +1635,11 @@ function buildHalvingTable() {
   if (btcChart) btcChart.update('none');
 }
 
-// ── Load BTC + BTC ETF transactions ─────────────────────────────────────────
-const BTC_SYMBOLS = ['BTC', 'ARKB', 'GBTC', 'IBIT', 'FBTC', 'BTCO'];
+// ── Load BTC-USD transactions ────────────────────────────────────────────────
 async function btcLoadAllTrades() {
   if (!window.txns) return;
   try {
-    const results = await Promise.all(BTC_SYMBOLS.map(s => window.txns.getTransactions(s, null).catch(() => [])));
-    window.chartTxns = results.flat();
+    window.chartTxns = await window.txns.getTransactions('BTC', null);
     if (btcChart) btcChart.update('none');
   } catch(e) { console.warn('[btc] trade load error:', e.message); }
 }
