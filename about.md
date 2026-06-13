@@ -40,7 +40,7 @@ title: About
     <h2>Analytical Philosophy &amp; Methodology</h2>
     <p>
       Markets are non-linear and span multiple orders of magnitude over decades.
-      Linear charts compress recent volatility and exaggerate ancient moves — they distort more than they reveal.
+      Linear charts exaggerate recent volatility and compress ancient moves — they distort more than they reveal.
       I use <strong>logarithmic scale</strong> throughout because a 50 % drawdown looks the same in 1932 and in 2008,
       and that comparability is what makes historical context meaningful.
     </p>
