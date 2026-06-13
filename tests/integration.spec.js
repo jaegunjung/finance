@@ -40,8 +40,37 @@ try {
 }
 
 // ── 헬퍼: Chart.js 인스턴스에서 x축 min 읽기 ────────────────────────────────
+// 이 사이트의 차트는 인덱스 기반 x축(배열 인덱스)을 사용합니다.
+// btcDates / ethDates / ratesDates / dates 전역 배열로 인덱스 → 타임스탬프 변환.
 async function getChartXMin(page) {
   return page.evaluate(() => {
+    function indexToTimestamp(idx) {
+      const i = Math.round(idx);
+      const arrays = [
+        typeof btcDates   !== "undefined" ? btcDates   : null,
+        typeof ethDates   !== "undefined" ? ethDates   : null,
+        typeof ratesDates !== "undefined" ? ratesDates : null,
+        typeof dates      !== "undefined" ? dates      : null,
+      ];
+      for (const arr of arrays) {
+        if (!Array.isArray(arr) || arr.length === 0) continue;
+        const dateStr = arr[i];
+        if (dateStr) {
+          const d = new Date(dateStr);
+          if (!isNaN(d)) return d.getTime();
+        }
+      }
+      return null;
+    }
+
+    function resolveMin(c) {
+      const min = c?.scales?.x?.min;
+      if (min == null) return null;
+      // Already a Unix timestamp (> year 2000 in ms)
+      if (min > 946684800000) return min;
+      return indexToTimestamp(min);
+    }
+
     // 사이트가 노출하는 전역 변수명 후보 목록
     const candidates = [
       window.__chart, window.myChart, window.chart,
@@ -49,13 +78,19 @@ async function getChartXMin(page) {
       window.ratesChart, window.macroChart,
     ];
     for (const c of candidates) {
-      if (c?.scales?.x?.min != null) return c.scales.x.min;
+      const ts = resolveMin(c);
+      if (ts != null) return ts;
     }
-    // Chart.js v3 내부 레지스트리 탐색
+    // Chart.js 내부 레지스트리 — 데이터 포인트가 많은 순으로 정렬해 메인 차트 우선
     if (typeof Chart !== "undefined" && Chart.instances) {
-      const inst = Object.values(Chart.instances);
-      if (inst.length > 0 && inst[0].scales?.x?.min != null)
-        return inst[0].scales.x.min;
+      const inst = Object.values(Chart.instances).sort((a, b) =>
+        (b.data?.datasets?.[0]?.data?.length || 0) -
+        (a.data?.datasets?.[0]?.data?.length || 0)
+      );
+      for (const c of inst) {
+        const ts = resolveMin(c);
+        if (ts != null) return ts;
+      }
     }
     return null;
   });
@@ -447,7 +482,10 @@ test.describe("D. git log 빈도 기반 동적 검증", () => {
     const csvFixCount = commitFreq["csv"] ?? 0;
     console.log(`CSV 관련 커밋: ${csvFixCount}개`);
 
-    await page.goto(BASE_URL + "/finance/stock/envx/", { waitUntil: "domcontentloaded" });
+    // networkidle + canvas 대기로 데이터 로드 후 확인 (downloadBtn은 데이터 로드 후 노출)
+    await gotoAndWaitChart(page, "/finance/stock/envx/");
+    // 데이터 로드 완료를 위해 downloadBtn이 visible 상태가 될 때까지 대기
+    await page.locator("#downloadBtn").waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
     const csvLink = page.locator("a:has-text('CSV'), button:has-text('CSV'), [data-action='csv']").first();
     const visible  = await csvLink.isVisible().catch(() => false);
     // CSV 링크가 있는 페이지라면 표시되어야 함

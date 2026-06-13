@@ -276,6 +276,7 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
 <script>
 (function() {
   const CSV_BASE = '{{ "/assets/data/stocks/" | relative_url }}';
+  const BTC_CSV  = '{{ "/crypto/data/btc_daily.csv" | relative_url }}';
   const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
   // Stocks with full history
@@ -284,6 +285,7 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
     { sym:'SPY',   name:'SPY (S&P 500 ETF)'  },
     { sym:'QQQ',   name:'QQQ'                },
     { sym:'VFIAX', name:'VFIAX'              },
+    { sym:'BTC',   name:'Bitcoin (BTC)'      },
     { sym:'AAPL',  name:'Apple (AAPL)'       },
     { sym:'NVDA',  name:'NVIDIA (NVDA)'      },
     { sym:'META',  name:'Meta (META)'        },
@@ -325,7 +327,7 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
 
   async function loadCsv(sym) {
     try {
-      const r = await fetch(CSV_BASE + sym + '.csv');
+      const r = await fetch(sym === 'BTC' ? BTC_CSV : CSV_BASE + sym + '.csv');
       if (!r.ok) return null;
       const text = await r.text();
       const lines = text.trim().split('\n');
