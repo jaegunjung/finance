@@ -1570,7 +1570,11 @@ document.querySelectorAll('.range-btn').forEach(btn => {
       if (rsiChart) rsiChart.zoomScale('x', {min: 0, max: xMax}, 'none');
     } else {
       const max = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
-      const rng = { min: Math.max(0, max - months), max };
+      // Compute min from today's position so range is relative to now, not forecast end
+      const todayStr = new Date().toISOString().slice(0, 7);
+      let todayIdx = 0;
+      for (let i = 0; i < dates.length; i++) { if (dates[i] <= todayStr) todayIdx = i; }
+      const rng = { min: Math.max(0, todayIdx - months), max };
       chart.zoomScale('x', rng);
       if (rsiChart) rsiChart.zoomScale('x', rng, 'none');
     }
