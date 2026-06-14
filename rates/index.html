@@ -682,15 +682,18 @@ async function initInflationChart() {
     const sortedDates = Object.keys(cpiMap).sort();
     const cpiYoy = yoy(cpiMap, sortedDates);
     const ppiYoy = yoy(ppiMap, sortedDates);
-    const fedVals = sortedDates.map(d => {
-      // forward-fill monthly fed funds
-      const key = Object.keys(fedMap).filter(k => k <= d).sort().at(-1);
-      return key ? fedMap[key] : NaN;
-    });
-    const spVals = sortedDates.map(d => {
-      const key = Object.keys(spMap).filter(k => k <= d).sort().at(-1);
-      return key ? spMap[key] : NaN;
-    });
+
+    // efficient forward-fill for fed funds and sp500
+    function forwardFill(map, dates) {
+      const keys = Object.keys(map).sort();
+      let ki = 0, last = NaN;
+      return dates.map(d => {
+        while (ki < keys.length && keys[ki] <= d) { last = map[keys[ki]]; ki++; }
+        return last;
+      });
+    }
+    const fedVals = forwardFill(fedMap, sortedDates);
+    const spVals  = forwardFill(spMap,  sortedDates);
 
     const latestCpi = cpiYoy.filter(v => !isNaN(v)).at(-1);
     if (latestCpi != null) {
