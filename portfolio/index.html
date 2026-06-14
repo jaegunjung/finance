@@ -126,13 +126,16 @@ title: 포트폴리오
     <button onclick="document.getElementById('portAddPortfolioForm').style.display='none';" style="padding:6px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
   </div>
 
-  <!-- View tabs: Holdings / Transactions -->
+  <!-- View tabs: Holdings / Transactions / Analysis -->
   <div class="view-tab-bar">
     <button class="view-tab active" id="viewTabHoldings" onclick="portSwitchView('holdings')">
       <span class="en-only">Holdings</span><span class="ko-only">보유 현황</span>
     </button>
     <button class="view-tab" id="viewTabTxns" onclick="portSwitchView('transactions')">
       <span class="en-only">Transactions</span><span class="ko-only">거래내역</span>
+    </button>
+    <button class="view-tab" id="viewTabAnalysis" onclick="portSwitchView('analysis')">
+      <span class="en-only">Coach</span><span class="ko-only">분석 코치</span>
     </button>
   </div>
 
@@ -242,7 +245,69 @@ title: 포트폴리오
     </div>
   </div><!-- /portTransactionsView -->
 
+  <!-- ── Analysis / Coach View ── -->
+  <div id="portAnalysisView" style="display:none;">
+    <div id="portAnalysisLoading" style="padding:40px; text-align:center; color:var(--text-muted); font-size:0.85rem;">
+      <span class="ko-only">분석 중…</span><span class="en-only">Analyzing…</span>
+    </div>
+    <div id="portAnalysisContent" style="display:none;">
+
+      <!-- Year-by-year table -->
+      <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
+        <div style="padding:16px 18px 12px; border-bottom:1px solid var(--border);">
+          <div class="port-section-label" style="margin-bottom:0;" id="anlYearTableTitle">연도별 수익률</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="txn-table" id="anlYearTable">
+            <thead>
+              <tr>
+                <th>연도</th>
+                <th style="text-align:right;">투입 원금 ($)</th>
+                <th style="text-align:right;">실현 손익 ($)</th>
+                <th style="text-align:right;">수익률 (%)</th>
+                <th style="text-align:right;">S&amp;P 500 (%)</th>
+                <th style="text-align:right;">Alpha (%)</th>
+              </tr>
+            </thead>
+            <tbody id="anlYearTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Cumulative gain chart -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="port-section-label" style="margin-bottom:12px;">누적 손익 비교 (동일 자금흐름)</div>
+        <div style="position:relative; width:100%; height:360px;">
+          <canvas id="anlGainChart"></canvas>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:10px; font-size:0.78rem;">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-block; width:20px; height:3px; background:#3fb950; border-radius:2px;"></span>내 포트폴리오
+          </span>
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-block; width:20px; height:3px; background:#58a6ff; border-radius:2px;"></span>SPY (동일 투자)
+          </span>
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-block; width:20px; height:3px; background:#c792ea; border-radius:2px;"></span>QQQ (동일 투자)
+          </span>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.73rem; margin-top:8px;">
+          같은 날 같은 금액을 SPY / QQQ에 투자했다면의 가상 손익과 비교. 실현손익 기준 (미실현은 현재가 기준 추산).
+        </p>
+      </div>
+
+      <!-- Coaching section -->
+      <div class="card" style="margin-bottom:20px;" id="anlCoachCard">
+        <div class="port-section-label" style="margin-bottom:16px;">투자 성향 분석 &amp; 코치 조언</div>
+        <div id="anlCoachContent" style="color:var(--text-secondary); font-size:0.88rem; line-height:1.8;"></div>
+      </div>
+
+    </div><!-- /portAnalysisContent -->
+  </div><!-- /portAnalysisView -->
+
 </div><!-- /portMain -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <!-- Edit Modal (Item 2) -->
 <div id="editModal" onclick="editModalBgClick(event)">
@@ -322,17 +387,20 @@ fetch('{{ "/config/symbols.json" | relative_url }}').then(r => r.json()).then(d 
 let portPortfolios = [];
 let portActivePortfolioId = null;
 let portAllTxns = [];
-let portActiveView = 'holdings'; // 'holdings' | 'transactions'
+let portActiveView = 'holdings'; // 'holdings' | 'transactions' | 'analysis'
 
 // ── View tab switch ──
 function portSwitchView(view) {
   portActiveView = view;
   document.getElementById('viewTabHoldings').classList.toggle('active', view === 'holdings');
   document.getElementById('viewTabTxns').classList.toggle('active', view === 'transactions');
-  document.getElementById('portHoldingsView').style.display    = view === 'holdings'     ? '' : 'none';
+  document.getElementById('viewTabAnalysis').classList.toggle('active', view === 'analysis');
+  document.getElementById('portHoldingsView').style.display     = view === 'holdings'     ? '' : 'none';
   document.getElementById('portTransactionsView').style.display = view === 'transactions' ? '' : 'none';
+  document.getElementById('portAnalysisView').style.display     = view === 'analysis'     ? '' : 'none';
   if (view === 'holdings')     portLoadHoldings();
   if (view === 'transactions') portLoadTxns();
+  if (view === 'analysis')     portLoadAnalysis();
 }
 
 // ── Type display labels ──
@@ -1113,6 +1181,500 @@ async function editSave() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ANALYSIS / COACH TAB
+// ══════════════════════════════════════════════════════════════════
+let _anlChart = null;
+let _anlLoaded = false; // reset when portfolio changes
+
+// Called from portDropdownChange / portSwitchView
+async function portLoadAnalysis() {
+  const loadEl    = document.getElementById('portAnalysisLoading');
+  const contentEl = document.getElementById('portAnalysisContent');
+  loadEl.style.display = '';
+  contentEl.style.display = 'none';
+  if (_anlChart) { _anlChart.destroy(); _anlChart = null; }
+
+  try {
+    // ── 1. Fetch transactions ───────────────────────────────────────
+    const allTxns = await window.txns.getTransactions(null, portActivePortfolioId);
+    const tradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
+    if (!tradeTxns.length) {
+      loadEl.textContent = '거래 내역이 없습니다.';
+      return;
+    }
+
+    // ── 2. Fetch SPY + QQQ price CSVs ──────────────────────────────
+    const [spyText, qqqText] = await Promise.all([
+      fetch(_STOCKS_BASE + 'SPY.csv').then(r => r.ok ? r.text() : ''),
+      fetch(_STOCKS_BASE + 'QQQ.csv').then(r => r.ok ? r.text() : ''),
+    ]);
+    const spyPrices = _anlParsePriceCsv(spyText);  // { 'YYYY-MM-DD': price }
+    const qqqPrices = _anlParsePriceCsv(qqqText);
+
+    // ── 3. Fetch current prices for held symbols ────────────────────
+    const BUY_T  = new Set(['buy','drip','buy_to_cover']);
+    const SELL_T = new Set(['sell','sell_short']);
+    const symbolTxns = {};
+    for (const t of tradeTxns) {
+      (symbolTxns[t.symbol] = symbolTxns[t.symbol] || []).push(t);
+    }
+    const currentPriceMap = {};
+    await Promise.all(Object.keys(symbolTxns).map(async sym => {
+      const p = await fetchCurrentPrice(sym);
+      if (p) currentPriceMap[sym] = p;
+    }));
+
+    // ── 4. Build event timeline for chart + table ───────────────────
+    // Each event: { date, sym, type, amount, shares, price }
+    const events = tradeTxns
+      .map(t => ({
+        date:   t.trade_date,
+        sym:    t.symbol,
+        type:   t.type,
+        amount: Math.abs(Number(t.amount) || 0),
+        shares: Math.abs(Number(t.shares) || 0),
+        price:  Number(t.price) || 0,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    // ── 5. Money-weighted SPY/QQQ simulation ───────────────────────
+    // On each BUY: buy same $ amount of SPY & QQQ
+    // On each SELL: sell proportional SPY & QQQ units (by cost ratio)
+    let spyUnits = 0, spyCost = 0;
+    let qqqUnits = 0, qqqCost = 0;
+
+    // Portfolio: track per-symbol cost basis and remaining shares
+    const portHoldings = {}; // sym -> { shares, cost }
+
+    // Cumulative realized gain timeline: [{ date, portGain, spyGain, qqqGain }]
+    const timeline = [];
+    let portRealizedGain = 0;
+
+    function _nearestPrice(map, date) {
+      // exact match or walk back up to 5 days
+      for (let d = 0; d <= 5; d++) {
+        const dt = new Date(date);
+        dt.setDate(dt.getDate() - d);
+        const key = dt.toISOString().slice(0, 10);
+        if (map[key] != null) return map[key];
+      }
+      return null;
+    }
+
+    for (const ev of events) {
+      const spyP = _nearestPrice(spyPrices, ev.date);
+      const qqqP = _nearestPrice(qqqPrices, ev.date);
+      const h = portHoldings[ev.sym] || { shares: 0, cost: 0 };
+
+      if (BUY_T.has(ev.type)) {
+        h.shares += ev.shares;
+        h.cost   += ev.amount;
+        portHoldings[ev.sym] = h;
+        // Buy same $ in SPY/QQQ
+        if (spyP) { spyUnits += ev.amount / spyP; spyCost += ev.amount; }
+        if (qqqP) { qqqUnits += ev.amount / qqqP; qqqCost += ev.amount; }
+      } else if (SELL_T.has(ev.type) && h.shares > 0) {
+        const ratio = Math.min(ev.shares / h.shares, 1);
+        const costBasisSold = h.cost * ratio;
+        portRealizedGain += ev.amount - costBasisSold;
+        h.shares -= ev.shares;
+        h.cost   -= costBasisSold;
+        if (h.shares < 0) h.shares = 0;
+        if (h.cost   < 0) h.cost   = 0;
+        portHoldings[ev.sym] = h;
+        // Sell proportional SPY/QQQ
+        if (spyP && spyUnits > 0) {
+          const sellRatio = spyCost > 0 ? ev.amount / (spyCost + portRealizedGain) : 0;
+          const unitsSold = spyUnits * Math.min(sellRatio, 1);
+          spyUnits -= unitsSold;
+          spyCost  -= ev.amount;
+          if (spyCost < 0) spyCost = 0;
+        }
+        if (qqqP && qqqUnits > 0) {
+          const sellRatio = qqqCost > 0 ? ev.amount / (qqqCost + portRealizedGain) : 0;
+          const unitsSold = qqqUnits * Math.min(sellRatio, 1);
+          qqqUnits -= unitsSold;
+          qqqCost  -= ev.amount;
+          if (qqqCost < 0) qqqCost = 0;
+        }
+      }
+
+      // Snapshot: realized gain only (unrealized added at "today" below)
+      const spyNow = spyP ? spyUnits * spyP - spyCost : null;
+      const qqqNow = qqqP ? qqqUnits * qqqP - qqqCost : null;
+      timeline.push({ date: ev.date, portGain: portRealizedGain, spyGain: spyNow, qqqGain: qqqNow });
+    }
+
+    // ── 6. Add "today" snapshot with unrealized gains ───────────────
+    let portUnrealized = 0;
+    for (const [sym, h] of Object.entries(portHoldings)) {
+      if (h.shares <= 0) continue;
+      const cp = currentPriceMap[sym];
+      if (cp) portUnrealized += cp * h.shares - h.cost;
+    }
+    const spyToday  = _nearestPrice(spyPrices, today);
+    const qqqToday  = _nearestPrice(qqqPrices, today);
+    const spyGainToday = spyToday ? spyUnits * spyToday - spyCost : null;
+    const qqqGainToday = qqqToday ? qqqUnits * qqqToday - qqqCost : null;
+    timeline.push({
+      date: today,
+      portGain: portRealizedGain + portUnrealized,
+      spyGain:  spyGainToday,
+      qqqGain:  qqqGainToday,
+    });
+
+    // ── 7. Year-by-year table ───────────────────────────────────────
+    const spySortedDates = Object.keys(spyPrices).sort();
+    function _spyYearReturn(year) {
+      const jan = spySortedDates.find(d => d.startsWith(year + '-'));
+      const dec = [...spySortedDates].reverse().find(d => d.startsWith(year + '-'));
+      if (!jan || !dec || jan === dec) return null;
+      return (spyPrices[dec] - spyPrices[jan]) / spyPrices[jan] * 100;
+    }
+
+    // Realized gain per year
+    const yearGains    = {}; // year -> realized gain
+    const yearInvested = {}; // year -> total buys
+    let cumCost = 0, cumRealized = 0;
+    for (const ev of events) {
+      const yr = ev.date.slice(0, 4);
+      if (BUY_T.has(ev.type)) {
+        yearInvested[yr] = (yearInvested[yr] || 0) + ev.amount;
+        cumCost += ev.amount;
+      } else if (SELL_T.has(ev.type)) {
+        const h = portHoldings[ev.sym];
+        // gain already in portRealizedGain; recalculate incrementally
+      }
+    }
+
+    // Recalculate realized gain per year cleanly
+    const portH2 = {};
+    let cumReal2 = 0;
+    const yearRealGain = {};
+    for (const ev of events) {
+      const yr = ev.date.slice(0, 4);
+      const h = portH2[ev.sym] || { shares: 0, cost: 0 };
+      if (BUY_T.has(ev.type)) {
+        h.shares += ev.shares;
+        h.cost   += ev.amount;
+      } else if (SELL_T.has(ev.type) && h.shares > 0) {
+        const ratio = Math.min(ev.shares / h.shares, 1);
+        const cbs = h.cost * ratio;
+        const gain = ev.amount - cbs;
+        yearRealGain[yr] = (yearRealGain[yr] || 0) + gain;
+        cumReal2 += gain;
+        h.shares -= ev.shares; h.cost -= cbs;
+        if (h.shares < 0) h.shares = 0;
+        if (h.cost   < 0) h.cost   = 0;
+      }
+      portH2[ev.sym] = h;
+    }
+    // Current year: add unrealized
+    const curYear = today.slice(0, 4);
+    yearRealGain[curYear] = (yearRealGain[curYear] || 0) + portUnrealized;
+
+    const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
+    let tbody = '';
+    let totalInvested = 0, totalGain = 0;
+    for (const yr of allYears) {
+      const inv  = yearInvested[yr] || 0;
+      const gain = yearRealGain[yr] || 0;
+      const pct  = inv > 0 ? gain / inv * 100 : null;
+      const spy  = _spyYearReturn(yr);
+      const alpha = (pct != null && spy != null) ? pct - spy : null;
+      totalInvested += inv;
+      totalGain     += gain;
+      const isCur = yr === curYear;
+      tbody += `<tr${isCur ? ' style="background:rgba(88,166,255,0.04);"' : ''}>
+        <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD+미실현</span>' : ''}</td>
+        <td style="text-align:right; color:var(--text-muted);">${inv > 0 ? '$' + inv.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right;" class="${gain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${gain !== 0 ? (gain >= 0 ? '+' : '') + '$' + Math.abs(gain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right;" class="${pct == null ? '' : pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${spy != null ? (spy >= 0 ? '+' : '') + spy.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right;" class="${alpha == null ? '' : alpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${alpha != null ? (alpha >= 0 ? '+' : '') + alpha.toFixed(1) + '%' : '—'}</td>
+      </tr>`;
+    }
+    // Total row
+    const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
+    const spyFirst = spySortedDates.find(d => d >= events[0].date);
+    const spyTotal = (spyFirst && spyToday) ? (spyToday - spyPrices[spyFirst]) / spyPrices[spyFirst] * 100 : null;
+    const totalAlpha = (totalPct != null && spyTotal != null) ? totalPct - spyTotal : null;
+    tbody += `<tr style="font-weight:700; background:var(--bg-secondary);">
+      <td>전체 누적</td>
+      <td style="text-align:right;">$${totalInvested.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+      <td style="text-align:right;" class="${totalGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalGain >= 0 ? '+' : ''}$${Math.abs(totalGain).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+      <td style="text-align:right;" class="${totalPct == null ? '' : totalPct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalPct != null ? (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%' : '—'}</td>
+      <td style="text-align:right; color:var(--text-muted);">${spyTotal != null ? (spyTotal >= 0 ? '+' : '') + spyTotal.toFixed(1) + '%' : '—'}</td>
+      <td style="text-align:right;" class="${totalAlpha == null ? '' : totalAlpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalAlpha != null ? (totalAlpha >= 0 ? '+' : '') + totalAlpha.toFixed(1) + '%' : '—'}</td>
+    </tr>`;
+    document.getElementById('anlYearTableBody').innerHTML = tbody;
+
+    // ── 8. Cumulative gain chart ────────────────────────────────────
+    // Deduplicate timeline by date (keep last per date)
+    const tlMap = {};
+    for (const pt of timeline) tlMap[pt.date] = pt;
+    const tlSorted = Object.values(tlMap).sort((a, b) => a.date.localeCompare(b.date));
+
+    const chartLabels  = tlSorted.map(p => p.date);
+    const portData     = tlSorted.map(p => p.portGain != null ? +p.portGain.toFixed(2) : null);
+    const spyData      = tlSorted.map(p => p.spyGain  != null ? +p.spyGain.toFixed(2)  : null);
+    const qqqData      = tlSorted.map(p => p.qqqGain  != null ? +p.qqqGain.toFixed(2)  : null);
+
+    const ctx = document.getElementById('anlGainChart').getContext('2d');
+    _anlChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chartLabels,
+        datasets: [
+          { label: '내 포트폴리오', data: portData, borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          { label: 'SPY',          data: spyData,  borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          { label: 'QQQ',          data: qqqData,  borderColor: '#c792ea', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+            titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8,
+            callbacks: {
+              title: items => items[0].label,
+              label: item => {
+                const v = item.parsed.y;
+                if (v == null) return null;
+                return `${item.dataset.label}: ${v >= 0 ? '+' : ''}$${Math.abs(v).toLocaleString(undefined, {maximumFractionDigits: 0})}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(48,54,61,0.8)' },
+            ticks: { color: '#8b949e', font: { size: 10 }, maxTicksLimit: 8,
+              callback(val, i) { return chartLabels[i]?.slice(0, 7); }
+            },
+          },
+          y: {
+            grid: { color: 'rgba(48,54,61,0.8)' },
+            ticks: {
+              color: '#8b949e', font: { size: 10 },
+              callback: v => (v >= 0 ? '+' : '') + '$' + (Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + 'k' : v.toFixed(0)),
+            },
+          },
+        },
+      },
+    });
+
+    // ── 9. Coaching text ────────────────────────────────────────────
+    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap);
+
+    loadEl.style.display = 'none';
+    contentEl.style.display = '';
+  } catch(e) {
+    console.error('[Analysis]', e);
+    loadEl.textContent = '분석 중 오류가 발생했습니다: ' + e.message;
+  }
+}
+
+// ── Parse stock CSV → { 'YYYY-MM-DD': adj_close } ──────────────────
+function _anlParsePriceCsv(text) {
+  const map = {};
+  if (!text) return map;
+  const lines = text.trim().split('\n');
+  const h = lines[0].split(',').map(s => s.trim());
+  const di = h.indexOf('date');
+  const pi = ['adj_close_price_usd', 'close_price_usd', 'open_price_usd'].map(c => h.indexOf(c)).find(i => i >= 0) ?? -1;
+  if (di < 0 || pi < 0) return map;
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].split(',');
+    const d = c[di]?.trim(), v = parseFloat(c[pi]);
+    if (d && !isNaN(v) && v > 0) map[d] = v;
+  }
+  return map;
+}
+
+// ── Rule-based coaching text generator ─────────────────────────────
+function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices) {
+  const BUY_T  = new Set(['buy','drip','buy_to_cover']);
+  const SELL_T = new Set(['sell','sell_short']);
+  const buys   = events.filter(e => BUY_T.has(e.type));
+  const sells  = events.filter(e => SELL_T.has(e.type));
+
+  // ── 분석 데이터 계산 ──────────────────────────────────────
+  const avgBuyAmt = buys.length ? buys.reduce((s, e) => s + e.amount, 0) / buys.length : 0;
+  const maxBuyAmt = buys.length ? Math.max(...buys.map(e => e.amount)) : 0;
+  const minBuyAmt = buys.length ? Math.min(...buys.map(e => e.amount)) : 0;
+
+  // 매수 간격 (일)
+  const buyDates = buys.map(e => new Date(e.date)).sort((a, b) => a - b);
+  const buyGaps  = buyDates.slice(1).map((d, i) => (d - buyDates[i]) / 86400000);
+  const avgGap   = buyGaps.length ? buyGaps.reduce((s, g) => s + g, 0) / buyGaps.length : 0;
+
+  // 종목 집중도
+  const symCount = {};
+  for (const e of buys) symCount[e.sym] = (symCount[e.sym] || 0) + e.amount;
+  const symsSorted = Object.entries(symCount).sort((a, b) => b[1] - a[1]);
+  const topSym     = symsSorted[0];
+  const topSymPct  = topSym ? topSym[1] / buys.reduce((s, e) => s + e.amount, 0) * 100 : 0;
+  const numSymbols = symsSorted.length;
+
+  // 매수 패턴: 분산 vs 집중
+  const isSmallFreq = avgBuyAmt < 2000 && buys.length > 5;
+  const isBigLump   = avgBuyAmt > 5000 || buys.length <= 3;
+  const isDca       = avgGap > 0 && avgGap < 45 && buys.length > 4;
+
+  // 손익 비교
+  const alpha = (totalPct != null && spyPct != null) ? totalPct - spyPct : null;
+  const beatsMarket = alpha != null && alpha > 0;
+
+  // ── 투자 성향 한 줄 정의 ────────────────────────────────
+  let styleLabel = '';
+  if (isDca && isSmallFreq) styleLabel = '저점 판단 후 소액을 자주 분할매수하는 <strong style="color:var(--text-primary)">능동형 DCA 투자자</strong>';
+  else if (isBigLump)       styleLabel = '판단 시점에 큰 금액을 한 번에 투입하는 <strong style="color:var(--text-primary)">집중 매수형 투자자</strong>';
+  else                      styleLabel = '분할매수와 집중매수를 병행하는 <strong style="color:var(--text-primary)">유연형 투자자</strong>';
+
+  // ── 점수 계산 ────────────────────────────────────────────
+  // (1) 진입 타이밍 정확도 /30
+  let timingScore = 15;
+  if (beatsMarket && alpha > 5)  timingScore = 25;
+  else if (beatsMarket)          timingScore = 20;
+  else if (alpha != null && alpha < -10) timingScore = 8;
+
+  // (2) 자금 관리 일관성 /20
+  const sizeVariance = maxBuyAmt > 0 ? (maxBuyAmt - minBuyAmt) / maxBuyAmt : 0;
+  let consistencyScore = sizeVariance < 0.5 ? 17 : sizeVariance < 0.8 ? 13 : 9;
+
+  // (3) 리스크 관리 /20
+  let riskScore = numSymbols >= 5 ? 16 : numSymbols >= 3 ? 12 : 8;
+  if (topSymPct > 70) riskScore = Math.max(riskScore - 4, 5);
+
+  // (4) 수익 실현 판단 /15
+  const sellRatio = buys.length > 0 ? sells.length / buys.length : 0;
+  let exitScore = sellRatio > 0.3 && sellRatio < 0.9 ? 12 : sellRatio === 0 ? 9 : 10;
+
+  // (5) 벤치마크 대비 /15
+  let benchScore = 8;
+  if (alpha != null) {
+    if (alpha > 10) benchScore = 14;
+    else if (alpha > 3) benchScore = 12;
+    else if (alpha > 0) benchScore = 10;
+    else if (alpha > -5) benchScore = 7;
+    else benchScore = 4;
+  }
+
+  const totalScore = timingScore + consistencyScore + riskScore + exitScore + benchScore;
+
+  // ── 조언 생성 ────────────────────────────────────────────
+  const advices = [];
+
+  if (sizeVariance > 0.6) {
+    advices.push({
+      title: '📏 매수 단위 규칙화',
+      body: `매수 금액이 $${Math.round(minBuyAmt).toLocaleString()}~$${Math.round(maxBuyAmt).toLocaleString()}으로 편차가 큽니다. ` +
+        `예를 들어 "10% 하락 시 $${Math.round(avgBuyAmt / 500) * 500} 고정 매수"처럼 규칙을 미리 정해두면 감정적 판단을 줄이고 일관성이 높아집니다. ` +
+        `이 스타일의 핵심인 저점 매수를 더 체계적으로 실행할 수 있습니다.`,
+    });
+  }
+
+  if (numSymbols <= 2) {
+    advices.push({
+      title: '🌐 후보 종목군 미리 확보',
+      body: `현재 ${numSymbols}개 종목에 집중되어 있습니다. 매수 전에 관심 종목 3~5개를 위시리스트로 관리해두면, ` +
+        `시장 하락 시 어디에 분할매수할지 즉시 판단할 수 있어 분산 효과도 함께 얻을 수 있습니다.`,
+    });
+  }
+
+  if (topSymPct > 60) {
+    advices.push({
+      title: `⚖️ ${topSym[0]} 비중 점검`,
+      body: `${topSym[0]}가 전체 매수금액의 ${topSymPct.toFixed(0)}%를 차지합니다. ` +
+        `집중도가 높을수록 개별 이슈에 취약해집니다. 새 매수 시 ${topSym[0]} 이외 종목을 우선 고려하는 원칙을 세워보세요. ` +
+        `포트폴리오 전체 성과를 안정적으로 지키는 데 도움이 됩니다.`,
+    });
+  }
+
+  if (sells.length === 0) {
+    advices.push({
+      title: '🎯 익절 기준 사전 설정',
+      body: `아직 매도 거래가 없습니다. "목표 수익률 +30% 도달 시 절반 매도" 같은 익절 룰을 미리 설정해두면, ` +
+        `상승장에서 수익을 실현하고 현금을 확보해 다음 저점 매수 기회에 재투입할 수 있습니다. ` +
+        `이 스타일의 사이클을 완성하는 핵심 단계입니다.`,
+    });
+  } else if (avgGap < 10 && buys.length > 10) {
+    advices.push({
+      title: '⏸️ 매수 간격 점검',
+      body: `평균 매수 간격이 약 ${Math.round(avgGap)}일로 짧습니다. ` +
+        `빠른 분할매수는 평균 단가를 낮추는 데 효과적이지만, 반등 직전에 현금이 소진될 수 있습니다. ` +
+        `"1차 매수 후 추가 하락 5% 대기" 같은 대기 조건을 두면 더 낮은 가격에 살 기회를 늘릴 수 있습니다.`,
+    });
+  }
+
+  if (advices.length === 0) {
+    advices.push({
+      title: '✅ 현재 스타일 유지',
+      body: `분석된 패턴에서 큰 개선 포인트가 발견되지 않았습니다. 현재 스타일을 유지하면서 ` +
+        `매수 원칙을 문서화(투자 일지)해두면 향후 시장 급변 시 감정적 결정을 막는 데 도움이 됩니다.`,
+    });
+  }
+
+  // ── HTML 렌더링 ──────────────────────────────────────────
+  const scoreColor = totalScore >= 75 ? '#3fb950' : totalScore >= 55 ? '#e8c84a' : '#f85149';
+  return `
+    <div style="margin-bottom:20px;">
+      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:6px;">투자 성향 한 줄 정의</div>
+      <p style="margin:0; font-size:0.9rem;">${styleLabel}입니다.</p>
+      <p style="margin:6px 0 0; color:var(--text-muted); font-size:0.82rem;">
+        총 ${buys.length}회 매수 · 평균 매수금액 $${Math.round(avgBuyAmt).toLocaleString()} · 평균 매수 간격 ${Math.round(avgGap)}일 · ${numSymbols}개 종목
+      </p>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px;">투자 점수</div>
+      <div style="display:flex; align-items:center; gap:16px; margin-bottom:14px;">
+        <div style="font-size:2.8rem; font-weight:800; color:${scoreColor}; line-height:1;">${totalScore}</div>
+        <div style="color:var(--text-muted); font-size:0.8rem;">/ 100점</div>
+      </div>
+      <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0; color:var(--text-secondary);">진입 타이밍 정확도</td>
+          <td style="text-align:right; font-weight:600; color:${timingScore >= 22 ? '#3fb950' : timingScore >= 15 ? '#e8c84a' : '#f85149'};">${timingScore} / 30</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0; color:var(--text-secondary);">자금 관리 일관성</td>
+          <td style="text-align:right; font-weight:600; color:${consistencyScore >= 15 ? '#3fb950' : consistencyScore >= 11 ? '#e8c84a' : '#f85149'};">${consistencyScore} / 20</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0; color:var(--text-secondary);">리스크 관리 (분산)</td>
+          <td style="text-align:right; font-weight:600; color:${riskScore >= 14 ? '#3fb950' : riskScore >= 10 ? '#e8c84a' : '#f85149'};">${riskScore} / 20</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 0; color:var(--text-secondary);">수익 실현 / 보유 판단</td>
+          <td style="text-align:right; font-weight:600; color:${exitScore >= 12 ? '#3fb950' : exitScore >= 9 ? '#e8c84a' : '#f85149'};">${exitScore} / 15</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:var(--text-secondary);">벤치마크(S&P500) 대비</td>
+          <td style="text-align:right; font-weight:600; color:${benchScore >= 12 ? '#3fb950' : benchScore >= 8 ? '#e8c84a' : '#f85149'};">${benchScore} / 15</td>
+        </tr>
+      </table>
+    </div>
+
+    <div>
+      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:12px;">코치 조언 (현재 스타일 유지 전제)</div>
+      ${advices.map(a => `
+        <div style="margin-bottom:14px; padding:12px 14px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; border-left:3px solid var(--accent-blue);">
+          <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:5px;">${a.title}</div>
+          <p style="margin:0; color:var(--text-secondary); font-size:0.83rem; line-height:1.7;">${a.body}</p>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 // Wait for auth to resolve before initializing
