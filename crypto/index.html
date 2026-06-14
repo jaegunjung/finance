@@ -1236,7 +1236,9 @@ function initBtcChart() {
     let html = `<div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;">${t.trade_date} · <span style="color:${isBuy?'#3fb950':'#f85149'}">${t.type.toUpperCase()}</span></div>`;
     html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Trade price: <b style="color:var(--text-primary)">${fmt$(tradePrice)}</b></div>`;
     if (shares) html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Shares: <b style="color:var(--text-primary)">${shares.toFixed(4)}</b></div>`;
-    html += `<div style="color:var(--text-secondary);margin-bottom:8px;">Amount: <b style="color:var(--text-primary)">${fmt$(Math.abs(Number(t.amount)))}</b></div>`;
+    html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Amount: <b style="color:var(--text-primary)">${fmt$(Math.abs(Number(t.amount)))}</b></div>`;
+    if (t.commission && Number(t.commission) > 0) html += `<div style="color:var(--text-secondary);margin-bottom:8px;">Commission: <b style="color:var(--text-primary)">${fmt$(Number(t.commission))}</b></div>`;
+    else html += `<div style="margin-bottom:8px;"></div>`;
 
     if (isBuy) {
       const dailyDelta = curPrice - prevPrice;
@@ -1258,10 +1260,10 @@ function initBtcChart() {
 
     // RSI
     if (btcRsiChart) {
-      const rsiVal = btcRsiChart.data.datasets[0]?.data[btcPrices.length-1]?.y;
+      const rsiVal = btcRsiChart.data.datasets[0]?.data[idx]?.y;
       if (rsiVal != null && !isNaN(rsiVal)) {
         const rsiColor = rsiVal >= 70 ? '#f85149' : rsiVal <= 30 ? '#3fb950' : '#8b949e';
-        html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;color:var(--text-muted);font-size:0.75rem;">Current RSI(14): <b style="color:${rsiColor}">${rsiVal.toFixed(1)}</b></div>`;
+        html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;color:var(--text-muted);font-size:0.75rem;">RSI(14) at trade: <b style="color:${rsiColor}">${rsiVal.toFixed(1)}</b></div>`;
       }
     }
 

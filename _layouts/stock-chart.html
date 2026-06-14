@@ -157,6 +157,10 @@ layout: default
   </div>
   <canvas id="stockChart" style="touch-action:pan-y;"></canvas>
   <svg id="channelSvg"></svg>
+  <div id="stockTradeTip" style="display:none;position:absolute;z-index:30;pointer-events:none;
+    background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;
+    padding:12px 14px;min-width:220px;max-width:280px;font-size:0.82rem;
+    box-shadow:0 4px 16px rgba(0,0,0,0.4);line-height:1.5;"></div>
 </div>
 
 <div id="volumeContainer">
@@ -797,13 +801,70 @@ function updateOverlay(ch) {
       const shares = t.shares != null ? ` · ${Number(t.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })} sh` : '';
       const portLabel  = t.portfolio_name ? ` [${t.portfolio_name}]` : '';
       const tipText = `${t.type.toUpperCase()} ${t.symbol} ${amt$}${shares}\n${t.trade_date}${portLabel}${t.notes ? '\n' + t.notes : ''}`;
-      html += `<circle cx="${cx}" cy="${cy2}" r="${r}" fill="${fill}" stroke="${portStroke}" stroke-width="2"${dashAttr} style="pointer-events:all; cursor:pointer;"><title>${tipText}</title></circle>`;
+      const enc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+      html += `<circle cx="${cx}" cy="${cy2}" r="${r}" fill="${fill}" stroke="${portStroke}" stroke-width="2"${dashAttr} style="pointer-events:all; cursor:pointer;"
+        data-type="${enc(t.type)}" data-date="${enc(t.trade_date)}" data-price="${enc(t.price)}" data-shares="${enc(t.shares)}" data-amount="${enc(t.amount)}" data-comm="${enc(t.commission)}" data-idx="${idx}" data-sym="${enc(t.symbol)}"
+        ><title>${tipText}</title></circle>`;
       html += `<text x="${cx}" y="${cy2 + 4}" fill="${labelColor}" font-size="9" font-weight="700" text-anchor="middle" font-family="monospace" style="pointer-events:none;">${label}</text>`;
     }
     html += `</g>`;
   }
 
   svg.innerHTML = html;
+
+  // Wire up click tooltip on trade circles
+  svg.querySelectorAll('circle[data-date]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const tip = document.getElementById('stockTradeTip');
+      const type = el.dataset.type, date = el.dataset.date;
+      const tradePrice = parseFloat(el.dataset.price) || 0;
+      const sh = parseFloat(el.dataset.shares) || 0;
+      const amt = Math.abs(parseFloat(el.dataset.amount) || 0);
+      const comm = parseFloat(el.dataset.comm) || 0;
+      const isBuy = ['buy','drip','buy_to_cover'].includes(type);
+      const fmt$ = v => '$' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const fmtPct = v => (v>=0?'+':'')+v.toFixed(2)+'%';
+      const colorOf = v => v>=0?'#3fb950':'#f85149';
+      const curPrice = prices[prices.length-1] || 0;
+      const prevPrice = prices[prices.length-2] || curPrice;
+
+      let html = `<div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;">${date} · <span style="color:${isBuy?'#3fb950':'#f85149'}">${type.toUpperCase()}</span> <span style="color:var(--text-muted)">${el.dataset.sym}</span></div>`;
+      if (tradePrice) html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Trade price: <b style="color:var(--text-primary)">${fmt$(tradePrice)}</b></div>`;
+      if (sh) html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Shares: <b style="color:var(--text-primary)">${sh.toLocaleString(undefined,{maximumFractionDigits:4})}</b></div>`;
+      html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Amount: <b style="color:var(--text-primary)">${fmt$(amt)}</b></div>`;
+      if (comm > 0) html += `<div style="color:var(--text-secondary);margin-bottom:8px;">Commission: <b style="color:var(--text-primary)">${fmt$(comm)}</b></div>`;
+      else html += `<div style="margin-bottom:8px;"></div>`;
+
+      if (isBuy && curPrice && tradePrice) {
+        const dailyPct = prevPrice > 0 ? (curPrice-prevPrice)/prevPrice*100 : 0;
+        const dailyPos = (curPrice-prevPrice)*sh;
+        const totalPct = (curPrice-tradePrice)/tradePrice*100;
+        const totalPos = (curPrice-tradePrice)*sh;
+        html += `<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px;">`;
+        html += `<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:4px;">Current: <b style="color:var(--text-primary)">${fmt$(curPrice)}</b></div>`;
+        html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:var(--text-muted)">Daily</span><span style="color:${colorOf(dailyPct)}">${fmtPct(dailyPct)} / ${fmt$(dailyPos)}</span></div>`;
+        html += `<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Total P&L</span><span style="color:${colorOf(totalPct)}">${fmtPct(totalPct)} / ${fmt$(totalPos)}</span></div>`;
+        html += `</div>`;
+      } else if (!isBuy) {
+        html += `<div style="border-top:1px solid var(--border);padding-top:8px;"><div style="color:var(--text-muted);font-size:0.75rem;">Realized sale · proceeds: <b style="color:var(--text-primary)">${fmt$(amt)}</b></div></div>`;
+      }
+
+      tip.innerHTML = html;
+      const rect = svg.getBoundingClientRect();
+      const cx = parseFloat(el.getAttribute('cx'));
+      const cy = parseFloat(el.getAttribute('cy'));
+      const cw = svg.clientWidth, ch = svg.clientHeight;
+      let lx = cx + 14, ly = cy - 20;
+      if (lx + 280 > cw) lx = cx - 280;
+      if (ly + 220 > ch) ly = ch - 220;
+      if (ly < 0) ly = 4;
+      tip.style.left = lx + 'px'; tip.style.top = ly + 'px'; tip.style.display = 'block';
+    });
+  });
+  document.getElementById('chartContainer').addEventListener('click', e => {
+    if (!e.target.closest('circle[data-date]')) document.getElementById('stockTradeTip').style.display = 'none';
+  }, { capture: false });
 }
 
 // ── Volume label update ──
