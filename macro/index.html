@@ -888,16 +888,23 @@ async function initCpiChart() {
           legend: { display: false },
           zoom: zoomPluginConfig(() => applyRangeToChart(cpiChartInst, cpiDates)),
           tooltip: {
+            enabled: true,
+            mode: 'index',
+            intersect: false,
+            filter: item => {
+              const lbl = item.dataset.label;
+              return lbl === 'CPI YoY %' || lbl === 'CPI Index' || lbl === 'S&P 500';
+            },
             callbacks: {
               title: items => {
                 const d = new Date(items[0].parsed.x);
                 return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
               },
               label: item => {
-                const v = item.parsed.y; if (isNaN(v)) return null;
+                const v = item.parsed.y; if (v == null || isNaN(v)) return null;
                 if (item.dataset.label === 'CPI YoY %')  return `Inflation: ${v.toFixed(2)}%`;
                 if (item.dataset.label === 'CPI Index')  return `CPI Index: ${v.toFixed(1)}`;
-                if (item.dataset.label === 'S&P 500')    return `S&P 500: ${v.toFixed(0)}`;
+                if (item.dataset.yAxisID === 'yRight')   return `S&P 500: ${v.toFixed(0)}`;
                 return null;
               },
             },
@@ -1074,19 +1081,26 @@ async function initPpiChart() {
           legend: { display: false },
           zoom: zoomPluginConfig(() => applyRangeToChart(ppiChartInst, ppiDates)),
           tooltip: {
+            enabled: true,
+            mode: 'index',
+            intersect: false,
+            filter: item => {
+              const lbl = item.dataset.label;
+              return lbl === 'PPI YoY %' || lbl === 'PPI Index' || lbl === 'S&P 500';
+            },
             callbacks: {
               title: items => {
                 const ts = items[0]?.parsed?.x;
                 if (!ts) return '';
-                return new Date(ts).toLocaleDateString('en-US', { year:'numeric', month:'short' });
+                const d = new Date(ts);
+                return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
               },
               label: item => {
-                const ds = item.dataset.label;
                 const v = item.parsed.y;
                 if (v == null || isNaN(v)) return null;
-                if (ds === 'S&P 500') return `S&P 500: ${v.toFixed(0)}`;
-                if (ds === 'PPI YoY %') return `PPI YoY: ${v.toFixed(2)}%`;
-                if (ds === 'PPI Index') return `PPI: ${v.toFixed(1)}`;
+                if (item.dataset.yAxisID === 'yRight') return `S&P 500: ${v.toFixed(0)}`;
+                if (item.dataset.label === 'PPI YoY %') return `PPI YoY: ${v.toFixed(2)}%`;
+                if (item.dataset.label === 'PPI Index') return `PPI: ${v.toFixed(1)}`;
                 return null;
               },
             },

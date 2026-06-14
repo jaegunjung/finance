@@ -850,6 +850,17 @@ function updateOverlay(ch) {
         html += `<div style="border-top:1px solid var(--border);padding-top:8px;"><div style="color:var(--text-muted);font-size:0.75rem;">Realized sale · proceeds: <b style="color:var(--text-primary)">${fmt$(amt)}</b></div></div>`;
       }
 
+      // RSI at trade date
+      if (rsiChart) {
+        const tradeIdx = parseInt(el.dataset.idx);
+        const rsiDs = rsiChart.data.datasets[0]?.data;
+        const rsiV = rsiDs && !isNaN(tradeIdx) ? (rsiDs[tradeIdx]?.y ?? null) : null;
+        if (rsiV != null && !isNaN(rsiV)) {
+          const rc = rsiV >= 70 ? '#f85149' : rsiV <= 30 ? '#3fb950' : '#8b949e';
+          html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;color:var(--text-muted);font-size:0.75rem;">RSI(14) at trade: <b style="color:${rc}">${rsiV.toFixed(1)}</b></div>`;
+        }
+      }
+
       tip.innerHTML = html;
       const rect = svg.getBoundingClientRect();
       const cx = parseFloat(el.getAttribute('cx'));

@@ -1667,7 +1667,9 @@ async function loadBtcData(){
     initBtcChart();
     initBtcRsiChart();
     buildHalvingTable();
-    setTimeout(() => { if (window._btcScoreReady) window._btcScoreReady(); }, 200);
+    // Call score immediately (charts are synchronous), then retry in case of race
+    if (window._btcScoreReady) window._btcScoreReady();
+    setTimeout(() => { if (window._btcScoreReady) window._btcScoreReady(); }, 800);
     // Trade panel globals — set then immediately check auth
     window._tpSymbol = 'BTC';
     window._tpDates  = btcDates;
@@ -1896,7 +1898,13 @@ function btcToggleZoomRect() {
 // MARKET SIGNAL SCORE
 // ═══════════════════════════════════════════════════════════════
 function computeBtcScore() {
-  if (!btcPrices.length || !btcRsiChart) return;
+  if (!btcPrices.length || !btcRsiChart) {
+    console.warn('[score] not ready: prices=', btcPrices.length, 'rsiChart=', !!btcRsiChart);
+    return;
+  }
+  try { _computeBtcScoreInner(); } catch(e) { console.error('[score]', e); }
+}
+function _computeBtcScoreInner() {
 
   const isKo = document.documentElement.lang === 'ko' ||
     document.querySelector('.ko-only')?.offsetParent != null;
