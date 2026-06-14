@@ -1902,7 +1902,15 @@ function computeBtcScore() {
     console.warn('[score] not ready: prices=', btcPrices.length, 'rsiChart=', !!btcRsiChart);
     return;
   }
-  try { _computeBtcScoreInner(); } catch(e) { console.error('[score]', e); }
+  try {
+    _computeBtcScoreInner();
+  } catch(e) {
+    console.error('[score]', e);
+    const sig = document.getElementById('btcScoreSignal');
+    if (sig) { sig.textContent = 'Error'; sig.style.color = '#f85149'; }
+    const val = document.getElementById('btcScoreValue');
+    if (val) { val.textContent = '!'; val.style.color = '#f85149'; }
+  }
 }
 function _computeBtcScoreInner() {
 

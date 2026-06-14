@@ -129,37 +129,38 @@ description_ko: "CPI 인플레이션·실업률·GDP 성장률·M2 통화량 등
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
-     CHART 3 · CPI Inflation
+     CHART 3 · CPI + PPI Inflation (combined)
      ════════════════════════════════════════════════════════════════ -->
 <div class="chart-section">
   <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
     <h2 style="margin:0; font-size:1rem;">
-      <span class="en-only">CPI Inflation</span><span class="ko-only">CPI 인플레이션</span>
-      <span id="cpiLatest" class="val-badge"></span>
+      <span class="en-only">CPI &amp; PPI Inflation</span><span class="ko-only">CPI &amp; PPI 인플레이션</span>
+      <span id="cpiLatest" class="val-badge" style="margin-right:4px;"></span>
+      <span id="ppiLatest" class="val-badge"></span>
     </h2>
     <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
-      <button id="cpiBtnYoy" class="ctrl-btn active" onclick="toggleCpiYoy()">YoY %</button>
-      <button id="cpiBtnLevel" class="ctrl-btn" onclick="toggleCpiLevel()">
-        <span class="en-only">Index</span><span class="ko-only">지수</span>
-      </button>
-      <button id="cpiBtnSP500" class="ctrl-btn active" onclick="toggleCpiSP500()">S&amp;P 500</button>
+      <button id="inflBtnCpi" class="ctrl-btn active" onclick="toggleInflCpi()">CPI</button>
+      <button id="inflBtnPpi" class="ctrl-btn active" onclick="toggleInflPpi()">PPI</button>
+      <button id="inflBtnSP500" class="ctrl-btn active" onclick="toggleInflSP500()">S&amp;P 500</button>
     </div>
   </div>
 
   <div class="chart-box">
-    <div id="cpiLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+    <div id="inflLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
       <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
     </div>
-    <canvas id="cpiChart" style="touch-action:pan-y;"></canvas>
+    <canvas id="inflChart" style="touch-action:pan-y;"></canvas>
   </div>
 
   <div class="legend-row">
     <span><span class="legend-swatch" style="background:#ff9800;"></span>
-      <span class="en-only">CPI YoY % (left axis)</span><span class="ko-only">CPI 전년비 % (좌측 축)</span></span>
+      <span class="en-only">CPI YoY %</span><span class="ko-only">CPI 전년비 %</span></span>
+    <span><span class="legend-swatch" style="background:#c792ea;"></span>
+      <span class="en-only">PPI YoY %</span><span class="ko-only">PPI 전년비 %</span></span>
     <span><span class="legend-swatch" style="background:#58a6ff; opacity:0.5;"></span>
       <span class="en-only">Fed 2% target</span><span class="ko-only">연준 목표 2%</span></span>
     <span><span class="legend-swatch" style="background:#58a6ff;"></span>
-      <span class="en-only">S&amp;P 500 (log, right axis)</span><span class="ko-only">S&amp;P 500 (로그, 우측 축)</span></span>
+      <span class="en-only">S&amp;P 500 (log, right)</span><span class="ko-only">S&amp;P 500 (로그, 우측)</span></span>
     <span><span class="legend-band" style="background:#f85149;"></span>
       <span class="en-only">High inflation (&gt;5%)</span><span class="ko-only">고인플레이션 (&gt;5%)</span></span>
   </div>
@@ -168,51 +169,8 @@ description_ko: "CPI 인플레이션·실업률·GDP 성장률·M2 통화량 등
     <span class="ko-only">스크롤 줌 · 드래그 패닝 · 호버 값 확인 · 더블클릭 초기화</span>
   </p>
   <p class="source-note">
-    <span class="en-only">CPI: BLS CPIAUCSL (All Urban Consumers, All Items, SA) · S&amp;P 500: FRED · Updated monthly</span>
-    <span class="ko-only">CPI: BLS CPIAUCSL (도시 소비자 전체, 계절조정) · S&amp;P 500: FRED · 월별 업데이트</span>
-  </p>
-</div>
-
-<!-- ════════════════════════════════════════════════════════════════
-     CHART 4 · PPI Inflation
-     ════════════════════════════════════════════════════════════════ -->
-<div class="chart-section">
-  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-    <h2 style="margin:0; font-size:1rem;">
-      <span class="en-only">PPI Inflation</span><span class="ko-only">PPI 생산자 물가</span>
-      <span id="ppiLatest" class="val-badge"></span>
-    </h2>
-    <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
-      <button id="ppiBtnYoy" class="ctrl-btn active" onclick="togglePpiYoy()">YoY %</button>
-      <button id="ppiBtnLevel" class="ctrl-btn" onclick="togglePpiLevel()">
-        <span class="en-only">Index</span><span class="ko-only">지수</span>
-      </button>
-      <button id="ppiBtnSP500" class="ctrl-btn active" onclick="togglePpiSP500()">S&amp;P 500</button>
-    </div>
-  </div>
-
-  <div class="chart-box">
-    <div id="ppiLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
-      <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
-    </div>
-    <canvas id="ppiChart" style="touch-action:pan-y;"></canvas>
-  </div>
-
-  <div class="legend-row">
-    <span><span class="legend-swatch" style="background:#c792ea;"></span>
-      <span class="en-only">PPI YoY % (left axis)</span><span class="ko-only">PPI 전년비 % (좌측 축)</span></span>
-    <span><span class="legend-swatch" style="background:#58a6ff; opacity:0.5;"></span>
-      <span class="en-only">Fed 2% target</span><span class="ko-only">연준 목표 2%</span></span>
-    <span><span class="legend-swatch" style="background:#58a6ff;"></span>
-      <span class="en-only">S&amp;P 500 (log, right axis)</span><span class="ko-only">S&amp;P 500 (로그, 우측 축)</span></span>
-  </div>
-  <p class="chart-hint">
-    <span class="en-only">Scroll to zoom · Drag to pan · Hover for values · Double-click to reset</span>
-    <span class="ko-only">스크롤 줌 · 드래그 패닝 · 호버 값 확인 · 더블클릭 초기화</span>
-  </p>
-  <p class="source-note">
-    <span class="en-only">PPI: BLS PPIACO (All Commodities) · S&amp;P 500: FRED · Updated monthly</span>
-    <span class="ko-only">PPI: BLS PPIACO (전체 상품) · S&amp;P 500: FRED · 월별 업데이트</span>
+    <span class="en-only">CPI: BLS CPIAUCSL (All Urban Consumers, SA) · PPI: BLS PPIACO (All Commodities) · S&amp;P 500: FRED · Monthly</span>
+    <span class="ko-only">CPI: BLS CPIAUCSL (도시 소비자 전체, 계절조정) · PPI: BLS PPIACO (전체 상품) · S&amp;P 500: FRED · 월별</span>
   </p>
 </div>
 
@@ -409,8 +367,7 @@ document.querySelectorAll('[data-years]').forEach(btn => {
     globalYears = parseInt(btn.dataset.years);
     applyRangeToChart(capeChartInst, capeDates);
     applyRangeToChart(buffettChartInst, buffDates);
-    applyRangeToChart(cpiChartInst, cpiDates);
-    applyRangeToChart(ppiChartInst, ppiDates);
+    applyRangeToChart(inflChartInst, inflDates);
   });
 });
 
@@ -762,368 +719,189 @@ async function initBuffettChart() {
   }
 }
 
-// ── CPI chart state ──────────────────────────────────────────────
-let cpiChartInst = null;
-let cpiDates = [], cpiYoyData = [], cpiLevelData = [], cpiSP500 = [];
-let cpiShowYoy = true, cpiShowLevel = false, cpiShowSP500 = true;
+// ── Inflation chart state (CPI + PPI combined) ───────────────────
+let inflChartInst = null;
+let inflDates = [];
+let inflShowCpi = true, inflShowPpi = true, inflShowSP500 = true;
 
-function toggleCpiYoy() {
-  cpiShowYoy = !cpiShowYoy;
-  document.getElementById('cpiBtnYoy').classList.toggle('active', cpiShowYoy);
-  if (!cpiChartInst) return;
-  cpiChartInst.data.datasets[0].hidden = !cpiShowYoy;
-  cpiChartInst.update('none');
+function toggleInflCpi() {
+  inflShowCpi = !inflShowCpi;
+  document.getElementById('inflBtnCpi').classList.toggle('active', inflShowCpi);
+  if (!inflChartInst) return;
+  inflChartInst.data.datasets[0].hidden = !inflShowCpi;
+  inflChartInst.update('none');
 }
-function toggleCpiLevel() {
-  cpiShowLevel = !cpiShowLevel;
-  document.getElementById('cpiBtnLevel').classList.toggle('active', cpiShowLevel);
-  if (!cpiChartInst) return;
-  cpiChartInst.data.datasets[1].hidden = !cpiShowLevel;
-  cpiChartInst.update('none');
+function toggleInflPpi() {
+  inflShowPpi = !inflShowPpi;
+  document.getElementById('inflBtnPpi').classList.toggle('active', inflShowPpi);
+  if (!inflChartInst) return;
+  inflChartInst.data.datasets[1].hidden = !inflShowPpi;
+  inflChartInst.update('none');
 }
-function toggleCpiSP500() {
-  cpiShowSP500 = !cpiShowSP500;
-  document.getElementById('cpiBtnSP500').classList.toggle('active', cpiShowSP500);
-  if (!cpiChartInst) return;
-  cpiChartInst.data.datasets[2].hidden = !cpiShowSP500;
-  cpiChartInst.update('none');
+function toggleInflSP500() {
+  inflShowSP500 = !inflShowSP500;
+  document.getElementById('inflBtnSP500').classList.toggle('active', inflShowSP500);
+  if (!inflChartInst) return;
+  inflChartInst.data.datasets[2].hidden = !inflShowSP500;
+  inflChartInst.update('none');
 }
 
-async function initCpiChart() {
+async function initInflationChart() {
+  const loadingEl = document.getElementById('inflLoading');
   try {
-    const [cpiText, sp500Map] = await Promise.all([
+    const [cpiText, ppiText, sp500Map] = await Promise.all([
       fetchCsv('{{ "/assets/data/macro/CPI.csv" | relative_url }}'),
+      fetchCsv('{{ "/assets/data/macro/PPI.csv" | relative_url }}'),
       fetchSp500Map(),
     ]);
 
-    // Parse CPI CSV
-    const cpiMap = {};
-    for (const line of cpiText.trim().split('\n').slice(1)) {
-      const [date, val] = line.split(',');
-      if (date && val && val.trim() !== '.') {
-        const v = parseFloat(val);
-        if (!isNaN(v)) cpiMap[date.trim()] = v;
+    // ── Parse helpers ────────────────────────────────────────────
+    function parseCsv2col(text) {
+      const map = {};
+      for (const line of text.trim().split('\n').slice(1)) {
+        const [date, val] = line.split(',');
+        if (date && val && val.trim() !== '.') {
+          const v = parseFloat(val);
+          if (!isNaN(v)) map[date.trim()] = v;
+        }
       }
+      return map;
+    }
+    function yoy(map, dates) {
+      return dates.map((d, i) => {
+        if (i < 12) return NaN;
+        const prev = map[dates[i - 12]];
+        return prev ? ((map[d] - prev) / prev * 100) : NaN;
+      });
     }
 
+    const cpiMap = parseCsv2col(cpiText);
+    const ppiMap = parseCsv2col(ppiText);
+
+    // Use CPI dates as the master timeline (1947–present, monthly)
     const sortedDates = Object.keys(cpiMap).sort();
-    cpiDates = sortedDates;
+    inflDates = sortedDates;
 
-    // YoY% = (cpi[t] - cpi[t-12]) / cpi[t-12] * 100
-    cpiYoyData = sortedDates.map((d, i) => {
-      if (i < 12) return NaN;
-      const prev = cpiMap[sortedDates[i - 12]];
-      return prev ? ((cpiMap[d] - prev) / prev * 100) : NaN;
-    });
-    cpiLevelData = sortedDates.map(d => cpiMap[d]);
-    cpiSP500     = sortedDates.map(d => sp500Map[d] ?? sp500Map[d.slice(0,7)+'-01'] ?? NaN);
+    const cpiYoy = yoy(cpiMap, sortedDates);
+    const ppiYoy = yoy(ppiMap, sortedDates);
+    const spData = sortedDates.map(d => sp500Map[d] ?? sp500Map[d.slice(0,7)+'-01'] ?? NaN);
 
-    // Latest values
-    const latestYoy = cpiYoyData.filter(v => !isNaN(v)).at(-1);
-    if (latestYoy != null) {
-      const badge = document.getElementById('cpiLatest');
-      const color = latestYoy > 5 ? '#f85149' : latestYoy > 2 ? '#e8c84a' : '#3fb950';
-      badge.textContent = `${latestYoy.toFixed(1)}% YoY`;
-      badge.style.color = color;
+    // Latest badges
+    const latestCpi = cpiYoy.filter(v => !isNaN(v)).at(-1);
+    if (latestCpi != null) {
+      const el = document.getElementById('cpiLatest');
+      el.textContent = `CPI ${latestCpi.toFixed(1)}%`;
+      el.style.color = latestCpi > 5 ? '#f85149' : latestCpi > 2 ? '#e8c84a' : '#3fb950';
+    }
+    const latestPpi = ppiYoy.filter(v => !isNaN(v)).at(-1);
+    if (latestPpi != null) {
+      const el = document.getElementById('ppiLatest');
+      el.textContent = `PPI ${latestPpi.toFixed(1)}%`;
+      el.style.color = latestPpi > 5 ? '#f85149' : latestPpi > 2 ? '#e8c84a' : '#3fb950';
     }
 
     const timestamps = sortedDates.map(d => new Date(d).getTime());
+    const spVals = spData.filter(v => !isNaN(v) && v > 0);
+    const spMax = Math.max(...spVals) * 1.2;
+    const spMin = Math.min(...spVals) / 2;
 
-    const spMax = Math.max(...cpiSP500.filter(v => !isNaN(v) && v > 0)) * 1.2;
-    const spMin = Math.min(...cpiSP500.filter(v => !isNaN(v) && v > 0)) / 2;
+    // Hide the loading div BEFORE creating the chart (so errors don't leave it visible)
+    loadingEl.style.display = 'none';
 
-    cpiChartInst = new Chart(document.getElementById('cpiChart'), {
+    inflChartInst = new Chart(document.getElementById('inflChart'), {
       type: 'line',
       data: {
         labels: timestamps,
         datasets: [
           // 0: CPI YoY%
-          {
-            label: 'CPI YoY %',
-            data: cpiYoyData.map((v, i) => ({ x: timestamps[i], y: v })),
-            borderColor: '#ff9800', borderWidth: 2, pointRadius: 0,
-            fill: false, yAxisID: 'yLeft', tension: 0.2, order: 1,
-            hidden: false,
-          },
-          // 1: CPI Level
-          {
-            label: 'CPI Index',
-            data: cpiLevelData.map((v, i) => ({ x: timestamps[i], y: v })),
-            borderColor: '#ffd700', borderWidth: 1.5, pointRadius: 0,
-            fill: false, yAxisID: 'yLeft', tension: 0.1, order: 2,
-            hidden: true,
-          },
+          { label: 'CPI YoY %', data: cpiYoy.map((v,i) => ({x:timestamps[i],y:v})),
+            borderColor:'#ff9800', borderWidth:2, pointRadius:0, fill:false,
+            yAxisID:'yLeft', tension:0.2, order:1, hidden:false },
+          // 1: PPI YoY%
+          { label: 'PPI YoY %', data: ppiYoy.map((v,i) => ({x:timestamps[i],y:v})),
+            borderColor:'#c792ea', borderWidth:1.5, pointRadius:0, fill:false,
+            yAxisID:'yLeft', tension:0.2, order:2, hidden:false },
           // 2: S&P 500
-          {
-            label: 'S&P 500',
-            data: cpiSP500.map((v, i) => ({ x: timestamps[i], y: v })),
-            borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0,
-            fill: false, yAxisID: 'yRight', tension: 0.1, order: 3,
-            hidden: false,
-          },
-          // 3: Fed 2% target line
-          {
-            label: 'Fed Target 2%',
-            data: timestamps.map(x => ({ x, y: 2 })),
-            borderColor: 'rgba(88,166,255,0.4)', borderWidth: 1.5,
-            borderDash: [6, 4], pointRadius: 0,
-            fill: false, yAxisID: 'yLeft', tension: 0, order: 4,
-            hidden: false,
-          },
-          // 4: High inflation zone fill (>5%)
-          {
-            label: 'High Inflation Zone',
-            data: timestamps.map(x => ({ x, y: 5 })),
-            borderColor: 'transparent', pointRadius: 0,
-            backgroundColor: 'rgba(248,81,73,0.08)',
-            fill: { target: { value: 999 }, above: 'rgba(248,81,73,0.08)', below: 'transparent' },
-            yAxisID: 'yLeft', tension: 0, order: 5, hidden: false,
-          },
+          { label: 'S&P 500', data: spData.map((v,i) => ({x:timestamps[i],y:v})),
+            borderColor:'#58a6ff', borderWidth:1.5, pointRadius:0, fill:false,
+            yAxisID:'yRight', tension:0.1, order:3, hidden:false },
+          // 3: Fed 2% target
+          { label: 'Fed 2%', data: timestamps.map(x => ({x,y:2})),
+            borderColor:'rgba(88,166,255,0.4)', borderWidth:1.5, borderDash:[6,4],
+            pointRadius:0, fill:false, yAxisID:'yLeft', tension:0, order:4, hidden:false },
+          // 4: >5% zone
+          { label: '_zone', data: timestamps.map(x => ({x,y:5})),
+            borderColor:'transparent', pointRadius:0, backgroundColor:'rgba(248,81,73,0.07)',
+            fill:'+1', yAxisID:'yLeft', tension:0, order:5, hidden:false },
+          // 5: zone top (infinity proxy)
+          { label: '_zone_top', data: timestamps.map(x => ({x,y:25})),
+            borderColor:'transparent', pointRadius:0, fill:false,
+            yAxisID:'yLeft', tension:0, order:6, hidden:false },
         ],
       },
       options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
-        interaction: { mode: 'index', intersect: false },
+        responsive:true, maintainAspectRatio:false, animation:false,
+        interaction: { mode:'index', intersect:false },
         plugins: {
-          legend: { display: false },
-          zoom: zoomPluginConfig(() => applyRangeToChart(cpiChartInst, cpiDates)),
+          legend: { display:false },
+          zoom: zoomPluginConfig(() => applyRangeToChart(inflChartInst, inflDates)),
           tooltip: {
-            enabled: true,
-            mode: 'index',
-            intersect: false,
-            filter: item => {
-              const lbl = item.dataset.label;
-              return lbl === 'CPI YoY %' || lbl === 'CPI Index' || lbl === 'S&P 500';
-            },
             callbacks: {
               title: items => {
                 const d = new Date(items[0].parsed.x);
                 return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
               },
               label: item => {
-                const v = item.parsed.y; if (v == null || isNaN(v)) return null;
-                if (item.dataset.label === 'CPI YoY %')  return `Inflation: ${v.toFixed(2)}%`;
-                if (item.dataset.label === 'CPI Index')  return `CPI Index: ${v.toFixed(1)}`;
-                if (item.dataset.yAxisID === 'yRight')   return `S&P 500: ${v.toFixed(0)}`;
-                return null;
-              },
-            },
-          },
-        },
-        scales: {
-          x: {
-            type: 'linear',
-            min: timestamps[0], max: timestamps[timestamps.length - 1],
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: {
-              color: 'rgba(180,180,180,0.7)', font: { size: 11 }, maxTicksLimit: 10,
-              callback: val => { const d = new Date(val); return d.getUTCFullYear(); },
-            },
-          },
-          yLeft: {
-            type: 'linear', position: 'left',
-            title: { display: true, text: 'CPI YoY %', color: 'rgba(180,180,180,0.6)', font: { size: 11 } },
-            grid: { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: 'rgba(180,180,180,0.7)', font: { size: 11 }, callback: v => `${v.toFixed(0)}%` },
-          },
-          yRight: {
-            type: 'logarithmic', position: 'right',
-            min: spMin, max: spMax,
-            title: { display: true, text: 'S&P 500 (log)', color: 'rgba(88,166,255,0.5)', font: { size: 11 } },
-            grid: { display: false },
-            ticks: {
-              color: 'rgba(88,166,255,0.5)', font: { size: 10 }, maxTicksLimit: 6,
-              callback: v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v,
-            },
-          },
-        },
-      },
-    });
-
-    document.getElementById('cpiChart').addEventListener('dblclick', () => {
-      cpiChartInst.resetZoom();
-      applyRangeToChart(cpiChartInst, cpiDates);
-    });
-    applyRangeToChart(cpiChartInst, cpiDates);
-    document.getElementById('cpiLoading').style.display = 'none';
-  } catch (e) {
-    document.getElementById('cpiLoading').textContent = 'Data unavailable — run scripts/generate_cpi.py';
-    console.error('[CPI]', e);
-  }
-}
-
-// ── PPI chart state ──────────────────────────────────────────────
-let ppiChartInst = null;
-let ppiDates = [], ppiYoyData = [], ppiLevelData = [], ppiSP500 = [];
-let ppiShowYoy = true, ppiShowLevel = false, ppiShowSP500 = true;
-
-function togglePpiYoy() {
-  ppiShowYoy = !ppiShowYoy;
-  document.getElementById('ppiBtnYoy').classList.toggle('active', ppiShowYoy);
-  if (!ppiChartInst) return;
-  ppiChartInst.data.datasets[0].hidden = !ppiShowYoy;
-  ppiChartInst.update('none');
-}
-function togglePpiLevel() {
-  ppiShowLevel = !ppiShowLevel;
-  document.getElementById('ppiBtnLevel').classList.toggle('active', ppiShowLevel);
-  if (!ppiChartInst) return;
-  ppiChartInst.data.datasets[1].hidden = !ppiShowLevel;
-  ppiChartInst.update('none');
-}
-function togglePpiSP500() {
-  ppiShowSP500 = !ppiShowSP500;
-  document.getElementById('ppiBtnSP500').classList.toggle('active', ppiShowSP500);
-  if (!ppiChartInst) return;
-  ppiChartInst.data.datasets[2].hidden = !ppiShowSP500;
-  ppiChartInst.update('none');
-}
-
-async function initPpiChart() {
-  try {
-    const [ppiText, sp500Map] = await Promise.all([
-      fetchCsv('{{ "/assets/data/macro/PPI.csv" | relative_url }}'),
-      fetchSp500Map(),
-    ]);
-
-    const ppiMap = {};
-    for (const line of ppiText.trim().split('\n').slice(1)) {
-      const [date, val] = line.split(',');
-      if (date && val && val.trim() !== '.') {
-        const v = parseFloat(val);
-        if (!isNaN(v)) ppiMap[date.trim()] = v;
-      }
-    }
-
-    const sortedDates = Object.keys(ppiMap).sort();
-    ppiDates = sortedDates;
-
-    ppiYoyData = sortedDates.map((d, i) => {
-      if (i < 12) return NaN;
-      const prev = ppiMap[sortedDates[i - 12]];
-      return prev ? ((ppiMap[d] - prev) / prev * 100) : NaN;
-    });
-    ppiLevelData = sortedDates.map(d => ppiMap[d]);
-    ppiSP500     = sortedDates.map(d => sp500Map[d] ?? sp500Map[d.slice(0,7)+'-01'] ?? NaN);
-
-    const latestYoy = ppiYoyData.filter(v => !isNaN(v)).at(-1);
-    if (latestYoy != null) {
-      const badge = document.getElementById('ppiLatest');
-      const color = latestYoy > 5 ? '#f85149' : latestYoy > 2 ? '#e8c84a' : '#3fb950';
-      badge.textContent = `${latestYoy.toFixed(1)}% YoY`;
-      badge.style.color = color;
-    }
-
-    const timestamps = sortedDates.map(d => new Date(d).getTime());
-    const spMax = Math.max(...ppiSP500.filter(v => !isNaN(v) && v > 0)) * 1.2;
-    const spMin = Math.min(...ppiSP500.filter(v => !isNaN(v) && v > 0)) / 2;
-
-    ppiChartInst = new Chart(document.getElementById('ppiChart'), {
-      type: 'line',
-      data: {
-        labels: timestamps,
-        datasets: [
-          {
-            label: 'PPI YoY %',
-            data: ppiYoyData.map((v, i) => ({ x: timestamps[i], y: v })),
-            borderColor: '#c792ea', borderWidth: 2, pointRadius: 0,
-            fill: false, yAxisID: 'yLeft', tension: 0.2, order: 1, hidden: false,
-          },
-          {
-            label: 'PPI Index',
-            data: ppiLevelData.map((v, i) => ({ x: timestamps[i], y: v })),
-            borderColor: '#ffd700', borderWidth: 1.5, pointRadius: 0,
-            fill: false, yAxisID: 'yLeft', tension: 0.1, order: 2, hidden: true,
-          },
-          {
-            label: 'S&P 500',
-            data: ppiSP500.map((v, i) => ({ x: timestamps[i], y: v })),
-            borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0,
-            fill: false, yAxisID: 'yRight', tension: 0.1, order: 3, hidden: false,
-          },
-          {
-            label: 'Fed Target 2%',
-            data: timestamps.map(x => ({ x, y: 2 })),
-            borderColor: 'rgba(88,166,255,0.4)', borderWidth: 1.5,
-            borderDash: [6, 4], pointRadius: 0,
-            fill: false, yAxisID: 'yLeft', tension: 0, order: 4, hidden: false,
-          },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
-        scales: {
-          x: {
-            type: 'linear', position: 'bottom',
-            ticks: {
-              color: 'var(--text-muted)', font: { size: 11 }, maxTicksLimit: 12,
-              callback: v => { const d = new Date(v); return d.getFullYear(); },
-            },
-            grid: { color: 'rgba(48,54,61,0.6)' },
-          },
-          yLeft: {
-            type: 'linear', position: 'left',
-            ticks: { color: 'var(--text-muted)', font: { size: 11 }, callback: v => v.toFixed(1) + '%' },
-            grid: { color: 'rgba(48,54,61,0.6)' },
-          },
-          yRight: {
-            type: 'logarithmic', position: 'right',
-            min: spMin, max: spMax,
-            ticks: {
-              color: 'rgba(88,166,255,0.6)', font: { size: 11 }, maxTicksLimit: 6,
-              callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
-            },
-            grid: { display: false },
-          },
-        },
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          zoom: zoomPluginConfig(() => applyRangeToChart(ppiChartInst, ppiDates)),
-          tooltip: {
-            enabled: true,
-            mode: 'index',
-            intersect: false,
-            filter: item => {
-              const lbl = item.dataset.label;
-              return lbl === 'PPI YoY %' || lbl === 'PPI Index' || lbl === 'S&P 500';
-            },
-            callbacks: {
-              title: items => {
-                const ts = items[0]?.parsed?.x;
-                if (!ts) return '';
-                const d = new Date(ts);
-                return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
-              },
-              label: item => {
                 const v = item.parsed.y;
                 if (v == null || isNaN(v)) return null;
-                if (item.dataset.yAxisID === 'yRight') return `S&P 500: ${v.toFixed(0)}`;
-                if (item.dataset.label === 'PPI YoY %') return `PPI YoY: ${v.toFixed(2)}%`;
-                if (item.dataset.label === 'PPI Index') return `PPI: ${v.toFixed(1)}`;
+                const lbl = item.dataset.label;
+                if (lbl === 'CPI YoY %') return `CPI YoY: ${v.toFixed(2)}%`;
+                if (lbl === 'PPI YoY %') return `PPI YoY: ${v.toFixed(2)}%`;
+                if (lbl === 'S&P 500')   return `S&P 500: ${v.toFixed(0)}`;
                 return null;
               },
             },
           },
         },
+        scales: {
+          x: {
+            type:'linear',
+            min: timestamps[0], max: timestamps[timestamps.length-1],
+            grid: { color:'rgba(255,255,255,0.05)' },
+            ticks: { color:'rgba(180,180,180,0.7)', font:{size:11}, maxTicksLimit:10,
+                     callback: v => new Date(v).getUTCFullYear() },
+          },
+          yLeft: {
+            type:'linear', position:'left',
+            title: { display:true, text:'YoY %', color:'rgba(180,180,180,0.6)', font:{size:11} },
+            grid: { color:'rgba(255,255,255,0.05)' },
+            ticks: { color:'rgba(180,180,180,0.7)', font:{size:11}, callback: v => `${v.toFixed(0)}%` },
+          },
+          yRight: {
+            type:'logarithmic', position:'right',
+            min:spMin, max:spMax,
+            title: { display:true, text:'S&P 500 (log)', color:'rgba(88,166,255,0.5)', font:{size:11} },
+            grid: { display:false },
+            ticks: { color:'rgba(88,166,255,0.5)', font:{size:10}, maxTicksLimit:6,
+                     callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v },
+          },
+        },
       },
     });
 
-    document.getElementById('ppiChart').addEventListener('dblclick', () => {
-      ppiChartInst.resetZoom();
-      applyRangeToChart(ppiChartInst, ppiDates);
+    document.getElementById('inflChart').addEventListener('dblclick', () => {
+      inflChartInst.resetZoom();
+      applyRangeToChart(inflChartInst, inflDates);
     });
-    applyRangeToChart(ppiChartInst, ppiDates);
-    document.getElementById('ppiLoading').style.display = 'none';
+    applyRangeToChart(inflChartInst, inflDates);
   } catch (e) {
-    document.getElementById('ppiLoading').textContent = 'Data unavailable — run scripts/generate_ppi.py';
-    console.error('[PPI]', e);
+    if (loadingEl) loadingEl.textContent = 'Data unavailable — run scripts/generate_cpi.py & generate_ppi.py';
+    console.error('[Inflation]', e);
   }
 }
 
 // ── Boot ──────────────────────────────────────────────────────────
 initCapeChart();
 initBuffettChart();
-initCpiChart();
-initPpiChart();
+initInflationChart();
 </script>
