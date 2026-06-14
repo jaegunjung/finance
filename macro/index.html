@@ -128,6 +128,51 @@ description_ko: "CPI 인플레이션·실업률·GDP 성장률·M2 통화량 등
   </p>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════════
+     CHART 3 · CPI Inflation
+     ════════════════════════════════════════════════════════════════ -->
+<div class="chart-section">
+  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+    <h2 style="margin:0; font-size:1rem;">
+      <span class="en-only">CPI Inflation</span><span class="ko-only">CPI 인플레이션</span>
+      <span id="cpiLatest" class="val-badge"></span>
+    </h2>
+    <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+      <button id="cpiBtnYoy" class="ctrl-btn active" onclick="toggleCpiYoy()">YoY %</button>
+      <button id="cpiBtnLevel" class="ctrl-btn" onclick="toggleCpiLevel()">
+        <span class="en-only">Index</span><span class="ko-only">지수</span>
+      </button>
+      <button id="cpiBtnSP500" class="ctrl-btn active" onclick="toggleCpiSP500()">S&amp;P 500</button>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <div id="cpiLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+      <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
+    </div>
+    <canvas id="cpiChart" style="touch-action:pan-y;"></canvas>
+  </div>
+
+  <div class="legend-row">
+    <span><span class="legend-swatch" style="background:#ff9800;"></span>
+      <span class="en-only">CPI YoY % (left axis)</span><span class="ko-only">CPI 전년비 % (좌측 축)</span></span>
+    <span><span class="legend-swatch" style="background:#58a6ff; opacity:0.5;"></span>
+      <span class="en-only">Fed 2% target</span><span class="ko-only">연준 목표 2%</span></span>
+    <span><span class="legend-swatch" style="background:#58a6ff;"></span>
+      <span class="en-only">S&amp;P 500 (log, right axis)</span><span class="ko-only">S&amp;P 500 (로그, 우측 축)</span></span>
+    <span><span class="legend-band" style="background:#f85149;"></span>
+      <span class="en-only">High inflation (&gt;5%)</span><span class="ko-only">고인플레이션 (&gt;5%)</span></span>
+  </div>
+  <p class="chart-hint">
+    <span class="en-only">Scroll to zoom · Drag to pan · Hover for values · Double-click to reset</span>
+    <span class="ko-only">스크롤 줌 · 드래그 패닝 · 호버 값 확인 · 더블클릭 초기화</span>
+  </p>
+  <p class="source-note">
+    <span class="en-only">CPI: BLS CPIAUCSL (All Urban Consumers, All Items, SA) · S&amp;P 500: FRED · Updated monthly</span>
+    <span class="ko-only">CPI: BLS CPIAUCSL (도시 소비자 전체, 계절조정) · S&amp;P 500: FRED · 월별 업데이트</span>
+  </p>
+</div>
+
 <!-- ── Explainer cards ─────────────────────────────────────────── -->
 <div class="card" style="margin-bottom:16px;">
   <div class="section-label">Shiller PE (CAPE)</div>
@@ -273,6 +318,7 @@ document.querySelectorAll('[data-years]').forEach(btn => {
     globalYears = parseInt(btn.dataset.years);
     applyRangeToChart(capeChartInst, capeDates);
     applyRangeToChart(buffettChartInst, buffDates);
+    applyRangeToChart(cpiChartInst, cpiDates);
   });
 });
 
@@ -624,7 +670,191 @@ async function initBuffettChart() {
   }
 }
 
+// ── CPI chart state ──────────────────────────────────────────────
+let cpiChartInst = null;
+let cpiDates = [], cpiYoyData = [], cpiLevelData = [], cpiSP500 = [];
+let cpiShowYoy = true, cpiShowLevel = false, cpiShowSP500 = true;
+
+function toggleCpiYoy() {
+  cpiShowYoy = !cpiShowYoy;
+  document.getElementById('cpiBtnYoy').classList.toggle('active', cpiShowYoy);
+  if (!cpiChartInst) return;
+  cpiChartInst.data.datasets[0].hidden = !cpiShowYoy;
+  cpiChartInst.update('none');
+}
+function toggleCpiLevel() {
+  cpiShowLevel = !cpiShowLevel;
+  document.getElementById('cpiBtnLevel').classList.toggle('active', cpiShowLevel);
+  if (!cpiChartInst) return;
+  cpiChartInst.data.datasets[1].hidden = !cpiShowLevel;
+  cpiChartInst.update('none');
+}
+function toggleCpiSP500() {
+  cpiShowSP500 = !cpiShowSP500;
+  document.getElementById('cpiBtnSP500').classList.toggle('active', cpiShowSP500);
+  if (!cpiChartInst) return;
+  cpiChartInst.data.datasets[2].hidden = !cpiShowSP500;
+  cpiChartInst.update('none');
+}
+
+async function initCpiChart() {
+  try {
+    const [cpiText, sp500Map] = await Promise.all([
+      fetchCsv('{{ "/assets/data/macro/CPI.csv" | relative_url }}'),
+      fetchSp500Map(),
+    ]);
+
+    // Parse CPI CSV
+    const cpiMap = {};
+    for (const line of cpiText.trim().split('\n').slice(1)) {
+      const [date, val] = line.split(',');
+      if (date && val && val.trim() !== '.') {
+        const v = parseFloat(val);
+        if (!isNaN(v)) cpiMap[date.trim()] = v;
+      }
+    }
+
+    const sortedDates = Object.keys(cpiMap).sort();
+    cpiDates = sortedDates;
+
+    // YoY% = (cpi[t] - cpi[t-12]) / cpi[t-12] * 100
+    cpiYoyData = sortedDates.map((d, i) => {
+      if (i < 12) return NaN;
+      const prev = cpiMap[sortedDates[i - 12]];
+      return prev ? ((cpiMap[d] - prev) / prev * 100) : NaN;
+    });
+    cpiLevelData = sortedDates.map(d => cpiMap[d]);
+    cpiSP500     = sortedDates.map(d => sp500Map[d.slice(0, 7)] ?? NaN);
+
+    // Latest values
+    const latestYoy = cpiYoyData.filter(v => !isNaN(v)).at(-1);
+    if (latestYoy != null) {
+      const badge = document.getElementById('cpiLatest');
+      const color = latestYoy > 5 ? '#f85149' : latestYoy > 2 ? '#e8c84a' : '#3fb950';
+      badge.textContent = `${latestYoy.toFixed(1)}% YoY`;
+      badge.style.color = color;
+    }
+
+    const timestamps = sortedDates.map(d => new Date(d).getTime());
+
+    const spMax = Math.max(...cpiSP500.filter(v => !isNaN(v) && v > 0)) * 1.2;
+    const spMin = Math.min(...cpiSP500.filter(v => !isNaN(v) && v > 0)) / 2;
+
+    cpiChartInst = new Chart(document.getElementById('cpiChart'), {
+      type: 'line',
+      data: {
+        labels: timestamps,
+        datasets: [
+          // 0: CPI YoY%
+          {
+            label: 'CPI YoY %',
+            data: cpiYoyData.map((v, i) => ({ x: timestamps[i], y: v })),
+            borderColor: '#ff9800', borderWidth: 2, pointRadius: 0,
+            fill: false, yAxisID: 'yLeft', tension: 0.2, order: 1,
+            hidden: false,
+          },
+          // 1: CPI Level
+          {
+            label: 'CPI Index',
+            data: cpiLevelData.map((v, i) => ({ x: timestamps[i], y: v })),
+            borderColor: '#ffd700', borderWidth: 1.5, pointRadius: 0,
+            fill: false, yAxisID: 'yLeft', tension: 0.1, order: 2,
+            hidden: true,
+          },
+          // 2: S&P 500
+          {
+            label: 'S&P 500',
+            data: cpiSP500.map((v, i) => ({ x: timestamps[i], y: v })),
+            borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0,
+            fill: false, yAxisID: 'yRight', tension: 0.1, order: 3,
+            hidden: false,
+          },
+          // 3: Fed 2% target line
+          {
+            label: 'Fed Target 2%',
+            data: timestamps.map(x => ({ x, y: 2 })),
+            borderColor: 'rgba(88,166,255,0.4)', borderWidth: 1.5,
+            borderDash: [6, 4], pointRadius: 0,
+            fill: false, yAxisID: 'yLeft', tension: 0, order: 4,
+            hidden: false,
+          },
+          // 4: High inflation zone fill (>5%)
+          {
+            label: 'High Inflation Zone',
+            data: timestamps.map(x => ({ x, y: 5 })),
+            borderColor: 'transparent', pointRadius: 0,
+            backgroundColor: 'rgba(248,81,73,0.08)',
+            fill: { target: { value: 999 }, above: 'rgba(248,81,73,0.08)', below: 'transparent' },
+            yAxisID: 'yLeft', tension: 0, order: 5, hidden: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          zoom: zoomPluginConfig(() => applyRangeToChart(cpiChartInst, cpiDates)),
+          tooltip: {
+            callbacks: {
+              title: items => {
+                const d = new Date(items[0].parsed.x);
+                return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+              },
+              label: item => {
+                const v = item.parsed.y; if (isNaN(v)) return null;
+                if (item.dataset.label === 'CPI YoY %')  return `Inflation: ${v.toFixed(2)}%`;
+                if (item.dataset.label === 'CPI Index')  return `CPI Index: ${v.toFixed(1)}`;
+                if (item.dataset.label === 'S&P 500')    return `S&P 500: ${v.toFixed(0)}`;
+                return null;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            min: timestamps[0], max: timestamps[timestamps.length - 1],
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: {
+              color: 'rgba(180,180,180,0.7)', font: { size: 11 }, maxTicksLimit: 10,
+              callback: val => { const d = new Date(val); return d.getUTCFullYear(); },
+            },
+          },
+          yLeft: {
+            type: 'linear', position: 'left',
+            title: { display: true, text: 'CPI YoY %', color: 'rgba(180,180,180,0.6)', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: 'rgba(180,180,180,0.7)', font: { size: 11 }, callback: v => `${v.toFixed(0)}%` },
+          },
+          yRight: {
+            type: 'logarithmic', position: 'right',
+            min: spMin, max: spMax,
+            title: { display: true, text: 'S&P 500 (log)', color: 'rgba(88,166,255,0.5)', font: { size: 11 } },
+            grid: { display: false },
+            ticks: {
+              color: 'rgba(88,166,255,0.5)', font: { size: 10 }, maxTicksLimit: 6,
+              callback: v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v,
+            },
+          },
+        },
+      },
+    });
+
+    document.getElementById('cpiChart').addEventListener('dblclick', () => {
+      cpiChartInst.resetZoom();
+      applyRangeToChart(cpiChartInst, cpiDates);
+    });
+    applyRangeToChart(cpiChartInst, cpiDates);
+    document.getElementById('cpiLoading').style.display = 'none';
+  } catch (e) {
+    document.getElementById('cpiLoading').textContent = 'Data unavailable — run scripts/generate_cpi.py';
+    console.error('[CPI]', e);
+  }
+}
+
 // ── Boot ──────────────────────────────────────────────────────────
 initCapeChart();
 initBuffettChart();
+initCpiChart();
 </script>

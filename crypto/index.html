@@ -125,6 +125,7 @@ description_ko: "로그 스케일 회귀와 반감기 사이클을 활용한 비
   </div>
   <canvas id="btcChart" style="touch-action:pan-y;"></canvas>
   <svg id="btcSvg"></svg>
+  <div id="btcTradeTip" style="display:none;position:absolute;z-index:20;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;min-width:200px;max-width:260px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-size:0.82rem;"></div>
   <div id="btcMarkerTooltip">
     <div class="tt-date" id="btcTtDate"></div>
     <div class="tt-price" id="btcTtPrice"></div>
@@ -429,6 +430,97 @@ description_ko: "로그 스케일 회귀와 반감기 사이클을 활용한 비
     <p style="color:var(--text-secondary); font-size:0.85rem;">
       <a href="/finance/crypto/2026/05/25/us-crypto-legislation/" style="color:var(--accent-blue);">→ 전체 분석: GENIUS Act, Clarity Act, ARMA — 비트코인 시장에 미치는 의미</a>
     </p>
+  </div>
+</div>
+
+<!-- ── Market Signal Score ───────────────────────────────────── -->
+<div class="card" id="btcScoreCard" style="margin-top:24px;">
+  <div class="section-label">
+    <span class="en-only">Market Signal Score</span><span class="ko-only">마켓 시그널 스코어</span>
+  </div>
+  <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start;">
+    <!-- Main score badge -->
+    <div id="btcScoreBadge" style="min-width:120px; text-align:center; background:var(--bg-secondary); border:2px solid var(--border); border-radius:12px; padding:16px 20px;">
+      <div id="btcScoreSignal" style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:6px; color:var(--text-muted);">Loading…</div>
+      <div id="btcScoreValue" style="font-size:2.4rem; font-weight:700; line-height:1; color:var(--text-primary);">—</div>
+      <div style="font-size:0.7rem; color:var(--text-muted); margin-top:4px;">/100</div>
+    </div>
+    <!-- Component breakdown -->
+    <div style="flex:1; min-width:200px;">
+      <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">
+        <span class="en-only">Components</span><span class="ko-only">구성 지표</span>
+      </div>
+      <div id="btcScoreComponents" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+    <!-- Interpretation -->
+    <div style="flex:1.5; min-width:200px; color:var(--text-secondary); font-size:0.82rem; line-height:1.7;">
+      <div id="btcScoreNote" style="background:var(--bg-secondary); border-radius:8px; padding:10px 14px; border-left:3px solid var(--border);"></div>
+      <p style="color:var(--text-muted); font-size:0.72rem; margin-top:8px; font-style:italic;">
+        <span class="en-only">Score = weighted average of RSI momentum, MA trend, and halving cycle position. For reference only — not financial advice.</span>
+        <span class="ko-only">스코어 = RSI 모멘텀 · MA 추세 · 반감기 사이클 위치의 가중 평균. 참고용 — 투자 조언 아님.</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ── On-chain Indicators ────────────────────────────────────── -->
+<div class="card" style="margin-top:24px;">
+  <div class="section-label">
+    <span class="en-only">On-Chain Indicators</span><span class="ko-only">온체인 지표</span>
+  </div>
+  <p style="color:var(--text-muted); font-size:0.75rem; margin-bottom:16px; font-style:italic;">
+    <span class="en-only">Approximate historical values based on Glassnode/public chart data. MVRV Z-Score and SOPR are monthly estimates; Puell Multiple is computed from BTC price + block schedule.</span>
+    <span class="ko-only">Glassnode/공개 차트 기반 근사값. MVRV Z-Score·SOPR은 월별 추정치, Puell Multiple은 BTC 가격 + 블록 보상 스케줄로 직접 계산.</span>
+  </p>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:16px;">
+    <!-- Puell Multiple -->
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <h3 style="font-size:0.9rem; margin:0;">Puell Multiple <span id="puellLatest" style="font-size:0.78rem; color:var(--text-muted); font-weight:400;"></span></h3>
+        <span style="font-size:0.7rem; color:var(--text-muted);">
+          <span class="en-only">Danger &gt;4 · Safe &lt;0.5</span><span class="ko-only">위험 &gt;4 · 안전 &lt;0.5</span>
+        </span>
+      </div>
+      <div style="position:relative; height:160px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border); overflow:hidden;">
+        <canvas id="puellChart"></canvas>
+      </div>
+      <p style="color:var(--text-muted); font-size:0.72rem; margin-top:6px; line-height:1.5;">
+        <span class="en-only">Daily miner revenue ÷ 365-day MA of miner revenue. Values >4 historically mark cycle tops; values <0.5 mark bottoms.</span>
+        <span class="ko-only">채굴자 일일 수입 ÷ 365일 이동평균. 4 초과 → 사이클 고점, 0.5 미만 → 바닥 시그널.</span>
+      </p>
+    </div>
+    <!-- MVRV Z-Score -->
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <h3 style="font-size:0.9rem; margin:0;">MVRV Z-Score <span id="mvrvLatest" style="font-size:0.78rem; color:var(--text-muted); font-weight:400;"></span></h3>
+        <span style="font-size:0.7rem; color:var(--text-muted);">
+          <span class="en-only">Bubble &gt;7 · Bottom &lt;0</span><span class="ko-only">버블 &gt;7 · 바닥 &lt;0</span>
+        </span>
+      </div>
+      <div style="position:relative; height:160px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border); overflow:hidden;">
+        <canvas id="mvrvChart"></canvas>
+      </div>
+      <p style="color:var(--text-muted); font-size:0.72rem; margin-top:6px; line-height:1.5;">
+        <span class="en-only">(Market Cap − Realized Cap) ÷ std dev. Negative = strong buy zone; 7+ = extreme bubble. <em>Approximate — requires Glassnode for exact values.</em></span>
+        <span class="ko-only">(시총 − 실현 시총) ÷ 표준편차. 0 미만 = 강력 매수 구간, 7 이상 = 극단적 버블. <em>근사값 — 정확한 값은 Glassnode 필요.</em></span>
+      </p>
+    </div>
+    <!-- SOPR -->
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <h3 style="font-size:0.9rem; margin:0;">SOPR <span id="soprLatest" style="font-size:0.78rem; color:var(--text-muted); font-weight:400;"></span></h3>
+        <span style="font-size:0.7rem; color:var(--text-muted);">
+          <span class="en-only">&lt;1 = loss · &gt;1 = profit</span><span class="ko-only">&lt;1 = 손실 · &gt;1 = 이익</span>
+        </span>
+      </div>
+      <div style="position:relative; height:160px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border); overflow:hidden;">
+        <canvas id="soprChart"></canvas>
+      </div>
+      <p style="color:var(--text-muted); font-size:0.72rem; margin-top:6px; line-height:1.5;">
+        <span class="en-only">Spent Output Profit Ratio: avg profit/loss of all on-chain spends. Dips below 1.0 = capitulation (buy signal); sustained above 1.02 = distribution. <em>Approximate.</em></span>
+        <span class="ko-only">온체인 지출 평균 수익률. 1.0 미만 = 투매 (매수 시그널), 1.02 이상 지속 = 분배 구간. <em>근사값.</em></span>
+      </p>
+    </div>
   </div>
 </div>
 
@@ -1084,10 +1176,14 @@ function initBtcChart() {
     }
   }
 
+  // Stored bubble positions for click detection
+  const btcTxnBubbles = [];
+
   // Circle-drawing plugin for transaction overlays
   const btcTxnPlugin = {
     id: 'btcTxn',
     afterDraw(ch) {
+      btcTxnBubbles.length = 0;
       if (!showBtcTrades) return;
       const allTxns = window.chartTxns || [];
       const txns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
@@ -1111,8 +1207,7 @@ function initBtcChart() {
         const cx = xS.getPixelForValue(idx);
         if (cx < ca.left || cx > ca.right) continue;
         const amt = Math.abs(Number(t.amount) || 0);
-        const r = Math.min(Math.max(Math.sqrt(amt / 1000) * 8 + 5, 6), 28);
-        // Use the chart's actual BTC price at trade date (stored price may be total amount, not per-BTC)
+        const r = Math.min(Math.max(Math.sqrt(amt / 1000) * 4 + 3, 4), 13);
         const cy = yS.getPixelForValue(btcPrices[idx] || 1);
         if (cy < ca.top || cy > ca.bottom) continue;
         const isBuy = ['buy','drip','buy_to_cover'].includes(t.type);
@@ -1121,10 +1216,66 @@ function initBtcChart() {
         c.fill();
         c.strokeStyle = isBuy ? 'rgba(63,185,80,0.8)' : 'rgba(248,81,73,0.8)';
         c.lineWidth = 1.5; c.stroke();
+        btcTxnBubbles.push({ t, cx, cy, r, idx });
       }
       c.restore();
     }
   };
+
+  function showBtcTradeTip(t, cx, cy, idx) {
+    const tip = document.getElementById('btcTradeTip');
+    const isBuy = ['buy','drip','buy_to_cover'].includes(t.type);
+    const tradePrice = t.price != null ? Number(t.price) : (btcPrices[idx] || 0);
+    const shares = t.shares != null ? Number(t.shares) : (tradePrice > 0 ? Math.abs(Number(t.amount)) / tradePrice : 0);
+    const curPrice = btcPrices[btcPrices.length - 1] || 0;
+    const prevPrice = btcPrices[btcPrices.length - 2] || curPrice;
+    const fmt$ = v => '$' + v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+    const colorOf = v => v >= 0 ? '#3fb950' : '#f85149';
+
+    let html = `<div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;">${t.trade_date} · <span style="color:${isBuy?'#3fb950':'#f85149'}">${t.type.toUpperCase()}</span></div>`;
+    html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Trade price: <b style="color:var(--text-primary)">${fmt$(tradePrice)}</b></div>`;
+    if (shares) html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Shares: <b style="color:var(--text-primary)">${shares.toFixed(4)}</b></div>`;
+    html += `<div style="color:var(--text-secondary);margin-bottom:8px;">Amount: <b style="color:var(--text-primary)">${fmt$(Math.abs(Number(t.amount)))}</b></div>`;
+
+    if (isBuy) {
+      const dailyDelta = curPrice - prevPrice;
+      const dailyPct = prevPrice > 0 ? (dailyDelta / prevPrice) * 100 : 0;
+      const dailyPos = dailyDelta * shares;
+      const totalDelta = curPrice - tradePrice;
+      const totalPct = tradePrice > 0 ? (totalDelta / tradePrice) * 100 : 0;
+      const totalPos = totalDelta * shares;
+
+      html += `<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px;">`;
+      html += `<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:4px;">Current: <b style="color:var(--text-primary)">${fmt$(curPrice)}</b></div>`;
+      html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:var(--text-muted)">Daily</span><span style="color:${colorOf(dailyPct)}">${fmtPct(dailyPct)} / ${fmt$(dailyPos)}</span></div>`;
+      html += `<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Total P&L</span><span style="color:${colorOf(totalPct)}">${fmtPct(totalPct)} / ${fmt$(totalPos)}</span></div>`;
+      html += `</div>`;
+    } else {
+      const gain = tradePrice > 0 ? tradePrice * shares : Math.abs(Number(t.amount));
+      html += `<div style="border-top:1px solid var(--border);padding-top:8px;"><div style="color:var(--text-muted);font-size:0.75rem;">Realized sale · proceeds: <b style="color:var(--text-primary)">${fmt$(gain)}</b></div></div>`;
+    }
+
+    // RSI
+    if (btcRsiChart) {
+      const rsiVal = btcRsiChart.data.datasets[0]?.data[btcPrices.length-1]?.y;
+      if (rsiVal != null && !isNaN(rsiVal)) {
+        const rsiColor = rsiVal >= 70 ? '#f85149' : rsiVal <= 30 ? '#3fb950' : '#8b949e';
+        html += `<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;color:var(--text-muted);font-size:0.75rem;">Current RSI(14): <b style="color:${rsiColor}">${rsiVal.toFixed(1)}</b></div>`;
+      }
+    }
+
+    tip.innerHTML = html;
+    const cw = document.getElementById('btcChartContainer').offsetWidth;
+    const ch2 = document.getElementById('btcChartContainer').offsetHeight;
+    let lx = cx + 14, ly = cy - 20;
+    if (lx + 270 > cw) lx = cx - 270;
+    if (ly + 240 > ch2) ly = ch2 - 240;
+    if (ly < 0) ly = 4;
+    tip.style.left = lx + 'px';
+    tip.style.top  = ly + 'px';
+    tip.style.display = 'block';
+  }
 
   btcChart=new Chart(ctx,{
     type:'line',
@@ -1199,6 +1350,16 @@ function initBtcChart() {
 
   canvas.style.touchAction='pan-y';
   canvas.addEventListener('dblclick',()=>{btcChart.resetZoom();if(btcRsiChart)btcRsiChart.resetZoom();});
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    for (const b of btcTxnBubbles) {
+      const dx = mx - b.cx, dy = my - b.cy;
+      if (dx*dx + dy*dy <= (b.r+4)*(b.r+4)) { showBtcTradeTip(b.t, b.cx, b.cy, b.idx); return; }
+    }
+    document.getElementById('btcTradeTip').style.display = 'none';
+  });
 
   canvas.addEventListener('mousemove',e=>{
     const rect=canvas.getBoundingClientRect();
@@ -1504,6 +1665,7 @@ async function loadBtcData(){
     initBtcChart();
     initBtcRsiChart();
     buildHalvingTable();
+    setTimeout(() => { if (window._btcScoreReady) window._btcScoreReady(); }, 200);
     // Trade panel globals — set then immediately check auth
     window._tpSymbol = 'BTC';
     window._tpDates  = btcDates;
@@ -1727,4 +1889,232 @@ function btcToggleZoomRect() {
     }
   };
 })();
+
+// ═══════════════════════════════════════════════════════════════
+// MARKET SIGNAL SCORE
+// ═══════════════════════════════════════════════════════════════
+function computeBtcScore() {
+  if (!btcPrices.length || !btcRsiChart) return;
+
+  const isKo = document.documentElement.lang === 'ko' ||
+    document.querySelector('.ko-only')?.offsetParent != null;
+
+  // ── 1. RSI component (30%) ──────────────────────────────────
+  const rsiData = btcRsiChart.data.datasets[0]?.data || [];
+  const rsiVal = [...rsiData].reverse().find(d => d?.y != null && !isNaN(d.y))?.y ?? 50;
+  // Buy score: low RSI = good (oversold); Sell score: high RSI = good (overbought)
+  const rsiBuyScore  = Math.max(0, Math.min(100, (70 - rsiVal) / 40 * 100));
+  const rsiSellScore = Math.max(0, Math.min(100, (rsiVal - 30) / 40 * 100));
+
+  // ── 2. MA cross component (30%) ─────────────────────────────
+  // Use monthly MA from btcPrices (MA-12 = 365d, MA-24 = 730d)
+  const n = btcPrices.length;
+  const ma12 = n >= 365 ? btcPrices.slice(n - 365).reduce((s, v) => s + v, 0) / 365 : null;
+  const ma24 = n >= 730 ? btcPrices.slice(n - 730).reduce((s, v) => s + v, 0) / 730 : null;
+  let maBuyScore = 50, maSellScore = 50;
+  if (ma12 && ma24) {
+    const ratio = ma12 / ma24;
+    // ratio > 1 = golden cross (bullish), ratio < 1 = death cross (bearish)
+    maBuyScore  = Math.max(0, Math.min(100, (ratio - 0.8) / 0.4 * 100));
+    maSellScore = Math.max(0, Math.min(100, (1.2 - ratio) / 0.4 * 100));
+  }
+
+  // ── 3. Halving cycle component (40%) ───────────────────────
+  const lastHalving = new Date('2024-04-19');
+  const nextHalving = new Date('2028-04-20');
+  const now = new Date();
+  const monthsSince = (now - lastHalving) / (1000 * 60 * 60 * 24 * 30.44);
+  const monthsTo    = (nextHalving - now)  / (1000 * 60 * 60 * 24 * 30.44);
+  // Historical pattern: peak 12-18 months post-halving; bear 24-36 months; accumulate pre-halving
+  let halvBuyScore, halvSellScore;
+  if (monthsTo < 6) {          // Pre-halving accumulation zone
+    halvBuyScore = 75; halvSellScore = 25;
+  } else if (monthsSince < 6) { // Just halved — early bull
+    halvBuyScore = 70; halvSellScore = 30;
+  } else if (monthsSince < 15) { // Prime bull run
+    halvBuyScore = 55; halvSellScore = 45;
+  } else if (monthsSince < 22) { // Peak risk zone (historically topping out)
+    halvBuyScore = 30; halvSellScore = 70;
+  } else if (monthsSince < 36) { // Post-peak late cycle
+    halvBuyScore = 20; halvSellScore = 80;
+  } else {                       // Deep bear / accumulation
+    halvBuyScore = 65; halvSellScore = 35;
+  }
+
+  // ── Composite scores ────────────────────────────────────────
+  const buyScore  = Math.round(rsiBuyScore  * 0.30 + maBuyScore  * 0.30 + halvBuyScore  * 0.40);
+  const sellScore = Math.round(rsiSellScore * 0.30 + maSellScore * 0.30 + halvSellScore * 0.40);
+
+  // Display: show buy score when buy>sell, sell score when sell>buy
+  const showBuy = buyScore >= sellScore;
+  const displayScore = showBuy ? buyScore : sellScore;
+  let signal, signalColor, noteText;
+
+  if (showBuy) {
+    if (buyScore >= 70)      { signal = isKo ? '강력 매수 구간' : 'STRONG BUY'; signalColor = '#3fb950'; }
+    else if (buyScore >= 55) { signal = isKo ? '매수 우세' : 'BUY LEAN'; signalColor = '#56d364'; }
+    else                     { signal = isKo ? '중립' : 'NEUTRAL'; signalColor = '#e8c84a'; }
+  } else {
+    if (sellScore >= 70)      { signal = isKo ? '강력 매도 구간' : 'STRONG SELL'; signalColor = '#f85149'; }
+    else if (sellScore >= 55) { signal = isKo ? '매도 우세' : 'SELL LEAN'; signalColor = '#ff7b72'; }
+    else                      { signal = isKo ? '중립' : 'NEUTRAL'; signalColor = '#e8c84a'; }
+  }
+
+  // Cycle label
+  let cycleLabel;
+  if (monthsTo < 6)           cycleLabel = isKo ? `반감기까지 ${Math.round(monthsTo)}개월` : `${Math.round(monthsTo)}mo to halving`;
+  else if (monthsSince < 15)  cycleLabel = isKo ? `반감 후 ${Math.round(monthsSince)}개월 (강세 구간)` : `${Math.round(monthsSince)}mo post-halving (bull)`;
+  else if (monthsSince < 36)  cycleLabel = isKo ? `반감 후 ${Math.round(monthsSince)}개월 (후기 사이클)` : `${Math.round(monthsSince)}mo post-halving (late cycle)`;
+  else                         cycleLabel = isKo ? `반감 후 ${Math.round(monthsSince)}개월 (약세/매집)` : `${Math.round(monthsSince)}mo post-halving (bear/accum.)`;
+
+  if (showBuy && buyScore >= 70)
+    noteText = isKo ? `RSI(${rsiVal.toFixed(0)})가 과매도 구간에 접근. MA 추세와 사이클 위치가 매수를 지지.` : `RSI(${rsiVal.toFixed(0)}) approaching oversold. MA trend and cycle position support accumulation.`;
+  else if (!showBuy && sellScore >= 70)
+    noteText = isKo ? `RSI(${rsiVal.toFixed(0)})가 과매수 영역. 사이클 위치상 차익 실현 구간.` : `RSI(${rsiVal.toFixed(0)}) in overbought territory. Cycle position suggests profit-taking zone.`;
+  else
+    noteText = isKo ? `RSI ${rsiVal.toFixed(0)} · ${cycleLabel} — 혼재된 신호, 포지션 유지 검토.` : `RSI ${rsiVal.toFixed(0)} · ${cycleLabel} — mixed signals, consider holding.`;
+
+  // ── Render ──────────────────────────────────────────────────
+  document.getElementById('btcScoreSignal').textContent = signal;
+  document.getElementById('btcScoreSignal').style.color = signalColor;
+  document.getElementById('btcScoreValue').textContent  = displayScore;
+  document.getElementById('btcScoreValue').style.color  = signalColor;
+  document.getElementById('btcScoreBadge').style.borderColor = signalColor;
+  document.getElementById('btcScoreNote').textContent   = noteText;
+  document.getElementById('btcScoreNote').style.borderLeftColor = signalColor;
+
+  const bar = (label, buyV, sellV, w) => {
+    const v = showBuy ? buyV : sellV;
+    const pct = Math.round(v);
+    const color = showBuy
+      ? (v >= 65 ? '#3fb950' : v >= 45 ? '#e8c84a' : '#f85149')
+      : (v >= 65 ? '#f85149' : v >= 45 ? '#e8c84a' : '#3fb950');
+    return `<div>
+      <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:3px;">
+        <span>${label}</span><span style="color:${color};font-weight:600;">${pct}</span>
+      </div>
+      <div style="height:6px;background:var(--bg-card);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.4s;"></div>
+      </div>
+      <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;">${isKo ? '가중치' : 'weight'} ${Math.round(w * 100)}%</div>
+    </div>`;
+  };
+  const rsiLabel = isKo ? `RSI(14) = ${rsiVal.toFixed(1)}` : `RSI(14) = ${rsiVal.toFixed(1)}`;
+  const maLabel  = ma12 && ma24 ? (isKo ? `MA-365 vs MA-730 (${(ma12/ma24*100-100).toFixed(1)}%)` : `MA-365 vs MA-730 (${(ma12/ma24*100-100).toFixed(1)}%)`) : 'MA cross (n/a)';
+  document.getElementById('btcScoreComponents').innerHTML =
+    bar(rsiLabel, rsiBuyScore, rsiSellScore, 0.3) +
+    bar(maLabel,  maBuyScore,  maSellScore,  0.3) +
+    bar(cycleLabel, halvBuyScore, halvSellScore, 0.4);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ON-CHAIN INDICATOR CHARTS
+// ═══════════════════════════════════════════════════════════════
+function makeOnchainChart(canvasId, labels, data, color, yLabel, dangerHigh, safeHigh, safeLow) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+  // zone annotations as horizontal fill datasets
+  const datasets = [
+    { data, label: yLabel, borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false }
+  ];
+  // danger zone fill
+  if (dangerHigh != null) {
+    datasets.push({
+      data: labels.map(() => dangerHigh), label: 'danger', borderColor: 'transparent',
+      backgroundColor: 'rgba(248,81,73,0.10)', fill: {target: {value: dangerHigh * 999}, above: 'rgba(248,81,73,0.12)', below: 'transparent'},
+      pointRadius: 0, borderWidth: 0
+    });
+  }
+
+  return new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 6, displayColors: false,
+          callbacks: { label: item => `${yLabel}: ${item.parsed.y.toFixed(3)}` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 9 }, maxTicksLimit: 6 }, grid: { color: 'rgba(48,54,61,0.6)' } },
+        y: {
+          ticks: { color: '#8b949e', font: { size: 9 } }, grid: { color: 'rgba(48,54,61,0.6)' },
+          afterDataLimits(scale) {
+            if (dangerHigh != null) scale.max = Math.max(scale.max, dangerHigh * 1.05);
+          }
+        }
+      }
+    }
+  });
+}
+
+async function loadOnchainData() {
+  const base = '{{ "/" | relative_url }}';
+
+  // ── Puell Multiple ──
+  try {
+    const r = await fetch(base + 'assets/data/onchain/puell_multiple.csv');
+    if (r.ok) {
+      const text = await r.text();
+      const rows = text.trim().split('\n').slice(1).map(l => l.split(','));
+      // show last 5 years only
+      const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 5);
+      const filtered = rows.filter(r => new Date(r[0]) >= cutoff);
+      const labels = filtered.map(r => r[0].slice(0, 7));
+      // monthly downsample
+      const monthly = {};
+      filtered.forEach(r => { monthly[r[0].slice(0,7)] = parseFloat(r[1]); });
+      const mLabels = Object.keys(monthly).sort().filter((_, i, a) => i % 1 === 0);
+      const mData   = mLabels.map(k => monthly[k]);
+      const latest  = mData[mData.length - 1];
+      document.getElementById('puellLatest').textContent =
+        latest != null ? `= ${latest.toFixed(2)}` : '';
+      makeOnchainChart('puellChart', mLabels, mData, '#f7931a', 'Puell', 4, null, 0.5);
+    }
+  } catch(e) { console.warn('[onchain] puell error', e); }
+
+  // ── MVRV Z-Score ──
+  try {
+    const r = await fetch(base + 'assets/data/onchain/mvrv_zscore.csv');
+    if (r.ok) {
+      const text = await r.text();
+      const rows = text.trim().split('\n').slice(1).map(l => l.split(','));
+      const labels = rows.map(r => r[0].slice(0, 7));
+      const data   = rows.map(r => parseFloat(r[1]));
+      const latest = data[data.length - 1];
+      document.getElementById('mvrvLatest').textContent = latest != null ? `= ${latest.toFixed(2)}` : '';
+      makeOnchainChart('mvrvChart', labels, data, '#82aaff', 'MVRV Z', 7, null, 0);
+    }
+  } catch(e) { console.warn('[onchain] mvrv error', e); }
+
+  // ── SOPR ──
+  try {
+    const r = await fetch(base + 'assets/data/onchain/sopr.csv');
+    if (r.ok) {
+      const text = await r.text();
+      const rows = text.trim().split('\n').slice(1).map(l => l.split(','));
+      const labels = rows.map(r => r[0].slice(0, 7));
+      const data   = rows.map(r => parseFloat(r[1]));
+      const latest = data[data.length - 1];
+      document.getElementById('soprLatest').textContent = latest != null ? `= ${latest.toFixed(3)}` : '';
+      makeOnchainChart('soprChart', labels, data, '#c792ea', 'SOPR', null, 1.03, 1.0);
+    }
+  } catch(e) { console.warn('[onchain] sopr error', e); }
+}
+
+// Hook into btcLoadAllTrades callback to also compute score after trades load
+const _origBtcLoadTrades = window.btcLoadAllTrades;
+window.btcLoadAllTrades = async function() {
+  if (_origBtcLoadTrades) await _origBtcLoadTrades();
+};
+
+// Compute score once BTC data is available (called from loadBtcData)
+window._btcScoreReady = function() {
+  computeBtcScore();
+  loadOnchainData();
+};
 </script>

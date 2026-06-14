@@ -14,7 +14,7 @@ from pathlib import Path
 
 CSV_PATH = Path('crypto/data/eth_daily.csv')
 COINGECKO_URL = 'https://api.coingecko.com/api/v3/coins/ethereum/market_chart'
-ETH_GENESIS = '2025-05-20'
+ETH_GENESIS = '2017-11-09'
 
 
 def read_date_range() -> tuple[str, str]:

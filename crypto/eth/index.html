@@ -68,6 +68,7 @@ description_ko: "로그 스케일 회귀와 추세 채널, ETH/BTC 비율을 활
     <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
   </div>
   <canvas id="ethChart" style="touch-action:pan-y;"></canvas>
+  <div id="ethTradeTip" style="display:none;position:absolute;z-index:20;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;min-width:200px;max-width:260px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-size:0.82rem;"></div>
 </div>
 <div id="ethRsiContainer">
   <canvas id="ethRsiChart" style="touch-action:pan-y;"></canvas>
@@ -212,9 +213,13 @@ function initEthChart() {
     }
   }
 
+  // Stored bubble positions for click detection
+  const ethTxnBubbles = [];
+
   // Transaction circle plugin
   const ethTxnPlugin = {
     id:'ethTxn', afterDraw(ch) {
+      ethTxnBubbles.length = 0;
       const txns=window.chartTxns||[]; if(!txns.length)return;
       const dIdx={}; ethDates.forEach((d,i)=>dIdx[d.slice(0,10)]=i);
       const{ctx:c,chartArea:ca,scales}=ch; const xS=scales.x,yS=scales.y;
@@ -224,17 +229,61 @@ function initEthChart() {
         if(idx==null){const dobj=new Date(t.trade_date+'T00:00:00');for(let b=1;b<=7;b++){dobj.setDate(dobj.getDate()-1);const k=dobj.toISOString().slice(0,10);if(dIdx[k]!=null){idx=dIdx[k];break;}}}
         if(idx==null)continue;
         const cx=xS.getPixelForValue(idx); if(cx<ca.left||cx>ca.right)continue;
-        const amt=Math.abs(Number(t.amount)||0),r=Math.min(Math.max(Math.sqrt(amt/1000)*8+5,6),28);
+        const amt=Math.abs(Number(t.amount)||0),r=Math.min(Math.max(Math.sqrt(amt/1000)*4+3,4),13);
         const pr=t.price!=null?Number(t.price):ethPrices[idx];
         const cy=yS.getPixelForValue(pr||1); if(cy<ca.top||cy>ca.bottom)continue;
         const isBuy=['buy','drip','buy_to_cover'].includes(t.type);
         c.beginPath();c.arc(cx,cy,r,0,2*Math.PI);
         c.fillStyle=isBuy?'rgba(63,185,80,0.35)':'rgba(248,81,73,0.35)';c.fill();
         c.strokeStyle=isBuy?'rgba(63,185,80,0.8)':'rgba(248,81,73,0.8)';c.lineWidth=1.5;c.stroke();
+        ethTxnBubbles.push({t, cx, cy, r, idx});
       }
       c.restore();
     }
   };
+
+  function showEthTradeTip(t, cx, cy, idx) {
+    const tip = document.getElementById('ethTradeTip');
+    const isBuy = ['buy','drip','buy_to_cover'].includes(t.type);
+    const tradePrice = t.price != null ? Number(t.price) : (ethPrices[idx] || 0);
+    const shares = t.shares != null ? Number(t.shares) : (tradePrice > 0 ? Math.abs(Number(t.amount)) / tradePrice : 0);
+    const curPrice = ethPrices[ethPrices.length-1] || 0;
+    const prevPrice = ethPrices[ethPrices.length-2] || curPrice;
+    const fmt$ = v => '$' + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtPct = v => (v>=0?'+':'')+v.toFixed(2)+'%';
+    const colorOf = v => v>=0?'#3fb950':'#f85149';
+
+    let html = `<div style="font-weight:600;color:var(--text-primary);margin-bottom:8px;">${t.trade_date} · <span style="color:${isBuy?'#3fb950':'#f85149'}">${t.type.toUpperCase()}</span></div>`;
+    html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Trade price: <b style="color:var(--text-primary)">${fmt$(tradePrice)}</b></div>`;
+    if(shares) html += `<div style="color:var(--text-secondary);margin-bottom:2px;">Shares: <b style="color:var(--text-primary)">${shares.toFixed(4)}</b></div>`;
+    html += `<div style="color:var(--text-secondary);margin-bottom:8px;">Amount: <b style="color:var(--text-primary)">${fmt$(Math.abs(Number(t.amount)))}</b></div>`;
+
+    if(isBuy){
+      const dailyDelta=curPrice-prevPrice, dailyPct=prevPrice>0?(dailyDelta/prevPrice)*100:0, dailyPos=dailyDelta*shares;
+      const totalDelta=curPrice-tradePrice, totalPct=tradePrice>0?(totalDelta/tradePrice)*100:0, totalPos=totalDelta*shares;
+      html += `<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px;">`;
+      html += `<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:4px;">Current: <b style="color:var(--text-primary)">${fmt$(curPrice)}</b></div>`;
+      html += `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="color:var(--text-muted)">Daily</span><span style="color:${colorOf(dailyPct)}">${fmtPct(dailyPct)} / ${fmt$(dailyPos)}</span></div>`;
+      html += `<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted)">Total P&L</span><span style="color:${colorOf(totalPct)}">${fmtPct(totalPct)} / ${fmt$(totalPos)}</span></div>`;
+      html += `</div>`;
+    } else {
+      const proceeds = Math.abs(Number(t.amount));
+      html += `<div style="border-top:1px solid var(--border);padding-top:8px;"><div style="color:var(--text-muted);font-size:0.75rem;">Realized sale · proceeds: <b style="color:var(--text-primary)">${fmt$(proceeds)}</b></div></div>`;
+    }
+    if(ethRsiChart){
+      const rsiVal=ethRsiChart.data.datasets[0]?.data[ethPrices.length-1]?.y;
+      if(rsiVal!=null&&!isNaN(rsiVal)){
+        const rsiColor=rsiVal>=70?'#f85149':rsiVal<=30?'#3fb950':'#8b949e';
+        html+=`<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;color:var(--text-muted);font-size:0.75rem;">Current RSI(14): <b style="color:${rsiColor}">${rsiVal.toFixed(1)}</b></div>`;
+      }
+    }
+    tip.innerHTML = html;
+    const cw=document.getElementById('ethChartContainer').offsetWidth;
+    const ch2=document.getElementById('ethChartContainer').offsetHeight;
+    let lx=cx+14,ly=cy-20;
+    if(lx+270>cw)lx=cx-270; if(ly+240>ch2)ly=ch2-240; if(ly<0)ly=4;
+    tip.style.left=lx+'px'; tip.style.top=ly+'px'; tip.style.display='block';
+  }
 
   ethChart = new Chart(document.getElementById('ethChart').getContext('2d'), {
     type: 'line',
@@ -289,6 +338,16 @@ function initEthChart() {
   document.getElementById('ethChart').addEventListener('dblclick', () => {
     ethChart.resetZoom();
     if(ethRsiChart) ethRsiChart.zoomScale('x',{min:0,max:ethPrices.length-1},'none');
+  });
+
+  document.getElementById('ethChart').addEventListener('click', e => {
+    const rect = document.getElementById('ethChart').getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    for (const b of ethTxnBubbles) {
+      const dx = mx - b.cx, dy = my - b.cy;
+      if (dx*dx + dy*dy <= (b.r+4)*(b.r+4)) { showEthTradeTip(b.t, b.cx, b.cy, b.idx); return; }
+    }
+    document.getElementById('ethTradeTip').style.display = 'none';
   });
 
   document.querySelectorAll('[data-days]').forEach(btn => {
