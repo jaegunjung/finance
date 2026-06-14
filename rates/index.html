@@ -22,6 +22,7 @@ description_ko: "연방기금금리·10년물 국채수익률·장단기 스프�
 .legend-row { display:flex; flex-wrap:wrap; gap:12px; font-size:0.78rem; margin:8px 0; }
 .legend-row span { display:flex; align-items:center; gap:6px; }
 .legend-swatch { display:inline-block; width:20px; height:3px; border-radius:2px; }
+.val-badge { font-size:0.72rem; background:var(--bg-secondary); border:1px solid var(--border); border-radius:4px; padding:2px 7px; color:var(--text-secondary); margin-left:8px; vertical-align:middle; }
 </style>
 
 <div style="padding:28px 0 8px;">
@@ -96,6 +97,105 @@ description_ko: "연방기금금리·10년물 국채수익률·장단기 스프�
   <span class="en-only">Data: FRED (FEDFUNDS, DGS10) · S&amp;P 500: Alpha Vantage CSV or Yahoo Finance fallback · Updated weekdays via GitHub Actions</span>
   <span class="ko-only">데이터: FRED (FEDFUNDS, DGS10) · S&amp;P 500: Alpha Vantage CSV 또는 Yahoo Finance 폴백 · 평일 자동 업데이트</span>
 </p>
+
+<!-- ════════════════════════════════════════════════════════════════
+     CPI + PPI Inflation vs Fed Funds Rate
+     ════════════════════════════════════════════════════════════════ -->
+<div style="margin-top:40px;">
+  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+    <h2 style="margin:0; font-size:1rem;">
+      <span class="en-only">CPI &amp; PPI Inflation vs Fed Funds Rate</span>
+      <span class="ko-only">CPI &amp; PPI 인플레이션 vs 기준금리</span>
+      <span id="cpiLatest" class="val-badge" style="margin-right:4px;"></span>
+      <span id="ppiLatest" class="val-badge"></span>
+    </h2>
+    <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+      <button id="inflBtnCpi"   class="ctrl-btn active"  onclick="toggleInflCpi()">CPI</button>
+      <button id="inflBtnPpi"   class="ctrl-btn active"  onclick="toggleInflPpi()">PPI</button>
+      <button id="inflBtnFed"   class="ctrl-btn active"  onclick="toggleInflFed()">
+        <span class="en-only">Fed Funds</span><span class="ko-only">기준금리</span>
+      </button>
+      <button id="inflBtnSP500" class="ctrl-btn"         onclick="toggleInflSP500()">S&amp;P 500</button>
+    </div>
+  </div>
+
+  <div style="position:relative; width:100%; height:480px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:6px;">
+    <div id="inflLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.85rem;z-index:5;">
+      <span class="en-only">Loading…</span><span class="ko-only">로딩 중…</span>
+    </div>
+    <canvas id="inflChart" style="position:absolute;top:0;left:0;width:100%;height:100%;touch-action:pan-y;"></canvas>
+  </div>
+
+  <div class="legend-row">
+    <span><span class="legend-swatch" style="background:#ff9800;"></span>
+      <span class="en-only">CPI YoY %</span><span class="ko-only">CPI 전년비 %</span></span>
+    <span><span class="legend-swatch" style="background:#c792ea;"></span>
+      <span class="en-only">PPI YoY %</span><span class="ko-only">PPI 전년비 %</span></span>
+    <span><span class="legend-swatch" style="background:rgba(255,152,0,0.9); border-top:2px dashed rgba(255,152,0,0.9); height:0; margin-top:1px;"></span>
+      <span class="en-only">Fed Funds Rate (right)</span><span class="ko-only">기준금리 (우측)</span></span>
+    <span><span class="legend-swatch" style="background:#58a6ff; opacity:0.5;"></span>
+      <span class="en-only">Fed 2% target</span><span class="ko-only">연준 목표 2%</span></span>
+    <span><span class="legend-swatch" style="background:#58a6ff;"></span>
+      <span class="en-only">S&amp;P 500 (log, right)</span><span class="ko-only">S&amp;P 500 (로그, 우측)</span></span>
+  </div>
+  <p class="chart-hint">
+    <span class="en-only">Scroll to zoom · Drag to pan · Hover for values · Double-click to reset</span>
+    <span class="ko-only">스크롤 줌 · 드래그 패닝 · 호버 값 확인 · 더블클릭 초기화</span>
+  </p>
+  <p class="source-note">
+    <span class="en-only">CPI: BLS CPIAUCSL · PPI: BLS PPIACO · Fed Funds: FRED FEDFUNDS · Monthly</span>
+    <span class="ko-only">CPI: BLS CPIAUCSL · PPI: BLS PPIACO · 기준금리: FRED FEDFUNDS · 월별</span>
+  </p>
+</div>
+
+<!-- ── CPI/PPI Explainer cards ─────────────────────────────────── -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-label en-only">CPI — Consumer Price Index</div>
+  <div class="section-label ko-only">CPI — 소비자 물가지수</div>
+  <div class="en-only">
+    <h2>What is CPI?</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      The <strong style="color:var(--text-primary)">Consumer Price Index (CPI)</strong> measures the average change over time in prices paid by urban consumers for a basket of goods and services — including food, housing, clothing, transportation, medical care, and recreation.
+      The YoY% shows how much prices have risen compared to the same month a year ago.
+      The <strong style="color:var(--text-primary)">Fed targets 2% inflation</strong> as a healthy level that supports economic growth without eroding purchasing power.
+      Readings above 5% indicate high inflation that typically prompts the Fed to raise interest rates.
+      Notable high-inflation episodes: post-WWII (1947–48), oil shocks (1973–74, 1979–80), and the 2021–2023 COVID-era surge peaking at ~9%.
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>CPI란 무엇인가?</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      <strong style="color:var(--text-primary)">소비자 물가지수(CPI)</strong>는 도시 소비자들이 식품, 주거, 의류, 교통, 의료, 오락 등 일상적인 소비 바구니에 지출하는 평균 가격 변화를 측정합니다.
+      YoY%는 전년 같은 달 대비 물가 상승률을 나타냅니다.
+      <strong style="color:var(--text-primary)">연준은 2% 인플레이션을 목표</strong>로 설정합니다.
+      5% 초과 시 고인플레이션으로, 연준이 기준금리를 인상하는 계기가 됩니다.
+      주요 고인플레이션 시기: 2차 대전 후(1947–48), 오일쇼크(1973–74, 1979–80), 코로나19 이후 2022년 약 9% 정점.
+    </p>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <div class="section-label en-only">PPI — Producer Price Index</div>
+  <div class="section-label ko-only">PPI — 생산자 물가지수</div>
+  <div class="en-only">
+    <h2>CPI vs PPI — What's the Difference?</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      The <strong style="color:var(--text-primary)">Producer Price Index (PPI)</strong> measures price changes from the seller's perspective — prices that domestic producers receive for their output, before goods reach consumers.
+      PPI is considered a <strong style="color:var(--text-primary)">leading indicator</strong> of CPI: when producers pay more for raw materials and energy, they eventually pass those costs on to consumers.
+      PPI tends to be more volatile than CPI, swinging sharply with commodity and energy prices.
+      A widening gap between PPI and CPI can signal margin pressure on businesses (PPI high, CPI low) or demand destruction (CPI high, PPI falling).
+    </p>
+  </div>
+  <div class="ko-only">
+    <h2>CPI vs PPI — 차이점</h2>
+    <p style="color:var(--text-secondary); font-size:0.9rem; line-height:1.8;">
+      <strong style="color:var(--text-primary)">생산자 물가지수(PPI)</strong>는 생산자(판매자) 관점에서의 가격 변화를 측정합니다 — 소비자에게 도달하기 전 국내 생산자들이 받는 가격입니다.
+      PPI는 <strong style="color:var(--text-primary)">CPI의 선행 지표</strong>로 여겨집니다: 원자재·에너지 가격이 오르면 시차를 두고 소비자 가격에 전가됩니다.
+      PPI는 원자재·에너지 가격 변동에 민감해 CPI보다 변동성이 큽니다.
+      PPI와 CPI의 격차가 확대되면 기업 마진 압박(PPI 고, CPI 저) 또는 수요 위축(CPI 고, PPI 하락) 신호일 수 있습니다.
+    </p>
+  </div>
+</div>
 
 <div class="card">
   <div class="section-label">
@@ -510,4 +610,204 @@ async function loadRatesData() {
 }
 
 loadRatesData();
+
+// ── CPI + PPI Inflation chart ────────────────────────────────────
+let inflChartInst = null;
+let inflShowCpi = true, inflShowPpi = true, inflShowFed = true, inflShowSP500 = false;
+
+function toggleInflCpi() {
+  inflShowCpi = !inflShowCpi;
+  document.getElementById('inflBtnCpi').classList.toggle('active', inflShowCpi);
+  if (inflChartInst) { inflChartInst.data.datasets[0].hidden = !inflShowCpi; inflChartInst.update('none'); }
+}
+function toggleInflPpi() {
+  inflShowPpi = !inflShowPpi;
+  document.getElementById('inflBtnPpi').classList.toggle('active', inflShowPpi);
+  if (inflChartInst) { inflChartInst.data.datasets[1].hidden = !inflShowPpi; inflChartInst.update('none'); }
+}
+function toggleInflFed() {
+  inflShowFed = !inflShowFed;
+  document.getElementById('inflBtnFed').classList.toggle('active', inflShowFed);
+  if (inflChartInst) { inflChartInst.data.datasets[2].hidden = !inflShowFed; inflChartInst.update('none'); }
+}
+function toggleInflSP500() {
+  inflShowSP500 = !inflShowSP500;
+  document.getElementById('inflBtnSP500').classList.toggle('active', inflShowSP500);
+  if (inflChartInst) {
+    inflChartInst.data.datasets[3].hidden = !inflShowSP500;
+    inflChartInst.options.scales.yRightSp.display = inflShowSP500;
+    inflChartInst.update('none');
+  }
+}
+
+async function initInflationChart() {
+  const loadingEl = document.getElementById('inflLoading');
+  try {
+    const [cpiText, ppiText, fedText, sp500Text] = await Promise.allSettled([
+      fetch('{{ "/assets/data/macro/CPI.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
+      fetch('{{ "/assets/data/macro/PPI.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
+      fetch('{{ "/assets/data/macro/FEDFUNDS.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
+      fetch('{{ "/assets/data/macro/SP500.csv" | relative_url }}').then(r => r.ok ? r.text() : Promise.reject()),
+    ]);
+
+    function parseCsv2col(text) {
+      const map = {};
+      for (const line of text.trim().split('\n').slice(1)) {
+        const [date, val] = line.split(',');
+        if (date && val && val.trim() !== '.') {
+          const v = parseFloat(val);
+          if (!isNaN(v)) map[date.trim()] = v;
+        }
+      }
+      return map;
+    }
+    function yoy(map, dates) {
+      return dates.map((d, i) => {
+        if (i < 12) return NaN;
+        const prev = map[dates[i - 12]];
+        return prev ? ((map[d] - prev) / prev * 100) : NaN;
+      });
+    }
+
+    const cpiMap = cpiText.status === 'fulfilled' ? parseCsv2col(cpiText.value) : {};
+    const ppiMap = ppiText.status === 'fulfilled' ? parseCsv2col(ppiText.value) : {};
+    const fedMap = fedText.status === 'fulfilled' ? parseFredCsv(fedText.value) : {};
+    const spMap  = sp500Text.status === 'fulfilled' ? parseFredCsv(sp500Text.value) : {};
+
+    if (!Object.keys(cpiMap).length) {
+      if (loadingEl) loadingEl.textContent = 'CPI data unavailable';
+      return;
+    }
+
+    const sortedDates = Object.keys(cpiMap).sort();
+    const cpiYoy = yoy(cpiMap, sortedDates);
+    const ppiYoy = yoy(ppiMap, sortedDates);
+    const fedVals = sortedDates.map(d => {
+      // forward-fill monthly fed funds
+      const key = Object.keys(fedMap).filter(k => k <= d).sort().at(-1);
+      return key ? fedMap[key] : NaN;
+    });
+    const spVals = sortedDates.map(d => {
+      const key = Object.keys(spMap).filter(k => k <= d).sort().at(-1);
+      return key ? spMap[key] : NaN;
+    });
+
+    const latestCpi = cpiYoy.filter(v => !isNaN(v)).at(-1);
+    if (latestCpi != null) {
+      const el = document.getElementById('cpiLatest');
+      el.textContent = `CPI ${latestCpi.toFixed(1)}%`;
+      el.style.color = latestCpi > 5 ? '#f85149' : latestCpi > 2 ? '#e8c84a' : '#3fb950';
+    }
+    const latestPpi = ppiYoy.filter(v => !isNaN(v)).at(-1);
+    if (latestPpi != null) {
+      const el = document.getElementById('ppiLatest');
+      el.textContent = `PPI ${latestPpi.toFixed(1)}%`;
+      el.style.color = latestPpi > 5 ? '#f85149' : latestPpi > 2 ? '#e8c84a' : '#3fb950';
+    }
+
+    const timestamps = sortedDates.map(d => new Date(d).getTime());
+    const validSp = spVals.filter(v => !isNaN(v) && v > 0);
+    const spMax = validSp.length ? Math.max(...validSp) * 1.2 : 10000;
+    const spMin = validSp.length ? Math.min(...validSp) / 2 : 10;
+
+    loadingEl.style.display = 'none';
+
+    inflChartInst = new Chart(document.getElementById('inflChart'), {
+      type: 'line',
+      data: {
+        datasets: [
+          { label: 'CPI YoY %', data: cpiYoy.map((v,i) => ({x:timestamps[i],y:v})),
+            borderColor:'#ff9800', borderWidth:2, pointRadius:0, fill:false,
+            yAxisID:'yLeft', tension:0.2, hidden:false },
+          { label: 'PPI YoY %', data: ppiYoy.map((v,i) => ({x:timestamps[i],y:v})),
+            borderColor:'#c792ea', borderWidth:1.5, pointRadius:0, fill:false,
+            yAxisID:'yLeft', tension:0.2, hidden:false },
+          { label: 'Fed Funds %', data: fedVals.map((v,i) => ({x:timestamps[i],y:v})),
+            borderColor:'rgba(255,152,0,0.9)', borderWidth:1.5, borderDash:[6,3],
+            pointRadius:0, fill:false, yAxisID:'yRight', tension:0, spanGaps:true, hidden:false },
+          { label: 'S&P 500', data: spVals.map((v,i) => ({x:timestamps[i],y:v})),
+            borderColor:'#58a6ff', borderWidth:1.5, pointRadius:0, fill:false,
+            yAxisID:'yRightSp', tension:0.1, spanGaps:true, hidden:true },
+          { label: 'Fed 2%', data: timestamps.map(x => ({x,y:2})),
+            borderColor:'rgba(88,166,255,0.4)', borderWidth:1.5, borderDash:[6,4],
+            pointRadius:0, fill:false, yAxisID:'yLeft', tension:0 },
+          { label: '_zone', data: timestamps.map(x => ({x,y:5})),
+            borderColor:'transparent', pointRadius:0, backgroundColor:'rgba(248,81,73,0.07)',
+            fill:'+1', yAxisID:'yLeft', tension:0 },
+          { label: '_zone_top', data: timestamps.map(x => ({x,y:25})),
+            borderColor:'transparent', pointRadius:0, fill:false, yAxisID:'yLeft', tension:0 },
+        ],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:false,
+        interaction: { mode:'index', intersect:false },
+        plugins: {
+          legend: { display:false },
+          zoom: {
+            zoom: { wheel:{enabled:true}, pinch:{enabled:true}, mode:'x' },
+            pan:  { enabled:true, mode:'x' },
+          },
+          tooltip: {
+            backgroundColor:'#1c2128', borderColor:'#30363d', borderWidth:1,
+            titleColor:'#e6edf3', bodyColor:'#8b949e', padding:8,
+            callbacks: {
+              title: items => {
+                const d = new Date(items[0].parsed.x);
+                return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+              },
+              label: item => {
+                const v = item.parsed.y;
+                if (v == null || isNaN(v)) return null;
+                const lbl = item.dataset.label;
+                if (lbl === 'CPI YoY %')  return `CPI YoY: ${v.toFixed(2)}%`;
+                if (lbl === 'PPI YoY %')  return `PPI YoY: ${v.toFixed(2)}%`;
+                if (lbl === 'Fed Funds %') return `Fed Funds: ${v.toFixed(2)}%`;
+                if (lbl === 'S&P 500')    return `S&P 500: ${v.toFixed(0)}`;
+                return null;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type:'linear',
+            min: timestamps[0], max: timestamps[timestamps.length-1],
+            grid: { color:'rgba(48,54,61,0.8)' },
+            ticks: { color:'#8b949e', font:{size:10}, maxTicksLimit:10,
+                     callback: v => new Date(v).getUTCFullYear() },
+          },
+          yLeft: {
+            type:'linear', position:'left',
+            title: { display:true, text:'YoY %', color:'rgba(180,180,180,0.6)', font:{size:11} },
+            grid: { color:'rgba(48,54,61,0.8)' },
+            ticks: { color:'rgba(180,180,180,0.7)', font:{size:10}, callback: v => `${v.toFixed(0)}%` },
+          },
+          yRight: {
+            type:'linear', position:'right',
+            title: { display:true, text:'Fed Funds %', color:'rgba(255,152,0,0.7)', font:{size:11} },
+            grid: { drawOnChartArea:false },
+            ticks: { color:'rgba(255,152,0,0.7)', font:{size:10}, callback: v => `${v}%` },
+          },
+          yRightSp: {
+            type:'logarithmic', position:'right',
+            min:spMin, max:spMax,
+            display: inflShowSP500,
+            grid: { drawOnChartArea:false },
+            ticks: { color:'rgba(88,166,255,0.5)', font:{size:10}, maxTicksLimit:5,
+                     callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v },
+          },
+        },
+      },
+    });
+
+    document.getElementById('inflChart').addEventListener('dblclick', () => {
+      inflChartInst.resetZoom();
+    });
+  } catch (e) {
+    if (loadingEl) loadingEl.textContent = 'Data unavailable';
+    console.error('[Inflation]', e);
+  }
+}
+
+initInflationChart();
 </script>
