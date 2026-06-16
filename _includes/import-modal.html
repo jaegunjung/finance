@@ -512,8 +512,9 @@ async function importSubmit() {
   });
 
   try {
-    const { imported } = await window.txns.importTransactions(rowsToImport, portfolioId, nameToId);
-    importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.`);
+    const { imported, skipped } = await window.txns.importTransactions(rowsToImport, portfolioId, nameToId);
+    const skipMsg = skipped > 0 ? ` (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)` : '';
+    importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.${skipMsg}`);
     btn.textContent = 'Done!';
     // Refresh chart txns if on a stock page
     if (window.SYMBOL && window.txns.loadChartTransactions) {

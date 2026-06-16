@@ -43,6 +43,21 @@
  * ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_type_check;
  * ALTER TABLE public.transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('buy','sell','buy_to_cover','sell_short','drip','dividend','interest','split','cash_deposit','cash_withdrawal'));
  *
+ * -- Per-portfolio principal-basis overrides (for accounts like a 401k that
+ * -- was later rolled into a Traditional IRA, where the raw buy/sell history
+ * -- no longer reflects what was actually "invested" by the user):
+ * --   zero_principal_from_year: treat all buy amounts from this year onward
+ * --     as $0 invested (rollover-in shares aren't new principal).
+ * --   manual_principal: if set, overrides the *all-time total* invested
+ * --     figure used by the Coach tab entirely, for cases where the true
+ * --     principal can't be derived from transaction history at all and
+ * --     the user enters it by hand (e.g. "as of 1/15/2024 this was ~$170K").
+ * --   manual_principal_as_of: the date the manual_principal figure is as of
+ * --     (informational, shown next to the override in the UI).
+ * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS zero_principal_from_year INTEGER;
+ * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal NUMERIC;
+ * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal_as_of DATE;
+ *
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -77,6 +92,34 @@
     const { data, error } = await sb
       .from('portfolios')
       .insert({ user_id: user.id, name: name.trim() || 'Default' })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  // ── Portfolio principal-basis overrides ─────────────────────────────────
+  // Used by the Coach tab when an account's raw buy/sell history doesn't
+  // reflect actual principal invested (e.g. a 401k rolled into a
+  // Traditional IRA — rollover-in "buys" aren't new money).
+  //
+  // settings: {
+  //   zero_principal_from_year?: number | null,
+  //   manual_principal?: number | null,
+  //   manual_principal_as_of?: string | null,  // 'YYYY-MM-DD'
+  // }
+  // Pass null for a field to clear that override.
+  async function updatePortfolioSettings(portfolioId, settings) {
+    const { sb, user } = requireAuth();
+    const fields = {};
+    if ('zero_principal_from_year' in settings) fields.zero_principal_from_year = settings.zero_principal_from_year || null;
+    if ('manual_principal' in settings) fields.manual_principal = settings.manual_principal != null ? Number(settings.manual_principal) : null;
+    if ('manual_principal_as_of' in settings) fields.manual_principal_as_of = settings.manual_principal_as_of || null;
+    const { data, error } = await sb
+      .from('portfolios')
+      .update(fields)
+      .eq('id', portfolioId)
+      .eq('user_id', user.id)
       .select()
       .single();
     if (error) throw error;
@@ -193,16 +236,52 @@
     let realizedGain    = 0;
     let realizedGainYTD = 0;
 
-    // Sort by date ascending
-    const sorted = [...txns].sort((a, b) => a.trade_date.localeCompare(b.trade_date));
+    // ── De-duplicate ─────────────────────────────────────────────────────
+    // Re-importing the same CSV (or the "always re-attach split rows on
+    // import" behavior in importSubmit) can create exact duplicate rows.
+    // A row is a duplicate if date+type+shares+price+amount all match.
+    // This keeps computePnL correct even if dedup at import time was
+    // bypassed (e.g. rows added before the import-time dedup existed).
+    const seen = new Set();
+    const deduped = [];
+    for (const t of txns) {
+      const key = [t.trade_date, t.type,
+        Number(t.shares) || 0, Number(t.price) || 0, Number(t.amount) || 0
+      ].join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(t);
+    }
+
+    // ── Sort ─────────────────────────────────────────────────────────────
+    // Stable sort by date; within the same date, process splits BEFORE
+    // buys/sells so a same-day split correctly multiplies shares bought
+    // earlier that day rather than being skipped or mis-ordered.
+    const typeRank = t => (t.type === 'split' ? 0 : 1);
+    const sorted = deduped
+      .map((t, i) => ({ t, i }))
+      .sort((a, b) => {
+        const dateCmp = a.t.trade_date.localeCompare(b.t.trade_date);
+        if (dateCmp !== 0) return dateCmp;
+        const rankCmp = typeRank(a.t) - typeRank(b.t);
+        if (rankCmp !== 0) return rankCmp;
+        return a.i - b.i;
+      })
+      .map(x => x.t);
 
     for (const t of sorted) {
       const sh  = Number(t.shares) || 0;
       const amt = Number(t.amount) || 0;
 
-      if (t.type === 'split' && sh >= 2 && shares > 0) {
-        // sh is always the split ratio (e.g. 20 for 20:1 AMZN split)
-        // cost stays the same; shares multiply by ratio; avg cost divides
+      if (t.type === 'split' && sh >= 2) {
+        // sh is always the split ratio (e.g. 20 for 20:1 AMZN split).
+        // Cost basis stays the same; shares multiply by ratio (so avg
+        // cost divides accordingly). NOTE: previously this only applied
+        // when `shares > 0`, which silently dropped the split entirely
+        // if it landed before any recorded buy. That caused share counts
+        // — and therefore avg cost — to be wrong for any symbol with such
+        // an ordering issue, and could cascade into a holding looking
+        // fully sold off after later sell transactions.
         shares *= sh;
         continue;
       }
@@ -212,11 +291,16 @@
         if (t.type !== 'drip') cost += amt; // DRIP adds shares but not cost basis
       } else if (sellTypes.has(t.type) && sh > 0) {
         const avgCostPerShare = shares > 0 ? cost / shares : 0;
-        const saleProfit = amt - avgCostPerShare * sh;
+        // Cap shares sold at what's actually on hand — a sell that exceeds
+        // recorded holdings (often itself a symptom of a missed split)
+        // should not be allowed to drag `shares` to 0 while still
+        // computing realized gain on the full (wrong) sale size.
+        const sellSh = Math.min(sh, shares);
+        const saleProfit = amt - avgCostPerShare * sellSh;
         realizedGain += saleProfit;
         if (t.trade_date.startsWith(thisYear)) realizedGainYTD += saleProfit;
-        cost   -= avgCostPerShare * sh;
-        shares -= sh;
+        cost   -= avgCostPerShare * sellSh;
+        shares -= sellSh;
         if (shares < 0) shares = 0;
         if (cost   < 0) cost   = 0;
       }
@@ -380,9 +464,14 @@
   //   'new'  → create a new portfolio with that name
   //   uuid   → use the existing portfolio
   //   absent → null (no portfolio assigned)
+  //
+  // Duplicate rows (same date+symbol+type+shares+price+amount as a row
+  // already in the DB for this user) are skipped automatically so that
+  // re-importing an updated/overlapping CSV export doesn't double-count
+  // trades. Returns { imported, skipped, errors }.
   async function importTransactions(rows, portfolioId, nameToId) {
     const { sb, user } = requireAuth();
-    if (!rows || rows.length === 0) return { imported: 0, errors: [] };
+    if (!rows || rows.length === 0) return { imported: 0, skipped: 0, errors: [] };
 
     // Resolve 'new' entries: create portfolios for any nameToId value === 'new'
     const resolvedMap = { ...(nameToId || {}) };
@@ -398,7 +487,41 @@
       }
     }
 
-    const toInsert = rows.map(r => ({
+    // ── Build signature set of existing transactions ──────────────────────
+    // Only need to check symbols that appear in this import batch.
+    const importSymbols = [...new Set(rows.map(r => (r.symbol || '').toUpperCase()).filter(Boolean))];
+    const existingSigs = new Set();
+    if (importSymbols.length) {
+      const { data: existing, error: exErr } = await sb
+        .from('transactions')
+        .select('symbol, trade_date, type, shares, price, amount')
+        .eq('user_id', user.id)
+        .in('symbol', importSymbols);
+      if (exErr) throw exErr;
+      for (const e of (existing || [])) {
+        existingSigs.add(_txnSignature(e));
+      }
+    }
+
+    // ── Filter out rows that duplicate an existing transaction ────────────
+    // Also dedupe *within* the incoming batch itself (e.g. the same split
+    // row getting attached twice if the CSV lists it more than once).
+    let skipped = 0;
+    const seenInBatch = new Set();
+    const newRows = [];
+    for (const r of rows) {
+      const sig = _txnSignature(r);
+      if (existingSigs.has(sig) || seenInBatch.has(sig)) {
+        skipped++;
+        continue;
+      }
+      seenInBatch.add(sig);
+      newRows.push(r);
+    }
+
+    if (newRows.length === 0) return { imported: 0, skipped, errors: [] };
+
+    const toInsert = newRows.map(r => ({
       user_id:      user.id,
       portfolio_id: portfolioId || (r.portfolio_name ? (resolvedMap[r.portfolio_name] ?? null) : null),
       symbol:       (r.symbol || '').toUpperCase(),
@@ -419,7 +542,25 @@
       .select();
 
     if (error) throw error;
-    return { imported: (data || []).length, errors: [] };
+    return { imported: (data || []).length, skipped, errors: [] };
+  }
+
+  // Build a stable signature for duplicate detection: date+symbol+type+
+  // shares+price+amount. Numbers are rounded to avoid float-precision
+  // mismatches (e.g. 194.0 vs 194) causing a false "not a duplicate".
+  function _txnSignature(r) {
+    const round = n => {
+      const v = Number(n);
+      return isNaN(v) ? 0 : Math.round(v * 10000) / 10000;
+    };
+    return [
+      (r.symbol || '').toUpperCase(),
+      r.trade_date,
+      r.type,
+      round(r.shares),
+      round(r.price),
+      round(r.amount),
+    ].join('|');
   }
 
   // ── Batch delete by ID list ───────────────────────────────────────────────
@@ -487,6 +628,7 @@
   window.txns = {
     getPortfolios,
     createPortfolio,
+    updatePortfolioSettings,
     getTransactions,
     addTransaction,
     updateTransaction,

@@ -254,8 +254,13 @@ title: 포트폴리오
 
       <!-- Year-by-year table -->
       <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
-        <div style="padding:16px 18px 12px; border-bottom:1px solid var(--border);">
+        <div style="padding:16px 18px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
           <div class="port-section-label" style="margin-bottom:0;" id="anlYearTableTitle">연도별 수익률</div>
+          <button id="anlPrincipalSettingsBtn" onclick="anlOpenPrincipalModal()" style="
+            display:none; padding:5px 12px; border-radius:20px; border:1px solid var(--border);
+            background:none; color:var(--text-secondary); font-size:0.76rem; cursor:pointer;">
+            ⚙️ 원금 설정
+          </button>
         </div>
         <div style="overflow-x:auto;">
           <table class="txn-table" id="anlYearTable">
@@ -373,6 +378,60 @@ title: 포트폴리오
   </div>
 </div>
 
+<!-- Principal Settings Modal (Coach tab — 원금 설정) -->
+<div id="principalModal" onclick="anlPrincipalModalBgClick(event)" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
+  <div id="principalModalBox" style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px 26px; min-width:340px; max-width:520px; width:90vw; max-height:90vh; overflow-y:auto;">
+    <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:6px;">원금 설정</div>
+    <div id="principalModalAccountName" style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:14px;"></div>
+    <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.6; margin:0 0 18px;">
+      401k → IRA 이체처럼 거래내역만으로는 실제 투입 원금을 정확히 알 수 없는 계좌를 위한 설정입니다.
+      이 계좌(포트폴리오)에만 적용됩니다.
+    </p>
+
+    <div style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border);">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+        <input type="checkbox" id="pmZeroFromYearEnabled" onchange="pmToggleZeroFromYear()" style="cursor:pointer; accent-color:var(--accent-blue);">
+        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;">특정 연도 이후 투입 원금을 $0으로 처리</span>
+      </label>
+      <p style="color:var(--text-muted); font-size:0.76rem; line-height:1.5; margin:0 0 8px 26px;">
+        예: 2020년에 401k에서 이 Traditional IRA로 이체한 경우, 2020년 이후 기록된 매수는 새 원금이 아니라
+        이전 계좌 자금이 옮겨온 것이므로 원금 계산에서 제외합니다.
+      </p>
+      <div id="pmZeroFromYearRow" style="display:none; margin-left:26px;">
+        <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">연도부터 $0 처리</label>
+        <input type="number" id="pmZeroFromYear" class="modal-input" placeholder="예: 2020" min="1900" max="2100" step="1" style="max-width:120px;">
+      </div>
+    </div>
+
+    <div>
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+        <input type="checkbox" id="pmManualEnabled" onchange="pmToggleManual()" style="cursor:pointer; accent-color:var(--accent-blue);">
+        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;">전체 투입 원금을 직접 입력 (수동 입력)</span>
+      </label>
+      <p style="color:var(--text-muted); font-size:0.76rem; line-height:1.5; margin:0 0 8px 26px;">
+        거래내역으로 원금을 정확히 산출하기 어려운 경우, 알고 있는 시점의 원금을 직접 입력하세요.
+        "전체 누적" 행의 투입 원금 및 수익률 계산에 사용됩니다 (연도별 행은 거래내역 기준 그대로 표시).
+      </p>
+      <div id="pmManualRow" style="display:none; margin-left:26px; gap:12px; flex-wrap:wrap;">
+        <div>
+          <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">원금 ($)</label>
+          <input type="number" id="pmManualAmount" class="modal-input" placeholder="예: 170000" min="0" step="any" style="max-width:160px;">
+        </div>
+        <div>
+          <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">기준일</label>
+          <input type="date" id="pmManualAsOf" class="modal-input" style="max-width:160px;">
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+      <button onclick="anlClosePrincipalModal()" style="padding:7px 18px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">취소</button>
+      <button onclick="anlSavePrincipalSettings()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;" id="pmSaveBtn">저장</button>
+    </div>
+    <div id="pmStatus" style="display:none; margin-top:10px; padding:7px 12px; border-radius:6px; font-size:0.82rem;"></div>
+  </div>
+</div>
+
 <script>
 // Jekyll baseurl-aware data paths
 const _STOCKS_BASE  = '{{ "/assets/data/stocks/" | relative_url }}';
@@ -485,7 +544,10 @@ async function portDeletePortfolio() {
 }
 
 // ── Fetch price + 24h change ──
-// Returns { price, change, changePct } or null
+// Returns { price, change, changePct, asOfDate } or null.
+// asOfDate is the CSV row's date for stocks (null for crypto, which is
+// always live) — used so the UI can show the real last-synced date
+// instead of assuming the data is from "today" when daily sync lags.
 async function fetchPriceInfo(symbol) {
   if (_CRYPTO_SYMS.includes(symbol)) {
     try {
@@ -498,7 +560,7 @@ async function fetchPriceInfo(symbol) {
       const price = data[cgId]?.usd ?? null;
       const changePct = data[cgId]?.usd_24h_change ?? null;
       const change = (price != null && changePct != null) ? price * changePct / (100 + changePct) : null;
-      return price != null ? { price, change, changePct } : null;
+      return price != null ? { price, change, changePct, asOfDate: null } : null;
     } catch(e) {}
     return null;
   }
@@ -511,20 +573,26 @@ async function fetchPriceInfo(symbol) {
     const lines = text.trim().split('\n');
     if (lines.length < 2) return null;
     const header = lines[0].split(',').map(s => s.trim());
+    const dateIdx  = header.indexOf('date');
     const priceIdx = ['adj_close_price_usd','close_price_usd','open_price_usd']
       .map(c => header.indexOf(c)).find(i => i >= 0) ?? -1;
     if (priceIdx < 0) return null;
     const prices = [];
+    let asOfDate = null;
     for (let i = lines.length - 1; i >= 1 && prices.length < 2; i--) {
-      const p = parseFloat(lines[i].split(',')[priceIdx]);
-      if (!isNaN(p) && p > 0) prices.push(p);
+      const cells = lines[i].split(',');
+      const p = parseFloat(cells[priceIdx]);
+      if (!isNaN(p) && p > 0) {
+        prices.push(p);
+        if (asOfDate === null && dateIdx >= 0) asOfDate = (cells[dateIdx] || '').trim() || null;
+      }
     }
     if (!prices.length) return null;
     const price = prices[0];
     const prev  = prices[1] ?? null;
     const change    = prev != null ? price - prev : null;
     const changePct = prev != null ? (price - prev) / prev * 100 : null;
-    return { price, change, changePct };
+    return { price, change, changePct, asOfDate };
   } catch(e) {}
   return null;
 }
@@ -578,6 +646,17 @@ async function portLoadHoldings() {
   const priceResults = await Promise.all(symbols.map(sym => fetchPriceInfo(sym).catch(() => null)));
   const priceMap = {};
   symbols.forEach((sym, i) => { priceMap[sym] = priceResults[i]; });
+
+  // Track the most recent stock-data date actually present in the CSVs.
+  // Daily sync sometimes lags by a day or more, so "오늘"/"Today" in the
+  // UI should reflect this real date rather than assume it's today.
+  let latestDataDate = null;
+  for (const info of priceResults) {
+    if (info?.asOfDate && (!latestDataDate || info.asOfDate > latestDataDate)) {
+      latestDataDate = info.asOfDate;
+    }
+  }
+  _holdingsAsOfDate = latestDataDate; // null → crypto-only or fetch failed; falls back to "Today"
 
   // Format helpers
   const fA  = (n, dec=2) => '$' + Math.abs(Number(n)).toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});
@@ -638,6 +717,7 @@ async function portLoadHoldings() {
 
 // ── Holdings sort / filter state ──
 let _holdingsOpenRows = [], _holdingsClosedRows = [], _holdingsTotals = {};
+let _holdingsAsOfDate = null; // most recent stock-CSV date seen; null = use "Today" label
 let _holdingsSort   = { col: 'curValue', dir: -1 };
 let _holdingsFilter = '';
 
@@ -681,6 +761,18 @@ function portRenderHoldings() {
     return `<span class="sort-icon ${_holdingsSort.dir === 1 ? 'asc' : 'desc'} active"></span>`;
   };
 
+  // Label for the daily-change column: if the latest synced stock CSV
+  // date is older than today (daily sync lagging), show that date
+  // instead of an unqualified "Today/오늘" that implies live data.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  let todayColLabelEn = 'Today', todayColLabelKo = '오늘';
+  if (_holdingsAsOfDate && _holdingsAsOfDate < todayISO) {
+    const [, m, d] = _holdingsAsOfDate.split('-');
+    const mmdd = `${m}/${d}`;
+    todayColLabelEn = mmdd;
+    todayColLabelKo = mmdd;
+  }
+
   const buildRow = (row) => {
     const { sym, price, remainingShares, avgCost, totalCost, curValue,
       unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct } = row;
@@ -720,7 +812,7 @@ function portRenderHoldings() {
       <thead><tr>
         <th style="${thStyle}" onclick="holdingsSortBy('sym')"><span class="en-only">Ticker</span><span class="ko-only">종목</span>${siIcon('sym')}</th>
         <th style="${thStyle}" onclick="holdingsSortBy('curValue')"><span class="en-only">Value / Cost</span><span class="ko-only">평가 / 비용</span>${siIcon('curValue')}</th>
-        <th style="${thStyle}" onclick="holdingsSortBy('todayVal')"><span class="en-only">Today</span><span class="ko-only">오늘</span>${siIcon('todayVal')}</th>
+        <th style="${thStyle}" onclick="holdingsSortBy('todayVal')" title="${_holdingsAsOfDate || ''}"><span class="en-only">${todayColLabelEn}</span><span class="ko-only">${todayColLabelKo}</span>${siIcon('todayVal')}</th>
         <th style="${thStyle}" onclick="holdingsSortBy('allTimeGain')"><span class="en-only">Total</span><span class="ko-only">총 손익</span>${siIcon('allTimeGain')}</th>
       </tr></thead>
       <tbody>`;
@@ -1188,6 +1280,7 @@ async function editSave() {
 // ══════════════════════════════════════════════════════════════════
 let _anlChart = null;
 let _anlLoaded = false; // reset when portfolio changes
+let _anlActivePrincipalOverride = null; // current portfolio's principal-basis override, if any
 
 // Called from portDropdownChange / portSwitchView
 async function portLoadAnalysis() {
@@ -1198,6 +1291,24 @@ async function portLoadAnalysis() {
   if (_anlChart) { _anlChart.destroy(); _anlChart = null; }
 
   try {
+    // ── 0. Resolve principal-basis overrides for the active portfolio ──
+    // Only meaningful when a single portfolio/account is selected (not "All"),
+    // since these overrides are account-specific (e.g. a 401k that was
+    // rolled into a Traditional IRA, where rollover-in "buys" aren't new
+    // principal contributed by the user).
+    let _principalOverride = null; // { zero_principal_from_year, manual_principal, manual_principal_as_of }
+    if (portActivePortfolioId) {
+      const activePf = portPortfolios.find(p => p.id === portActivePortfolioId);
+      if (activePf) {
+        _principalOverride = {
+          zero_principal_from_year: activePf.zero_principal_from_year || null,
+          manual_principal: activePf.manual_principal != null ? Number(activePf.manual_principal) : null,
+          manual_principal_as_of: activePf.manual_principal_as_of || null,
+        };
+      }
+    }
+    _anlActivePrincipalOverride = _principalOverride; // stash for the settings modal
+
     // ── 1. Fetch transactions ───────────────────────────────────────
     const allTxns = await window.txns.getTransactions(null, portActivePortfolioId);
     const tradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
@@ -1340,11 +1451,17 @@ async function portLoadAnalysis() {
     // Realized gain per year
     const yearGains    = {}; // year -> realized gain
     const yearInvested = {}; // year -> total buys
+    const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
     let cumCost = 0, cumRealized = 0;
     for (const ev of events) {
       const yr = ev.date.slice(0, 4);
       if (BUY_T.has(ev.type)) {
-        yearInvested[yr] = (yearInvested[yr] || 0) + ev.amount;
+        // Account-level override: e.g. a 401k later rolled into a
+        // Traditional IRA — buys recorded from the rollover year onward
+        // are not new principal contributed by the user, just the same
+        // money moving accounts, so they don't count toward "투입 원금".
+        const countsAsPrincipal = !(zeroFromYear && Number(yr) >= zeroFromYear);
+        if (countsAsPrincipal) yearInvested[yr] = (yearInvested[yr] || 0) + ev.amount;
         cumCost += ev.amount;
       } else if (SELL_T.has(ev.type)) {
         const h = portHoldings[ev.sym];
@@ -1400,19 +1517,37 @@ async function portLoadAnalysis() {
       </tr>`;
     }
     // Total row
+    // Manual override: when the per-transaction history can't reliably
+    // reconstruct true principal (e.g. "as of 1/15/2024 this account held
+    // about $170K" entered by hand), substitute it for the derived
+    // totalInvested used in the all-time % and Alpha figures. Per-year
+    // rows above are left as derived from transactions, since the manual
+    // figure is a single point-in-time number, not a year-by-year series.
+    const manualPrincipal = _principalOverride?.manual_principal;
+    const derivedInvested = totalInvested;
+    if (manualPrincipal != null && manualPrincipal > 0) totalInvested = manualPrincipal;
+
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
     const spyFirst = spySortedDates.find(d => d >= events[0].date);
     const spyTotal = (spyFirst && spyToday) ? (spyToday - spyPrices[spyFirst]) / spyPrices[spyFirst] * 100 : null;
     const totalAlpha = (totalPct != null && spyTotal != null) ? totalPct - spyTotal : null;
+    const manualNote = (manualPrincipal != null && manualPrincipal > 0)
+      ? ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="거래내역 기준 합계: $${derivedInvested.toLocaleString(undefined,{maximumFractionDigits:0})}">✏️ 수동 입력${_principalOverride?.manual_principal_as_of ? ' (' + _principalOverride.manual_principal_as_of + ' 기준)' : ''}</span>`
+      : '';
     tbody += `<tr style="font-weight:700; background:var(--bg-secondary);">
       <td>전체 누적</td>
-      <td style="text-align:right;">$${totalInvested.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+      <td style="text-align:right;">$${totalInvested.toLocaleString(undefined,{maximumFractionDigits:0})}${manualNote}</td>
       <td style="text-align:right;" class="${totalGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalGain >= 0 ? '+' : ''}$${Math.abs(totalGain).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
       <td style="text-align:right;" class="${totalPct == null ? '' : totalPct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalPct != null ? (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%' : '—'}</td>
       <td style="text-align:right; color:var(--text-muted);">${spyTotal != null ? (spyTotal >= 0 ? '+' : '') + spyTotal.toFixed(1) + '%' : '—'}</td>
       <td style="text-align:right;" class="${totalAlpha == null ? '' : totalAlpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalAlpha != null ? (totalAlpha >= 0 ? '+' : '') + totalAlpha.toFixed(1) + '%' : '—'}</td>
     </tr>`;
     document.getElementById('anlYearTableBody').innerHTML = tbody;
+
+    // Show "원금 설정" button only when a single account/portfolio is
+    // selected — the override is account-specific and meaningless for "All".
+    const principalBtn = document.getElementById('anlPrincipalSettingsBtn');
+    if (principalBtn) principalBtn.style.display = portActivePortfolioId ? '' : 'none';
 
     // ── 8. Cumulative gain chart ────────────────────────────────────
     // Deduplicate timeline by date (keep last per date)
@@ -1498,6 +1633,98 @@ function _anlParsePriceCsv(text) {
     if (d && !isNaN(v) && v > 0) map[d] = v;
   }
   return map;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  PRINCIPAL SETTINGS MODAL (Coach tab — 원금 설정)
+//  Per-account overrides for accounts whose raw buy/sell history
+//  doesn't reflect actual principal (e.g. 401k → Traditional IRA
+//  rollover, or accounts whose true cost basis predates this tool).
+// ══════════════════════════════════════════════════════════════════
+function anlOpenPrincipalModal() {
+  if (!portActivePortfolioId) return; // safety: button is hidden in this case anyway
+  const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
+  document.getElementById('principalModalAccountName').textContent = pf?.name || '';
+
+  const zeroYear = _anlActivePrincipalOverride?.zero_principal_from_year || null;
+  const manualAmt = _anlActivePrincipalOverride?.manual_principal || null;
+  const manualAsOf = _anlActivePrincipalOverride?.manual_principal_as_of || '';
+
+  document.getElementById('pmZeroFromYearEnabled').checked = !!zeroYear;
+  document.getElementById('pmZeroFromYear').value = zeroYear || '';
+  pmToggleZeroFromYear();
+
+  document.getElementById('pmManualEnabled').checked = !!manualAmt;
+  document.getElementById('pmManualAmount').value = manualAmt || '';
+  document.getElementById('pmManualAsOf').value = manualAsOf || '';
+  pmToggleManual();
+
+  document.getElementById('pmStatus').style.display = 'none';
+  document.getElementById('principalModal').style.display = 'flex';
+}
+
+function anlClosePrincipalModal() {
+  document.getElementById('principalModal').style.display = 'none';
+}
+
+function anlPrincipalModalBgClick(e) {
+  if (e.target === document.getElementById('principalModal')) anlClosePrincipalModal();
+}
+
+function pmToggleZeroFromYear() {
+  const on = document.getElementById('pmZeroFromYearEnabled').checked;
+  document.getElementById('pmZeroFromYearRow').style.display = on ? '' : 'none';
+}
+
+function pmToggleManual() {
+  const on = document.getElementById('pmManualEnabled').checked;
+  document.getElementById('pmManualRow').style.display = on ? 'flex' : 'none';
+}
+
+async function anlSavePrincipalSettings() {
+  if (!portActivePortfolioId || !window.txns) return;
+  const btn = document.getElementById('pmSaveBtn');
+  const statusEl = document.getElementById('pmStatus');
+  btn.disabled = true; btn.textContent = '저장 중…';
+
+  const zeroEnabled = document.getElementById('pmZeroFromYearEnabled').checked;
+  const zeroYearVal = parseInt(document.getElementById('pmZeroFromYear').value, 10);
+  const manualEnabled = document.getElementById('pmManualEnabled').checked;
+  const manualAmtVal = parseFloat(document.getElementById('pmManualAmount').value);
+  const manualAsOfVal = document.getElementById('pmManualAsOf').value || null;
+
+  if (zeroEnabled && (isNaN(zeroYearVal) || zeroYearVal < 1900)) {
+    statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
+    statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
+    statusEl.textContent = '연도를 올바르게 입력하세요.';
+    btn.disabled = false; btn.textContent = '저장'; return;
+  }
+  if (manualEnabled && (isNaN(manualAmtVal) || manualAmtVal <= 0)) {
+    statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
+    statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
+    statusEl.textContent = '원금을 올바르게 입력하세요.';
+    btn.disabled = false; btn.textContent = '저장'; return;
+  }
+
+  try {
+    const updated = await window.txns.updatePortfolioSettings(portActivePortfolioId, {
+      zero_principal_from_year: zeroEnabled ? zeroYearVal : null,
+      manual_principal: manualEnabled ? manualAmtVal : null,
+      manual_principal_as_of: manualEnabled ? manualAsOfVal : null,
+    });
+    // Reflect saved values into the local portPortfolios cache so the
+    // modal and analysis recompute use the latest settings immediately.
+    const idx = portPortfolios.findIndex(p => p.id === portActivePortfolioId);
+    if (idx >= 0) portPortfolios[idx] = { ...portPortfolios[idx], ...updated };
+
+    anlClosePrincipalModal();
+    await portLoadAnalysis(); // recompute year table / coaching with new settings
+  } catch(e) {
+    statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
+    statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
+    statusEl.textContent = '저장 실패: ' + e.message;
+    btn.disabled = false; btn.textContent = '저장';
+  }
 }
 
 // ── Rule-based coaching text generator ─────────────────────────────
