@@ -1659,6 +1659,13 @@ function anlOpenPrincipalModal() {
   document.getElementById('pmManualAsOf').value = manualAsOf || '';
   pmToggleManual();
 
+  // Reset save button — a prior successful save closes the modal without
+  // resetting this (only the error path did), so re-opening could show a
+  // stuck "저장 중…" from the last save even though it already succeeded.
+  const saveBtn = document.getElementById('pmSaveBtn');
+  saveBtn.disabled = false;
+  saveBtn.textContent = '저장';
+
   document.getElementById('pmStatus').style.display = 'none';
   document.getElementById('principalModal').style.display = 'flex';
 }
@@ -1717,6 +1724,7 @@ async function anlSavePrincipalSettings() {
     const idx = portPortfolios.findIndex(p => p.id === portActivePortfolioId);
     if (idx >= 0) portPortfolios[idx] = { ...portPortfolios[idx], ...updated };
 
+    btn.disabled = false; btn.textContent = '저장'; // reset before closing — see anlOpenPrincipalModal note
     anlClosePrincipalModal();
     await portLoadAnalysis(); // recompute year table / coaching with new settings
   } catch(e) {
