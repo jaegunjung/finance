@@ -1724,13 +1724,13 @@ async function anlSavePrincipalSettings() {
     const idx = portPortfolios.findIndex(p => p.id === portActivePortfolioId);
     if (idx >= 0) portPortfolios[idx] = { ...portPortfolios[idx], ...updated };
 
-    btn.disabled = false; btn.textContent = '저장'; // reset before closing — see anlOpenPrincipalModal note
     anlClosePrincipalModal();
-    await portLoadAnalysis(); // recompute year table / coaching with new settings
+    portLoadAnalysis(); // fire-and-forget: has internal error handling, no await needed
   } catch(e) {
     statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
     statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
     statusEl.textContent = '저장 실패: ' + e.message;
+  } finally {
     btn.disabled = false; btn.textContent = '저장';
   }
 }
