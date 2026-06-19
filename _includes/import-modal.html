@@ -159,6 +159,7 @@
 // ── Import Modal State ──────────────────────────────────────────────────────
 let _importParsed = null;  // { rows, format }
 let _importTab = 'file';
+let _gdrivePickerActive = false;
 
 function importSwitchTab(tab) {
   _importTab = tab;
@@ -230,6 +231,7 @@ function importGdriveShowPicker(cfg) {
     .setSelectFolderEnabled(false)
     .setIncludeFolders(true)
     .setOwnedByMe(true);
+  _gdrivePickerActive = true;
   document.getElementById('importModal').style.visibility = 'hidden';
   const picker = new google.picker.PickerBuilder()
     .addView(view)
@@ -242,7 +244,10 @@ function importGdriveShowPicker(cfg) {
 }
 
 function importGdrivePickerCallback(data) {
-  document.getElementById('importModal').style.visibility = '';
+  setTimeout(() => {
+    _gdrivePickerActive = false;
+    document.getElementById('importModal').style.visibility = '';
+  }, 300);
   if (data.action !== google.picker.Action.PICKED) return;
   const file = data.docs?.[0];
   if (!file) return;
@@ -287,6 +292,7 @@ function importModalClose() {
 
 // Close on backdrop click
 document.getElementById('importModal').addEventListener('click', function(e) {
+  if (_gdrivePickerActive) return;
   if (e.target === this) importModalClose();
 });
 

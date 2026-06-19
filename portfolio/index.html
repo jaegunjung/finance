@@ -200,6 +200,7 @@ title: 포트폴리오
             <tr>
               <th style="width:32px;"><input type="checkbox" id="portSelectAll" onchange="portToggleSelectAll(this)" style="cursor:pointer; accent-color:var(--accent-blue);"></th>
               <th class="sortable" onclick="txnSortBy('trade_date')">Date<span class="sort-icon desc active" id="si_trade_date"></span></th>
+              <th id="thPortfolio" style="display:none;">Portfolio</th>
               <th class="sortable" onclick="txnSortBy('symbol')">Symbol<span class="sort-icon" id="si_symbol"></span></th>
               <th class="sortable" onclick="txnSortBy('type')">Type<span class="sort-icon" id="si_type"></span></th>
               <th class="sortable" style="text-align:right;" onclick="txnSortBy('shares')">Shares<span class="sort-icon" id="si_shares"></span></th>
@@ -211,6 +212,7 @@ title: 포트폴리오
             <tr class="filter-row">
               <td></td>
               <td><input class="col-filter" id="cf_date" placeholder="날짜 필터" oninput="txnApplyFilter()"></td>
+              <td id="tdPortfolioFilter" style="display:none;"><input class="col-filter" id="cf_portfolio" placeholder="포트폴리오" oninput="txnApplyFilter()"></td>
               <td><input class="col-filter" id="cf_symbol" placeholder="종목" oninput="txnApplyFilter()"></td>
               <td>
                 <select class="col-filter" id="cf_type" onchange="txnApplyFilter()" style="padding:3px 4px;">
@@ -943,14 +945,22 @@ function portRenderTxnRows() {
   const empty = document.getElementById('portTxnEmpty');
   if (!body) return;
 
-  const fDate   = (document.getElementById('cf_date')   || {}).value?.trim().toLowerCase() || '';
-  const fSym    = (document.getElementById('cf_symbol') || {}).value?.trim().toLowerCase() || '';
-  const fType   = (document.getElementById('cf_type')   || {}).value || '';
-  const fAmt    = (document.getElementById('cf_amount') || {}).value?.trim() || '';
-  const fNotes  = (document.getElementById('cf_notes')  || {}).value?.trim().toLowerCase() || '';
+  const showPortCol = !portActivePortfolioId;
+  document.getElementById('thPortfolio').style.display      = showPortCol ? '' : 'none';
+  document.getElementById('tdPortfolioFilter').style.display = showPortCol ? '' : 'none';
+
+  const fDate   = (document.getElementById('cf_date')      || {}).value?.trim().toLowerCase() || '';
+  const fPort   = (document.getElementById('cf_portfolio') || {}).value?.trim().toLowerCase() || '';
+  const fSym    = (document.getElementById('cf_symbol')    || {}).value?.trim().toLowerCase() || '';
+  const fType   = (document.getElementById('cf_type')      || {}).value || '';
+  const fAmt    = (document.getElementById('cf_amount')    || {}).value?.trim() || '';
+  const fNotes  = (document.getElementById('cf_notes')     || {}).value?.trim().toLowerCase() || '';
+
+  const portNameMap = Object.fromEntries((portPortfolios || []).map(p => [p.id, p.name]));
 
   let rows = portAllTxns || [];
   if (fDate)  rows = rows.filter(t => t.trade_date.includes(fDate));
+  if (fPort)  rows = rows.filter(t => (portNameMap[t.portfolio_id] || '').toLowerCase().includes(fPort));
   if (fSym)   rows = rows.filter(t => t.symbol.toLowerCase().includes(fSym));
   if (fType)  rows = rows.filter(t => t.type === fType);
   if (fAmt)   rows = rows.filter(t => String(t.amount || '').includes(fAmt));
@@ -983,9 +993,11 @@ function portRenderTxnRows() {
       ? `$${fmtN(t.commission)}`
       : `<span style="color:var(--text-muted);">—</span>`;
     tr.dataset.id = t.id;
+    const portName = portNameMap[t.portfolio_id] || '';
     tr.innerHTML = `
       <td><input type="checkbox" class="txn-cb" data-id="${t.id}" onchange="portCbChange()" style="cursor:pointer;accent-color:var(--accent-blue);"></td>
       <td style="color:var(--text-secondary);white-space:nowrap;">${t.trade_date}</td>
+      ${showPortCol ? `<td style="color:var(--text-muted);font-size:0.8rem;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="${portName}">${portName}</td>` : ''}
       <td style="font-weight:600;">${_AVAILABLE_SYMS.has(t.symbol) ? `<a href="${_CRYPTO_SYMS.includes(t.symbol) ? _CRYPTO_URL : _STOCK_URL + t.symbol + '/'}" style="color:var(--text-primary);text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='var(--text-primary)'">${t.symbol}</a>` : t.symbol}</td>
       <td>${typeCell}</td>
       <td style="text-align:right;color:var(--text-secondary);">${fmtN(t.shares)}</td>
