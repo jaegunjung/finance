@@ -10,6 +10,7 @@ plugins:
   - jekyll-sitemap
   - jekyll-redirect-from
 
-# Google Drive Picker — set these in _config_local.yml or environment secrets
-# gdrive_api_key: "YOUR_GOOGLE_API_KEY"
-# gdrive_client_id: "YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com"
+# Google Drive Picker — injected via GitHub Secrets in CI (deploy.yml)
+# For local dev, create _config_local.yml with these values (gitignored)
+gdrive_api_key: ""
+gdrive_client_id: ""
