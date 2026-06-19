@@ -133,7 +133,8 @@
       .from('transactions')
       .select('*, portfolios(name)')
       .eq('user_id', user.id)
-      .order('trade_date', { ascending: true });
+      .order('trade_date', { ascending: true })
+      .limit(50000);
     if (symbol) query = query.eq('symbol', symbol.toUpperCase());
     if (portfolioId) query = query.eq('portfolio_id', portfolioId);
     const { data, error } = await query;

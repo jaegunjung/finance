@@ -244,10 +244,12 @@ function importGdriveShowPicker(cfg) {
 }
 
 function importGdrivePickerCallback(data) {
-  setTimeout(() => {
-    _gdrivePickerActive = false;
-    document.getElementById('importModal').style.visibility = '';
-  }, 300);
+  if (data.action === google.picker.Action.PICKED || data.action === google.picker.Action.CANCEL) {
+    setTimeout(() => {
+      _gdrivePickerActive = false;
+      document.getElementById('importModal').style.visibility = '';
+    }, 300);
+  }
   if (data.action !== google.picker.Action.PICKED) return;
   const file = data.docs?.[0];
   if (!file) return;
