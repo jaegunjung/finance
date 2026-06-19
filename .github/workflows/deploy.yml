@@ -31,10 +31,16 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Build with Jekyll
+      - name: Inject Google Drive secrets
         run: |
-          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" \
-            --config _config.yml,<(echo "gdrive_api_key: '${{ secrets.GDRIVE_API_KEY }}'\ngdrive_client_id: '${{ secrets.GDRIVE_CLIENT_ID }}'")
+          echo "gdrive_api_key: \"$GDRIVE_API_KEY\"" >> _config.yml
+          echo "gdrive_client_id: \"$GDRIVE_CLIENT_ID\"" >> _config.yml
+        env:
+          GDRIVE_API_KEY: ${{ secrets.GDRIVE_API_KEY }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+
+      - name: Build with Jekyll
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           JEKYLL_ENV: production
 
