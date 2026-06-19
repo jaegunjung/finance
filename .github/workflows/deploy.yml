@@ -31,18 +31,15 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Inject Google Drive secrets
-        run: |
-          sed -i "s|gdrive_api_key: \"\"|gdrive_api_key: \"$GDRIVE_API_KEY\"|" _config.yml
-          sed -i "s|gdrive_client_id: \"\"|gdrive_client_id: \"$GDRIVE_CLIENT_ID\"|" _config.yml
-        env:
-          GDRIVE_API_KEY: ${{ secrets.GDRIVE_API_KEY }}
-          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
-
       - name: Build with Jekyll
-        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        run: |
+          echo "gdrive_api_key: ${GDRIVE_API_KEY}" > _config_secrets.yml
+          echo "gdrive_client_id: ${GDRIVE_CLIENT_ID}" >> _config_secrets.yml
+          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" --config _config.yml,_config_secrets.yml
         env:
           JEKYLL_ENV: production
+          GDRIVE_API_KEY: ${{ secrets.GDRIVE_API_KEY }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

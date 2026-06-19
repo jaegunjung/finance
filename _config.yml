@@ -12,5 +12,3 @@ plugins:
 
 # Google Drive Picker — injected via GitHub Secrets in CI (deploy.yml)
 # For local dev, create _config_local.yml with these values (gitignored)
-gdrive_api_key: ""
-gdrive_client_id: ""
