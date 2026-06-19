@@ -230,8 +230,7 @@ function importGdriveShowPicker(cfg) {
     .setSelectFolderEnabled(false)
     .setIncludeFolders(true)
     .setOwnedByMe(true);
-  // Lower modal z-index so picker appears on top
-  document.getElementById('importModal').style.zIndex = '1';
+  document.getElementById('importModal').style.visibility = 'hidden';
   const picker = new google.picker.PickerBuilder()
     .addView(view)
     .setOAuthToken(_gdriveAccessToken)
@@ -243,7 +242,7 @@ function importGdriveShowPicker(cfg) {
 }
 
 function importGdrivePickerCallback(data) {
-  document.getElementById('importModal').style.zIndex = '9000';
+  document.getElementById('importModal').style.visibility = '';
   if (data.action !== google.picker.Action.PICKED) return;
   const file = data.docs?.[0];
   if (!file) return;
