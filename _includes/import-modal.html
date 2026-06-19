@@ -227,9 +227,12 @@ function importGdriveOpen() {
 function importGdriveShowPicker(cfg) {
   importGdriveSetStatus('Google Drive 파일 선택기 열기…');
   const view = new google.picker.DocsView()
-    .setMimeTypes('text/csv,text/plain,application/vnd.ms-excel')
+    .setMimeTypes('text/csv,text/plain,application/vnd.ms-excel,application/vnd.google-apps.spreadsheet')
     .setSelectFolderEnabled(false)
-    .setIncludeFolders(true);
+    .setIncludeFolders(true)
+    .setOwnedByMe(true);
+  // Lower modal z-index so picker appears on top
+  document.getElementById('importModal').style.zIndex = '100';
   const picker = new google.picker.PickerBuilder()
     .addView(view)
     .setOAuthToken(_gdriveAccessToken)
@@ -241,6 +244,7 @@ function importGdriveShowPicker(cfg) {
 }
 
 function importGdrivePickerCallback(data) {
+  document.getElementById('importModal').style.zIndex = '9000';
   if (data.action !== google.picker.Action.PICKED) return;
   const file = data.docs?.[0];
   if (!file) return;
