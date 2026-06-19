@@ -970,7 +970,8 @@ function portRenderTxnRows() {
   rows = [...rows].sort((a, b) => {
     let va = a[col] ?? '', vb = b[col] ?? '';
     if (['shares','price','amount'].includes(col)) { va = Number(va) || 0; vb = Number(vb) || 0; return (va - vb) * dir; }
-    return String(va).localeCompare(String(vb)) * dir;
+    va = String(va); vb = String(vb);
+    return (va < vb ? -1 : va > vb ? 1 : 0) * dir;
   });
 
   if (!rows.length) {
