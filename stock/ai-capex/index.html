@@ -316,7 +316,7 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
   <p class="source-note">
     신한투자증권 2025-08-19 프레임워크 기반 · Based on Shinhan Securities 2025-08-19 framework<br>
     참조선: NASDAQ Composite 월간 실제 데이터 · Reference lines: NASDAQ Composite actual monthly data<br>
-    현재 AI 사이클: S&amp;P 500 월간 데이터 (sp500_monthly.csv) · Current AI cycle: S&amp;P 500 monthly data
+    현재 AI 사이클: VFIAX 일별 수정 종가 · Current AI cycle: VFIAX daily adj. close
   </p>
   <div class="capex-disclaimer">
     개인 분석, 투자 권유 아님 · Personal analysis, not investment advice.
@@ -324,9 +324,10 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+  onerror="document.getElementById('loadStatus').textContent='Chart.js load error — try refreshing.'"></script>
 <script>
-(function() {
+/* global Chart */
 
 // ─── Historical price arrays (NASDAQ Composite, actual monthly closes) ────────
 // Source: read from Shinhan Securities 2025-08-19 chart + historical NASDAQ data
@@ -861,11 +862,25 @@ async function loadAndRender() {
 
   const latest = allRows[allRows.length - 1];
   updateSummaryCards(latest.price, latest.date);
-  buildChart1(aiData);
-  buildChart2(cut2024Monthly.length ? cut2024Monthly : [{ x: 0, y: FED_CUT_PRICE || 500 }]);
+
+  try {
+    buildChart1(aiData);
+  } catch(e) {
+    document.getElementById('loadStatus').textContent = 'Chart 1 error: ' + e.message;
+    console.error('buildChart1:', e);
+  }
+  try {
+    buildChart2(cut2024Monthly.length ? cut2024Monthly : [{ x: 0, y: FED_CUT_PRICE || 500 }]);
+  } catch(e) {
+    document.getElementById('loadStatus').textContent = 'Chart 2 error: ' + e.message;
+    console.error('buildChart2:', e);
+  }
 }
 
-document.addEventListener('DOMContentLoaded', loadAndRender);
-
-})();
+// Call immediately — script is at end of body so DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadAndRender);
+} else {
+  loadAndRender();
+}
 </script>
