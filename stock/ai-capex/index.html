@@ -55,28 +55,30 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
   height: 360px;
 }
 
-/* Chart 1: side-by-side reference image + interactive chart */
-.chart1-layout {
+/* Chart 1 & 2: side-by-side reference image + interactive chart */
+.chart-ref-layout {
   display: flex;
   gap: 8px;
   align-items: stretch;
   height: 460px;
 }
 .ref-img-panel {
-  flex: 0 0 44%;
-  overflow: hidden;
+  flex: 0 0 42%;
   position: relative;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #000;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 .ref-img-panel img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: right bottom;
+  object-fit: contain;
+  object-position: center center;
   display: block;
-  opacity: 0.92;
 }
 .ref-img-label {
   position: absolute;
@@ -91,8 +93,8 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
 }
 
 @media (max-width: 680px) {
-  .chart1-layout { flex-direction: column; height: auto; }
-  .ref-img-panel { flex: 0 0 260px; width: 100%; }
+  .chart-ref-layout { flex-direction: column; height: auto; }
+  .ref-img-panel { flex: none; height: 240px; width: 100%; }
   .chart-wrap { height: 300px; }
   .capex-title { font-size: 1.15rem; }
 }
@@ -297,8 +299,8 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
       </button>
     </div>
 
-    <div class="chart1-layout">
-      <!-- Left: Shinhan original chart (right half shown) -->
+    <div class="chart-ref-layout">
+      <!-- Left: Shinhan original bubble-cycle chart -->
       <div class="ref-img-panel" id="refImgPanel1">
         <img src="{{ '/assets/images/shinhan_post_ratecut_rally.PNG' | relative_url }}"
              alt="신한증권 버블 사이클 참조 (2025.08.19)"
@@ -340,8 +342,18 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
       <span class="en-only">Normalized to 100 at the <strong>last</strong> rate cut of each cycle. Vertical lines = 17m &amp; 24m historical peak windows. TODAY ≈ month 6 (Jan 2026 last cut).</span>
       <span class="ko-only">각 사이클 <strong>마지막</strong> 금리인하 시점 = 100으로 정규화. 수직선 = 17·24개월 역사적 고점 윈도우. 현재 ≈ 6개월 (2026.01 마지막 인하 기준).</span>
     </p>
-    <div class="chart-wrap">
-      <canvas id="chart2"></canvas>
+    <div class="chart-ref-layout">
+      <!-- Left: Shinhan original rate-cut rally chart -->
+      <div class="ref-img-panel" id="refImgPanel2">
+        <img src="{{ '/assets/images/shinhan_bubble_cycle_comparison.PNG' | relative_url }}"
+             alt="신한증권 금리인하 후 랠리 참조 (2025.08.19)"
+             onerror="document.getElementById('refImgPanel2').style.display='none'">
+        <div class="ref-img-label">신한투자증권 2025-08-19 원본</div>
+      </div>
+      <!-- Right: interactive chart -->
+      <div class="chart-wrap" style="flex:1; height:auto;">
+        <canvas id="chart2"></canvas>
+      </div>
     </div>
     <div class="legend-row">
       <span><span class="legend-dot" style="background:#f5a623;"></span>
