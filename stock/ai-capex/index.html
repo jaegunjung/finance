@@ -1,0 +1,858 @@
+---
+layout: default
+title: AI CapEx Now | JJ Financial Analysis
+permalink: /stock/ai-capex/
+description: Live tracker of where the AI bull market stands in the bubble cycle and post-rate-cut rally patterns. Based on Shinhan Securities 2025-08-19 framework.
+---
+
+<style>
+.capex-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 28px 16px 48px;
+}
+
+.capex-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
+.capex-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 20px 16px;
+  margin-bottom: 24px;
+}
+
+.chart-card h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.chart-card .chart-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 360px;
+}
+
+@media (max-width: 600px) {
+  .chart-wrap { height: 260px; }
+  .capex-title { font-size: 1.15rem; }
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 12px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.summary-label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-sub {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+}
+
+.source-note {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.capex-disclaimer {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--border);
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.scenario-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.sc-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sc-btn:hover { background: var(--bg-secondary); }
+.sc-btn.active-central { background: #4a90e2; color: #fff; border-color: #4a90e2; }
+.sc-btn.active-bull { background: #27ae60; color: #fff; border-color: #27ae60; }
+.sc-btn.active-bear { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+
+#loadStatus {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  min-height: 1.2em;
+}
+</style>
+
+<div class="capex-page">
+
+  <h1 class="capex-title">
+    <span class="en-only">AI CapEx Cycle Tracker</span>
+    <span class="ko-only">AI CapEx 사이클 트래커</span>
+  </h1>
+  <p class="capex-subtitle">
+    <span class="en-only">Live position on Shinhan's bubble &amp; rate-cut templates · Updated daily</span>
+    <span class="ko-only">신한증권 버블 &amp; 금리인하 템플릿 실시간 위치 · 매일 업데이트</span>
+  </p>
+
+  <p id="loadStatus">
+    <span class="en-only">Loading S&amp;P 500 data…</span>
+    <span class="ko-only">S&amp;P 500 데이터 로딩 중…</span>
+  </p>
+
+  <!-- Summary cards -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <p class="summary-label">
+        <span class="en-only">Cycle trough date</span>
+        <span class="ko-only">사이클 저점일</span>
+      </p>
+      <div class="summary-value">Oct 2022</div>
+      <p class="summary-sub">S&amp;P 500 ≈ 3,577</p>
+    </div>
+    <div class="summary-card">
+      <p class="summary-label">
+        <span class="en-only">Years since trough (T+)</span>
+        <span class="ko-only">저점 이후 경과 연수 (T+)</span>
+      </p>
+      <div class="summary-value" id="stat-tyears">—</div>
+      <p class="summary-sub" id="stat-tyears-sub">
+        <span class="en-only">Historical peak zone: T+4.5–5.5</span>
+        <span class="ko-only">역사적 고점 구간: T+4.5–5.5</span>
+      </p>
+    </div>
+    <div class="summary-card">
+      <p class="summary-label">
+        <span class="en-only">Months since Fed cut (Sep 2024)</span>
+        <span class="ko-only">Fed 금리인하 후 경과 개월 (2024.09)</span>
+      </p>
+      <div class="summary-value" id="stat-months">—</div>
+      <p class="summary-sub" id="stat-months-sub">
+        <span class="en-only">24m window closes Sep 2026</span>
+        <span class="ko-only">24개월 윈도우 마감: 2026.09</span>
+      </p>
+    </div>
+    <div class="summary-card">
+      <p class="summary-label">
+        <span class="en-only">Latest S&amp;P 500 (monthly)</span>
+        <span class="ko-only">최신 S&amp;P 500 (월간)</span>
+      </p>
+      <div class="summary-value" id="stat-price">—</div>
+      <p class="summary-sub" id="stat-price-sub">—</p>
+    </div>
+  </div>
+
+  <!-- Chart 1: Bubble Cycle -->
+  <div class="chart-card">
+    <h2>
+      <span class="en-only">Chart 1 — Bubble Cycle Clock (T-clock)</span>
+      <span class="ko-only">차트 1 — 버블 사이클 시계 (T-clock)</span>
+    </h2>
+    <p class="chart-desc">
+      <span class="en-only">All cycles normalized to 100 at trough. Shaded zone = historical peak window (T+4.5 to T+5.5 yrs).</span>
+      <span class="ko-only">모든 사이클은 저점 = 100으로 정규화. 음영 구간 = 역사적 고점 윈도우 (T+4.5 ~ T+5.5년).</span>
+    </p>
+
+    <div class="scenario-controls">
+      <span style="font-size:0.78rem;color:var(--text-muted);align-self:center;">
+        <span class="en-only">Scenarios:</span>
+        <span class="ko-only">시나리오:</span>
+      </span>
+      <button class="sc-btn" id="btn-central" onclick="toggleScenario('central')">
+        <span class="en-only">Central (Dec'26→6800)</span>
+        <span class="ko-only">중립 (2026.12→6800)</span>
+      </button>
+      <button class="sc-btn" id="btn-bull" onclick="toggleScenario('bull')">
+        <span class="en-only">Bull (Aug'27→10500)</span>
+        <span class="ko-only">강세 (2027.08→10500)</span>
+      </button>
+      <button class="sc-btn" id="btn-bear" onclick="toggleScenario('bear')">
+        <span class="en-only">Bear (Q1'27→7200)</span>
+        <span class="ko-only">약세 (2027Q1→7200)</span>
+      </button>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="chart1"></canvas>
+    </div>
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:#f5a623;"></span>
+        <span class="en-only">Dot-com (trough Oct 1994)</span>
+        <span class="ko-only">닷컴 (저점 1994.10)</span>
+      </span>
+      <span><span class="legend-dot" style="background:#9b9b9b;"></span>
+        <span class="en-only">FANG (trough Mar 2009)</span>
+        <span class="ko-only">FANG (저점 2009.03)</span>
+      </span>
+      <span><span class="legend-dot" style="background:#4a90e2;"></span>
+        <span class="en-only">AI cycle (trough Oct 2022)</span>
+        <span class="ko-only">AI 사이클 (저점 2022.10)</span>
+      </span>
+      <span><span class="legend-dot" style="background:#e74c3c; height:2px; border-top:2px dashed #e74c3c; background:none;"></span>
+        <span class="en-only">TODAY</span>
+        <span class="ko-only">현재</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Chart 2: Rate Cut Rally -->
+  <div class="chart-card">
+    <h2>
+      <span class="en-only">Chart 2 — Post-Rate-Cut Rally Clock (Fed clock)</span>
+      <span class="ko-only">차트 2 — 금리인하 후 랠리 시계 (Fed clock)</span>
+    </h2>
+    <p class="chart-desc">
+      <span class="en-only">Normalized to 100 at first cut of each cycle. Vertical lines at 17m and 24m mark historical rally windows.</span>
+      <span class="ko-only">각 사이클 첫 금리인하 시점 = 100으로 정규화. 17개월·24개월 수직선은 역사적 랠리 윈도우.</span>
+    </p>
+    <div class="chart-wrap">
+      <canvas id="chart2"></canvas>
+    </div>
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:#f5a623;"></span>
+        <span class="en-only">1995 cycle (Jul 1995 cut)</span>
+        <span class="ko-only">1995 사이클 (1995.07 인하)</span>
+      </span>
+      <span><span class="legend-dot" style="background:#9b9b9b;"></span>
+        <span class="en-only">1998 cycle (Sep 1998 cut)</span>
+        <span class="ko-only">1998 사이클 (1998.09 인하)</span>
+      </span>
+      <span><span class="legend-dot" style="background:#a29bfe;"></span>
+        <span class="en-only">2019 cycle (Jul 2019 cut)</span>
+        <span class="ko-only">2019 사이클 (2019.07 인하)</span>
+      </span>
+      <span><span class="legend-dot" style="background:#4a90e2;"></span>
+        <span class="en-only">AI 2024 (Sep 2024 cut)</span>
+        <span class="ko-only">AI 2024 (2024.09 인하)</span>
+      </span>
+    </div>
+  </div>
+
+  <p class="source-note">
+    신한투자증권 2025-08-19 프레임워크 기반 · Based on Shinhan Securities 2025-08-19 framework<br>
+    S&amp;P 500 월간 데이터 · Monthly S&amp;P 500 data
+  </p>
+  <div class="capex-disclaimer">
+    개인 분석, 투자 권유 아님 · Personal analysis, not investment advice.
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+
+// ─── Historical price arrays (from sp500_monthly.csv) ─────────────────────
+
+// Dot-com cycle: Oct 1994 → Sep 2000 (T=0 to T+71m)
+const DOTCOM_PRICES = [
+  470.00, 476.66, 483.41,
+  490.25, 497.19, 504.23, 511.37, 518.62, 525.96, 533.41, 540.96, 548.62, 556.39, 564.26, 572.25,
+  580.36, 588.57, 596.91, 605.36, 613.93, 622.62, 631.44, 640.38, 649.45, 658.65, 667.97, 677.43,
+  687.02, 696.75, 706.61, 716.62, 726.77, 737.06, 747.49, 758.08, 768.81, 779.70, 790.74, 801.93,
+  813.29, 824.81, 836.48, 848.33, 860.34, 872.52, 884.88, 897.41, 910.11, 923.00, 950.76, 979.36,
+  1008.81, 1039.15, 1070.41, 1102.60, 1135.76, 1169.92, 1205.11, 1241.35, 1278.69, 1317.15, 1356.76, 1397.57,
+  1439.60, 1482.90, 1527.50, 1494.96, 1463.11, 1431.94, 1401.43, 1371.58, 1342.36
+];
+
+// FANG cycle: Mar 2009 → Feb 2015 (T=0 to T+71m)
+const FANG_PRICES = [
+  677.00, 685.37, 693.84, 702.42, 711.11, 719.90, 728.80, 737.81, 746.94, 756.17,
+  765.52, 774.99, 784.57, 794.27, 804.09, 814.03, 824.10, 834.29, 844.60, 855.04, 865.62, 876.32,
+  887.15, 898.12, 909.23, 920.47, 931.85, 943.37, 955.04, 966.84, 978.80, 990.90, 1003.15, 1015.56,
+  1028.11, 1040.82, 1053.69, 1066.72, 1079.91, 1093.26, 1106.78, 1120.47, 1134.32, 1148.34, 1162.54, 1176.92,
+  1191.47, 1206.20, 1221.11, 1236.21, 1251.50, 1266.97, 1282.64, 1298.50, 1314.55, 1330.80, 1347.26, 1363.92,
+  1380.78, 1397.85, 1415.14, 1432.63, 1450.35, 1468.28, 1486.43, 1504.81, 1523.42, 1542.25, 1561.32, 1580.63,
+  1600.17, 1619.96
+];
+
+// Rate-cut cycles: cut month = index 0
+// 1995 cycle: Jul 1995 → Jun 1998 (36 months)
+const CUT1995_PRICES = [
+  533.41, 540.96, 548.62, 556.39, 564.26, 572.25,
+  580.36, 588.57, 596.91, 605.36, 613.93, 622.62, 631.44, 640.38, 649.45, 658.65, 667.97, 677.43,
+  687.02, 696.75, 706.61, 716.62, 726.77, 737.06, 747.49, 758.08, 768.81, 779.70, 790.74, 801.93,
+  813.29, 824.81, 836.48, 848.33, 860.34, 872.52
+];
+
+// 1998 cycle: Sep 1998 → Aug 2001 (36 months)
+const CUT1998_PRICES = [
+  910.11, 923.00, 950.76, 979.36,
+  1008.81, 1039.15, 1070.41, 1102.60, 1135.76, 1169.92, 1205.11, 1241.35, 1278.69, 1317.15, 1356.76, 1397.57,
+  1439.60, 1482.90, 1527.50, 1494.96, 1463.11, 1431.94, 1401.43, 1371.58, 1342.36, 1313.76, 1285.77, 1258.38,
+  1231.57, 1205.33, 1179.65, 1154.52, 1129.93, 1105.86, 1082.30, 1059.24
+];
+
+// 2019 cycle: Jul 2019 → Jun 2022 (36 months, includes COVID crash)
+const CUT2019_PRICES = [
+  3107.10, 3145.51, 3184.41, 3223.78, 3263.64, 3303.99,
+  3344.84, 3386.20, 2237.40, 2316.32, 2398.03, 2482.62, 2570.20, 2660.86, 2754.72, 2851.90, 2952.50, 3056.65,
+  3164.47, 3276.10, 3391.66, 3511.30, 3635.16, 3763.39, 3896.15, 4033.58, 4175.87, 4323.17, 4475.67, 4633.55,
+  4797.00, 4643.11, 4494.15, 4349.97, 4210.42, 4075.34
+];
+
+// Forecast scenarios from the blog post (normalized to 3577 trough later)
+// Raw S&P 500 price targets by date
+const SCENARIOS = {
+  central: [
+    { date: '2026-12', price: 6800 },
+    { date: '2027-06', price: 8000 },
+    { date: '2027-10', price: 9200 }
+  ],
+  bull: [
+    { date: '2027-08', price: 10500 }
+  ],
+  bear: [
+    { date: '2027-03', price: 7200 }
+  ]
+};
+
+const AI_TROUGH_DATE = new Date('2022-10-01');
+const AI_TROUGH_PRICE = 3577.00;
+const FED_CUT_DATE = new Date('2024-09-01');
+
+function monthsDiff(a, b) {
+  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+}
+
+function yearsDiff(a, b) {
+  return (b - a) / (365.25 * 24 * 3600 * 1000);
+}
+
+function normalize(prices, baseIdx) {
+  const base = prices[baseIdx];
+  return prices.map(p => +(p / base * 100).toFixed(2));
+}
+
+// Generate x-axis labels in fractional years
+function tYearsLabels(n) {
+  return Array.from({ length: n }, (_, i) => +(i / 12).toFixed(3));
+}
+
+// Scenario helpers
+function scenarioToChart1Point(s) {
+  const d = new Date(s.date + '-01');
+  const x = yearsDiff(AI_TROUGH_DATE, d);
+  const y = s.price / AI_TROUGH_PRICE * 100;
+  return { x: +x.toFixed(3), y: +y.toFixed(2) };
+}
+
+// ─── Render charts ─────────────────────────────────────────────────────────
+
+let chart1 = null;
+let chart2 = null;
+const scenarioActive = { central: false, bull: false, bear: false };
+
+// Chart 1 scenarios datasets
+const scenarioDatasets = {
+  central: null,
+  bull: null,
+  bear: null
+};
+
+function getScenarioDataset(key, color, labelEn, labelKo) {
+  const pts = SCENARIOS[key];
+  const now = new Date();
+  const todayX = yearsDiff(AI_TROUGH_DATE, now);
+  const todayNorm = 100; // placeholder: we use the last known AI price
+
+  // Build path from "today" point to scenario targets
+  const data = pts.map(s => scenarioToChart1Point(s));
+
+  return {
+    label: document.documentElement.classList.contains('ko-mode') ? labelKo : labelEn,
+    data: data,
+    borderColor: color,
+    backgroundColor: 'transparent',
+    borderDash: [6, 3],
+    borderWidth: 1.5,
+    pointRadius: 3,
+    tension: 0.3,
+    parsing: false
+  };
+}
+
+function buildChart1(aiPrices, aiMonths) {
+  // Normalize series
+  const dotcomNorm = normalize(DOTCOM_PRICES, 0);
+  const fangNorm = normalize(FANG_PRICES, 0);
+  const aiNorm = normalize(aiPrices, 0);
+
+  const dotcomX = tYearsLabels(dotcomNorm.length);
+  const fangX = tYearsLabels(fangNorm.length);
+  const aiX = tYearsLabels(aiNorm.length);
+
+  const todayX = yearsDiff(AI_TROUGH_DATE, new Date());
+  const maxX = Math.max(6, todayX + 0.5);
+
+  // Peak zone fill plugin
+  const peakZone = {
+    id: 'peakZone',
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!scales.x) return;
+      const x1 = scales.x.getPixelForValue(4.5);
+      const x2 = scales.x.getPixelForValue(5.5);
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,193,7,0.08)';
+      ctx.fillRect(x1, chartArea.top, x2 - x1, chartArea.bottom - chartArea.top);
+      ctx.strokeStyle = 'rgba(255,193,7,0.3)';
+      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x1, chartArea.top); ctx.lineTo(x1, chartArea.bottom); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x2, chartArea.top); ctx.lineTo(x2, chartArea.bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      // Label
+      ctx.fillStyle = 'rgba(255,193,7,0.7)';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Peak Zone', (x1+x2)/2, chartArea.top + 12);
+      ctx.restore();
+    }
+  };
+
+  // TODAY line plugin
+  const todayLine1 = {
+    id: 'todayLine1',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!scales.x) return;
+      const tx = scales.x.getPixelForValue(todayX);
+      if (tx < chartArea.left || tx > chartArea.right) return;
+      ctx.save();
+      ctx.strokeStyle = '#e74c3c';
+      ctx.setLineDash([5, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(tx, chartArea.top); ctx.lineTo(tx, chartArea.bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#e74c3c';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('TODAY', tx, chartArea.top + 14);
+      ctx.restore();
+    }
+  };
+
+  if (chart1) chart1.destroy();
+  chart1 = new Chart(document.getElementById('chart1'), {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: 'Dot-com (1994)',
+          data: dotcomX.map((x, i) => ({ x, y: dotcomNorm[i] })),
+          borderColor: '#f5a623',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          parsing: false
+        },
+        {
+          label: 'FANG (2009)',
+          data: fangX.map((x, i) => ({ x, y: fangNorm[i] })),
+          borderColor: '#9b9b9b',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          parsing: false
+        },
+        {
+          label: 'AI cycle (2022)',
+          data: aiX.map((x, i) => ({ x, y: aiNorm[i] })),
+          borderColor: '#4a90e2',
+          backgroundColor: 'rgba(74,144,226,0.08)',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.3,
+          parsing: false,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: maxX,
+          title: {
+            display: true,
+            text: document.documentElement.classList.contains('ko-mode')
+              ? '저점 이후 경과 연수 (T+years)'
+              : 'Years from trough (T+years)',
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 11 }
+          },
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 10 },
+            callback: v => 'T+' + v.toFixed(1)
+          },
+          grid: { color: 'rgba(128,128,128,0.12)' }
+        },
+        y: {
+          title: {
+            display: true,
+            text: document.documentElement.classList.contains('ko-mode')
+              ? '정규화 지수 (저점=100)'
+              : 'Normalized index (trough=100)',
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 11 }
+          },
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 10 }
+          },
+          grid: { color: 'rgba(128,128,128,0.12)' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => 'T+' + (+items[0].parsed.x).toFixed(2) + ' yrs',
+            label: item => item.dataset.label + ': ' + item.parsed.y.toFixed(1)
+          }
+        }
+      }
+    },
+    plugins: [peakZone, todayLine1]
+  });
+}
+
+function buildChart2(cut2024Prices, cut2024Months) {
+  const c1995 = normalize(CUT1995_PRICES, 0);
+  const c1998 = normalize(CUT1998_PRICES, 0);
+  const c2019 = normalize(CUT2019_PRICES, 0);
+  const c2024 = normalize(cut2024Prices, 0);
+
+  const labels36 = Array.from({ length: 36 }, (_, i) => i);
+  const labels2024 = Array.from({ length: c2024.length }, (_, i) => i);
+
+  const todayMonths = monthsDiff(FED_CUT_DATE, new Date());
+
+  const todayLine2 = {
+    id: 'todayLine2',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!scales.x) return;
+      const tx = scales.x.getPixelForValue(todayMonths);
+      if (tx < chartArea.left || tx > chartArea.right) return;
+      ctx.save();
+      ctx.strokeStyle = '#e74c3c';
+      ctx.setLineDash([5, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(tx, chartArea.top); ctx.lineTo(tx, chartArea.bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#e74c3c';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('TODAY', tx, chartArea.top + 14);
+      ctx.restore();
+    }
+  };
+
+  const windowLines = {
+    id: 'windowLines',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!scales.x) return;
+      [[17, '17m'], [24, '24m']].forEach(([m, lbl]) => {
+        const px = scales.x.getPixelForValue(m);
+        if (px < chartArea.left || px > chartArea.right) return;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,193,7,0.5)';
+        ctx.setLineDash([4, 3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px, chartArea.top); ctx.lineTo(px, chartArea.bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255,193,7,0.8)';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(lbl + ' window', px, chartArea.top + 24);
+        ctx.restore();
+      });
+    }
+  };
+
+  if (chart2) chart2.destroy();
+  chart2 = new Chart(document.getElementById('chart2'), {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: '1995 cycle',
+          data: c1995.map((y, i) => ({ x: i, y })),
+          borderColor: '#f5a623',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          parsing: false
+        },
+        {
+          label: '1998 cycle',
+          data: c1998.map((y, i) => ({ x: i, y })),
+          borderColor: '#9b9b9b',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          parsing: false
+        },
+        {
+          label: '2019 cycle',
+          data: c2019.map((y, i) => ({ x: i, y })),
+          borderColor: '#a29bfe',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          parsing: false
+        },
+        {
+          label: 'AI 2024',
+          data: c2024.map((y, i) => ({ x: i, y })),
+          borderColor: '#4a90e2',
+          backgroundColor: 'rgba(74,144,226,0.08)',
+          borderWidth: 2.5,
+          pointRadius: 3,
+          tension: 0.3,
+          parsing: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'linear',
+          min: 0,
+          max: 36,
+          title: {
+            display: true,
+            text: document.documentElement.classList.contains('ko-mode')
+              ? '첫 금리인하 후 경과 개월'
+              : 'Months since first rate cut',
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 11 }
+          },
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 10 },
+            stepSize: 6
+          },
+          grid: { color: 'rgba(128,128,128,0.12)' }
+        },
+        y: {
+          title: {
+            display: true,
+            text: document.documentElement.classList.contains('ko-mode')
+              ? '정규화 지수 (인하일=100)'
+              : 'Normalized index (cut date=100)',
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 11 }
+          },
+          ticks: {
+            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
+            font: { size: 10 }
+          },
+          grid: { color: 'rgba(128,128,128,0.12)' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => 'Month ' + items[0].parsed.x,
+            label: item => item.dataset.label + ': ' + item.parsed.y.toFixed(1)
+          }
+        }
+      }
+    },
+    plugins: [windowLines, todayLine2]
+  });
+}
+
+function updateSummaryCards(latestPrice, latestDateStr) {
+  const now = new Date();
+  const tYears = yearsDiff(AI_TROUGH_DATE, now);
+  const months = monthsDiff(FED_CUT_DATE, now);
+  const monthsToSep26 = monthsDiff(now, new Date('2026-09-01'));
+
+  document.getElementById('stat-tyears').textContent = 'T+' + tYears.toFixed(2);
+  document.getElementById('stat-months').textContent = months + 'm';
+  document.getElementById('stat-price').textContent = latestPrice ? latestPrice.toLocaleString() : '—';
+  document.getElementById('stat-price-sub').textContent = latestDateStr || '';
+}
+
+function toggleScenario(key) {
+  if (!chart1) return;
+  scenarioActive[key] = !scenarioActive[key];
+  const btn = document.getElementById('btn-' + key);
+  const colors = { central: '#4a90e2', bull: '#27ae60', bear: '#e74c3c' };
+  const labelsEn = { central: 'Central (Dec\'26→6800)', bull: 'Bull (Aug\'27→10500)', bear: 'Bear (Q1\'27→7200)' };
+  const labelsKo = { central: '중립 (2026.12→6800)', bull: '강세 (2027.08→10500)', bear: '약세 (2027Q1→7200)' };
+
+  if (scenarioActive[key]) {
+    btn.classList.add('active-' + key);
+    const ds = getScenarioDataset(key, colors[key], labelsEn[key], labelsKo[key]);
+    chart1.data.datasets.push(ds);
+    chart1.update();
+  } else {
+    btn.classList.remove('active-' + key);
+    const lbl = document.documentElement.classList.contains('ko-mode') ? labelsKo[key] : labelsEn[key];
+    chart1.data.datasets = chart1.data.datasets.filter(d => d.label !== lbl);
+    chart1.update();
+  }
+}
+
+// ─── Main: fetch CSV and render ───────────────────────────────────────────
+
+async function loadAndRender() {
+  const csvUrl = '/finance/assets/data/sp500_monthly.csv';
+  let aiPrices = [];
+  let aiMonths = 0;
+  let latestPrice = null;
+  let latestDateStr = null;
+  let cut2024Prices = [];
+
+  try {
+    const resp = await fetch(csvUrl);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    const lines = text.trim().split('\n').slice(1); // skip header
+
+    const AI_TROUGH_YYYYMM = '2022-10';
+    const FED_CUT_YYYYMM = '2024-09';
+
+    for (const line of lines) {
+      const [dateStr, priceStr] = line.split(',');
+      if (!dateStr || !priceStr) continue;
+      const price = parseFloat(priceStr);
+      if (isNaN(price)) continue;
+
+      // AI cycle: from Oct 2022 onwards
+      if (dateStr >= AI_TROUGH_YYYYMM) {
+        aiPrices.push(price);
+        latestPrice = price;
+        latestDateStr = dateStr;
+      }
+
+      // 2024 cut cycle: from Sep 2024 onwards
+      if (dateStr >= FED_CUT_YYYYMM) {
+        cut2024Prices.push(price);
+      }
+    }
+
+    document.getElementById('loadStatus').textContent = '';
+  } catch (err) {
+    document.getElementById('loadStatus').textContent =
+      'Data load error — using cached position. (' + err.message + ')';
+    // Fallback: use a single point at 100 for AI cycle
+    aiPrices = [AI_TROUGH_PRICE, 5792]; // Oct 2022, Oct 2024
+    cut2024Prices = [5677, 5792]; // Sep 2024, Oct 2024
+    latestPrice = 5792;
+    latestDateStr = '2024-10';
+  }
+
+  if (aiPrices.length < 2) {
+    aiPrices = [AI_TROUGH_PRICE];
+  }
+  if (cut2024Prices.length < 1) {
+    cut2024Prices = [5677.30];
+  }
+
+  updateSummaryCards(latestPrice, latestDateStr);
+  buildChart1(aiPrices, aiPrices.length);
+  buildChart2(cut2024Prices, cut2024Prices.length);
+}
+
+document.addEventListener('DOMContentLoaded', loadAndRender);
+
+})();
+</script>
