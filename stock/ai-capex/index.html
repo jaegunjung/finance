@@ -384,22 +384,6 @@ const CUT2019_PRICES = [
   14239, 13987, 14261, 12685, 11834, 11028
 ];
 
-// Forecast scenarios from the blog post (normalized to 3577 trough later)
-// Raw S&P 500 price targets by date
-const SCENARIOS = {
-  central: [
-    { date: '2026-12', price: 6800 },
-    { date: '2027-06', price: 8000 },
-    { date: '2027-10', price: 9200 }
-  ],
-  bull: [
-    { date: '2027-08', price: 10500 }
-  ],
-  bear: [
-    { date: '2027-03', price: 7200 }
-  ]
-};
-
 // Scenarios: normalized using S&P 500 Oct 2022 trough = 3577 as base
 // (y values are directly comparable regardless of which index the AI line uses)
 const SP500_TROUGH = 3577;
