@@ -55,9 +55,49 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
   height: 360px;
 }
 
-@media (max-width: 600px) {
+/* Chart 1: side-by-side reference image + interactive chart */
+.chart1-layout {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  height: 360px;
+}
+.ref-img-panel {
+  flex: 0 0 42%;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #000;
+}
+.ref-img-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+  display: block;
+  opacity: 0.9;
+}
+.ref-img-label {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  font-size: 0.65rem;
+  color: rgba(255,255,255,0.75);
+  background: rgba(0,0,0,0.55);
+  padding: 1px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+@media (max-width: 680px) {
+  .chart1-layout { flex-direction: column; height: auto; }
+  .ref-img-panel { flex: 0 0 200px; width: 100%; }
   .chart-wrap { height: 260px; }
   .capex-title { font-size: 1.15rem; }
+}
+@media (min-width: 681px) {
+  .chart-wrap { height: 360px; }
 }
 
 .legend-row {
@@ -200,13 +240,13 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
     </div>
     <div class="summary-card">
       <p class="summary-label">
-        <span class="en-only">Months since Fed cut (Sep 2024)</span>
-        <span class="ko-only">Fed 금리인하 후 경과 개월 (2024.09)</span>
+        <span class="en-only">Months since last Fed cut (Jan 2026)</span>
+        <span class="ko-only">마지막 금리인하 후 경과 개월 (2026.01)</span>
       </p>
       <div class="summary-value" id="stat-months">—</div>
       <p class="summary-sub" id="stat-months-sub">
-        <span class="en-only">24m window closes Sep 2026</span>
-        <span class="ko-only">24개월 윈도우 마감: 2026.09</span>
+        <span class="en-only">Hist. peak window: ~17–24m after last cut</span>
+        <span class="ko-only">역사적 고점 구간: 마지막 인하 후 17–24개월</span>
       </p>
     </div>
     <div class="summary-card">
@@ -257,8 +297,18 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
       </button>
     </div>
 
-    <div class="chart-wrap">
-      <canvas id="chart1"></canvas>
+    <div class="chart1-layout">
+      <!-- Left: Shinhan original chart (right half shown) -->
+      <div class="ref-img-panel" id="refImgPanel1">
+        <img src="{{ '/assets/images/shinhan_bubble_cycle_comparison.PNG' | relative_url }}"
+             alt="신한증권 버블 사이클 참조 (2025.08.19)"
+             onerror="document.getElementById('refImgPanel1').style.display='none'">
+        <div class="ref-img-label">신한투자증권 2025-08-19 원본</div>
+      </div>
+      <!-- Right: interactive chart -->
+      <div class="chart-wrap" style="flex:1; height:auto;">
+        <canvas id="chart1"></canvas>
+      </div>
     </div>
     <div class="legend-row">
       <span><span class="legend-dot" style="background:#f5a623;"></span>
@@ -287,28 +337,28 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
       <span class="ko-only">차트 2 — 금리인하 후 랠리 시계 (Fed clock)</span>
     </h2>
     <p class="chart-desc">
-      <span class="en-only">Normalized to 100 at first cut of each cycle. Vertical lines at 17m and 24m mark historical rally windows.</span>
-      <span class="ko-only">각 사이클 첫 금리인하 시점 = 100으로 정규화. 17개월·24개월 수직선은 역사적 랠리 윈도우.</span>
+      <span class="en-only">Normalized to 100 at the <strong>last</strong> rate cut of each cycle. Vertical lines = 17m &amp; 24m historical peak windows. TODAY ≈ month 6 (Jan 2026 last cut).</span>
+      <span class="ko-only">각 사이클 <strong>마지막</strong> 금리인하 시점 = 100으로 정규화. 수직선 = 17·24개월 역사적 고점 윈도우. 현재 ≈ 6개월 (2026.01 마지막 인하 기준).</span>
     </p>
     <div class="chart-wrap">
       <canvas id="chart2"></canvas>
     </div>
     <div class="legend-row">
       <span><span class="legend-dot" style="background:#f5a623;"></span>
-        <span class="en-only">1995 · NASDAQ (Jul 1995 cut)</span>
-        <span class="ko-only">1995 · 나스닥 (1995.07 인하)</span>
+        <span class="en-only">1996.01 last cut · NASDAQ (→ tech rally)</span>
+        <span class="ko-only">1996.01 마지막 인하 · 나스닥 (→ 기술주 랠리)</span>
       </span>
       <span><span class="legend-dot" style="background:#9b9b9b;"></span>
-        <span class="en-only">1998 · NASDAQ (Sep 1998 cut → dot-com crash)</span>
-        <span class="ko-only">1998 · 나스닥 (1998.09 인하 → 닷컴 붕괴)</span>
+        <span class="en-only">1998.11 last cut · NASDAQ (→ dot-com peak &amp; crash)</span>
+        <span class="ko-only">1998.11 마지막 인하 · 나스닥 (→ 닷컴 고점 후 붕괴)</span>
       </span>
       <span><span class="legend-dot" style="background:#a29bfe;"></span>
-        <span class="en-only">2019 · NASDAQ (Jul 2019 cut → COVID → rally)</span>
-        <span class="ko-only">2019 · 나스닥 (2019.07 인하 → COVID → 급등)</span>
+        <span class="en-only">2020.03 last cut · NASDAQ (COVID bottom → rally)</span>
+        <span class="ko-only">2020.03 마지막 인하 · 나스닥 (COVID 저점 → 급등)</span>
       </span>
       <span><span class="legend-dot" style="background:#4a90e2;"></span>
-        <span class="en-only">AI 2024 · S&amp;P 500 (Sep 2024 cut)</span>
-        <span class="ko-only">AI 2024 · S&amp;P 500 (2024.09 인하)</span>
+        <span class="en-only">AI 2026.01 last cut · VFIAX</span>
+        <span class="ko-only">AI 2026.01 마지막 인하 · VFIAX</span>
       </span>
     </div>
   </div>
@@ -359,29 +409,31 @@ const FANG_PRICES = [
   11621, 11455, 12221, 12139, 12964, 13787                                    // 2023 Jan-Jun
 ];
 
-// Rate-cut cycles (NASDAQ Composite, cut month = index 0, 36 months each)
-// 1995: NASDAQ Jul 1995 → Jun 1998
-const CUT1995_PRICES = [
-  930, 995, 1018, 1039, 1059, 1052,
-  1052, 1100, 1101, 1190, 1243, 1186, 1081, 1144, 1237, 1222, 1296, 1291,
-  1380, 1310, 1222, 1261, 1400, 1441, 1594, 1588, 1687, 1593, 1601, 1570,
-  1619, 1771, 1836, 1869, 1779, 1894
+// Chart 2: "마지막 금리인하" 기준 (last rate cut of each cycle = x=0)
+// Each array starts at the LAST cut of that cycle, runs 30 months forward.
+
+// 1996.01 last cut: NASDAQ Jan 1996 → Jun 1998 (30 months)
+const LASTCUT_1996_PRICES = [
+  1052, 1100, 1101, 1190, 1243, 1186, 1081, 1144, 1237, 1222, 1296, 1291,  // 1996
+  1380, 1310, 1222, 1261, 1400, 1441, 1594, 1588, 1687, 1593, 1601, 1570,  // 1997
+  1619, 1771, 1836, 1869, 1779, 1894                                         // 1998 Jan-Jun
 ];
 
-// 1998: NASDAQ Sep 1998 → Aug 2001 (massive rally then dot-com crash)
-const CUT1998_PRICES = [
-  1694, 1771, 1950, 2193,
-  2506, 2285, 2461, 2543, 2471, 2686, 2638, 2739, 2746, 2966, 3336, 4070,
-  3940, 4697, 4573, 3861, 3401, 3966, 3767, 4207, 3672, 3370, 2597, 2471,
-  2773, 2152, 1841, 2116, 2110, 2160, 2028, 1864
+// 1998.11 last cut: NASDAQ Nov 1998 → Apr 2001 (30 months)
+// Dot-com mania then crash
+const LASTCUT_1998_PRICES = [
+  1950, 2193,                                                                  // 1998 Nov-Dec
+  2506, 2285, 2461, 2543, 2471, 2686, 2638, 2739, 2746, 2966, 3336, 4070,   // 1999
+  3940, 4697, 4573, 3861, 3401, 3966, 3767, 4207, 3672, 3370, 2597, 2471,   // 2000
+  2773, 2152, 1841, 2116                                                       // 2001 Jan-Apr
 ];
 
-// 2019: NASDAQ Jul 2019 → Jun 2022 (COVID crash → massive tech rally → 2022 selloff)
-const CUT2019_PRICES = [
-  8175, 7962, 7999, 8292, 8665, 9021,
-  9258, 8567, 7361, 8889, 9491, 9874, 10745, 11775, 11167, 10912, 12198, 12888,
-  13271, 13192, 13247, 13717, 13791, 14505, 14672, 15260, 14449, 15498, 15982, 15645,
-  14239, 13987, 14261, 12685, 11834, 11028
+// 2020.03 last cut: NASDAQ Mar 2020 → Aug 2022 (30 months)
+// COVID bottom → massive tech rally → 2022 selloff
+const LASTCUT_2020_PRICES = [
+  7361, 8889, 9491, 9874, 10745, 11775, 11167, 10912, 12198, 12888,          // 2020 Mar-Dec
+  13271, 13192, 13247, 13717, 13791, 14505, 14672, 15260, 14449, 15498, 15982, 15645, // 2021
+  14239, 13987, 14261, 12685, 11834, 11028, 11777, 11816                     // 2022 Jan-Aug
 ];
 
 // Scenarios: normalized using S&P 500 Oct 2022 trough = 3577 as base
@@ -404,8 +456,9 @@ const SCENARIOS = {
 // Set dynamically after CSV load
 let AI_TROUGH_DATE = new Date('2022-10-12');
 let AI_TROUGH_PRICE = 327.31; // VFIAX adj close on 2022-10-12
-let FED_CUT_DATE = new Date('2024-09-18');
-let FED_CUT_PRICE = null;
+// Chart 2 uses the LAST rate cut of the current cycle (Jan 2026)
+let FED_LAST_CUT_DATE = new Date('2026-01-29'); // Jan 29, 2026 FOMC
+let FED_LAST_CUT_PRICE = null;
 
 function fmtDate(d) {
   return d.getFullYear() + '.' +
@@ -432,9 +485,9 @@ function xToAIDate(x) {
   const d = new Date(AI_TROUGH_DATE.getTime() + x * 365.25 * 24 * 3600 * 1000);
   return fmtYM(d);
 }
-// month index → calendar date string for Fed cycle
+// month index → calendar date string for Fed cycle (from last cut)
 function mToFedDate(m) {
-  const d = new Date(FED_CUT_DATE.getTime() + m * 30.4375 * 24 * 3600 * 1000);
+  const d = new Date(FED_LAST_CUT_DATE.getTime() + m * 30.4375 * 24 * 3600 * 1000);
   return fmtYM(d);
 }
 
@@ -586,15 +639,17 @@ function buildChart1(aiData) {
           grid: { color: 'rgba(128,128,128,0.12)' }
         },
         y: {
+          type: 'logarithmic',
           title: {
             display: true,
-            text: document.documentElement.classList.contains('ko-mode') ? '정규화 지수 (저점=100)' : 'Normalized index (trough=100)',
+            text: document.documentElement.classList.contains('ko-mode') ? '정규화 지수 로그스케일 (저점=100)' : 'Normalized index log scale (trough=100)',
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
             font: { size: 11 }
           },
           ticks: {
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
-            font: { size: 10 }
+            font: { size: 10 },
+            callback: v => Number.isInteger(Math.log10(v)) ? v : ''
           },
           grid: { color: 'rgba(128,128,128,0.12)' }
         }
@@ -619,16 +674,16 @@ function buildChart1(aiData) {
   });
 }
 
-function buildChart2(cut2024Monthly) {
-  // cut2024Monthly: [{x:month_index, y:price}, ...] resampled to months
-  const c1995 = normalize(CUT1995_PRICES, 0);
-  const c1998 = normalize(CUT1998_PRICES, 0);
-  const c2019 = normalize(CUT2019_PRICES, 0);
-  const cut24Base = cut2024Monthly[0].y;
-  const c2024 = cut2024Monthly.map(p => ({ x: p.x, y: +(p.y / cut24Base * 100).toFixed(2) }));
+function buildChart2(lastCutMonthly) {
+  // lastCutMonthly: [{x:month_index, y:price}, ...] VFIAX resampled from Jan 2026
+  const c1996 = normalize(LASTCUT_1996_PRICES, 0);
+  const c1998 = normalize(LASTCUT_1998_PRICES, 0);
+  const c2020 = normalize(LASTCUT_2020_PRICES, 0);
+  const cutBase = lastCutMonthly[0] ? lastCutMonthly[0].y : 1;
+  const cAI = lastCutMonthly.map(p => ({ x: p.x, y: +(p.y / cutBase * 100).toFixed(2) }));
 
   const today = new Date();
-  const todayM = yearsDiff(FED_CUT_DATE, today) * 12;
+  const todayM = yearsDiff(FED_LAST_CUT_DATE, today) * 12;
   const todayStr = fmtDate(today);
 
   const todayLine2 = {
@@ -682,10 +737,10 @@ function buildChart2(cut2024Monthly) {
     type: 'line',
     data: {
       datasets: [
-        { label: '1995 · NASDAQ', data: c1995.map((y, i) => ({ x: i, y })), borderColor: '#f5a623', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
-        { label: '1998 · NASDAQ', data: c1998.map((y, i) => ({ x: i, y })), borderColor: '#9b9b9b', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
-        { label: '2019 · NASDAQ', data: c2019.map((y, i) => ({ x: i, y })), borderColor: '#a29bfe', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
-        { label: 'AI 2024 · VFIAX', data: c2024, borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.06)', borderWidth: 2.5, pointRadius: 0, tension: 0.2, parsing: false }
+        { label: '1996.01 last cut · NASDAQ', data: c1996.map((y, i) => ({ x: i, y })), borderColor: '#f5a623', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
+        { label: '1998.11 last cut · NASDAQ', data: c1998.map((y, i) => ({ x: i, y })), borderColor: '#9b9b9b', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
+        { label: '2020.03 last cut · NASDAQ', data: c2020.map((y, i) => ({ x: i, y })), borderColor: '#a29bfe', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
+        { label: 'AI 2026.01 last cut · VFIAX', data: cAI, borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.06)', borderWidth: 2.5, pointRadius: 0, tension: 0.2, parsing: false }
       ]
     },
     options: {
@@ -694,10 +749,10 @@ function buildChart2(cut2024Monthly) {
       interaction: { mode: 'index', intersect: false },
       scales: {
         x: {
-          type: 'linear', min: 0, max: 36,
+          type: 'linear', min: 0, max: 30,
           title: {
             display: true,
-            text: document.documentElement.classList.contains('ko-mode') ? '첫 금리인하 후 경과 개월' : 'Months since first rate cut',
+            text: document.documentElement.classList.contains('ko-mode') ? '마지막 금리인하 후 경과 개월' : 'Months since last rate cut',
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
             font: { size: 11 }
           },
@@ -735,7 +790,7 @@ function buildChart2(cut2024Monthly) {
 function updateSummaryCards(latestPrice, latestDate) {
   const now = new Date();
   const tYears = yearsDiff(AI_TROUGH_DATE, now);
-  const months = Math.round(yearsDiff(FED_CUT_DATE, now) * 12);
+  const months = Math.round(yearsDiff(FED_LAST_CUT_DATE, now) * 12);
 
   // Peak prediction: T+5 midpoint = AI_TROUGH_DATE + 5 years
   const peakMidDate = new Date(AI_TROUGH_DATE.getTime() + 5 * 365.25 * 24 * 3600 * 1000);
@@ -820,16 +875,16 @@ async function loadAndRender() {
     AI_TROUGH_PRICE = t.price;
   }
 
-  // Find Fed cut date price (Sep 18, 2024 or nearest trading day after)
-  const cutTarget = new Date('2024-09-18');
-  const cutRow = allRows.filter(r => r.date >= cutTarget).sort((a, b) => a.date - b.date)[0];
-  if (cutRow) { FED_CUT_DATE = cutRow.date; FED_CUT_PRICE = cutRow.price; }
+  // Find last Fed cut date price (Jan 29, 2026 or nearest trading day)
+  const lastCutTarget = new Date('2026-01-29');
+  const lastCutRow = allRows.filter(r => r.date >= lastCutTarget).sort((a, b) => a.date - b.date)[0];
+  if (lastCutRow) { FED_LAST_CUT_DATE = lastCutRow.date; FED_LAST_CUT_PRICE = lastCutRow.price; }
 
-  // AI cycle data: from trough onwards
+  // AI cycle data: from trough onwards (for Chart 1)
   const aiData = allRows.filter(r => r.date >= AI_TROUGH_DATE);
 
-  // Chart 2: resample 2024 cut cycle to monthly last-day values
-  const cutData = allRows.filter(r => r.date >= FED_CUT_DATE);
+  // Chart 2: resample VFIAX from last cut (Jan 2026) to monthly last-day values
+  const cutData = allRows.filter(r => r.date >= FED_LAST_CUT_DATE);
   const cut2024Monthly = [];
   let lastMonth = -1;
   let monthIdx = 0;
@@ -854,7 +909,7 @@ async function loadAndRender() {
     console.error('buildChart1:', e);
   }
   try {
-    buildChart2(cut2024Monthly.length ? cut2024Monthly : [{ x: 0, y: FED_CUT_PRICE || 500 }]);
+    buildChart2(cut2024Monthly.length ? cut2024Monthly : [{ x: 0, y: FED_LAST_CUT_PRICE || 500 }]);
   } catch(e) {
     document.getElementById('loadStatus').textContent = 'Chart 2 error: ' + e.message;
     console.error('buildChart2:', e);
