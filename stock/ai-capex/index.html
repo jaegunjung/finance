@@ -211,11 +211,19 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
     </div>
     <div class="summary-card">
       <p class="summary-label">
-        <span class="en-only">Latest S&amp;P 500 (monthly)</span>
-        <span class="ko-only">최신 S&amp;P 500 (월간)</span>
+        <span class="en-only">Latest VFIAX (adj close)</span>
+        <span class="ko-only">최신 VFIAX (수정 종가)</span>
       </p>
       <div class="summary-value" id="stat-price">—</div>
       <p class="summary-sub" id="stat-price-sub">—</p>
+    </div>
+    <div class="summary-card" id="stat-peak" style="border-left: 3px solid #f5a623;">
+      <p class="summary-label">
+        <span class="en-only">Predicted peak window (T+4.5–5.5)</span>
+        <span class="ko-only">예상 고점 구간 (T+4.5–5.5년)</span>
+      </p>
+      <div class="summary-value" style="font-size:1rem;">—</div>
+      <p class="summary-sub">—</p>
     </div>
   </div>
 
@@ -391,34 +399,58 @@ const SCENARIOS = {
   ]
 };
 
-const AI_TROUGH_DATE = new Date('2022-10-01');
-const AI_TROUGH_PRICE = 3577.00;
-const FED_CUT_DATE = new Date('2024-09-01');
+// Scenarios: normalized using S&P 500 Oct 2022 trough = 3577 as base
+// (y values are directly comparable regardless of which index the AI line uses)
+const SP500_TROUGH = 3577;
+const SCENARIOS = {
+  central: [
+    { date: '2026-12', normY: 6800 / SP500_TROUGH * 100 },
+    { date: '2027-06', normY: 8000 / SP500_TROUGH * 100 },
+    { date: '2027-10', normY: 9200 / SP500_TROUGH * 100 }
+  ],
+  bull: [
+    { date: '2027-08', normY: 10500 / SP500_TROUGH * 100 }
+  ],
+  bear: [
+    { date: '2027-03', normY: 7200 / SP500_TROUGH * 100 }
+  ]
+};
 
+// Set dynamically after CSV load
+let AI_TROUGH_DATE = new Date('2022-10-12');
+let AI_TROUGH_PRICE = 327.31; // VFIAX adj close on 2022-10-12
+let FED_CUT_DATE = new Date('2024-09-18');
+let FED_CUT_PRICE = null;
+
+function fmtDate(d) {
+  return d.getFullYear() + '.' +
+    String(d.getMonth() + 1).padStart(2, '0') + '.' +
+    String(d.getDate()).padStart(2, '0');
+}
+function fmtYM(d) {
+  return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function yearsDiff(a, b) { return (b - a) / (365.25 * 24 * 3600 * 1000); }
 function monthsDiff(a, b) {
   return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
 }
-
-function yearsDiff(a, b) {
-  return (b - a) / (365.25 * 24 * 3600 * 1000);
-}
-
 function normalize(prices, baseIdx) {
   const base = prices[baseIdx];
   return prices.map(p => +(p / base * 100).toFixed(2));
 }
-
-// Generate x-axis labels in fractional years
 function tYearsLabels(n) {
-  return Array.from({ length: n }, (_, i) => +(i / 12).toFixed(3));
+  return Array.from({ length: n }, (_, i) => +(i / 12).toFixed(4));
 }
 
-// Scenario helpers
-function scenarioToChart1Point(s) {
-  const d = new Date(s.date + '-01');
-  const x = yearsDiff(AI_TROUGH_DATE, d);
-  const y = s.price / AI_TROUGH_PRICE * 100;
-  return { x: +x.toFixed(3), y: +y.toFixed(2) };
+// x-value → calendar date string for AI cycle
+function xToAIDate(x) {
+  const d = new Date(AI_TROUGH_DATE.getTime() + x * 365.25 * 24 * 3600 * 1000);
+  return fmtYM(d);
+}
+// month index → calendar date string for Fed cycle
+function mToFedDate(m) {
+  const d = new Date(FED_CUT_DATE.getTime() + m * 30.4375 * 24 * 3600 * 1000);
+  return fmtYM(d);
 }
 
 // ─── Render charts ─────────────────────────────────────────────────────────
@@ -427,25 +459,14 @@ let chart1 = null;
 let chart2 = null;
 const scenarioActive = { central: false, bull: false, bear: false };
 
-// Chart 1 scenarios datasets
-const scenarioDatasets = {
-  central: null,
-  bull: null,
-  bear: null
-};
-
 function getScenarioDataset(key, color, labelEn, labelKo) {
-  const pts = SCENARIOS[key];
-  const now = new Date();
-  const todayX = yearsDiff(AI_TROUGH_DATE, now);
-  const todayNorm = 100; // placeholder: we use the last known AI price
-
-  // Build path from "today" point to scenario targets
-  const data = pts.map(s => scenarioToChart1Point(s));
-
+  const data = SCENARIOS[key].map(s => {
+    const d = new Date(s.date + '-01');
+    return { x: +yearsDiff(AI_TROUGH_DATE, d).toFixed(4), y: +s.normY.toFixed(2) };
+  });
   return {
     label: document.documentElement.classList.contains('ko-mode') ? labelKo : labelEn,
-    data: data,
+    data,
     borderColor: color,
     backgroundColor: 'transparent',
     borderDash: [6, 3],
@@ -456,20 +477,23 @@ function getScenarioDataset(key, color, labelEn, labelKo) {
   };
 }
 
-function buildChart1(aiPrices, aiMonths) {
-  // Normalize series
-  const dotcomNorm = normalize(DOTCOM_PRICES, 0);
-  const fangNorm = normalize(FANG_PRICES, 0);
-  const aiNorm = normalize(aiPrices, 0);
+function buildChart1(aiData) {
+  // aiData: [{date: Date, price: number}, ...]  (VFIAX daily, from trough)
+  const aiBase = aiData[0].price;
+  const aiPts = aiData.map(d => ({
+    x: +yearsDiff(AI_TROUGH_DATE, d.date).toFixed(4),
+    y: +(d.price / aiBase * 100).toFixed(2)
+  }));
 
-  const dotcomX = tYearsLabels(dotcomNorm.length);
-  const fangX = tYearsLabels(fangNorm.length);
-  const aiX = tYearsLabels(aiNorm.length);
+  const dotcomBase = DOTCOM_PRICES[0];
+  const fangBase = FANG_PRICES[0];
+  const dotcomPts = tYearsLabels(DOTCOM_PRICES.length).map((x, i) => ({ x, y: +(DOTCOM_PRICES[i] / dotcomBase * 100).toFixed(2) }));
+  const fangPts   = tYearsLabels(FANG_PRICES.length).map((x, i) => ({ x, y: +(FANG_PRICES[i] / fangBase * 100).toFixed(2) }));
 
-  const todayX = yearsDiff(AI_TROUGH_DATE, new Date());
-  const maxX = 7.5;
+  const today = new Date();
+  const todayX = yearsDiff(AI_TROUGH_DATE, today);
+  const todayStr = fmtDate(today);
 
-  // Peak zone fill plugin
   const peakZone = {
     id: 'peakZone',
     beforeDraw(chart) {
@@ -486,16 +510,14 @@ function buildChart1(aiPrices, aiMonths) {
       ctx.beginPath(); ctx.moveTo(x1, chartArea.top); ctx.lineTo(x1, chartArea.bottom); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x2, chartArea.top); ctx.lineTo(x2, chartArea.bottom); ctx.stroke();
       ctx.setLineDash([]);
-      // Label
       ctx.fillStyle = 'rgba(255,193,7,0.7)';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Peak Zone', (x1+x2)/2, chartArea.top + 12);
+      ctx.fillText('Peak Zone · 고점 구간', (x1 + x2) / 2, chartArea.top + 12);
       ctx.restore();
     }
   };
 
-  // TODAY line plugin
   const todayLine1 = {
     id: 'todayLine1',
     afterDraw(chart) {
@@ -512,7 +534,9 @@ function buildChart1(aiPrices, aiMonths) {
       ctx.fillStyle = '#e74c3c';
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('TODAY', tx, chartArea.top + 14);
+      ctx.fillText('TODAY', tx, chartArea.top + 12);
+      ctx.font = '9px sans-serif';
+      ctx.fillText(todayStr, tx, chartArea.top + 24);
       ctx.restore();
     }
   };
@@ -523,8 +547,8 @@ function buildChart1(aiPrices, aiMonths) {
     data: {
       datasets: [
         {
-          label: 'Dot-com (1994)',
-          data: dotcomX.map((x, i) => ({ x, y: dotcomNorm[i] })),
+          label: 'Dot-com · NASDAQ (1995)',
+          data: dotcomPts,
           borderColor: '#f5a623',
           backgroundColor: 'transparent',
           borderWidth: 2,
@@ -533,8 +557,8 @@ function buildChart1(aiPrices, aiMonths) {
           parsing: false
         },
         {
-          label: 'FANG (2009)',
-          data: fangX.map((x, i) => ({ x, y: fangNorm[i] })),
+          label: 'FANG · NASDAQ (2016)',
+          data: fangPts,
           borderColor: '#9b9b9b',
           backgroundColor: 'transparent',
           borderWidth: 2,
@@ -543,15 +567,14 @@ function buildChart1(aiPrices, aiMonths) {
           parsing: false
         },
         {
-          label: 'AI cycle (2022)',
-          data: aiX.map((x, i) => ({ x, y: aiNorm[i] })),
+          label: 'AI · VFIAX (2022)',
+          data: aiPts,
           borderColor: '#4a90e2',
-          backgroundColor: 'rgba(74,144,226,0.08)',
+          backgroundColor: 'rgba(74,144,226,0.06)',
           borderWidth: 2.5,
           pointRadius: 0,
-          tension: 0.3,
-          parsing: false,
-          fill: false
+          tension: 0.2,
+          parsing: false
         }
       ]
     },
@@ -563,28 +586,24 @@ function buildChart1(aiPrices, aiMonths) {
         x: {
           type: 'linear',
           min: 0,
-          max: maxX,
+          max: 7.5,
           title: {
             display: true,
-            text: document.documentElement.classList.contains('ko-mode')
-              ? '저점 이후 경과 연수 (T+years)'
-              : 'Years from trough (T+years)',
+            text: document.documentElement.classList.contains('ko-mode') ? '저점 이후 경과 연수 (T+)' : 'Years from trough (T+)',
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
             font: { size: 11 }
           },
           ticks: {
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
             font: { size: 10 },
-            callback: v => 'T+' + v.toFixed(1)
+            callback: v => 'T+' + (+v).toFixed(1)
           },
           grid: { color: 'rgba(128,128,128,0.12)' }
         },
         y: {
           title: {
             display: true,
-            text: document.documentElement.classList.contains('ko-mode')
-              ? '정규화 지수 (저점=100)'
-              : 'Normalized index (trough=100)',
+            text: document.documentElement.classList.contains('ko-mode') ? '정규화 지수 (저점=100)' : 'Normalized index (trough=100)',
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
             font: { size: 11 }
           },
@@ -599,8 +618,14 @@ function buildChart1(aiPrices, aiMonths) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: items => 'T+' + (+items[0].parsed.x).toFixed(2) + ' yrs',
-            label: item => item.dataset.label + ': ' + item.parsed.y.toFixed(1)
+            title(items) {
+              const x = +items[0].parsed.x;
+              const aiDate = xToAIDate(x);
+              return `T+${x.toFixed(2)}yr  ·  AI사이클 ${aiDate}`;
+            },
+            label(item) {
+              return `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`;
+            }
           }
         }
       }
@@ -609,23 +634,24 @@ function buildChart1(aiPrices, aiMonths) {
   });
 }
 
-function buildChart2(cut2024Prices, cut2024Months) {
+function buildChart2(cut2024Monthly) {
+  // cut2024Monthly: [{x:month_index, y:price}, ...] resampled to months
   const c1995 = normalize(CUT1995_PRICES, 0);
   const c1998 = normalize(CUT1998_PRICES, 0);
   const c2019 = normalize(CUT2019_PRICES, 0);
-  const c2024 = normalize(cut2024Prices, 0);
+  const cut24Base = cut2024Monthly[0].y;
+  const c2024 = cut2024Monthly.map(p => ({ x: p.x, y: +(p.y / cut24Base * 100).toFixed(2) }));
 
-  const labels36 = Array.from({ length: 36 }, (_, i) => i);
-  const labels2024 = Array.from({ length: c2024.length }, (_, i) => i);
-
-  const todayMonths = monthsDiff(FED_CUT_DATE, new Date());
+  const today = new Date();
+  const todayM = yearsDiff(FED_CUT_DATE, today) * 12;
+  const todayStr = fmtDate(today);
 
   const todayLine2 = {
     id: 'todayLine2',
     afterDraw(chart) {
       const { ctx, chartArea, scales } = chart;
       if (!scales.x) return;
-      const tx = scales.x.getPixelForValue(todayMonths);
+      const tx = scales.x.getPixelForValue(todayM);
       if (tx < chartArea.left || tx > chartArea.right) return;
       ctx.save();
       ctx.strokeStyle = '#e74c3c';
@@ -636,7 +662,9 @@ function buildChart2(cut2024Prices, cut2024Months) {
       ctx.fillStyle = '#e74c3c';
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('TODAY', tx, chartArea.top + 14);
+      ctx.fillText('TODAY', tx, chartArea.top + 12);
+      ctx.font = '9px sans-serif';
+      ctx.fillText(todayStr, tx, chartArea.top + 24);
       ctx.restore();
     }
   };
@@ -669,46 +697,10 @@ function buildChart2(cut2024Prices, cut2024Months) {
     type: 'line',
     data: {
       datasets: [
-        {
-          label: '1995 cycle',
-          data: c1995.map((y, i) => ({ x: i, y })),
-          borderColor: '#f5a623',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          parsing: false
-        },
-        {
-          label: '1998 cycle',
-          data: c1998.map((y, i) => ({ x: i, y })),
-          borderColor: '#9b9b9b',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          parsing: false
-        },
-        {
-          label: '2019 cycle',
-          data: c2019.map((y, i) => ({ x: i, y })),
-          borderColor: '#a29bfe',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          parsing: false
-        },
-        {
-          label: 'AI 2024',
-          data: c2024.map((y, i) => ({ x: i, y })),
-          borderColor: '#4a90e2',
-          backgroundColor: 'rgba(74,144,226,0.08)',
-          borderWidth: 2.5,
-          pointRadius: 3,
-          tension: 0.3,
-          parsing: false
-        }
+        { label: '1995 · NASDAQ', data: c1995.map((y, i) => ({ x: i, y })), borderColor: '#f5a623', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
+        { label: '1998 · NASDAQ', data: c1998.map((y, i) => ({ x: i, y })), borderColor: '#9b9b9b', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
+        { label: '2019 · NASDAQ', data: c2019.map((y, i) => ({ x: i, y })), borderColor: '#a29bfe', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
+        { label: 'AI 2024 · VFIAX', data: c2024, borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.06)', borderWidth: 2.5, pointRadius: 0, tension: 0.2, parsing: false }
       ]
     },
     options: {
@@ -717,37 +709,24 @@ function buildChart2(cut2024Prices, cut2024Months) {
       interaction: { mode: 'index', intersect: false },
       scales: {
         x: {
-          type: 'linear',
-          min: 0,
-          max: 36,
+          type: 'linear', min: 0, max: 36,
           title: {
             display: true,
-            text: document.documentElement.classList.contains('ko-mode')
-              ? '첫 금리인하 후 경과 개월'
-              : 'Months since first rate cut',
+            text: document.documentElement.classList.contains('ko-mode') ? '첫 금리인하 후 경과 개월' : 'Months since first rate cut',
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
             font: { size: 11 }
           },
-          ticks: {
-            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
-            font: { size: 10 },
-            stepSize: 6
-          },
+          ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888', font: { size: 10 }, stepSize: 6 },
           grid: { color: 'rgba(128,128,128,0.12)' }
         },
         y: {
           title: {
             display: true,
-            text: document.documentElement.classList.contains('ko-mode')
-              ? '정규화 지수 (인하일=100)'
-              : 'Normalized index (cut date=100)',
+            text: document.documentElement.classList.contains('ko-mode') ? '정규화 지수 (인하일=100)' : 'Normalized index (cut date=100)',
             color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
             font: { size: 11 }
           },
-          ticks: {
-            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888',
-            font: { size: 10 }
-          },
+          ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#888', font: { size: 10 } },
           grid: { color: 'rgba(128,128,128,0.12)' }
         }
       },
@@ -755,8 +734,11 @@ function buildChart2(cut2024Prices, cut2024Months) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: items => 'Month ' + items[0].parsed.x,
-            label: item => item.dataset.label + ': ' + item.parsed.y.toFixed(1)
+            title(items) {
+              const m = +items[0].parsed.x;
+              return `Month ${Math.round(m)}  ·  AI사이클 ${mToFedDate(m)}`;
+            },
+            label: item => `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`
           }
         }
       }
@@ -765,30 +747,45 @@ function buildChart2(cut2024Prices, cut2024Months) {
   });
 }
 
-function updateSummaryCards(latestPrice, latestDateStr) {
+function updateSummaryCards(latestPrice, latestDate) {
   const now = new Date();
   const tYears = yearsDiff(AI_TROUGH_DATE, now);
-  const months = monthsDiff(FED_CUT_DATE, now);
-  const monthsToSep26 = monthsDiff(now, new Date('2026-09-01'));
+  const months = Math.round(yearsDiff(FED_CUT_DATE, now) * 12);
+
+  // Peak prediction: T+5 midpoint = AI_TROUGH_DATE + 5 years
+  const peakMidDate = new Date(AI_TROUGH_DATE.getTime() + 5 * 365.25 * 24 * 3600 * 1000);
+  const peakLowDate = new Date(AI_TROUGH_DATE.getTime() + 4.5 * 365.25 * 24 * 3600 * 1000);
+  const peakHighDate = new Date(AI_TROUGH_DATE.getTime() + 5.5 * 365.25 * 24 * 3600 * 1000);
+
+  // FANG analogue ×3.09, Dot-com analogue ×6.7 → use FANG as conservative
+  const peakVFIAX_low  = (AI_TROUGH_PRICE * 2.8).toFixed(0);
+  const peakVFIAX_high = (AI_TROUGH_PRICE * 3.5).toFixed(0);
 
   document.getElementById('stat-tyears').textContent = 'T+' + tYears.toFixed(2);
   document.getElementById('stat-months').textContent = months + 'm';
-  document.getElementById('stat-price').textContent = latestPrice ? latestPrice.toLocaleString() : '—';
-  document.getElementById('stat-price-sub').textContent = latestDateStr || '';
+  document.getElementById('stat-price').textContent = latestPrice ? latestPrice.toFixed(2) : '—';
+  document.getElementById('stat-price-sub').textContent = latestDate ? fmtDate(latestDate) + ' (VFIAX adj)' : '';
+
+  // Peak prediction card
+  const el = document.getElementById('stat-peak');
+  if (el) {
+    el.querySelector('.summary-value').textContent = fmtYM(peakLowDate) + '–' + fmtYM(peakHighDate);
+    el.querySelector('.summary-sub').textContent =
+      `VFIAX ~${peakVFIAX_low}–${peakVFIAX_high}  (FANG~×3.1 / DotCom~×6.7 사이)`;
+  }
 }
 
 function toggleScenario(key) {
   if (!chart1) return;
   scenarioActive[key] = !scenarioActive[key];
   const btn = document.getElementById('btn-' + key);
-  const colors = { central: '#4a90e2', bull: '#27ae60', bear: '#e74c3c' };
-  const labelsEn = { central: 'Central (Dec\'26→6800)', bull: 'Bull (Aug\'27→10500)', bear: 'Bear (Q1\'27→7200)' };
-  const labelsKo = { central: '중립 (2026.12→6800)', bull: '강세 (2027.08→10500)', bear: '약세 (2027Q1→7200)' };
+  const colors   = { central: '#4a90e2', bull: '#27ae60', bear: '#e74c3c' };
+  const labelsEn = { central: "Central (Dec'26→S&P6800)", bull: "Bull (Aug'27→S&P10500)", bear: "Bear (Q1'27→S&P7200)" };
+  const labelsKo = { central: '중립 (2026.12→S&P6800)',  bull: '강세 (2027.08→S&P10500)', bear: '약세 (2027Q1→S&P7200)' };
 
   if (scenarioActive[key]) {
     btn.classList.add('active-' + key);
-    const ds = getScenarioDataset(key, colors[key], labelsEn[key], labelsKo[key]);
-    chart1.data.datasets.push(ds);
+    chart1.data.datasets.push(getScenarioDataset(key, colors[key], labelsEn[key], labelsKo[key]));
     chart1.update();
   } else {
     btn.classList.remove('active-' + key);
@@ -798,65 +795,74 @@ function toggleScenario(key) {
   }
 }
 
-// ─── Main: fetch CSV and render ───────────────────────────────────────────
+// ─── Main: fetch VFIAX daily CSV ──────────────────────────────────────────
 
 async function loadAndRender() {
-  const csvUrl = '/finance/assets/data/sp500_monthly.csv';
-  let aiPrices = [];
-  let aiMonths = 0;
-  let latestPrice = null;
-  let latestDateStr = null;
-  let cut2024Prices = [];
+  const csvUrl = '/finance/assets/data/stocks/VFIAX.csv';
+  let allRows = []; // {date: Date, price: number}
 
   try {
     const resp = await fetch(csvUrl);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
-    const lines = text.trim().split('\n').slice(1); // skip header
-
-    const AI_TROUGH_YYYYMM = '2022-10';
-    const FED_CUT_YYYYMM = '2024-09';
+    const lines = (await resp.text()).trim().split('\n').slice(1);
 
     for (const line of lines) {
-      const [dateStr, priceStr] = line.split(',');
-      if (!dateStr || !priceStr) continue;
-      const price = parseFloat(priceStr);
-      if (isNaN(price)) continue;
-
-      // AI cycle: from Oct 2022 onwards
-      if (dateStr >= AI_TROUGH_YYYYMM) {
-        aiPrices.push(price);
-        latestPrice = price;
-        latestDateStr = dateStr;
-      }
-
-      // 2024 cut cycle: from Sep 2024 onwards
-      if (dateStr >= FED_CUT_YYYYMM) {
-        cut2024Prices.push(price);
-      }
+      const cols = line.split(',');
+      if (cols.length < 4) continue;
+      const date  = new Date(cols[0]);
+      const price = parseFloat(cols[3]); // adj_close_price_usd
+      if (isNaN(date.getTime()) || isNaN(price) || price <= 0) continue;
+      allRows.push({ date, price });
     }
-
     document.getElementById('loadStatus').textContent = '';
   } catch (err) {
-    document.getElementById('loadStatus').textContent =
-      'Data load error — using cached position. (' + err.message + ')';
-    // Fallback: use a single point at 100 for AI cycle
-    aiPrices = [AI_TROUGH_PRICE, 5792]; // Oct 2022, Oct 2024
-    cut2024Prices = [5677, 5792]; // Sep 2024, Oct 2024
-    latestPrice = 5792;
-    latestDateStr = '2024-10';
+    document.getElementById('loadStatus').textContent = 'Data load error: ' + err.message;
+    // Minimal fallback
+    allRows = [
+      { date: new Date('2022-10-12'), price: 327.31 },
+      { date: new Date('2024-10-31'), price: 575.00 },
+      { date: new Date('2026-06-18'), price: 687.36 }
+    ];
   }
 
-  if (aiPrices.length < 2) {
-    aiPrices = [AI_TROUGH_PRICE];
-  }
-  if (cut2024Prices.length < 1) {
-    cut2024Prices = [5677.30];
+  if (allRows.length < 2) return;
+
+  // Find VFIAX trough: min price in Sep–Nov 2022
+  const troughWindow = allRows.filter(r => r.date >= new Date('2022-09-01') && r.date <= new Date('2022-12-01'));
+  if (troughWindow.length) {
+    const t = troughWindow.reduce((m, r) => r.price < m.price ? r : m, troughWindow[0]);
+    AI_TROUGH_DATE  = t.date;
+    AI_TROUGH_PRICE = t.price;
   }
 
-  updateSummaryCards(latestPrice, latestDateStr);
-  buildChart1(aiPrices, aiPrices.length);
-  buildChart2(cut2024Prices, cut2024Prices.length);
+  // Find Fed cut date price (Sep 18, 2024 or nearest trading day after)
+  const cutTarget = new Date('2024-09-18');
+  const cutRow = allRows.filter(r => r.date >= cutTarget).sort((a, b) => a.date - b.date)[0];
+  if (cutRow) { FED_CUT_DATE = cutRow.date; FED_CUT_PRICE = cutRow.price; }
+
+  // AI cycle data: from trough onwards
+  const aiData = allRows.filter(r => r.date >= AI_TROUGH_DATE);
+
+  // Chart 2: resample 2024 cut cycle to monthly last-day values
+  const cutData = allRows.filter(r => r.date >= FED_CUT_DATE);
+  const cut2024Monthly = [];
+  let lastMonth = -1;
+  let monthIdx = 0;
+  let lastPrice = 0;
+  for (const r of cutData) {
+    const m = r.date.getFullYear() * 12 + r.date.getMonth();
+    if (m !== lastMonth) {
+      if (lastMonth !== -1) { cut2024Monthly.push({ x: monthIdx, y: lastPrice }); monthIdx++; }
+      lastMonth = m;
+    }
+    lastPrice = r.price;
+  }
+  if (lastMonth !== -1) cut2024Monthly.push({ x: monthIdx, y: lastPrice });
+
+  const latest = allRows[allRows.length - 1];
+  updateSummaryCards(latest.price, latest.date);
+  buildChart1(aiData);
+  buildChart2(cut2024Monthly.length ? cut2024Monthly : [{ x: 0, y: FED_CUT_PRICE || 500 }]);
 }
 
 document.addEventListener('DOMContentLoaded', loadAndRender);
