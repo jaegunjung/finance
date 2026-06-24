@@ -226,8 +226,8 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
         <span class="en-only">Cycle trough date</span>
         <span class="ko-only">사이클 저점일</span>
       </p>
-      <div class="summary-value">Oct 2022</div>
-      <p class="summary-sub">S&amp;P 500 ≈ 3,577</p>
+      <div class="summary-value">Jan 2023</div>
+      <p class="summary-sub">QQQ ≈ 263 (신한 기준)</p>
     </div>
     <div class="summary-card">
       <p class="summary-label">
@@ -322,8 +322,8 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
         <span class="ko-only">FANG · 나스닥 (2016.07)</span>
       </span>
       <span><span class="legend-dot" style="background:#4a90e2;"></span>
-        <span class="en-only">AI cycle · S&amp;P 500 (Oct 2022)</span>
-        <span class="ko-only">AI 사이클 · S&amp;P 500 (2022.10)</span>
+        <span class="en-only">AI cycle · QQQ (Jan 2023)</span>
+        <span class="ko-only">AI 사이클 · QQQ (2023.01)</span>
       </span>
       <span><span class="legend-dot" style="background:#e74c3c; height:2px; border-top:2px dashed #e74c3c; background:none;"></span>
         <span class="en-only">TODAY</span>
@@ -369,8 +369,8 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
         <span class="ko-only">2020.03 마지막 인하 · 나스닥 (COVID 저점 → 급등)</span>
       </span>
       <span><span class="legend-dot" style="background:#4a90e2;"></span>
-        <span class="en-only">AI 2026.01 last cut · VFIAX</span>
-        <span class="ko-only">AI 2026.01 마지막 인하 · VFIAX</span>
+        <span class="en-only">AI 2026.01 last cut · QQQ</span>
+        <span class="ko-only">AI 2026.01 마지막 인하 · QQQ</span>
       </span>
     </div>
   </div>
@@ -378,7 +378,7 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
   <p class="source-note">
     신한투자증권 2025-08-19 프레임워크 기반 · Based on Shinhan Securities 2025-08-19 framework<br>
     참조선: NASDAQ Composite 월간 실제 데이터 · Reference lines: NASDAQ Composite actual monthly data<br>
-    현재 AI 사이클: VFIAX 일별 수정 종가 · Current AI cycle: VFIAX daily adj. close
+    현재 AI 사이클: QQQ 일별 수정 종가 (2023.01~) · Current AI cycle: QQQ daily adj. close (Jan 2023~)
   </p>
   <div class="capex-disclaimer">
     개인 분석, 투자 권유 아님 · Personal analysis, not investment advice.
@@ -466,10 +466,11 @@ const SCENARIOS = {
 };
 
 // Set dynamically after CSV load
-let AI_TROUGH_DATE = new Date('2022-10-12');
-let AI_TROUGH_PRICE = 327.31; // VFIAX adj close on 2022-10-12
-// Chart 2 uses the LAST rate cut of the current cycle (Jan 2026)
-let FED_LAST_CUT_DATE = new Date('2026-01-29'); // Jan 29, 2026 FOMC
+// AI cycle start: Jan 2023 (Shinhan framework) using QQQ (Nasdaq-100)
+let AI_TROUGH_DATE = new Date('2023-01-03');
+let AI_TROUGH_PRICE = 263.33; // QQQ adj close on 2023-01-03
+// Chart 2: LAST rate cut of current cycle (Jan 2026)
+let FED_LAST_CUT_DATE = new Date('2026-01-29');
 let FED_LAST_CUT_PRICE = null;
 
 function fmtDate(d) {
@@ -617,7 +618,7 @@ function buildChart1(aiData) {
           parsing: false
         },
         {
-          label: 'AI · VFIAX (2022)',
+          label: 'AI · QQQ (2023)',
           data: aiPts,
           borderColor: '#4a90e2',
           backgroundColor: 'rgba(74,144,226,0.06)',
@@ -752,7 +753,7 @@ function buildChart2(lastCutMonthly) {
         { label: '1996.01 last cut · NASDAQ', data: c1996.map((y, i) => ({ x: i, y })), borderColor: '#f5a623', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
         { label: '1998.11 last cut · NASDAQ', data: c1998.map((y, i) => ({ x: i, y })), borderColor: '#9b9b9b', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
         { label: '2020.03 last cut · NASDAQ', data: c2020.map((y, i) => ({ x: i, y })), borderColor: '#a29bfe', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.3, parsing: false },
-        { label: 'AI 2026.01 last cut · VFIAX', data: cAI, borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.06)', borderWidth: 2.5, pointRadius: 0, tension: 0.2, parsing: false }
+        { label: 'AI 2026.01 last cut · QQQ', data: cAI, borderColor: '#4a90e2', backgroundColor: 'rgba(74,144,226,0.06)', borderWidth: 2.5, pointRadius: 0, tension: 0.2, parsing: false }
       ]
     },
     options: {
@@ -850,7 +851,7 @@ function toggleScenario(key) {
 // ─── Main: fetch VFIAX daily CSV ──────────────────────────────────────────
 
 async function loadAndRender() {
-  const csvUrl = '/finance/assets/data/stocks/VFIAX.csv';
+  const csvUrl = '/finance/assets/data/stocks/QQQ.csv';
   let allRows = []; // {date: Date, price: number}
 
   try {
@@ -871,20 +872,19 @@ async function loadAndRender() {
     document.getElementById('loadStatus').textContent = 'Data load error: ' + err.message;
     // Minimal fallback
     allRows = [
-      { date: new Date('2022-10-12'), price: 327.31 },
-      { date: new Date('2024-10-31'), price: 575.00 },
-      { date: new Date('2026-06-18'), price: 687.36 }
+      { date: new Date('2023-01-03'), price: 263.33 },
+      { date: new Date('2024-10-31'), price: 490.00 },
+      { date: new Date('2026-06-18'), price: 740.62 }
     ];
   }
 
   if (allRows.length < 2) return;
 
-  // Find VFIAX trough: min price in Sep–Nov 2022
-  const troughWindow = allRows.filter(r => r.date >= new Date('2022-09-01') && r.date <= new Date('2022-12-01'));
-  if (troughWindow.length) {
-    const t = troughWindow.reduce((m, r) => r.price < m.price ? r : m, troughWindow[0]);
-    AI_TROUGH_DATE  = t.date;
-    AI_TROUGH_PRICE = t.price;
+  // AI cycle start: first trading day of Jan 2023 (Shinhan framework, QQQ)
+  const troughRow2023 = allRows.filter(r => r.date >= new Date('2023-01-01')).sort((a, b) => a.date - b.date)[0];
+  if (troughRow2023) {
+    AI_TROUGH_DATE  = troughRow2023.date;
+    AI_TROUGH_PRICE = troughRow2023.price;
   }
 
   // Find last Fed cut date price (Jan 29, 2026 or nearest trading day)
