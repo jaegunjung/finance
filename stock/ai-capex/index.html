@@ -254,16 +254,16 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
     </div>
     <div class="legend-row">
       <span><span class="legend-dot" style="background:#f5a623;"></span>
-        <span class="en-only">Dot-com (trough Oct 1994)</span>
-        <span class="ko-only">닷컴 (저점 1994.10)</span>
+        <span class="en-only">Dot-com · NASDAQ (Jan 1995)</span>
+        <span class="ko-only">닷컴버블 · 나스닥 (1995.01)</span>
       </span>
       <span><span class="legend-dot" style="background:#9b9b9b;"></span>
-        <span class="en-only">FANG (trough Mar 2009)</span>
-        <span class="ko-only">FANG (저점 2009.03)</span>
+        <span class="en-only">FANG · NASDAQ (Jul 2016)</span>
+        <span class="ko-only">FANG · 나스닥 (2016.07)</span>
       </span>
       <span><span class="legend-dot" style="background:#4a90e2;"></span>
-        <span class="en-only">AI cycle (trough Oct 2022)</span>
-        <span class="ko-only">AI 사이클 (저점 2022.10)</span>
+        <span class="en-only">AI cycle · S&amp;P 500 (Oct 2022)</span>
+        <span class="ko-only">AI 사이클 · S&amp;P 500 (2022.10)</span>
       </span>
       <span><span class="legend-dot" style="background:#e74c3c; height:2px; border-top:2px dashed #e74c3c; background:none;"></span>
         <span class="en-only">TODAY</span>
@@ -287,27 +287,28 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
     </div>
     <div class="legend-row">
       <span><span class="legend-dot" style="background:#f5a623;"></span>
-        <span class="en-only">1995 cycle (Jul 1995 cut)</span>
-        <span class="ko-only">1995 사이클 (1995.07 인하)</span>
+        <span class="en-only">1995 · NASDAQ (Jul 1995 cut)</span>
+        <span class="ko-only">1995 · 나스닥 (1995.07 인하)</span>
       </span>
       <span><span class="legend-dot" style="background:#9b9b9b;"></span>
-        <span class="en-only">1998 cycle (Sep 1998 cut)</span>
-        <span class="ko-only">1998 사이클 (1998.09 인하)</span>
+        <span class="en-only">1998 · NASDAQ (Sep 1998 cut → dot-com crash)</span>
+        <span class="ko-only">1998 · 나스닥 (1998.09 인하 → 닷컴 붕괴)</span>
       </span>
       <span><span class="legend-dot" style="background:#a29bfe;"></span>
-        <span class="en-only">2019 cycle (Jul 2019 cut)</span>
-        <span class="ko-only">2019 사이클 (2019.07 인하)</span>
+        <span class="en-only">2019 · NASDAQ (Jul 2019 cut → COVID → rally)</span>
+        <span class="ko-only">2019 · 나스닥 (2019.07 인하 → COVID → 급등)</span>
       </span>
       <span><span class="legend-dot" style="background:#4a90e2;"></span>
-        <span class="en-only">AI 2024 (Sep 2024 cut)</span>
-        <span class="ko-only">AI 2024 (2024.09 인하)</span>
+        <span class="en-only">AI 2024 · S&amp;P 500 (Sep 2024 cut)</span>
+        <span class="ko-only">AI 2024 · S&amp;P 500 (2024.09 인하)</span>
       </span>
     </div>
   </div>
 
   <p class="source-note">
     신한투자증권 2025-08-19 프레임워크 기반 · Based on Shinhan Securities 2025-08-19 framework<br>
-    S&amp;P 500 월간 데이터 · Monthly S&amp;P 500 data
+    참조선: NASDAQ Composite 월간 실제 데이터 · Reference lines: NASDAQ Composite actual monthly data<br>
+    현재 AI 사이클: S&amp;P 500 월간 데이터 (sp500_monthly.csv) · Current AI cycle: S&amp;P 500 monthly data
   </p>
   <div class="capex-disclaimer">
     개인 분석, 투자 권유 아님 · Personal analysis, not investment advice.
@@ -319,53 +320,59 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
 <script>
 (function() {
 
-// ─── Historical price arrays (from sp500_monthly.csv) ─────────────────────
+// ─── Historical price arrays (NASDAQ Composite, actual monthly closes) ────────
+// Source: read from Shinhan Securities 2025-08-19 chart + historical NASDAQ data
+// Reference index for Dot-com and FANG: NASDAQ Composite
+// AI current cycle: S&P 500 from sp500_monthly.csv (user preference)
 
-// Dot-com cycle: Oct 1994 → Sep 2000 (T=0 to T+71m)
+// Dot-com: NASDAQ Jan 1995 → Dec 2001 (T=0 to T+84m = 7 years)
+// Trough used: Jan 1995 ≈ 753
 const DOTCOM_PRICES = [
-  470.00, 476.66, 483.41,
-  490.25, 497.19, 504.23, 511.37, 518.62, 525.96, 533.41, 540.96, 548.62, 556.39, 564.26, 572.25,
-  580.36, 588.57, 596.91, 605.36, 613.93, 622.62, 631.44, 640.38, 649.45, 658.65, 667.97, 677.43,
-  687.02, 696.75, 706.61, 716.62, 726.77, 737.06, 747.49, 758.08, 768.81, 779.70, 790.74, 801.93,
-  813.29, 824.81, 836.48, 848.33, 860.34, 872.52, 884.88, 897.41, 910.11, 923.00, 950.76, 979.36,
-  1008.81, 1039.15, 1070.41, 1102.60, 1135.76, 1169.92, 1205.11, 1241.35, 1278.69, 1317.15, 1356.76, 1397.57,
-  1439.60, 1482.90, 1527.50, 1494.96, 1463.11, 1431.94, 1401.43, 1371.58, 1342.36
+  753, 793, 818, 818, 854, 888, 930, 995, 1018, 1039, 1059, 1052,  // 1995
+  1052, 1100, 1101, 1190, 1243, 1186, 1081, 1144, 1237, 1222, 1296, 1291,  // 1996
+  1380, 1310, 1222, 1261, 1400, 1441, 1594, 1588, 1687, 1593, 1601, 1570,  // 1997
+  1619, 1771, 1836, 1869, 1779, 1894, 1872, 1499, 1694, 1771, 1950, 2193,  // 1998
+  2506, 2285, 2461, 2543, 2471, 2686, 2638, 2739, 2746, 2966, 3336, 4070,  // 1999
+  3940, 4697, 4573, 3861, 3401, 3966, 3767, 4207, 3672, 3370, 2597, 2471,  // 2000
+  2773, 2152, 1841, 2116, 2110, 2160, 2028, 1864, 1498, 1690, 1930, 1950   // 2001
 ];
 
-// FANG cycle: Mar 2009 → Feb 2015 (T=0 to T+71m)
+// FANG: NASDAQ Jul 2016 → Jun 2023 (T=0 to T+84m = 7 years)
+// Trough used: Jul 2016 ≈ 5162
 const FANG_PRICES = [
-  677.00, 685.37, 693.84, 702.42, 711.11, 719.90, 728.80, 737.81, 746.94, 756.17,
-  765.52, 774.99, 784.57, 794.27, 804.09, 814.03, 824.10, 834.29, 844.60, 855.04, 865.62, 876.32,
-  887.15, 898.12, 909.23, 920.47, 931.85, 943.37, 955.04, 966.84, 978.80, 990.90, 1003.15, 1015.56,
-  1028.11, 1040.82, 1053.69, 1066.72, 1079.91, 1093.26, 1106.78, 1120.47, 1134.32, 1148.34, 1162.54, 1176.92,
-  1191.47, 1206.20, 1221.11, 1236.21, 1251.50, 1266.97, 1282.64, 1298.50, 1314.55, 1330.80, 1347.26, 1363.92,
-  1380.78, 1397.85, 1415.14, 1432.63, 1450.35, 1468.28, 1486.43, 1504.81, 1523.42, 1542.25, 1561.32, 1580.63,
-  1600.17, 1619.96
+  5162, 5189, 5312, 5189, 5323, 5383,                                        // 2016 Jul-Dec
+  5615, 5826, 5912, 6048, 6198, 6274, 6349, 6428, 6496, 6727, 6994, 6903,   // 2017
+  7411, 7273, 7063, 7118, 7443, 7510, 7827, 8110, 8046, 7306, 7330, 6635,   // 2018
+  7282, 7533, 7729, 8095, 7453, 8006, 8175, 7962, 7999, 8292, 8665, 9021,   // 2019
+  9258, 8567, 7361, 8889, 9491, 9874, 10745, 11775, 11167, 10912, 12198, 12888, // 2020
+  13271, 13192, 13247, 13717, 13791, 14505, 14672, 15260, 14449, 15498, 15982, 15645, // 2021
+  14239, 13987, 14261, 12685, 11834, 11028, 11777, 11816, 10971, 10988, 11468, 10939, // 2022
+  11621, 11455, 12221, 12139, 12964, 13787                                    // 2023 Jan-Jun
 ];
 
-// Rate-cut cycles: cut month = index 0
-// 1995 cycle: Jul 1995 → Jun 1998 (36 months)
+// Rate-cut cycles (NASDAQ Composite, cut month = index 0, 36 months each)
+// 1995: NASDAQ Jul 1995 → Jun 1998
 const CUT1995_PRICES = [
-  533.41, 540.96, 548.62, 556.39, 564.26, 572.25,
-  580.36, 588.57, 596.91, 605.36, 613.93, 622.62, 631.44, 640.38, 649.45, 658.65, 667.97, 677.43,
-  687.02, 696.75, 706.61, 716.62, 726.77, 737.06, 747.49, 758.08, 768.81, 779.70, 790.74, 801.93,
-  813.29, 824.81, 836.48, 848.33, 860.34, 872.52
+  930, 995, 1018, 1039, 1059, 1052,
+  1052, 1100, 1101, 1190, 1243, 1186, 1081, 1144, 1237, 1222, 1296, 1291,
+  1380, 1310, 1222, 1261, 1400, 1441, 1594, 1588, 1687, 1593, 1601, 1570,
+  1619, 1771, 1836, 1869, 1779, 1894
 ];
 
-// 1998 cycle: Sep 1998 → Aug 2001 (36 months)
+// 1998: NASDAQ Sep 1998 → Aug 2001 (massive rally then dot-com crash)
 const CUT1998_PRICES = [
-  910.11, 923.00, 950.76, 979.36,
-  1008.81, 1039.15, 1070.41, 1102.60, 1135.76, 1169.92, 1205.11, 1241.35, 1278.69, 1317.15, 1356.76, 1397.57,
-  1439.60, 1482.90, 1527.50, 1494.96, 1463.11, 1431.94, 1401.43, 1371.58, 1342.36, 1313.76, 1285.77, 1258.38,
-  1231.57, 1205.33, 1179.65, 1154.52, 1129.93, 1105.86, 1082.30, 1059.24
+  1694, 1771, 1950, 2193,
+  2506, 2285, 2461, 2543, 2471, 2686, 2638, 2739, 2746, 2966, 3336, 4070,
+  3940, 4697, 4573, 3861, 3401, 3966, 3767, 4207, 3672, 3370, 2597, 2471,
+  2773, 2152, 1841, 2116, 2110, 2160, 2028, 1864
 ];
 
-// 2019 cycle: Jul 2019 → Jun 2022 (36 months, includes COVID crash)
+// 2019: NASDAQ Jul 2019 → Jun 2022 (COVID crash → massive tech rally → 2022 selloff)
 const CUT2019_PRICES = [
-  3107.10, 3145.51, 3184.41, 3223.78, 3263.64, 3303.99,
-  3344.84, 3386.20, 2237.40, 2316.32, 2398.03, 2482.62, 2570.20, 2660.86, 2754.72, 2851.90, 2952.50, 3056.65,
-  3164.47, 3276.10, 3391.66, 3511.30, 3635.16, 3763.39, 3896.15, 4033.58, 4175.87, 4323.17, 4475.67, 4633.55,
-  4797.00, 4643.11, 4494.15, 4349.97, 4210.42, 4075.34
+  8175, 7962, 7999, 8292, 8665, 9021,
+  9258, 8567, 7361, 8889, 9491, 9874, 10745, 11775, 11167, 10912, 12198, 12888,
+  13271, 13192, 13247, 13717, 13791, 14505, 14672, 15260, 14449, 15498, 15982, 15645,
+  14239, 13987, 14261, 12685, 11834, 11028
 ];
 
 // Forecast scenarios from the blog post (normalized to 3577 trough later)
@@ -460,7 +467,7 @@ function buildChart1(aiPrices, aiMonths) {
   const aiX = tYearsLabels(aiNorm.length);
 
   const todayX = yearsDiff(AI_TROUGH_DATE, new Date());
-  const maxX = Math.max(6, todayX + 0.5);
+  const maxX = 7.5;
 
   // Peak zone fill plugin
   const peakZone = {
