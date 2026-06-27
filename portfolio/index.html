@@ -715,6 +715,47 @@ async function portLoadHoldings() {
   loadEl.style.display    = 'none';
   contentEl.style.display = '';
   portRenderHoldings();
+
+  // Detect symbols with open positions but no price data → prompt fetch
+  const missingPriceSyms = openRows
+    .filter(r => r.price === null && r.sym !== 'USD')
+    .map(r => {
+      const earliest = symbolMap[r.sym]?.reduce((min, t) => t.trade_date < min ? t.trade_date : min, '9999-12-31');
+      return { sym: r.sym, start: earliest };
+    });
+  portRenderMissingDataBanner(missingPriceSyms);
+}
+
+function portRenderMissingDataBanner(missing) {
+  const existingBanner = document.getElementById('portMissingDataBanner');
+  if (existingBanner) existingBanner.remove();
+  if (!missing.length) return;
+
+  const repoUrl = 'https://github.com/JaegunJung/finance/actions/workflows/fetch_new_symbol.yml';
+  const items = missing.map(({ sym, start }) =>
+    `<li style="margin:4px 0;display:flex;align-items:center;gap:8px;">
+      <code style="background:rgba(88,166,255,0.15);padding:1px 7px;border-radius:4px;font-size:0.85em;">${sym}</code>
+      <span style="color:var(--text-muted);font-size:0.77rem;">earliest txn: ${start}</span>
+      <a href="${repoUrl}" target="_blank" rel="noopener"
+        style="font-size:0.73rem;padding:2px 9px;border-radius:10px;background:var(--accent-blue);color:#fff;text-decoration:none;font-weight:600;white-space:nowrap;">
+        ▶ Fetch
+      </a>
+    </li>`
+  ).join('');
+
+  const banner = document.createElement('div');
+  banner.id = 'portMissingDataBanner';
+  banner.style.cssText = 'margin-bottom:16px;padding:12px 16px;border-radius:8px;border:1px solid rgba(255,165,0,0.4);background:rgba(255,165,0,0.07);font-size:0.83rem;';
+  banner.innerHTML = `
+    <div style="font-weight:700;margin-bottom:8px;">⚠️ 가격 데이터 없는 보유 종목 — 평가손익 계산 불가</div>
+    <ul style="margin:0 0 10px 16px;padding:0;">${items}</ul>
+    <div style="font-size:0.76rem;color:var(--text-muted);">
+      GitHub Actions에서 심볼별로 실행하거나:
+      <code style="font-size:0.9em;">python scripts/fetch_new_symbol.py &lt;SYMBOL&gt;</code>
+    </div>`;
+
+  const contentEl = document.getElementById('portHoldingsContent');
+  contentEl.insertBefore(banner, contentEl.firstChild);
 }
 
 // ── Holdings sort / filter state ──
