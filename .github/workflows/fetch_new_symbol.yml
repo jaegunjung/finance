@@ -1,0 +1,50 @@
+name: Fetch New Symbol Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: 'Ticker symbol (e.g. MSFT, COIN, SOL-USD)'
+        required: true
+        type: string
+      start_date:
+        description: 'Start date YYYY-MM-DD (leave blank to auto-detect from existing CSV)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install yfinance requests
+
+      - name: Fetch symbol data
+        run: |
+          SYM="${{ github.event.inputs.symbol }}"
+          START="${{ github.event.inputs.start_date }}"
+          if [ -n "$START" ]; then
+            python scripts/fetch_new_symbol.py "$SYM" "$START"
+          else
+            python scripts/fetch_new_symbol.py "$SYM"
+          fi
+
+      - name: Commit and push
+        run: |
+          SYM="${{ github.event.inputs.symbol }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/data/stocks/ config/symbols.json
+          git diff --cached --quiet || git commit -m "feat: add price data for $SYM [auto-fetch]"
+          git push

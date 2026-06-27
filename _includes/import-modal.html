@@ -527,6 +527,12 @@ async function importSubmit() {
     const skipMsg = skipped > 0 ? ` (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)` : '';
     importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.${skipMsg}`);
     btn.textContent = 'Done!';
+
+    // Detect symbols not in the supported data set → show fetch prompt
+    const importedSyms = [...new Set(rowsToImport.map(r => r.symbol).filter(Boolean))];
+    const unknownSyms  = importedSyms.filter(s => s !== 'USD' && !_AVAILABLE_SYMS.has(s));
+    if (unknownSyms.length) importShowNewSymbolBanner(unknownSyms, rowsToImport);
+
     // Refresh chart txns if on a stock page
     if (window.SYMBOL && window.txns.loadChartTransactions) {
       window.txns.loadChartTransactions(window.SYMBOL);
@@ -536,12 +542,46 @@ async function importSubmit() {
       await portLoadPortfolios();
       portSwitchView(portActiveView);
     }
-    setTimeout(() => importModalClose(), 2200);
+    if (!unknownSyms.length) setTimeout(() => importModalClose(), 2200);
   } catch(e) {
     importShowStatus('error', 'Import failed: ' + e.message);
     btn.disabled = false;
     btn.textContent = `Import ${_importParsed.rows.length} rows`;
   }
+}
+
+function importShowNewSymbolBanner(unknownSyms, allRows) {
+  // Find earliest transaction date per unknown symbol
+  const startBySymbol = {};
+  for (const r of allRows) {
+    if (unknownSyms.includes(r.symbol)) {
+      if (!startBySymbol[r.symbol] || r.trade_date < startBySymbol[r.symbol])
+        startBySymbol[r.symbol] = r.trade_date;
+    }
+  }
+  const repoUrl = 'https://github.com/JaegunJung/finance/actions/workflows/fetch_new_symbol.yml';
+  const lines = unknownSyms.map(s => {
+    const start = startBySymbol[s] || '';
+    return `<li style="margin:4px 0;"><code style="background:rgba(88,166,255,0.15);padding:1px 6px;border-radius:4px;font-size:0.88em;">${s}</code> <span style="color:var(--text-muted);font-size:0.8rem;">(from ${start})</span></li>`;
+  }).join('');
+
+  const banner = document.createElement('div');
+  banner.style.cssText = 'margin-top:14px;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,165,0,0.4);background:rgba(255,165,0,0.08);font-size:0.83rem;color:var(--text-primary);';
+  banner.innerHTML = `
+    <div style="font-weight:700;margin-bottom:8px;">⚠️ 미지원 심볼 감지 — 가격 데이터 없음</div>
+    <div style="color:var(--text-secondary);margin-bottom:8px;">아래 종목의 CSV 데이터가 없습니다. GitHub Actions에서 데이터를 수집하세요:</div>
+    <ul style="margin:0 0 10px 16px;padding:0;">${lines}</ul>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+      <a href="${repoUrl}" target="_blank" rel="noopener" style="
+        display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:6px;
+        background:var(--accent-blue);color:#fff;text-decoration:none;font-size:0.8rem;font-weight:600;">
+        ▶ GitHub Actions에서 실행
+      </a>
+      <span style="font-size:0.76rem;color:var(--text-muted);align-self:center;">
+        또는: <code style="font-size:0.9em;">python scripts/fetch_new_symbol.py ${unknownSyms[0]}</code>
+      </span>
+    </div>`;
+  document.getElementById('importModalBox').appendChild(banner);
 }
 
 function importShowStatus(type, msg) {

@@ -236,6 +236,10 @@ window.tpSubmit = async function() {
     tpShowStatus('success', '✓ Trade added!');
     ['tpShares','tpPrice','tpAmount','tpNotes','tpTime'].forEach(id => { document.getElementById(id).value = ''; });
     document.getElementById('tpCommission').value = '0';
+    // Warn if symbol has no price data
+    if (sym && sym !== 'USD' && window._AVAILABLE_SYMS && !window._AVAILABLE_SYMS.has(sym)) {
+      tpShowNewSymbolWarning(sym, date);
+    }
     // Reload circles
     if (window.txns) window.txns.loadChartTransactions(sym).catch(()=>{});
   } catch(e) {
@@ -244,6 +248,24 @@ window.tpSubmit = async function() {
       : 'Error: ' + e.message;
     tpShowStatus('error', msg);
   } finally { btn.disabled = false; }
+};
+
+window.tpShowNewSymbolWarning = function(sym, startDate) {
+  const repoUrl = 'https://github.com/JaegunJung/finance/actions/workflows/fetch_new_symbol.yml';
+  let el = document.getElementById('tpNewSymbolBanner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'tpNewSymbolBanner';
+    el.style.cssText = 'margin-top:10px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,165,0,0.4);background:rgba(255,165,0,0.08);font-size:0.8rem;color:var(--text-primary);';
+    document.getElementById('tradePanelBody').appendChild(el);
+  }
+  el.style.display = '';
+  el.innerHTML = `<span style="font-weight:700;">⚠️ <code style="background:rgba(88,166,255,0.15);padding:1px 5px;border-radius:4px;">${sym}</code> 가격 데이터 없음</span>
+    <div style="margin-top:6px;color:var(--text-secondary);">보유 현황 및 손익 계산을 위해 데이터를 수집해야 합니다.</div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <a href="${repoUrl}" target="_blank" rel="noopener" style="padding:5px 12px;border-radius:6px;background:var(--accent-blue);color:#fff;text-decoration:none;font-size:0.77rem;font-weight:600;">▶ GitHub Actions 실행</a>
+      <code style="font-size:0.76rem;color:var(--text-muted);">python scripts/fetch_new_symbol.py ${sym}${startDate ? ' ' + startDate : ''}</code>
+    </div>`;
 };
 
 // Show/hide panel based on auth state
