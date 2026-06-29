@@ -474,7 +474,10 @@
         continue;
       }
 
-      if (!trade_date || !type || amount == null) continue;  // skip invalid rows
+      if (!trade_date || !type) continue;
+      // Split transactions don't carry a dollar amount — default to 0
+      if (amount == null && type === 'split') amount = 0;
+      if (amount == null) continue;
 
       rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, notes, portfolio_name });
     }
