@@ -719,7 +719,7 @@ async function portLoadHoldings() {
   // Detect symbols with open positions but no price data → prompt fetch
   const CASH_SYMS = new Set(['USD', 'USD=CASH']);
   const missingPriceSyms = openRows
-    .filter(r => r.price === null && !CASH_SYMS.has(r.sym))
+    .filter(r => r.price === null && !CASH_SYMS.has(r.sym) && r.remainingShares > 0.01)
     .map(r => {
       const earliest = symbolMap[r.sym]?.reduce((min, t) => t.trade_date < min ? t.trade_date : min, '9999-12-31');
       return { sym: r.sym, start: earliest };

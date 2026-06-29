@@ -108,9 +108,9 @@ def main():
     rows = fetch_yfinance(symbol, effective_start)
 
     if not rows:
-        print(f"\n⚠️  Symbol `{symbol}` could not be found.", flush=True)
-        print("   Please verify the ticker and try again.", flush=True)
-        sys.exit(1)
+        print(f"\n⚠️  Symbol `{symbol}` could not be found (possibly delisted or invalid ticker).", flush=True)
+        print("   Skipping — no data written.", flush=True)
+        sys.exit(0)
 
     # Filter rows already in CSV
     existing_end = read_last_date(symbol)
