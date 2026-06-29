@@ -520,7 +520,7 @@
     if (importSymbols.length) {
       const { data: existing, error: exErr } = await sb
         .from('transactions')
-        .select('symbol, trade_date, type, shares, price, amount')
+        .select('portfolio_id, symbol, trade_date, type, shares, price, amount')
         .eq('user_id', user.id)
         .in('symbol', importSymbols);
       if (exErr) throw exErr;
@@ -530,13 +530,17 @@
     }
 
     // ── Filter out rows that duplicate an existing transaction ────────────
-    // Also dedupe *within* the incoming batch itself (e.g. the same split
-    // row getting attached twice if the CSV lists it more than once).
+    // Resolve each row's portfolio_id before computing the signature so
+    // the same split/trade in different portfolios is NOT treated as a
+    // duplicate (portfolio_id is part of the signature).
     let skipped = 0;
     const seenInBatch = new Set();
     const newRows = [];
     for (const r of rows) {
-      const sig = _txnSignature(r);
+      const resolvedPortfolioId = portfolioId ||
+        (r.portfolio_name ? (resolvedMap[r.portfolio_name] ?? null) : null);
+      const rWithPort = { ...r, portfolio_id: resolvedPortfolioId };
+      const sig = _txnSignature(rWithPort);
       if (existingSigs.has(sig) || seenInBatch.has(sig)) {
         skipped++;
         continue;
@@ -580,6 +584,7 @@
       return isNaN(v) ? 0 : Math.round(v * 10000) / 10000;
     };
     return [
+      (r.portfolio_id || ''),
       (r.symbol || '').toUpperCase(),
       r.trade_date,
       r.type,
