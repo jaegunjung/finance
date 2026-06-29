@@ -477,6 +477,12 @@
       if (!trade_date || !type) continue;
       // Split transactions don't carry a dollar amount — default to 0
       if (amount == null && type === 'split') amount = 0;
+      // MSP puts dividend cash value in the shares column when price=0
+      // (e.g. shares=54.82, price=0 means $54.82 dividend, not 54.82 shares)
+      if ((type === 'dividend' || type === 'interest') && (price == null || price === 0) && shares != null && shares > 0 && (amount == null || amount === 0)) {
+        rows.push({ symbol, trade_date, trade_time, type, shares: null, price: null, amount: shares, commission, notes, portfolio_name });
+        continue;
+      }
       if (amount == null) continue;
 
       rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, notes, portfolio_name });
