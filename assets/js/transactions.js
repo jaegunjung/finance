@@ -274,16 +274,32 @@
       const sh  = Number(t.shares) || 0;
       const amt = Number(t.amount) || 0;
 
-      if (t.type === 'split' && sh >= 2) {
-        // sh is always the split ratio (e.g. 20 for 20:1 AMZN split).
-        // Cost basis stays the same; shares multiply by ratio (so avg
-        // cost divides accordingly). NOTE: previously this only applied
-        // when `shares > 0`, which silently dropped the split entirely
-        // if it landed before any recorded buy. That caused share counts
-        // — and therefore avg cost — to be wrong for any symbol with such
-        // an ordering issue, and could cascade into a holding looking
-        // fully sold off after later sell transactions.
-        shares *= sh;
+      if (t.type === 'split') {
+        // Determine split ratio. Support three common recording formats:
+        //   1. shares = ratio (e.g. 20 for a 20:1 split) → multiply
+        //   2. shares = additional shares received → add
+        //   3. price field holds ratio when shares is missing/zero
+        // Heuristic: if shares looks like a small integer ratio (≤ 100),
+        // treat it as a multiplier; otherwise treat as additional shares.
+        let ratio = Number(t.price) >= 2 ? Number(t.price) : 0; // fallback: ratio in price
+        if (sh >= 2 && sh <= 100) {
+          // Likely a ratio (2:1, 3:1, 4:1, 5:1, 10:1, 20:1, etc.)
+          ratio = sh;
+          if (shares > 0) shares *= ratio;
+        } else if (sh > 100) {
+          // Likely additional shares received (MSP "delta" format)
+          shares += sh;
+        } else if (ratio >= 2) {
+          if (shares > 0) shares *= ratio;
+        }
+        // else: no usable split info — skip silently (no change)
+        continue;
+      }
+
+      if (t.type === 'dividend' || t.type === 'interest') {
+        // Income events: count as realized gain, no share/cost change
+        realizedGain += amt;
+        if (t.trade_date.startsWith(thisYear)) realizedGainYTD += amt;
         continue;
       }
 
