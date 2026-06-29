@@ -1280,7 +1280,17 @@ document.querySelectorAll('.range-btn').forEach(btn => {
       if (rsiChart) rsiChart.resetZoom();
     } else {
       const max = dates.length - 1;
-      const rng = { min: Math.max(0, max - months), max };
+      // Calculate target date from today (not from last data point) so
+      // the range is anchored to the current date regardless of data lag.
+      const targetDate = new Date();
+      targetDate.setMonth(targetDate.getMonth() - months);
+      const targetStr = targetDate.toISOString().slice(0, 7); // YYYY-MM
+      // Find the index of the first date >= targetStr
+      let minIdx = 0;
+      for (let i = 0; i <= max; i++) {
+        if (dates[i] >= targetStr) { minIdx = i; break; }
+      }
+      const rng = { min: minIdx, max };
       chart.zoomScale('x', rng);
       if (rsiChart) rsiChart.zoomScale('x', rng, 'none');
     }
