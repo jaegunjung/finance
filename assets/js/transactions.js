@@ -300,15 +300,12 @@
       }
 
       if (t.type === 'dividend' || t.type === 'interest') {
-        // Count as realized income.
-        // If shares > 0, the dividend was reinvested (DRIP-style): add
-        // the shares to holdings without increasing cost basis (income
-        // is already captured in realizedGain).
+        // Cash income only — no shares added.
+        // (Share reinvestment = 'drip', handled in buyTypes below.)
         if (amt > 0) {
           realizedGain += amt;
           if (t.trade_date.startsWith(thisYear)) realizedGainYTD += amt;
         }
-        if (sh > 0) shares += sh;
         continue;
       }
 
