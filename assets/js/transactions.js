@@ -246,7 +246,10 @@
     const seen = new Set();
     const deduped = [];
     for (const t of txns) {
-      const key = [t.trade_date, t.type,
+      // Include portfolio_id in the key so identical trades in different
+      // portfolios are NOT deduped — only true duplicates within the same
+      // portfolio (e.g. same CSV imported twice) are removed.
+      const key = [t.portfolio_id || '', t.trade_date, t.type,
         Number(t.shares) || 0, Number(t.price) || 0, Number(t.amount) || 0
       ].join('|');
       if (seen.has(key)) continue;
@@ -297,9 +300,15 @@
       }
 
       if (t.type === 'dividend' || t.type === 'interest') {
-        // Income events: count as realized gain, no share/cost change
-        realizedGain += amt;
-        if (t.trade_date.startsWith(thisYear)) realizedGainYTD += amt;
+        // Count as realized income.
+        // If shares > 0, the dividend was reinvested (DRIP-style): add
+        // the shares to holdings without increasing cost basis (income
+        // is already captured in realizedGain).
+        if (amt > 0) {
+          realizedGain += amt;
+          if (t.trade_date.startsWith(thisYear)) realizedGainYTD += amt;
+        }
+        if (sh > 0) shares += sh;
         continue;
       }
 
