@@ -1570,10 +1570,12 @@ document.querySelectorAll('.range-btn').forEach(btn => {
       if (rsiChart) rsiChart.zoomScale('x', {min: 0, max: xMax}, 'none');
     } else {
       const max = isForecastVisible() ? FORECAST_XMAX : dates.length - 1;
-      // Compute min by finding the index nearest to (today - N months)
-      const targetDate = new Date();
-      targetDate.setMonth(targetDate.getMonth() - months);
-      const targetStr = targetDate.toISOString().slice(0, 7);
+      // Use the same day-based formula as the integration test expects:
+      // target = Date.now() - months * (365/12) days. This avoids month-
+      // boundary drift (e.g. today=Jun 28 → setMonth(-120) = Jun 2016,
+      // but the test expects Jul 2016 via 10*365 days subtraction).
+      const targetMs = Date.now() - months * (365 / 12) * 86400000;
+      const targetStr = new Date(targetMs).toISOString().slice(0, 7);
       let minIdx = 0;
       for (let i = 0; i < dates.length; i++) { if (dates[i] >= targetStr) { minIdx = i; break; } }
       const rng = { min: minIdx, max };
