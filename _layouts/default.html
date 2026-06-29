@@ -57,7 +57,7 @@
     };
   </script>
   <script src="{{ '/assets/js/auth.js' | relative_url }}"></script>
-  <script src="{{ '/assets/js/transactions.js' | relative_url }}"></script>
+  <script src="{{ '/assets/js/transactions.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>
   <script>
     // Sync lang buttons after DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
