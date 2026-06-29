@@ -116,6 +116,7 @@ title: 포트폴리오
       color:var(--text-primary); padding:6px 12px; font-size:0.85rem; cursor:pointer; min-width:160px;
     "></select>
     <button id="portDeletePortfolioBtn" onclick="portDeletePortfolio()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(248,81,73,0.35); background:none; color:rgba(248,81,73,0.7); cursor:pointer; font-size:0.8rem;" title="이 포트폴리오 삭제">🗑 삭제</button>
+    <button id="portDedupeBtn" onclick="portDeduplicateTxns()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(255,165,0,0.4); background:none; color:rgba(255,165,0,0.85); cursor:pointer; font-size:0.8rem;" title="중복 거래 삭제">⚡ 중복 제거</button>
     <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
   </div>
 
@@ -520,10 +521,52 @@ function portRenderTabs() {
 function portDropdownChange() {
   const sel = document.getElementById('portDropdown');
   portActivePortfolioId = sel.value || null;
-  // 포트폴리오 선택됐을 때만 삭제 버튼 표시
-  document.getElementById('portDeletePortfolioBtn').style.display =
-    portActivePortfolioId ? '' : 'none';
+  const hasPort = !!portActivePortfolioId;
+  document.getElementById('portDeletePortfolioBtn').style.display = hasPort ? '' : 'none';
+  document.getElementById('portDedupeBtn').style.display = hasPort ? '' : 'none';
   portSwitchView(portActiveView);
+}
+
+async function portDeduplicateTxns() {
+  if (!portActivePortfolioId) return;
+  if (!confirm('현재 포트폴리오의 중복 거래를 삭제합니다.\n(날짜·종목·타입·주식수·가격·금액이 동일한 거래 중 나중에 생성된 것을 제거합니다)\n\n계속하시겠습니까?')) return;
+
+  const btn = document.getElementById('portDedupeBtn');
+  btn.disabled = true; btn.textContent = '⏳ 처리 중…';
+
+  try {
+    const all = await window.txns.getTransactions(null, portActivePortfolioId);
+    const seen = new Map(); // key → first-seen id
+    const toDelete = [];
+    for (const t of all) {
+      const key = [t.trade_date, t.symbol, t.type,
+        Number(t.shares)||0, Number(t.price)||0, Number(t.amount)||0
+      ].join('|');
+      if (seen.has(key)) {
+        toDelete.push(t.id);
+      } else {
+        seen.set(key, t.id);
+      }
+    }
+
+    if (!toDelete.length) {
+      btn.textContent = '✓ 중복 없음';
+      setTimeout(() => { btn.textContent = '⚡ 중복 제거'; btn.disabled = false; }, 2500);
+      return;
+    }
+
+    await window.txns.deleteTransactions(toDelete);
+    btn.textContent = `✓ ${toDelete.length}건 삭제됨`;
+    btn.style.color = 'rgba(63,185,80,0.9)';
+    setTimeout(() => {
+      btn.textContent = '⚡ 중복 제거'; btn.disabled = false;
+      btn.style.color = '';
+    }, 3000);
+    portSwitchView(portActiveView);
+  } catch(e) {
+    alert('오류: ' + e.message);
+    btn.textContent = '⚡ 중복 제거'; btn.disabled = false;
+  }
 }
 
 async function portDeletePortfolio() {
