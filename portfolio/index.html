@@ -666,7 +666,7 @@ async function portLoadHoldings() {
 
   const BUY_T  = new Set(['buy','drip','buy_to_cover']);
   const SELL_T = new Set(['sell','sell_short']);
-  const TRADE_T = new Set([...BUY_T, ...SELL_T]);
+  const TRADE_T = new Set([...BUY_T, ...SELL_T, 'split', 'dividend', 'interest']);
 
   // Group trade txns by symbol
   const symbolMap = {};
