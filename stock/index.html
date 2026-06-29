@@ -1575,7 +1575,7 @@ document.querySelectorAll('.range-btn').forEach(btn => {
       targetDate.setMonth(targetDate.getMonth() - months);
       const targetStr = targetDate.toISOString().slice(0, 7);
       let minIdx = 0;
-      for (let i = 0; i < dates.length; i++) { if (dates[i] <= targetStr) minIdx = i; }
+      for (let i = 0; i < dates.length; i++) { if (dates[i] >= targetStr) { minIdx = i; break; } }
       const rng = { min: minIdx, max };
       chart.zoomScale('x', rng);
       if (rsiChart) rsiChart.zoomScale('x', rng, 'none');
