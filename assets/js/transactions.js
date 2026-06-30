@@ -447,6 +447,14 @@
       const notes  = cols.notes >= 0 ? (f[cols.notes] || null) : null;
       const portfolio_name = cols.portfolio >= 0 ? (f[cols.portfolio] || null) : null;
 
+      // MSP: dividend/interest rows store the cash value in the shares column;
+      // price may be filled with the stock price (irrelevant for cash income).
+      // Must run BEFORE the shares×price auto-compute below.
+      if ((type === 'dividend' || type === 'interest') && shares != null && shares > 0 && (amount == null || amount === 0)) {
+        rows.push({ symbol, trade_date, trade_time, type, shares: null, price: null, amount: shares, commission, notes, portfolio_name });
+        continue;
+      }
+
       // Auto-compute amount if missing (MSP has no amount column — shares × price)
       if (amount == null && shares != null && price != null) amount = shares * price;
 
@@ -477,12 +485,6 @@
       if (!trade_date || !type) continue;
       // Split transactions don't carry a dollar amount — default to 0
       if (amount == null && type === 'split') amount = 0;
-      // MSP puts dividend cash value in the shares column when price=0
-      // (e.g. shares=54.82, price=0 means $54.82 dividend, not 54.82 shares)
-      if ((type === 'dividend' || type === 'interest') && (price == null || price === 0) && shares != null && shares > 0 && (amount == null || amount === 0)) {
-        rows.push({ symbol, trade_date, trade_time, type, shares: null, price: null, amount: shares, commission, notes, portfolio_name });
-        continue;
-      }
       if (amount == null) continue;
 
       rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, notes, portfolio_name });
@@ -540,6 +542,7 @@
     // the same split/trade in different portfolios is NOT treated as a
     // duplicate (portfolio_id is part of the signature).
     let skipped = 0;
+    const skippedRows = [];
     const seenInBatch = new Set();
     const newRows = [];
     for (const r of rows) {
@@ -549,13 +552,14 @@
       const sig = _txnSignature(rWithPort);
       if (existingSigs.has(sig) || seenInBatch.has(sig)) {
         skipped++;
+        skippedRows.push({ ...r, _reason: existingSigs.has(sig) ? 'db' : 'csv' });
         continue;
       }
       seenInBatch.add(sig);
       newRows.push(r);
     }
 
-    if (newRows.length === 0) return { imported: 0, skipped, errors: [] };
+    if (newRows.length === 0) return { imported: 0, skipped, skippedRows, errors: [] };
 
     const toInsert = newRows.map(r => ({
       user_id:      user.id,
@@ -578,7 +582,7 @@
       .select();
 
     if (error) throw error;
-    return { imported: (data || []).length, skipped, errors: [] };
+    return { imported: (data || []).length, skipped, skippedRows, errors: [] };
   }
 
   // Build a stable signature for duplicate detection: date+symbol+type+

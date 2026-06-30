@@ -523,8 +523,27 @@ async function importSubmit() {
   });
 
   try {
-    const { imported, skipped } = await window.txns.importTransactions(rowsToImport, portfolioId, nameToId);
-    const skipMsg = skipped > 0 ? ` (${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped)` : '';
+    const { imported, skipped, skippedRows } = await window.txns.importTransactions(rowsToImport, portfolioId, nameToId);
+    let skipMsg = '';
+    if (skipped > 0) {
+      const rows = (skippedRows || []);
+      const dbCount  = rows.filter(r => r._reason === 'db').length;
+      const csvCount = rows.filter(r => r._reason === 'csv').length;
+      const parts = [];
+      if (dbCount)  parts.push(`${dbCount} already in DB`);
+      if (csvCount) parts.push(`${csvCount} duplicate within CSV`);
+      const detail = parts.length ? ` (${parts.join(', ')})` : '';
+      const tableRows = rows.slice(0, 200).map(r =>
+        `<tr><td>${r.trade_date||''}</td><td>${r.symbol||''}</td><td>${r.type||''}</td>` +
+        `<td>${r.shares != null ? r.shares : '—'}</td><td>${r.price != null ? r.price : '—'}</td>` +
+        `<td>${r.amount != null ? r.amount : '—'}</td>` +
+        `<td style="color:var(--text-muted);font-size:0.8em">${r._reason === 'db' ? 'DB중복' : 'CSV중복'}</td></tr>`
+      ).join('');
+      skipMsg = ` <span style="cursor:pointer;text-decoration:underline;color:var(--accent)" onclick="this.closest('.import-skip-detail').querySelector('.import-skip-table').style.display=this.closest('.import-skip-detail').querySelector('.import-skip-table').style.display==='none'?'':'none'">${skipped} duplicate${skipped!==1?'s':''} skipped${detail} ▾</span>` +
+        `<div class="import-skip-detail"><table class="import-skip-table" style="display:none;margin-top:6px;width:100%;font-size:0.8em;border-collapse:collapse">` +
+        `<thead><tr style="color:var(--text-muted)"><th>Date</th><th>Symbol</th><th>Type</th><th>Shares</th><th>Price</th><th>Amount</th><th>이유</th></tr></thead>` +
+        `<tbody>${tableRows}</tbody></table></div>`;
+    }
     importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.${skipMsg}`);
     btn.textContent = 'Done!';
 
