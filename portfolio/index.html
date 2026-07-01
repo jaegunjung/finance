@@ -975,9 +975,9 @@ function portRenderHoldings() {
         <div class="h-price">${isCashSym ? '' : priceStr}</div>
         ${sharesLine}
       </td>
-      <td>${curValStr}</td>
-      <td>${todayStr}</td>
-      <td>${totalStr}</td>
+      <td>${isCashSym ? `<div class="h-val">${fA(remainingShares, 2)}</div>` : curValStr}</td>
+      <td>${isCashSym ? `<div style="color:var(--text-muted);">—</div>` : todayStr}</td>
+      <td>${isCashSym ? `<div style="color:var(--text-muted);">—</div>` : totalStr}</td>
     </tr>`;
   };
 
