@@ -186,6 +186,7 @@ title: 포트폴리오
             <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="PEPE">PEPE</option>
           </select>
           <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
+          <button onclick="portExportCsv()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Export current view to CSV">📤 Export</button>
           <button id="portBulkDelBtn" onclick="portBulkDelete()" style="display:none; padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.4); background:rgba(248,81,73,0.08); color:rgba(248,81,73,0.9); cursor:pointer; font-size:0.8rem;" title="Delete selected">🗑 <span id="portBulkDelCount"></span></button>
           <button id="portDeleteAllBtn" onclick="portDeleteAll()" style="padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.25); background:none; color:rgba(248,81,73,0.6); cursor:pointer; font-size:0.8rem;" title="Delete all transactions in current filter">🗑 전체삭제</button>
         </div>
@@ -1389,6 +1390,47 @@ async function portDeleteAll() {
   } finally {
     btn.textContent = '🗑 전체삭제'; btn.disabled = false;
   }
+}
+
+function portExportCsv() {
+  const portNameMap = Object.fromEntries((portPortfolios || []).map(p => [p.id, p.name]));
+
+  const fDate  = (document.getElementById('cf_date')   || {}).value?.trim() || '';
+  const fSym   = (document.getElementById('cf_symbol') || {}).value?.trim().toLowerCase() || '';
+  const fType  = (document.getElementById('cf_type')   || {}).value || '';
+  const fAmt   = (document.getElementById('cf_amount') || {}).value?.trim() || '';
+  const fNotes = (document.getElementById('cf_notes')  || {}).value?.trim().toLowerCase() || '';
+
+  let rows = portAllTxns || [];
+  if (fDate)  rows = rows.filter(t => t.trade_date.includes(fDate));
+  if (fSym)   rows = rows.filter(t => t.symbol.toLowerCase().includes(fSym));
+  if (fType)  rows = rows.filter(t => t.type === fType);
+  if (fAmt)   rows = rows.filter(t => String(t.amount || '').includes(fAmt));
+  if (fNotes) rows = rows.filter(t => (t.notes || '').toLowerCase().includes(fNotes));
+
+  const col = _txnSort.col, dir = _txnSort.dir;
+  rows = [...rows].sort((a, b) => {
+    let va = a[col] ?? '', vb = b[col] ?? '';
+    if (['shares','price','amount'].includes(col)) { va = Number(va)||0; vb = Number(vb)||0; return (va-vb)*dir; }
+    return (String(va) < String(vb) ? -1 : String(va) > String(vb) ? 1 : 0) * dir;
+  });
+
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = ['date','portfolio','symbol','type','shares','price','amount','commission','notes','source'];
+  const lines = [header.join(',')];
+  for (const t of rows) {
+    lines.push([
+      t.trade_date, portNameMap[t.portfolio_id] || '', t.symbol, t.type,
+      t.shares ?? '', t.price ?? '', t.amount ?? '', t.commission ?? '', t.notes || '', t.source || ''
+    ].map(esc).join(','));
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `transactions_${fSym || 'all'}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function portShowAddPortfolio() {
