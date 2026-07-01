@@ -478,8 +478,7 @@
             amount: Math.abs(Number(amount)), commission: 0, notes, portfolio_name });
           continue;
         }
-        // Generic USD=CASH (deposits/withdrawals/interest) — skip for now
-        continue;
+        // Generic USD=CASH (stock proceeds, purchases, deposits, withdrawals, interest) — import as-is
       }
 
       if (!trade_date || !type) continue;
