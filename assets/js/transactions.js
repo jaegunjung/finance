@@ -560,8 +560,10 @@
     const seenInBatch = new Set();
     const newRows = [];
     for (const r of rows) {
-      const resolvedPortfolioId = portfolioId ||
-        (r.portfolio_name ? (resolvedMap[r.portfolio_name] ?? null) : null);
+      const resolvedPortfolioId =
+        (r.portfolio_name != null && resolvedMap[r.portfolio_name] != null)
+          ? resolvedMap[r.portfolio_name]
+          : (portfolioId || null);
       const rWithPort = { ...r, portfolio_id: resolvedPortfolioId };
       const sig = _txnSignature(rWithPort);
 if (existingSigs.has(sig) || seenInBatch.has(sig)) {
