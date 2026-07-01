@@ -469,9 +469,15 @@
         const btcMatch = noteLower.match(/(?:purchased|sold)\s+btc-usd/);
         if (btcMatch) {
           const isBuy = noteLower.startsWith('purchased');
+          const cashAmt = Math.abs(Number(amount) || 0);
+          // BTC-USD transaction
           rows.push({ symbol: 'BTC-USD', trade_date, trade_time,
             type: isBuy ? 'buy' : 'sell', shares: null, price: null,
-            amount: Math.abs(Number(amount) || 0), commission: 0, notes, portfolio_name });
+            amount: cashAmt, commission: 0, notes, portfolio_name });
+          // USD=CASH transaction: buying BTC = sell USD, selling BTC = buy USD
+          rows.push({ symbol: 'USD=CASH', trade_date, trade_time,
+            type: isBuy ? 'sell' : 'buy', shares: cashAmt, price: 0,
+            amount: cashAmt, commission: 0, notes, portfolio_name });
           continue;
         }
         // Dividends: "Dividends from XXXX - ..."
