@@ -261,7 +261,7 @@
     // Stable sort by date; within the same date, process splits BEFORE
     // buys/sells so a same-day split correctly multiplies shares bought
     // earlier that day rather than being skipped or mis-ordered.
-    const typeRank = t => (t.type === 'split' ? 0 : 1);
+    const typeRank = t => t.type === 'split' ? 0 : ['buy','drip','buy_to_cover'].includes(t.type) ? 1 : 2;
     const sorted = deduped
       .map((t, i) => ({ t, i }))
       .sort((a, b) => {
