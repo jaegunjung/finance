@@ -564,12 +564,7 @@
         (r.portfolio_name ? (resolvedMap[r.portfolio_name] ?? null) : null);
       const rWithPort = { ...r, portfolio_id: resolvedPortfolioId };
       const sig = _txnSignature(rWithPort);
-      // Debug: log dividend-related USD=CASH rows
-      if (r.symbol === 'USD=CASH' && r.notes && /^Dividends from/i.test(r.notes)) {
-        const inDb = existingSigs.has(sig), inBatch = seenInBatch.has(sig);
-        console.log(`[dedup] USD=CASH div ${r.trade_date} ${r.amount}: sig=${sig} inDb=${inDb} inBatch=${inBatch}`);
-      }
-      if (existingSigs.has(sig) || seenInBatch.has(sig)) {
+if (existingSigs.has(sig) || seenInBatch.has(sig)) {
         skipped++;
         skippedRows.push({ ...r, _reason: existingSigs.has(sig) ? 'db' : 'csv' });
         continue;
@@ -601,8 +596,7 @@
       .select();
 
     if (error) throw error;
-    if (skippedRows && skippedRows.length) console.log('[import] skipped rows:', JSON.stringify(skippedRows.slice(0, 50), null, 2));
-    return { imported: (data || []).length, skipped, skippedRows, errors: [] };
+return { imported: (data || []).length, skipped, skippedRows, errors: [] };
   }
 
   // Build a stable signature for duplicate detection: date+symbol+type+
