@@ -596,6 +596,7 @@
       .select();
 
     if (error) throw error;
+    if (skippedRows && skippedRows.length) console.log('[import] skipped rows:', JSON.stringify(skippedRows.slice(0, 50), null, 2));
     return { imported: (data || []).length, skipped, skippedRows, errors: [] };
   }
 
