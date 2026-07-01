@@ -458,6 +458,10 @@
       // Auto-compute amount if missing (MSP has no amount column — shares × price)
       if (amount == null && shares != null && price != null) amount = shares * price;
 
+      // USD=CASH: price column is a 0/1 flag (0=linked to stock trade, 1=pure cash),
+      // not a real price — the shares column holds the actual dollar amount.
+      if (symbol === 'USD=CASH' && shares != null) amount = Math.abs(Number(shares));
+
       // ── MSP special: USD=CASH rows with crypto/dividend notes ──────────────
       if (symbol === 'USD=CASH' && notes && trade_date) {
         const noteLower = notes.toLowerCase();
