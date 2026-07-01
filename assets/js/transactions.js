@@ -600,12 +600,13 @@ return { imported: (data || []).length, skipped, skippedRows, errors: [] };
   }
 
   // Build a stable signature for duplicate detection: date+symbol+type+
-  // shares+price+amount. Numbers are rounded to avoid float-precision
-  // mismatches (e.g. 194.0 vs 194) causing a false "not a duplicate".
+  // shares+price+amount. Numbers are rounded to 7 decimal places to avoid
+  // float-precision mismatches (e.g. 501.25 vs 501.2500031 were incorrectly
+  // collapsing with the old 4-decimal rounding).
   function _txnSignature(r) {
     const round = n => {
       const v = Number(n);
-      return isNaN(v) ? 0 : Math.round(v * 10000) / 10000;
+      return isNaN(v) ? 0 : Math.round(v * 1e7) / 1e7;
     };
     return [
       (r.portfolio_id || ''),
