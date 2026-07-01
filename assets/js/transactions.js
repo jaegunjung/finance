@@ -483,9 +483,14 @@
         // Dividends: "Dividends from XXXX - ..."
         const divMatch = notes.match(/^Dividends from ([A-Z0-9.\-]+)/i);
         if (divMatch && amount != null) {
+          const divAmt = Math.abs(Number(amount));
           rows.push({ symbol: divMatch[1].toUpperCase(), trade_date, trade_time,
             type: 'dividend', shares: null, price: null,
-            amount: Math.abs(Number(amount)), commission: 0, notes, portfolio_name });
+            amount: divAmt, commission: 0, notes, portfolio_name });
+          // Also add USD=CASH BUY (dividend cash received)
+          rows.push({ symbol: 'USD=CASH', trade_date, trade_time,
+            type: 'buy', shares: divAmt, price: 0,
+            amount: divAmt, commission: 0, notes, portfolio_name });
           continue;
         }
         // Generic USD=CASH (stock proceeds, purchases, deposits, withdrawals, interest) — import as-is
