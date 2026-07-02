@@ -421,6 +421,11 @@
       if (s === 'split' || s === 'stock split') return 'split';
       if (s === 'cash_deposit' || s === 'deposit') return 'cash_deposit';
       if (s === 'cash_withdrawal' || s === 'withdrawal') return 'cash_withdrawal';
+      // MSP "Sell All" / "Close Position": liquidates the entire remaining
+      // position but the CSV row itself carries no share quantity (Shares
+      // Owned = 0, i.e. the post-trade balance). Flag it so the row loop
+      // below can fill in shares/amount from the running position size.
+      if (s === 'sell all' || s === 'sell_all' || s === 'close position' || s === 'closed position' || s === 'close all') return 'sell_all';
       return null;
     }
 
@@ -431,6 +436,10 @@
     }
 
     const rows = [];
+    // Running position size per symbol+portfolio, tracked as rows are parsed
+    // in file order — used to fill in the quantity for "Sell All" rows,
+    // which MSP exports with no share count (see parseType above).
+    const runningShares = new Map();
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
@@ -439,13 +448,25 @@
       const symbol = cols.symbol >= 0 ? f[cols.symbol]?.toUpperCase() : null;
       const trade_date = parseDate(cols.trade_date >= 0 ? f[cols.trade_date] : null);
       const trade_time = cols.trade_time >= 0 ? (f[cols.trade_time] || null) : null;
-      const type = parseType(cols.type >= 0 ? f[cols.type] : null);
-      const shares = parseNum(cols.shares >= 0 ? f[cols.shares] : null);
+      let   type = parseType(cols.type >= 0 ? f[cols.type] : null);
+      let   shares = parseNum(cols.shares >= 0 ? f[cols.shares] : null);
       const price  = parseNum(cols.price  >= 0 ? f[cols.price]  : null);
       let   amount = parseNum(cols.amount >= 0 ? f[cols.amount] : null);
       const commission = parseNum(cols.commission >= 0 ? f[cols.commission] : null);
       const notes  = cols.notes >= 0 ? (f[cols.notes] || null) : null;
       const portfolio_name = cols.portfolio >= 0 ? (f[cols.portfolio] || null) : null;
+      const shareKey = `${symbol || ''}|${portfolio_name || ''}`;
+
+      // "Sell All": MSP doesn't record the quantity liquidated, so use the
+      // running position size accumulated from earlier rows for this
+      // symbol+portfolio. Requires the CSV to list that symbol's history
+      // in chronological order (true for MSP's full-history export).
+      if (type === 'sell_all') {
+        const held = Math.abs(runningShares.get(shareKey) || 0);
+        type = 'sell';
+        shares = held;
+        amount = held > 0 && price != null ? held * price : 0;
+      }
 
       // MSP: dividend/interest rows store the cash value in the shares column;
       // price may be filled with the stock price (irrelevant for cash income).
@@ -502,6 +523,19 @@
       // Split transactions don't carry a dollar amount — default to 0
       if (amount == null && type === 'split') amount = 0;
       if (amount == null) continue;
+
+      // Keep the running position tally current for "Sell All" lookups
+      // further down the file (same heuristics as computePnL's split handling).
+      if (type === 'buy' || type === 'drip' || type === 'buy_to_cover') {
+        runningShares.set(shareKey, (runningShares.get(shareKey) || 0) + (shares || 0));
+      } else if (type === 'sell' || type === 'sell_short') {
+        runningShares.set(shareKey, (runningShares.get(shareKey) || 0) - (shares || 0));
+      } else if (type === 'split') {
+        const sh = shares || 0;
+        const cur = runningShares.get(shareKey) || 0;
+        if (sh >= 2 && sh <= 100) runningShares.set(shareKey, cur * sh);
+        else if (sh > 100) runningShares.set(shareKey, cur + sh);
+      }
 
       rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, notes, portfolio_name });
     }
