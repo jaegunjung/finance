@@ -542,7 +542,7 @@
     if (importSymbols.length) {
       const { data: existing, error: exErr } = await sb
         .from('transactions')
-        .select('portfolio_id, symbol, trade_date, type, shares, price, amount')
+        .select('portfolio_id, symbol, trade_date, trade_time, type, shares, price, amount')
         .eq('user_id', user.id)
         .in('symbol', importSymbols);
       if (exErr) throw exErr;
@@ -614,6 +614,7 @@ return { imported: (data || []).length, skipped, skippedRows, errors: [] };
       (r.portfolio_id || ''),
       (r.symbol || '').toUpperCase(),
       r.trade_date,
+      (r.trade_time || ''),
       r.type,
       round(r.shares),
       round(r.price),
