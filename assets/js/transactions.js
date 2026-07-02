@@ -465,18 +465,20 @@
       // ── MSP special: USD=CASH rows with crypto/dividend notes ──────────────
       if (symbol === 'USD=CASH' && notes && trade_date) {
         const noteLower = notes.toLowerCase();
-        // BTC-USD cash flows: "Purchased BTC-USD" = buy BTC (Sell USD), "Sold BTC-USD" = sell BTC (Buy USD)
+        // BTC-USD cash flows: generate a BTC-USD row (direction from notes) +
+        // keep the USD=CASH row with the MSP original type (already correct).
         const btcMatch = noteLower.match(/(?:purchased|sold)\s+btc-usd/);
         if (btcMatch) {
           const isBuy = noteLower.startsWith('purchased');
           const cashAmt = Math.abs(Number(amount) || 0);
-          // BTC-USD transaction
+          // BTC-USD transaction (direction derived from notes)
           rows.push({ symbol: 'BTC-USD', trade_date, trade_time,
             type: isBuy ? 'buy' : 'sell', shares: null, price: null,
             amount: cashAmt, commission: 0, notes, portfolio_name });
-          // USD=CASH transaction: buying BTC = sell USD, selling BTC = buy USD
+          // USD=CASH transaction: use MSP original type — it already reflects
+          // the correct cash direction (buy=cash in, sell=cash out).
           rows.push({ symbol: 'USD=CASH', trade_date, trade_time,
-            type: isBuy ? 'sell' : 'buy', shares: cashAmt, price: 0,
+            type, shares: cashAmt, price: 0,
             amount: cashAmt, commission: 0, notes, portfolio_name });
           continue;
         }
