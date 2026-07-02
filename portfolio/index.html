@@ -685,8 +685,24 @@ async function portLoadHoldings() {
 
   // Compute PnL per symbol then fetch prices in parallel
   const symbols = Object.keys(symbolMap);
+  const CASH_SYMS_SET = new Set(['USD=CASH', 'USD']);
   const pnlMap  = {};
-  for (const sym of symbols) pnlMap[sym] = window.txns.computePnL(symbolMap[sym]);
+  for (const sym of symbols) {
+    if (CASH_SYMS_SET.has(sym)) {
+      // USD=CASH: simple net (buy+interest − sell) — FIFO clamping distorts cash balances
+      const buyT = new Set(['buy', 'interest', 'drip', 'buy_to_cover']);
+      const sellT = new Set(['sell', 'sell_short']);
+      const net = symbolMap[sym].reduce((s, t) => {
+        const amt = Number(t.amount || 0);
+        if (buyT.has(t.type)) return s + amt;
+        if (sellT.has(t.type)) return s - amt;
+        return s;
+      }, 0);
+      pnlMap[sym] = { avgCost: 0, remainingShares: net, totalCost: net > 0 ? net : 0, realizedGain: 0, realizedGainYTD: 0 };
+    } else {
+      pnlMap[sym] = window.txns.computePnL(symbolMap[sym]);
+    }
+  }
 
   // Only fetch price for symbols with remaining shares OR that have realized gains
   const priceResults = await Promise.all(symbols.map(sym => fetchPriceInfo(sym).catch(() => null)));
