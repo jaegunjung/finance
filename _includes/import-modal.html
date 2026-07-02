@@ -141,7 +141,11 @@
     <div id="importStatus" style="display:none; margin-top:12px; padding:10px 14px; border-radius:6px; font-size:0.84rem;"></div>
 
     <!-- Action buttons -->
-    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+    <label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; color:var(--text-secondary); cursor:pointer;">
+      <input type="checkbox" id="importSkipDedup"> 첫 import (중복 체크 생략)
+    </label>
+    <div style="display:flex; gap:10px;">
       <button onclick="importModalClose()" style="
         padding:8px 20px; border-radius:6px; border:1px solid var(--border);
         background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;
@@ -151,6 +155,7 @@
         background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem;
         font-weight:600; opacity:0.4; pointer-events:none;
       " disabled>Import</button>
+    </div>
     </div>
   </div>
 </div>
@@ -523,7 +528,8 @@ async function importSubmit() {
   });
 
   try {
-    const { imported, skipped, skippedRows } = await window.txns.importTransactions(rowsToImport, portfolioId, nameToId);
+    const skipDedup = document.getElementById('importSkipDedup')?.checked || false;
+    const { imported, skipped, skippedRows } = await window.txns.importTransactions(rowsToImport, portfolioId, nameToId, { skipDedup });
     let skipMsg = '';
     if (skipped > 0) {
       const rows = (skippedRows || []);

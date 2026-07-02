@@ -517,9 +517,10 @@
   // already in the DB for this user) are skipped automatically so that
   // re-importing an updated/overlapping CSV export doesn't double-count
   // trades. Returns { imported, skipped, errors }.
-  async function importTransactions(rows, portfolioId, nameToId) {
+  async function importTransactions(rows, portfolioId, nameToId, options = {}) {
     const { sb, user } = requireAuth();
     if (!rows || rows.length === 0) return { imported: 0, skipped: 0, errors: [] };
+    const skipDedup = options.skipDedup === true;
 
     // Resolve 'new' entries: create portfolios for any nameToId value === 'new'
     const resolvedMap = { ...(nameToId || {}) };
@@ -536,25 +537,23 @@
     }
 
     // ── Build signature set of existing transactions ──────────────────────
-    // Only need to check symbols that appear in this import batch.
-    const importSymbols = [...new Set(rows.map(r => (r.symbol || '').toUpperCase()).filter(Boolean))];
     const existingSigs = new Set();
-    if (importSymbols.length) {
-      const { data: existing, error: exErr } = await sb
-        .from('transactions')
-        .select('portfolio_id, symbol, trade_date, trade_time, type, shares, price, amount')
-        .eq('user_id', user.id)
-        .in('symbol', importSymbols);
-      if (exErr) throw exErr;
-      for (const e of (existing || [])) {
-        existingSigs.add(_txnSignature(e));
+    if (!skipDedup) {
+      const importSymbols = [...new Set(rows.map(r => (r.symbol || '').toUpperCase()).filter(Boolean))];
+      if (importSymbols.length) {
+        const { data: existing, error: exErr } = await sb
+          .from('transactions')
+          .select('portfolio_id, symbol, trade_date, trade_time, type, shares, price, amount')
+          .eq('user_id', user.id)
+          .in('symbol', importSymbols);
+        if (exErr) throw exErr;
+        for (const e of (existing || [])) {
+          existingSigs.add(_txnSignature(e));
+        }
       }
     }
 
     // ── Filter out rows that duplicate an existing transaction ────────────
-    // Resolve each row's portfolio_id before computing the signature so
-    // the same split/trade in different portfolios is NOT treated as a
-    // duplicate (portfolio_id is part of the signature).
     let skipped = 0;
     const skippedRows = [];
     const seenInBatch = new Set();
@@ -566,7 +565,7 @@
           : (portfolioId || null);
       const rWithPort = { ...r, portfolio_id: resolvedPortfolioId };
       const sig = _txnSignature(rWithPort);
-if (existingSigs.has(sig) || seenInBatch.has(sig)) {
+      if (!skipDedup && (existingSigs.has(sig) || seenInBatch.has(sig))) {
         skipped++;
         skippedRows.push({ ...r, _reason: existingSigs.has(sig) ? 'db' : 'csv' });
         continue;
