@@ -1399,6 +1399,7 @@ async function portDeleteAll() {
   btn.textContent = '삭제 중…'; btn.disabled = true;
   try {
     const n = await window.txns.deleteAllTransactions(portActivePortfolioId, symbolFilter);
+    window._importSuggestSkipDedup = true; // next import modal open: pre-check "skip dedup"
     alert(`${n}건 삭제 완료.`);
     portLoadTxns();
   } catch(e) {

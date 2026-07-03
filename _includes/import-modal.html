@@ -280,6 +280,12 @@ function importModalOpen() {
   document.getElementById('importModal').style.display = 'block';
   document.body.style.overflow = 'hidden';
   importLoadPortfolios();
+  // After a "delete all" on the portfolio page, there's nothing left to
+  // dedup against — pre-check the skip-dedup box for the next import.
+  if (window._importSuggestSkipDedup) {
+    document.getElementById('importSkipDedup').checked = true;
+    window._importSuggestSkipDedup = false;
+  }
 }
 
 function importModalClose() {
