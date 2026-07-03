@@ -61,12 +61,17 @@ def fetch_observations(series_id: str, observation_start: str) -> list[dict]:
                 print(f'  Rate-limited, waiting {wait}s…', flush=True)
                 time.sleep(wait)
                 continue
+            if 400 <= resp.status_code < 500:
+                # Client errors (e.g. invalid/discontinued series_id) won't
+                # be fixed by retrying — fail fast with the response body.
+                print(f'  [{series_id}] HTTP {resp.status_code}: {resp.text[:300]}', flush=True)
+                resp.raise_for_status()
             resp.raise_for_status()
             data = resp.json()
             return data.get('observations', [])
         except requests.RequestException as e:
             print(f'  Request error (attempt {attempt+1}): {e}', flush=True)
-            if attempt == 2:
+            if attempt == 2 or (e.response is not None and 400 <= e.response.status_code < 500):
                 raise
             time.sleep(10)
     return []
@@ -348,7 +353,10 @@ def main():
 
     total = 0
     for series_id, filepath in FRED_SERIES.items():
-        total += update_series(series_id, filepath)
+        try:
+            total += update_series(series_id, filepath)
+        except Exception as e:
+            print(f'  [{series_id}] FAILED, skipping: {e}', flush=True)
         time.sleep(1)
 
     total += update_shiller_pe()
