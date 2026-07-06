@@ -655,6 +655,33 @@ async function fetchCurrentPrice(symbol) {
   return info?.price ?? null;
 }
 
+// ── Shared: invested-principal computation (see 분석 코치 tab) ──────────────
+// Mirrors the priority rules used in portLoadAnalysis: an explicit
+// per-transaction 원금 override (거래내역 tab), if any exist for this
+// portfolio, fully replaces the zero_principal_from_year / manual_principal
+// account-level settings (opt-in: only true-flagged buys count). Otherwise
+// falls back to those settings, or the raw buy total if neither is set.
+function _computePortfolioPrincipal(allTxns, pf) {
+  const BUY_T = new Set(['buy', 'drip', 'buy_to_cover']);
+  const zeroFromYear = pf?.zero_principal_from_year || null;
+  const manualPrincipal = pf?.manual_principal != null ? Number(pf.manual_principal) : null;
+  const buys = allTxns.filter(t => BUY_T.has(t.type));
+  const hasExplicit = buys.some(t => t.count_as_principal === true || t.count_as_principal === false);
+  let derived = 0;
+  for (const t of buys) {
+    const yr = (t.trade_date || '').slice(0, 4);
+    const counts = hasExplicit
+      ? (t.count_as_principal === true)
+      : !(zeroFromYear && Number(yr) >= zeroFromYear);
+    if (counts) derived += Math.abs(Number(t.amount) || 0);
+  }
+  const principal = hasExplicit || !(manualPrincipal != null && manualPrincipal > 0)
+    ? derived
+    : manualPrincipal;
+  const hasOverride = hasExplicit || !!zeroFromYear || (manualPrincipal != null && manualPrincipal > 0);
+  return { principal, hasOverride };
+}
+
 // ── Holdings View ──────────────────────────────────────────────────────────
 async function portLoadHoldings() {
   const loadEl    = document.getElementById('portHoldingsLoading');
@@ -777,7 +804,14 @@ async function portLoadHoldings() {
   // Store for re-render (sort/filter)
   _holdingsOpenRows   = openRows;
   _holdingsClosedRows = closedRows;
-  _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain };
+  // Invested-principal comparison (only meaningful for a single selected
+  // portfolio that actually uses a 원금 override — see 분석 코치 탭).
+  let principalInfo = { principal: 0, hasOverride: false };
+  if (portActivePortfolioId) {
+    const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
+    principalInfo = _computePortfolioPrincipal(allTxns, pf);
+  }
+  _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain, ...principalInfo };
 
   loadEl.style.display    = 'none';
   contentEl.style.display = '';
@@ -1005,7 +1039,7 @@ function portRenderHoldings() {
     </tr>`;
   };
 
-  const { totalValue, totalCostAll, totalUnrealGain, totalRealGain } = _holdingsTotals;
+  const { totalValue, totalCostAll, totalUnrealGain, totalRealGain, principal, hasOverride } = _holdingsTotals;
 
   const thStyle = 'cursor:pointer;user-select:none;';
   let html = `<div class="card" style="padding:0;overflow:hidden;">
@@ -1039,6 +1073,14 @@ function portRenderHoldings() {
   const totalTodayPct = totalCostAll > 0 ? totalTodayVal / totalCostAll * 100 : 0;
   const grandTotal    = (totalUnrealGain ?? 0) + (totalRealGain ?? 0);
   const grandPct      = totalCostAll > 0 ? grandTotal / totalCostAll * 100 : 0;
+  // Only surface a 원금-basis % when this portfolio actually has a 원금
+  // override configured (zero-year / manual / per-transaction) — for a
+  // plain portfolio, principal == cost basis and this would just repeat
+  // the number already shown above.
+  const principalPct = (hasOverride && principal > 0) ? grandTotal / principal * 100 : null;
+  const principalLine = principalPct != null
+    ? `<div class="${cls(principalPct)} h-sub" title="누적원금 $${principal.toLocaleString(undefined,{maximumFractionDigits:0})} 기준 (분석 코치 탭 참고)">원금 기준: ${fP(principalPct)}</div>`
+    : '';
   html += `</tbody>
     <tfoot>
       <tr class="h-foot">
@@ -1048,7 +1090,7 @@ function portRenderHoldings() {
           ? `<div class="${cls(totalTodayVal)}">${fS(totalTodayVal)}</div><div class="${cls(totalTodayPct)} h-sub">${fP(totalTodayPct)}</div>`
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
-        <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div></td>
+        <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>${principalLine}</td>
       </tr>
     </tfoot>
     </table></div>`;
