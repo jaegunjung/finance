@@ -765,7 +765,7 @@ async function portLoadHoldings() {
   let openRows   = [];
   let closedRows = [];
 
-  let totalValue = 0, totalCostAll = 0, totalUnrealGain = 0, totalRealGain = 0;
+  let totalValue = 0, totalCostAll = 0, totalUnrealGain = 0, totalRealGain = 0, totalBoughtAll = 0;
 
   for (const sym of symbols) {
     const { avgCost, remainingShares, totalCost, realizedGain } = pnlMap[sym];
@@ -793,6 +793,11 @@ async function portLoadHoldings() {
       totalUnrealGain+= unrealGain ?? 0;
     }
     totalRealGain += realizedGain;
+    // All-time bought across every symbol (open AND closed) — the correct
+    // denominator for a cumulative all-time %, since totalCostAll only
+    // covers currently-held cost basis and excludes sold-out positions'
+    // cost basis even though their realized gain is still in totalRealGain.
+    totalBoughtAll += totalBought;
 
     const row = { sym, price, remainingShares, avgCost, totalCost, curValue,
       unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct, totalBought };
@@ -811,7 +816,7 @@ async function portLoadHoldings() {
     const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
     principalInfo = _computePortfolioPrincipal(allTxns, pf);
   }
-  _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain, ...principalInfo };
+  _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain, totalBoughtAll, ...principalInfo };
 
   loadEl.style.display    = 'none';
   contentEl.style.display = '';
@@ -1039,7 +1044,7 @@ function portRenderHoldings() {
     </tr>`;
   };
 
-  const { totalValue, totalCostAll, totalUnrealGain, totalRealGain, principal, hasOverride } = _holdingsTotals;
+  const { totalValue, totalCostAll, totalUnrealGain, totalRealGain, totalBoughtAll, principal, hasOverride } = _holdingsTotals;
 
   const thStyle = 'cursor:pointer;user-select:none;';
   let html = `<div class="card" style="padding:0;overflow:hidden;">
@@ -1072,14 +1077,20 @@ function portRenderHoldings() {
   const totalTodayVal = allOpen.reduce((s,r) => s + (r.todayVal ?? 0), 0);
   const totalTodayPct = totalCostAll > 0 ? totalTodayVal / totalCostAll * 100 : 0;
   const grandTotal    = (totalUnrealGain ?? 0) + (totalRealGain ?? 0);
-  const grandPct      = totalCostAll > 0 ? grandTotal / totalCostAll * 100 : 0;
-  // Only surface a 원금-basis % when this portfolio actually has a 원금
+  // % must be against all-time bought (open + closed positions), not just
+  // totalCostAll (cost basis of currently-held shares only) — otherwise
+  // realized gains from sold-out positions inflate the % far past what any
+  // individual row shows, since their cost basis has dropped out of the
+  // denominator while their gain is still in the numerator. Matches the
+  // per-row allTimePct methodology (allTimeGain / totalBought).
+  const grandPct      = totalBoughtAll > 0 ? grandTotal / totalBoughtAll * 100 : 0;
+  // Only surface a 원금-basis figure when this portfolio actually has a 원금
   // override configured (zero-year / manual / per-transaction) — for a
-  // plain portfolio, principal == cost basis and this would just repeat
+  // plain portfolio, principal == totalBoughtAll and this would just repeat
   // the number already shown above.
   const principalPct = (hasOverride && principal > 0) ? grandTotal / principal * 100 : null;
   const principalLine = principalPct != null
-    ? `<div class="${cls(principalPct)} h-sub" title="누적원금 $${principal.toLocaleString(undefined,{maximumFractionDigits:0})} 기준 (분석 코치 탭 참고)">원금 기준: ${fP(principalPct)}</div>`
+    ? `<div class="h-sub" style="color:var(--accent-blue);">원금 ${fA(principal, 0)} · <span class="${cls(grandTotal)}">${fS(grandTotal)}</span> (${fP(principalPct)})</div>`
     : '';
   html += `</tbody>
     <tfoot>
