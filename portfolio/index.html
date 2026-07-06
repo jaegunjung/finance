@@ -391,8 +391,12 @@ title: 포트폴리오
     <div id="principalModalAccountName" style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:14px;"></div>
     <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.6; margin:0 0 18px;">
       401k → IRA 이체처럼 거래내역만으로는 실제 투입 원금을 정확히 알 수 없는 계좌를 위한 설정입니다.
-      이 계좌(포트폴리오)에만 적용됩니다. 개별 거래를 원금에 포함/제외하려면 <b>거래내역</b> 탭에서
-      해당 BUY 행의 "원금" 버튼을 클릭하세요 (아래 연도별 설정보다 우선 적용됩니다).
+      이 계좌(포트폴리오)에만 적용됩니다. <b>거래내역</b> 탭에서 개별 BUY 행에 "원금" 버튼으로 직접
+      지정한 거래가 하나라도 있으면, 아래의 연도별 $0 처리 / 수동 입력 설정은 <b>완전히 무시</b>되고
+      개별 거래에서 "✓ 원금"으로 지정한 금액만 합산됩니다.
+    </p>
+    <p id="pmExplicitOverrideNotice" style="display:none; color:var(--accent-orange, #d29922); font-size:0.78rem; line-height:1.5; margin:0 0 18px; padding:8px 10px; background:rgba(210,153,34,0.1); border-radius:6px;">
+      ⚠️ 이 계좌는 현재 개별 거래 원금 지정을 사용 중입니다. 아래 설정은 지금 적용되지 않습니다.
     </p>
 
     <div style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border);">
@@ -1568,6 +1572,7 @@ async function editSave() {
 let _anlChart = null;
 let _anlLoaded = false; // reset when portfolio changes
 let _anlActivePrincipalOverride = null; // current portfolio's principal-basis override, if any
+let _anlHasExplicitPrincipalOverrides = false; // true if any BUY has a 거래내역-tab 원금 override set
 
 // Called from portDropdownChange / portSwitchView
 async function portLoadAnalysis() {
@@ -1741,18 +1746,20 @@ async function portLoadAnalysis() {
     const yearGains    = {}; // year -> realized gain
     const yearInvested = {}; // year -> total buys
     const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
+    // If ANY buy in this portfolio has an explicit 원금 override (set via the
+    // 거래내역 tab), switch the whole portfolio into "explicit mode": only
+    // buys explicitly marked 원금(true) count, and the account-level
+    // zero_principal_from_year / manual_principal settings are ignored
+    // entirely (the user is telling us they want precise, transaction-level
+    // control instead of the coarse year-cutoff / manual-total overrides).
+    const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
+    _anlHasExplicitPrincipalOverrides = hasExplicitPrincipalOverrides; // stash for the settings modal
     let cumCost = 0, cumRealized = 0;
     for (const ev of events) {
       const yr = ev.date.slice(0, 4);
       if (BUY_T.has(ev.type)) {
-        // Per-transaction override (set via the 원금 toggle in 거래내역) takes
-        // priority when set. Otherwise fall back to the account-level rule:
-        // e.g. a 401k later rolled into a Traditional IRA — buys recorded
-        // from the rollover year onward are not new principal contributed
-        // by the user, just the same money moving accounts, so they don't
-        // count toward "투입 원금".
-        const countsAsPrincipal = ev.countAsPrincipal != null
-          ? ev.countAsPrincipal
+        const countsAsPrincipal = hasExplicitPrincipalOverrides
+          ? ev.countAsPrincipal === true
           : !(zeroFromYear && Number(yr) >= zeroFromYear);
         if (countsAsPrincipal) yearInvested[yr] = (yearInvested[yr] || 0) + ev.amount;
         cumCost += ev.amount;
@@ -1816,7 +1823,10 @@ async function portLoadAnalysis() {
     // totalInvested used in the all-time % and Alpha figures. Per-year
     // rows above are left as derived from transactions, since the manual
     // figure is a single point-in-time number, not a year-by-year series.
-    const manualPrincipal = _principalOverride?.manual_principal;
+    // Explicit per-transaction overrides also take priority over the manual
+    // lump-sum total override — once the user is marking specific buys,
+    // the derived total is the more precise (and current) figure.
+    const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
     const derivedInvested = totalInvested;
     if (manualPrincipal != null && manualPrincipal > 0) totalInvested = manualPrincipal;
 
@@ -1826,7 +1836,9 @@ async function portLoadAnalysis() {
     const totalAlpha = (totalPct != null && spyTotal != null) ? totalPct - spyTotal : null;
     const manualNote = (manualPrincipal != null && manualPrincipal > 0)
       ? ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="거래내역 기준 합계: $${derivedInvested.toLocaleString(undefined,{maximumFractionDigits:0})}">✏️ 수동 입력${_principalOverride?.manual_principal_as_of ? ' (' + _principalOverride.manual_principal_as_of + ' 기준)' : ''}</span>`
-      : '';
+      : (hasExplicitPrincipalOverrides
+        ? ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="개별 거래에서 지정한 원금만 합산됨 (연도별/수동 설정 무시)">🔧 거래 단위 지정</span>`
+        : '');
     tbody += `<tr style="font-weight:700; background:var(--bg-secondary);">
       <td>전체 누적</td>
       <td style="text-align:right;">$${totalInvested.toLocaleString(undefined,{maximumFractionDigits:0})}${manualNote}</td>
@@ -1960,6 +1972,7 @@ function anlOpenPrincipalModal() {
   saveBtn.textContent = '저장';
 
   document.getElementById('pmStatus').style.display = 'none';
+  document.getElementById('pmExplicitOverrideNotice').style.display = _anlHasExplicitPrincipalOverrides ? '' : 'none';
   document.getElementById('principalModal').style.display = 'flex';
 }
 
