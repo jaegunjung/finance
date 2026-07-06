@@ -58,6 +58,13 @@
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal NUMERIC;
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal_as_of DATE;
  *
+ * -- Per-transaction principal override (거래내역 tab — mark a specific BUY as
+ * -- counting, or not counting, toward invested principal). NULL means "no
+ * -- override, fall back to the portfolio's zero_principal_from_year rule";
+ * -- TRUE/FALSE explicitly force the transaction in/out regardless of that
+ * -- rule. Takes priority over zero_principal_from_year when set.
+ * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS count_as_principal BOOLEAN;
+ *
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -180,6 +187,7 @@
     if (data.commission  !== undefined) fields.commission  = data.commission != null ? Number(data.commission) : 0;
     if (data.trade_time  !== undefined) fields.trade_time  = data.trade_time || null;
     if (data.notes       !== undefined) fields.notes       = data.notes || null;
+    if (data.count_as_principal !== undefined) fields.count_as_principal = data.count_as_principal;
     const { data: result, error } = await sb
       .from('transactions')
       .update(fields)
