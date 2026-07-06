@@ -1086,11 +1086,17 @@ function portRenderHoldings() {
   const grandPct      = totalBoughtAll > 0 ? grandTotal / totalBoughtAll * 100 : 0;
   // Only surface a 원금-basis figure when this portfolio actually has a 원금
   // override configured (zero-year / manual / per-transaction) — for a
-  // plain portfolio, principal == totalBoughtAll and this would just repeat
-  // the number already shown above.
-  const principalPct = (hasOverride && principal > 0) ? grandTotal / principal * 100 : null;
+  // plain portfolio this would just repeat the number already shown above.
+  // Gain here is current total VALUE minus principal actually put in (not
+  // grandTotal, the trade-ledger P&L) — grandTotal uses each transaction's
+  // own cost basis, which for rollover-derived lots is inflated to ~market
+  // value at rollover time, understating gain relative to true principal.
+  // (value - principal) sidesteps that entirely: it only cares what the
+  // account is worth now vs. what was actually put in.
+  const principalGain = (hasOverride && principal > 0 && totalValue > 0) ? totalValue - principal : null;
+  const principalPct  = principalGain != null ? principalGain / principal * 100 : null;
   const principalLine = principalPct != null
-    ? `<div class="h-sub" style="color:var(--accent-blue);">원금 ${fA(principal, 0)} · <span class="${cls(grandTotal)}">${fS(grandTotal)}</span> (${fP(principalPct)})</div>`
+    ? `<div class="h-sub" style="color:var(--accent-blue);">원금 ${fA(principal, 0)} · <span class="${cls(principalGain)}">${fS(principalGain)}</span> (${fP(principalPct)})</div>`
     : '';
   html += `</tbody>
     <tfoot>
