@@ -479,7 +479,7 @@
       // MSP: dividend/interest rows store the cash value in the shares column;
       // price may be filled with the stock price (irrelevant for cash income).
       // Must run BEFORE the shares×price auto-compute below.
-      if ((type === 'dividend' || type === 'interest') && shares != null && shares > 0 && (amount == null || amount === 0)) {
+      if ((type === 'dividend' || type === 'interest') && shares != null && shares !== 0 && (amount == null || amount === 0)) {
         rows.push({ symbol, trade_date, trade_time, type, shares: null, price: null, amount: shares, commission, notes, portfolio_name });
         continue;
       }
