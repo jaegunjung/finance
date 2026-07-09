@@ -65,6 +65,21 @@
  * -- rule. Takes priority over zero_principal_from_year when set.
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS count_as_principal BOOLEAN;
  *
+ * -- Principal overrides, persisted independently of the transaction row
+ * -- (keyed by content signature, not transaction id) so that deleting and
+ * -- re-importing the same CSV data automatically restores the override —
+ * -- re-imported rows get brand-new ids, but their signature is unchanged.
+ * CREATE TABLE IF NOT EXISTS public.principal_overrides (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   signature TEXT NOT NULL,
+ *   count_as_principal BOOLEAN NOT NULL,
+ *   created_at TIMESTAMPTZ DEFAULT NOW(),
+ *   UNIQUE (user_id, signature)
+ * );
+ * ALTER TABLE public.principal_overrides ENABLE ROW LEVEL SECURITY;
+ * CREATE POLICY "own" ON public.principal_overrides USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+ *
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -196,7 +211,47 @@
       .select()
       .single();
     if (error) throw error;
+    // Persist the override by content signature too, so it survives a
+    // future delete + re-import of this same transaction data.
+    if (data.count_as_principal !== undefined) {
+      await _setPrincipalOverride(_txnSignature(result), data.count_as_principal);
+    }
     return result;
+  }
+
+  // ── Principal overrides persisted by content signature ─────────────────
+  // (see updateTransaction and importTransactions for read/write sites)
+  async function _setPrincipalOverride(signature, value) {
+    const { sb, user } = requireAuth();
+    if (value == null) {
+      await sb.from('principal_overrides').delete()
+        .eq('user_id', user.id).eq('signature', signature);
+    } else {
+      await sb.from('principal_overrides').upsert(
+        { user_id: user.id, signature, count_as_principal: value },
+        { onConflict: 'user_id,signature' }
+      );
+    }
+  }
+
+  async function _getPrincipalOverrides(signatures) {
+    const { sb, user } = requireAuth();
+    const map = new Map();
+    if (!signatures.length) return map;
+    const CHUNK = 500;
+    for (let i = 0; i < signatures.length; i += CHUNK) {
+      const chunk = signatures.slice(i, i + CHUNK);
+      const { data, error } = await sb
+        .from('principal_overrides')
+        .select('signature, count_as_principal')
+        .eq('user_id', user.id)
+        .in('signature', chunk);
+      // Table may not exist yet if the migration SQL hasn't been run —
+      // degrade to "no overrides" rather than failing the whole import.
+      if (error) return map;
+      for (const row of (data || [])) map.set(row.signature, row.count_as_principal);
+    }
+    return map;
   }
 
   async function deleteTransaction(id) {
@@ -615,10 +670,16 @@
         continue;
       }
       seenInBatch.add(sig);
-      newRows.push(r);
+      newRows.push({ ...r, _sig: sig });
     }
 
     if (newRows.length === 0) return { imported: 0, skipped, skippedRows, errors: [] };
+
+    // Restore any principal override previously set (via the 거래내역 tab)
+    // on a transaction with this same content signature — covers the
+    // delete-then-re-import case, since the old row's override would
+    // otherwise be lost when its id disappears.
+    const overrideMap = await _getPrincipalOverrides(newRows.map(r => r._sig));
 
     const toInsert = newRows.map(r => ({
       user_id:      user.id,
@@ -632,6 +693,7 @@
       commission:   r.commission != null ? Number(r.commission) : 0,
       notes:        r.notes || null,
       source:       'import',
+      count_as_principal: overrideMap.has(r._sig) ? overrideMap.get(r._sig) : null,
     }));
 
     // Batch insert (Supabase handles up to ~1000 rows)
