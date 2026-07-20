@@ -1,5 +1,5 @@
 """
-Update FRED macro data (FEDFUNDS, DGS10, SP500, Wilshire5000, GDP)
+Update FRED macro data (FEDFUNDS, DGS10, SP500, GDP, CPI, PPI)
 and Shiller PE from Yale's dataset.
 
 Run via GitHub Actions (update_macro.yml) or manually:
@@ -24,11 +24,14 @@ FRED_SERIES = {
     'FEDFUNDS':       Path('assets/data/macro/FEDFUNDS.csv'),
     'DGS10':          Path('assets/data/macro/DGS10.csv'),
     'SP500':          Path('assets/data/macro/SP500.csv'),
-    'WILL5000INDFC':  Path('assets/data/macro/WILL5000INDFC.csv'),
     'GDP':            Path('assets/data/macro/GDP.csv'),
     'CPIAUCSL':       Path('assets/data/macro/CPI.csv'),
     'PPIACO':         Path('assets/data/macro/PPI.csv'),
 }
+# WILL5000INDFC: FRED removed all Wilshire index data on 2024-06-03 (Wilshire
+# Associates ended the licensing deal). The series is gone for good — no
+# renamed replacement exists — so WILL5000INDFC.csv stays frozen at its last
+# fetched value and compute_buffett() below scales it forward using SP500.
 
 if not FRED_API_KEY:
     print('ERROR: FRED_API_KEY not set.', flush=True)
