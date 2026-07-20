@@ -88,5 +88,6 @@
     "WGMI",
     "XOM"
   ],
-  "csv_output_dir": "assets/data/stocks"
+  "csv_output_dir": "assets/data/stocks",
+  "_stock_cursor": 0
 }

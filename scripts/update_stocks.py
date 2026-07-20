@@ -49,6 +49,10 @@ def read_last_date(symbol: str) -> str:
     return rows[-1]['date'].strip() if rows else START
 
 
+class RateLimited(Exception):
+    """Alpha Vantage daily request quota exhausted — stop the run, don't burn remaining symbols."""
+
+
 def fetch_adjusted(symbol: str, full: bool = False) -> dict:
     params = {
         'function': 'TIME_SERIES_DAILY',   # ADJUSTED moved to premium; use free daily
@@ -63,6 +67,8 @@ def fetch_adjusted(symbol: str, full: bool = False) -> dict:
             data = resp.json()
             if 'Time Series (Daily)' not in data:
                 note = data.get('Note') or data.get('Information') or str(data)[:120]
+                if 'requests per day' in note.lower() or 'rate limit' in note.lower():
+                    raise RateLimited(note)
                 print(f'  [{symbol}] Unexpected response: {note}', flush=True)
                 return {}
             return data['Time Series (Daily)']
@@ -112,14 +118,29 @@ def main():
         cfg = json.load(f)
     symbols = cfg['stocks']
 
+    # Alpha Vantage free tier allows only 25 requests/day, far fewer than
+    # len(symbols). Always starting from symbols[0] means everything past
+    # the ~25th (alphabetically) never gets a turn. Instead rotate the
+    # start position each run so the whole list cycles through over a few
+    # days, and persist how far we got so tomorrow picks up where today
+    # stopped (whether that's from finishing the list or hitting the cap).
+    cursor = cfg.get('_stock_cursor', 0) % len(symbols)
+    order = symbols[cursor:] + symbols[:cursor]
+
     total_new = 0
-    for symbol in symbols:
+    processed = 0
+    for symbol in order:
         last_date = read_last_date(symbol)
         print(f'[{symbol}] last date: {last_date}', flush=True)
 
         # Use outputsize=full on initial fetch (CSV missing) to get full history
         initial = not csv_path(symbol).exists()
-        ts = fetch_adjusted(symbol, full=initial)
+        try:
+            ts = fetch_adjusted(symbol, full=initial)
+        except RateLimited as e:
+            print(f'  [{symbol}] Rate limit hit, stopping for today: {e}', flush=True)
+            break
+        processed += 1
         if not ts:
             print(f'  [{symbol}] skipped (no data)', flush=True)
             # Alpha Vantage free tier: 25 req/day, ~5 req/min — pace requests
@@ -136,7 +157,11 @@ def main():
         # Free tier: max 5 requests/minute → sleep between calls
         time.sleep(13)
 
-    print(f'\nDone. Total new rows: {total_new}', flush=True)
+    cfg['_stock_cursor'] = (cursor + processed) % len(symbols)
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump(cfg, f, indent=2)
+
+    print(f'\nDone. Total new rows: {total_new}, processed {processed}/{len(symbols)}, next cursor: {cfg["_stock_cursor"]}', flush=True)
     if total_new == 0:
         sys.exit(0)
 
