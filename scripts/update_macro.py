@@ -26,6 +26,8 @@ FRED_SERIES = {
     'SP500':          Path('assets/data/macro/SP500.csv'),
     'WILL5000INDFC':  Path('assets/data/macro/WILL5000INDFC.csv'),
     'GDP':            Path('assets/data/macro/GDP.csv'),
+    'CPIAUCSL':       Path('assets/data/macro/CPI.csv'),
+    'PPIACO':         Path('assets/data/macro/PPI.csv'),
 }
 
 if not FRED_API_KEY:
