@@ -20,9 +20,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
-        run: pip install requests
-
       - name: Run update script
         run: python scripts/update_sp500.py
 

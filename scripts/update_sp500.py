@@ -1,25 +1,33 @@
 """
-Fetch S&P 500 monthly closing prices from stooq.com
-(free, no API key required) and update assets/data/sp500_monthly.csv.
+Update assets/data/sp500_monthly.csv by deriving monthly closes from
+assets/data/macro/SP500.csv (FRED's SP500 daily series, kept fresh by
+scripts/update_macro.py). For each month, the last trading day present
+in that file becomes the month's close.
 
-Run daily via GitHub Actions. Logic:
-  1. If the CSV already has this month's data → exit (skip rest of month).
-  2. Fetch from stooq.com (full history, CSV format).
-  3. If source doesn't have this month yet → exit (retry tomorrow).
-  4. If new month data found → merge and commit.
+Historical months before FRED's SP500 series starts (2016-05) came from
+a one-time Macrotrends/Shiller backfill and are left untouched — this
+script only ever adds or refreshes months at/after that start date.
+
+Previously this scraped stooq.com directly, but stooq added a JS
+proof-of-work bot-check that returns HTTP 200 with a JS challenge page
+instead of CSV for plain HTTP requests, so the daily cron silently
+produced zero rows for over a year. Reusing the already-working FRED
+pipeline avoids scraping/bot-detection entirely.
+
+Run daily via GitHub Actions, after scripts/update_macro.py.
 """
 
 import csv
 import os
 import sys
-import requests
 from datetime import datetime, timezone
-from io import StringIO
 
 CSV_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', 'assets', 'data', 'sp500_monthly.csv')
 )
-STOOQ_URL = 'https://stooq.com/q/d/l/?s=%5Espx&i=m'
+FRED_SP500_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), '..', 'assets', 'data', 'macro', 'SP500.csv')
+)
 
 
 def read_existing():
@@ -33,25 +41,24 @@ def read_existing():
     return data
 
 
-def fetch_stooq():
-    """Fetch full S&P 500 monthly history from stooq.com."""
-    headers = {'User-Agent': 'Mozilla/5.0 (compatible; finance-updater/1.0)'}
-    resp = requests.get(STOOQ_URL, timeout=30, headers=headers)
-    resp.raise_for_status()
-
-    result = {}
-    reader = csv.DictReader(StringIO(resp.text))
-    for row in reader:
-        date_str  = (row.get('Date') or '').strip()
-        close_str = (row.get('Close') or '').strip()
-        if not date_str or not close_str or close_str.lower() == 'null':
-            continue
-        month_key = date_str[:7]          # YYYY-MM-DD → YYYY-MM
-        try:
-            result[month_key] = round(float(close_str), 2)
-        except ValueError:
-            continue
-    return result
+def derive_monthly_from_fred():
+    """Last available trading-day close of each month in FRED's SP500.csv."""
+    if not os.path.exists(FRED_SP500_PATH):
+        return {}
+    monthly = {}
+    with open(FRED_SP500_PATH, newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            date = (row.get('observation_date') or '').strip()
+            value = (row.get('SP500') or '').strip()
+            if not date or not value or value == '.':
+                continue
+            try:
+                price = round(float(value), 2)
+            except ValueError:
+                continue
+            monthly[date[:7]] = price  # later rows in the same month overwrite earlier ones
+    return monthly
 
 
 def write_csv(data):
@@ -65,44 +72,25 @@ def write_csv(data):
 
 
 def main():
-    current_month = datetime.now(timezone.utc).strftime('%Y-%m')
-    print(f"Current month : {current_month}")
-
     existing = read_existing()
     latest_in_csv = max(existing.keys()) if existing else '1900-01'
     print(f"Latest in CSV : {latest_in_csv}")
 
-    if latest_in_csv >= current_month:
-        print(f"Already up to date ({latest_in_csv}). Skipping until next month.")
+    fred_monthly = derive_monthly_from_fred()
+    if not fred_monthly:
+        print(f"No FRED SP500 data found at {FRED_SP500_PATH}. Exiting.")
         sys.exit(0)
 
-    print("Fetching from stooq.com (^SPX monthly)…")
-    try:
-        new_data = fetch_stooq()
-    except Exception as e:
-        print(f"Error fetching data: {e}")
-        sys.exit(1)
-
-    if not new_data:
-        print("No data returned from stooq. Exiting.")
-        sys.exit(0)
-
-    latest_from_source = max(new_data.keys())
-    print(f"Fetched {len(new_data)} months. Latest available: {latest_from_source}")
-
-    if current_month not in new_data:
-        print(f"stooq does not have {current_month} yet. Will retry tomorrow.")
-        sys.exit(0)
-
+    current_month = datetime.now(timezone.utc).strftime('%Y-%m')
     added, updated = 0, 0
-    for date, price in new_data.items():
-        if date <= latest_in_csv:
-            continue
-        if date not in existing:
-            existing[date] = price
+    for month, price in fred_monthly.items():
+        if month not in existing:
+            existing[month] = price
             added += 1
-        elif abs(existing[date] - price) > 0.01:
-            existing[date] = price
+        elif month >= current_month and abs(existing[month] - price) > 0.01:
+            # Only the still-in-progress current month gets refreshed as new
+            # trading days arrive — completed months are final.
+            existing[month] = price
             updated += 1
 
     if added == 0 and updated == 0:
