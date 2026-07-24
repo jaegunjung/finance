@@ -1,0 +1,104 @@
+name: Daily News Watch (Clarity Act / AI CapEx)
+
+on:
+  schedule:
+    - cron: '0 22 * * *'  # UTC 22:00 = KST 07:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  news-watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code news watch
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are running a scheduled, unattended news-watch job for the finance blog at
+            D:\github\finance (this repo). Your job is to check for genuinely important news on
+            two topics and, ONLY if something significant happened, write a new blog post and
+            commit/push it. If nothing significant happened, do nothing and exit quietly.
+
+            ## Topics to check
+            1. Clarity Act (Digital Asset Market Clarity Act) — US crypto market structure legislation
+            2. AI CapEx — big tech AI infrastructure investment (hyperscaler capex guidance, earnings,
+               major spending announcements)
+
+            ## Step 1 — Read existing context first
+            Before searching for news, read what's already been published so you don't repeat it:
+            - Read _posts/2026-05-25-us-crypto-legislation.md (and any other _posts/*.md files whose
+              title/tags mention crypto legislation, Clarity Act, GENIUS Act, or ARMA) to see what
+              Clarity Act developments have already been covered.
+            - Read stock/ai-capex/index.html, stock/aicapex-etf/index.html, and
+              stock/aicapex-stocks/index.html for the AI CapEx context/framing already on the site.
+            - Also skim _posts/ for any other recent posts touching these topics (e.g. bigtech
+              valuation, AI capex earnings) so you don't duplicate them.
+            - List all files under _posts/ to see the existing post format conventions (front matter
+              fields, filename pattern, bilingual div structure). Read 2-3 of the MOST RECENT posts
+              (highest date in filename) in full — the exact front matter fields and the div class
+              names used for the English/Korean bilingual split have evolved over time, so always
+              mirror the newest posts' exact structure, not an older or remembered one.
+
+            ## Step 2 — Search for news
+            Web search for recent news (last 24-48 hours, but also catch anything you may have missed
+            in the last week) on:
+            - Clarity Act: bill status changes, committee votes, floor votes, Senate/House passage,
+              White House signing, major amendments, leadership statements on scheduling
+            - AI CapEx: hyperscaler (Microsoft, Google/Alphabet, Amazon, Meta, Oracle, Nvidia-adjacent
+              supply chain) earnings calls or guidance updates that change capex figures, major new
+              data center / infrastructure spending announcements, credible reporting of a capex
+              slowdown or acceleration
+
+            ## Step 3 — Apply the bar for "important enough to write about"
+            Only write a post if there is a genuinely material development, such as:
+            - Clarity Act: a floor vote occurred (passed or failed) in the Senate or House, the bill
+              passed committee markup with a notable change, the bill was signed into law, a previously
+              confident timeline (e.g. a stated deadline) was hit, blown, or the bill was declared dead,
+              or a major structural change to the bill's content was reported by credible sources
+            - AI CapEx: a hyperscaler materially raised or cut its capex guidance for the year (not just
+              routine reaffirmation), a company announced a new infrastructure commitment large enough
+              to move the multi-year capex narrative (roughly $10B+ or clearly framed as a strategic
+              shift by the reporting), or credible reporting/data indicates a broad capex slowdown or
+              acceleration across multiple hyperscalers
+
+            Do NOT write a post for: routine "Clarity Act still pending" status-quo updates, minor
+            procedural steps with no directional change, single-company capex commentary that doesn't
+            move the narrative, speculation/rumors without a primary source, or anything that just
+            restates what's already covered in the existing posts you read in Step 1.
+
+            If nothing clears this bar for either topic: do NOT create any file, do NOT commit, do NOT
+            push. Just stop here. This is the expected outcome most days — silence is success, not
+            failure.
+
+            ## Step 4 — If (and only if) something clears the bar, write the post
+            Create a new file in _posts/ named YYYY-MM-DD-slug.md using today's date and a short
+            kebab-case slug describing the news.
+
+            Match the format of the most recent existing posts EXACTLY — front matter fields
+            (title/title_en/title_ko/date/categories/tags/excerpt_en/excerpt_ko, and whatever else the
+            newest posts use), and the bilingual body structure (currently two divs, English content
+            first then Korean, using the div classes the newest posts actually use — verify this by
+            re-checking the post you just read in Step 1, do not assume). Write substantive, specific
+            content grounded in the news you found (dates, figures, named bills/companies, sources) —
+            not generic filler. Include both an English section and a Korean section, matching the
+            site's tone (data-driven, cites sources, includes an investment-implications angle and a
+            disclaimer, same as existing posts).
+
+            ## Step 5 — Commit and push
+            Follow the git workflow rules in this repo's CLAUDE.md exactly:
+            - git add the new post file only
+            - git commit -m "post: [topic] 뉴스 업데이트 [auto-news-watch]" (replace [topic] with a short
+              description, e.g. "Clarity Act 상원 통과" or "AI CapEx 가이던스 상향")
+            - git fetch origin, then if origin/main has new commits, git pull --rebase origin main
+            - git push
+
+            Do not touch any other files. Do not create a post if you are not confident the news is
+            accurate and material — when in doubt, don't publish.
