@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
       - name: Run Claude Code news watch
         uses: anthropics/claude-code-action@v1
@@ -112,6 +113,11 @@ jobs:
               description, e.g. "Clarity Act 상원 통과" or "AI CapEx 가이던스 상향")
             - git fetch origin, then if origin/main has new commits, git pull --rebase origin main
             - git push
+            - Verify the push actually worked: run `git log origin/main -1` (after another `git fetch
+              origin`) and confirm it shows the commit you just made. If `git push` failed — e.g. with
+              "fatal: You are not currently on a branch" (detached HEAD) — retry with
+              `git push origin HEAD:main` instead, then re-verify with the same check. Do not report
+              this job as done until you've confirmed the commit is actually visible on origin/main.
 
             Do not touch any other files. Do not create a post if you are not confident the news is
             accurate and material — when in doubt, don't publish.
