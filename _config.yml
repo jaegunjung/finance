@@ -11,7 +11,7 @@ plugins:
   - jekyll-redirect-from
 
 # Buttondown newsletter username (not secret — just the public embed-subscribe slug)
-buttondown_username: "REPLACE_ME"
+buttondown_username: "jaegun"
 
 # Google Drive Picker — injected via GitHub Secrets in CI (deploy.yml)
 # For local dev, create _config_local.yml with these values (gitignored)
