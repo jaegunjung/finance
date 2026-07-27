@@ -29,7 +29,19 @@ jobs:
             allowed under any circumstance.
 
             ## Step 1 — Research today's major market news
-            Web search for the day's most important developments across:
+            IMPORTANT: The WebSearch and WebFetch tools are NOT available in this environment (a known
+            claude-code-action limitation — they are force-disabled regardless of any tool permission
+            settings). Do not attempt to use them. Instead, use the Bash tool with curl against Google
+            News' public RSS search feed, which needs no API key:
+
+              curl -s "https://news.google.com/rss/search?q=<url-encoded query>&hl=en-US&gl=US&ceid=US:en"
+
+            This returns an XML feed of recent <item> entries, each with <title>, <link>, <pubDate>, and
+            a <source>. Run one query per topic below, read the titles/dates/sources to judge what's
+            actually significant today, and only curl an individual article <link> if you need more
+            detail than the headline gives you (many publishers will block or paywall the fetch — that's
+            fine, fall back to corroborating the story across multiple headlines/sources instead).
+            Topics to cover:
             - Fed policy: rate decisions, FOMC minutes/commentary, Fed officials' remarks that moved
               markets
             - Oil / energy prices and the reason for any notable move

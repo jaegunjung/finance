@@ -50,8 +50,19 @@ jobs:
               mirror the newest posts' exact structure, not an older or remembered one.
 
             ## Step 2 — Search for news
-            Web search for recent news (last 24-48 hours, but also catch anything you may have missed
-            in the last week) on:
+            IMPORTANT: The WebSearch and WebFetch tools are NOT available in this environment (a known
+            claude-code-action limitation — they are force-disabled regardless of any tool permission
+            settings). Do not attempt to use them. Instead, use the Bash tool with curl against Google
+            News' public RSS search feed, which needs no API key:
+
+              curl -s "https://news.google.com/rss/search?q=<url-encoded query>&hl=en-US&gl=US&ceid=US:en"
+
+            This returns an XML feed of recent <item> entries, each with <title>, <link>, <pubDate>, and
+            a <source>. Run one query per topic below (last 24-48 hours, but also catch anything you may
+            have missed in the last week), read the titles/dates/sources to judge materiality, and only
+            curl an individual article <link> if you need more detail than the headline gives you (many
+            publishers will block or paywall the fetch — that's fine, fall back to corroborating the
+            story across multiple headlines/sources instead):
             - Clarity Act: bill status changes, committee votes, floor votes, Senate/House passage,
               White House signing, major amendments, leadership statements on scheduling
             - AI CapEx: hyperscaler (Microsoft, Google/Alphabet, Amazon, Meta, Oracle, Nvidia-adjacent
