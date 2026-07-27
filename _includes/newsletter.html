@@ -10,20 +10,23 @@
         <span class="ko-only">S&amp;P 500·비트코인·매크로 지표의 장기 분석을 이메일로 받아보세요. 노이즈 없이, 핵심만.</span>
       </p>
     </div>
-    <form class="newsletter-form" onsubmit="
-      event.preventDefault();
-      var fine = this.querySelector('.newsletter-fine');
-      fine.style.color = 'var(--accent-green)';
-      fine.innerHTML = '<span class=\'en-only\'>Coming soon — newsletter launching shortly!</span><span class=\'ko-only\'>준비 중입니다 — 곧 오픈 예정이에요!</span>';
-    ">
+    <form
+      class="newsletter-form"
+      action="https://buttondown.email/api/emails/embed-subscribe/{{ site.buttondown_username }}"
+      method="post"
+      target="popupwindow"
+      onsubmit="window.open('https://buttondown.email/{{ site.buttondown_username }}', 'popupwindow')"
+    >
       <div class="newsletter-row">
         <input
           type="email"
           name="email"
+          id="bd-email"
           required
           placeholder="your@email.com"
           class="newsletter-input"
         >
+        <input type="hidden" value="1" name="embed">
         <button type="submit" class="newsletter-btn">
           <span class="en-only">Subscribe</span>
           <span class="ko-only">구독하기</span>

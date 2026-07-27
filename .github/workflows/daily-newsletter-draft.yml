@@ -1,0 +1,93 @@
+name: Daily Newsletter Draft
+
+on:
+  schedule:
+    - cron: '0 13 * * *'  # US Pacific 06:00 (PDT, UTC-7); drifts to 05:00 Pacific during PST (UTC-8)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+jobs:
+  newsletter-draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Draft today's newsletter with Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are running a scheduled, unattended job that prepares a DRAFT of a daily market
+            newsletter for this finance blog. You must NEVER send the email to subscribers — you only
+            create a draft in Buttondown and notify the site owner so a human can review and send it
+            themselves. Sending real email to real subscribers without a human clicking "send" is not
+            allowed under any circumstance.
+
+            ## Step 1 — Research today's major market news
+            Web search for the day's most important developments across:
+            - Fed policy: rate decisions, FOMC minutes/commentary, Fed officials' remarks that moved
+              markets
+            - Oil / energy prices and the reason for any notable move
+            - Geopolitical events: war, major conflict escalation/de-escalation, sanctions — anything
+              that moved markets
+            - Public health: pandemic or major health-crisis news with market relevance
+            - S&P 500: the day's move and the specific reason financial media attributes it to
+            - Hyperscaler / big-tech earnings: any quarterly results or guidance released today or
+              this week
+            - Crypto: any major Bitcoin/Ethereum or regulatory news of the day
+
+            Only include items that are genuinely significant — this is a daily digest, not a
+            kitchen-sink dump. If a category has nothing notable today, skip it rather than padding
+            with filler. It is fine for the newsletter to be short on quiet days.
+
+            ## Step 2 — Check what's already covered
+            Read the most recent 1-2 files in _posts/ (highest date in filename) so the newsletter
+            doesn't just restate what a blog post already covered in depth — the newsletter should
+            complement the blog, summarizing the day's news broadly, not duplicate a deep-dive post
+            word for word.
+
+            ## Step 3 — Write the newsletter draft
+            Write a concise, scannable market digest:
+            - A short subject line (specific, not generic — reference the day's actual biggest story)
+            - Bulleted or short-paragraph sections per topic that had real news today (Fed, oil,
+              geopolitics, health, S&P 500, big tech earnings, crypto)
+            - Include both an English section and a Korean section, in that order, matching this
+              site's bilingual tone (data-driven, cites where the information came from)
+            - End with the same disclaimer style used on the blog: informational only, not investment
+              advice
+            - Do NOT fabricate figures or events — only include what you found in Step 1 with a source
+
+            ## Step 4 — Create a DRAFT (never send) in Buttondown
+            Call the Buttondown API to create the email as a draft:
+
+            curl -s -X POST https://api.buttondown.email/v1/emails \
+              -H "Authorization: Token $BUTTONDOWN_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"subject": "<subject>", "body": "<markdown body>", "status": "draft"}'
+
+            The BUTTONDOWN_API_KEY environment variable is provided below. status MUST be "draft".
+            Never use "about_to_send" or any status that triggers delivery. Capture the returned
+            email id/URL from the response.
+
+            ## Step 5 — Notify the site owner via a GitHub issue
+            Open a new GitHub issue (using the gh CLI, which is pre-authenticated in this environment)
+            titled "Newsletter draft ready — <today's date>" with a body that:
+            - Summarizes in 2-3 bullets what today's draft covers
+            - Links to the Buttondown draft (https://buttondown.email/emails or the specific draft
+              URL/id returned in Step 4)
+            - States clearly that this is a DRAFT and nothing has been sent — the site owner must
+              review and press send themselves in Buttondown
+
+            If Step 1 finds nothing significant enough for even a short digest, skip Steps 3-5
+            entirely, create no draft, open no issue, and exit quietly.
+
+            Do not modify, commit, or push any files in this repository. This job only calls the
+            Buttondown API and opens a GitHub issue.
+        env:
+          BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
