@@ -24,6 +24,8 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --allowedTools "Bash"
           prompt: |
             You are running a scheduled, unattended news-watch job for the finance blog at
             D:\github\finance (this repo). Your job is to check for genuinely important news on
