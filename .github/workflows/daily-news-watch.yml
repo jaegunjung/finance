@@ -3,6 +3,7 @@ name: Daily News Watch (Clarity Act / AI CapEx)
 on:
   schedule:
     - cron: '0 22 * * *'  # UTC 22:00 = KST 07:00
+    - cron: '0 13 * * *'  # UTC 13:00 = US Pacific 06:00 (PDT, UTC-7); drifts to 05:00 Pacific during PST (UTC-8)
   workflow_dispatch:
 
 permissions:
