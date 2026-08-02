@@ -74,6 +74,30 @@ title: About
     <h2>Why Trust This Analysis</h2>
     <p>
       I won't claim I can predict markets — nobody can reliably.
+    </p>
+
+    <h3>Why Prediction Has Real Limits</h3>
+    <p>
+      In late July 2026, Amazon raised its capex plan to $22 billion and the stock rose 15%. Around the same time,
+      Google reported 82% cloud revenue growth — a far stronger number — yet fell 5–7% on capex guidance alone.
+      Same kind of news, opposite reactions. The explanations that followed were all written after the fact.
+    </p>
+    <p>
+      That same period, a leveraged hedge fund called Situational Awareness was forced to liquidate most of its
+      AI-infrastructure holdings after a margin call. The unwind, and the rebound that followed, moved semiconductor
+      and AI stocks broadly for days. Nothing in public filings would have flagged this fund's existence or its
+      leverage before it happened.
+    </p>
+    <p>
+      Around the same time, as the U.S.–Iran conflict eased, Houthi attacks on Red Sea shipping pushed oil prices
+      back above $100. Even a well-supported long-term trend can be interrupted by a shock outside the model entirely.
+    </p>
+    <p>
+      I don't think this kind of uncertainty is easy to quantify. So I'd rather readers not spend more time and
+      energy than necessary trying to call things that are genuinely hard to call.
+    </p>
+
+    <p>
       What I can offer is <strong>transparent, reproducible analysis</strong>:
       every chart shows its data source and time range, every trend line can be re-derived from the underlying dataset,
       and I update charts with live data rather than cherry-picking favorable snapshots.
@@ -168,6 +192,32 @@ title: About
     <h2>이 분석을 신뢰할 수 있는 이유</h2>
     <p>
       시장을 예측할 수 있다고 주장하지 않습니다 — 아무도 그럴 수 없습니다.
+    </p>
+
+    <h3>예측에는 분명한 한계가 있다</h3>
+    <p>
+      2026년 7월 말, 아마존은 CapEx 계획을 220억 달러로 올렸는데도 주가는 15% 올랐습니다.
+      비슷한 시기 구글은 클라우드 매출이 82% 성장했다는 훨씬 강한 숫자를 내놓고도,
+      CapEx 인상 발표만으로 주가가 5~7% 빠졌습니다. 같은 성격의 뉴스에 시장은 정반대로 반응했고,
+      뒤따른 설명들은 모두 일이 벌어진 뒤에 만들어진 것이었습니다.
+    </p>
+    <p>
+      같은 시기, 레버리지를 쓴 헤지펀드 '시추에이셔널 어웨어니스'가 마진콜에 몰려
+      AI 인프라 관련 포지션 대부분을 강제 청산했습니다. 이 청산과 그 이후의 반등은
+      반도체·AI 관련주 전체를 며칠간 뒤흔들었습니다. 이 펀드의 존재나 레버리지 규모는
+      공시만으로는 사전에 알 방법이 없었습니다.
+    </p>
+    <p>
+      비슷한 시기 이란전쟁이 소강 국면에 들어가자마자 후티 반군의 홍해 봉쇄로
+      유가가 다시 100달러 위로 치솟았습니다. 아무리 근거가 탄탄한 장기 추세라도,
+      모델 밖에 있는 충격 하나에 흔들릴 수 있습니다.
+    </p>
+    <p>
+      이런 종류의 불확실성은 정량화가 쉽지 않다고 생각합니다. 그러니 독자분들도
+      맞히기 어려운 것을 맞히려는 데 필요 이상의 시간과 에너지를 쓰지 않으셨으면 합니다.
+    </p>
+
+    <p>
       대신 <strong>투명하고 재현 가능한 분석</strong>을 제공합니다:
       모든 차트에는 데이터 출처와 기간이 명시되고, 모든 추세선은 원본 데이터에서 직접 도출할 수 있으며,
       유리한 스냅샷을 골라 쓰는 대신 실시간 데이터로 차트를 업데이트합니다.
