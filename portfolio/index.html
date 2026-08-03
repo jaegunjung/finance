@@ -1979,38 +1979,37 @@ async function portLoadAnalysis() {
         <td style="text-align:right;" class="${alpha == null ? '' : alpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${alpha != null ? (alpha >= 0 ? '+' : '') + alpha.toFixed(1) + '%' : '—'}</td>
       </tr>`;
     }
-    // Total row — same cumulative-to-date figures as the last year row
-    // above (kept as a bold summary line); the only row a manual 원금
-    // override affects.
-    // Manual override: when the per-transaction history can't reliably
-    // reconstruct true principal (e.g. "as of 1/15/2024 this account held
-    // about $170K" entered by hand), substitute it for the derived
-    // totalInvested used in the all-time % and Alpha figures.
-    // Explicit per-transaction overrides take priority over the manual
-    // lump-sum total override — once the user is marking specific buys,
-    // the derived total is the more precise (and current) figure.
+    // Total row — only shown when it would actually say something the last
+    // year row above doesn't. Both already show the same cumulative-to-date
+    // figures (that's the point of the cumulative design), so a plain
+    // "전체 누적" row would just repeat the last year row verbatim. The one
+    // case it differs: a manual 원금 override (e.g. "as of 1/15/2024 this
+    // account held about $170K" entered by hand) swaps in a hand-entered
+    // total in place of the derived figure — worth its own row since the
+    // per-year rows above are left un-overridden (a manual total is a
+    // single point-in-time number, not a year-by-year series).
     const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
-    const derivedInvested = cumInvested;
-    let totalInvested = cumInvested;
-    if (manualPrincipal != null && manualPrincipal > 0) totalInvested = manualPrincipal;
+    if (manualPrincipal != null && manualPrincipal > 0) {
+      const derivedInvested = cumInvested;
+      const totalInvested = manualPrincipal;
+      const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
+      const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
+      const spyTotal = spyCost > 0 ? spyGainToday / spyCost * 100 : null;
+      const totalAlpha = (totalPct != null && spyTotal != null) ? totalPct - spyTotal : null;
+      const manualNote = ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="거래내역 기준 합계: $${derivedInvested.toLocaleString(undefined,{maximumFractionDigits:0})}">✏️ 수동 입력${_principalOverride?.manual_principal_as_of ? ' (' + _principalOverride.manual_principal_as_of + ' 기준)' : ''}</span>`;
+      tbody += `<tr style="font-weight:700; background:var(--bg-secondary);">
+        <td>전체 누적</td>
+        <td style="text-align:right;">$${totalInvested.toLocaleString(undefined,{maximumFractionDigits:0})}${manualNote}</td>
+        <td style="text-align:right;" class="${totalGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalGain >= 0 ? '+' : ''}$${Math.abs(totalGain).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+        <td style="text-align:right;" class="${totalPct == null ? '' : totalPct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalPct != null ? (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${spyTotal != null ? (spyTotal >= 0 ? '+' : '') + spyTotal.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right;" class="${totalAlpha == null ? '' : totalAlpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalAlpha != null ? (totalAlpha >= 0 ? '+' : '') + totalAlpha.toFixed(1) + '%' : '—'}</td>
+      </tr>`;
+    }
     const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
-
+    const totalInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
     const spyTotal = spyCost > 0 ? spyGainToday / spyCost * 100 : null;
-    const totalAlpha = (totalPct != null && spyTotal != null) ? totalPct - spyTotal : null;
-    const manualNote = (manualPrincipal != null && manualPrincipal > 0)
-      ? ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="거래내역 기준 합계: $${derivedInvested.toLocaleString(undefined,{maximumFractionDigits:0})}">✏️ 수동 입력${_principalOverride?.manual_principal_as_of ? ' (' + _principalOverride.manual_principal_as_of + ' 기준)' : ''}</span>`
-      : (hasExplicitPrincipalOverrides
-        ? ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="개별 거래에서 지정한 원금만 합산됨 (연도별/수동 설정 무시)">🔧 거래 단위 지정</span>`
-        : '');
-    tbody += `<tr style="font-weight:700; background:var(--bg-secondary);">
-      <td>전체 누적</td>
-      <td style="text-align:right;">$${totalInvested.toLocaleString(undefined,{maximumFractionDigits:0})}${manualNote}</td>
-      <td style="text-align:right;" class="${totalGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalGain >= 0 ? '+' : ''}$${Math.abs(totalGain).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
-      <td style="text-align:right;" class="${totalPct == null ? '' : totalPct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalPct != null ? (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%' : '—'}</td>
-      <td style="text-align:right; color:var(--text-muted);">${spyTotal != null ? (spyTotal >= 0 ? '+' : '') + spyTotal.toFixed(1) + '%' : '—'}</td>
-      <td style="text-align:right;" class="${totalAlpha == null ? '' : totalAlpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalAlpha != null ? (totalAlpha >= 0 ? '+' : '') + totalAlpha.toFixed(1) + '%' : '—'}</td>
-    </tr>`;
     document.getElementById('anlYearTableBody').innerHTML = tbody;
 
     // Show "원금 설정" button only when a single account/portfolio is
@@ -2076,8 +2075,31 @@ async function portLoadAnalysis() {
       },
     });
 
-    // ── 9. Coaching text ────────────────────────────────────────────
-    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, _activePortfolioName);
+    // ── 9. Per-symbol return vs. S&P 500 ─────────────────────────────
+    // Compares each held symbol's own price return (its first buy date to
+    // today) against SPY's return over that same window, so the coach can
+    // point at which fund is actually driving a negative Alpha instead of
+    // just reporting the number.
+    const symFirstBuyDate = {};
+    for (const ev of events) {
+      if (BUY_T.has(ev.type) && !symFirstBuyDate[ev.sym]) symFirstBuyDate[ev.sym] = ev.date;
+    }
+    const symBuyTotal = {};
+    for (const ev of events) {
+      if (BUY_T.has(ev.type)) symBuyTotal[ev.sym] = (symBuyTotal[ev.sym] || 0) + ev.amount;
+    }
+    const symReturns = Object.entries(symFirstBuyDate).map(([sym, firstDate]) => {
+      const p0 = _priceOnOrBefore(sym, firstDate);
+      const p1 = currentPriceMap[sym] ?? _priceOnOrBefore(sym, today);
+      const symRet = (p0 != null && p1 != null) ? (p1 / p0 - 1) * 100 : null;
+      const spyP0 = _nearestPrice(spyPrices, firstDate);
+      const spyRet = (spyP0 != null && spyToday != null) ? (spyToday / spyP0 - 1) * 100 : null;
+      const diff = (symRet != null && spyRet != null) ? symRet - spyRet : null;
+      return { sym, symRet, spyRet, diff, weight: symBuyTotal[sym] || 0 };
+    }).filter(r => r.diff != null);
+
+    // ── 10. Coaching text ────────────────────────────────────────────
+    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, _activePortfolioName, symReturns);
 
     loadEl.style.display = 'none';
     contentEl.style.display = '';
@@ -2215,7 +2237,7 @@ function _isFundTicker(sym) { return /^[A-Z]{4,5}X$/.test(sym); }
 const _RETIREMENT_NAME_RE = /401\s*\(?k\)?|403\s*\(?b\)?|\bira\b|roth|pension|퇴직연금|연금저축/i;
 
 // ── Rule-based coaching text generator ─────────────────────────────
-function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices, portfolioName) {
+function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices, portfolioName, symReturns) {
   const BUY_T  = new Set(['buy','drip','buy_to_cover']);
   const SELL_T = new Set(['sell','sell_short']);
   const buys   = events.filter(e => BUY_T.has(e.type));
@@ -2300,6 +2322,23 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
 
   // ── 조언 생성 ────────────────────────────────────────────
   const advices = [];
+
+  // S&P 500 대비 저조한 이유: 알파가 뚜렷하게 마이너스면, 보유 종목 중
+  // 어떤 것이 그 차이를 만들었는지 실제 가격 데이터로 짚어준다 (막연히
+  // "시장을 못 이겼다"가 아니라, 어느 종목이 왜인지).
+  if (alpha != null && alpha < -3 && symReturns && symReturns.length) {
+    const worst = symReturns.reduce((a, b) => (a.diff < b.diff ? a : b));
+    if (worst.diff < -3) {
+      advices.push({
+        title: '📉 S&P 500 대비 저조한 이유',
+        body: `현재 S&P 500 대비 ${alpha >= 0 ? '+' : ''}${alpha.toFixed(1)}%p입니다. 보유 종목 중 <b>${worst.sym}</b>가 매수 시작일 이후 ` +
+          `${worst.symRet >= 0 ? '+' : ''}${worst.symRet.toFixed(1)}%로, 같은 기간 S&P 500(${worst.spyRet >= 0 ? '+' : ''}${worst.spyRet.toFixed(1)}%)보다 ` +
+          `${Math.abs(worst.diff).toFixed(1)}%p 낮았습니다 — 계좌 전체 알파의 상당 부분이 이 종목에서 비롯됩니다. ` +
+          `${worst.sym}가 채권형/혼합형 등 주식형이 아닌 자산군이라면, 이는 자산배분(리스크 분산)의 자연스러운 결과이지 ` +
+          `"저조한 성과"를 의미하지 않을 수 있습니다. 보유 목적에 맞는 배분인지 궁금하다면 해당 펀드의 자산군을 확인해보세요.`,
+      });
+    }
+  }
 
   if (!isFundStyle && sizeVariance > 0.6) {
     advices.push({
