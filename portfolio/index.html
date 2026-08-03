@@ -1669,9 +1669,11 @@ async function portLoadAnalysis() {
     // rolled into a Traditional IRA, where rollover-in "buys" aren't new
     // principal contributed by the user).
     let _principalOverride = null; // { zero_principal_from_year, manual_principal, manual_principal_as_of }
+    let _activePortfolioName = null;
     if (portActivePortfolioId) {
       const activePf = portPortfolios.find(p => p.id === portActivePortfolioId);
       if (activePf) {
+        _activePortfolioName = activePf.name || null;
         _principalOverride = {
           zero_principal_from_year: activePf.zero_principal_from_year || null,
           manual_principal: activePf.manual_principal != null ? Number(activePf.manual_principal) : null,
@@ -2038,7 +2040,7 @@ async function portLoadAnalysis() {
     });
 
     // ── 9. Coaching text ────────────────────────────────────────────
-    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap);
+    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, _activePortfolioName);
 
     loadEl.style.display = 'none';
     contentEl.style.display = '';
@@ -2166,8 +2168,17 @@ async function anlSavePrincipalSettings() {
   }
 }
 
+// 미국 뮤추얼펀드 티커 관례(4~5자 + 'X', 예: FXAIX/OGGYX/VTSAX/FSKAX)와
+// 은퇴계좌 이름 패턴으로, "개별 종목을 골라 사고파는" 계좌가 아니라
+// "이미 분산된 펀드에 정기 납입만 하는" 계좌인지 판별한다. 이 경우
+// 시장 타이밍/종목 집중도/익절 타이밍 같은 주식 트레이딩형 조언은
+// 애초에 해당 사항이 없다 (매수 시점을 직접 고르지 않고, FXAIX 80%는
+// "종목 집중"이 아니라 그냥 S&P500 인덱스 비중일 뿐).
+function _isFundTicker(sym) { return /^[A-Z]{4,5}X$/.test(sym); }
+const _RETIREMENT_NAME_RE = /401\s*\(?k\)?|403\s*\(?b\)?|\bira\b|roth|pension|퇴직연금|연금저축/i;
+
 // ── Rule-based coaching text generator ─────────────────────────────
-function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices) {
+function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices, portfolioName) {
   const BUY_T  = new Set(['buy','drip','buy_to_cover']);
   const SELL_T = new Set(['sell','sell_short']);
   const buys   = events.filter(e => BUY_T.has(e.type));
@@ -2191,6 +2202,11 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
   const topSymPct  = topSym ? topSym[1] / buys.reduce((s, e) => s + e.amount, 0) * 100 : 0;
   const numSymbols = symsSorted.length;
 
+  // 펀드 적립식 계좌 판별: 계좌명이 401k/IRA류이거나, 보유 종목이 전부
+  // 뮤추얼펀드 티커 패턴이면 "종목 고르기"가 아닌 "펀드 적립"으로 취급.
+  const isFundStyle = _RETIREMENT_NAME_RE.test(portfolioName || '')
+    || (numSymbols > 0 && symsSorted.every(([sym]) => _isFundTicker(sym)));
+
   // 매수 패턴: 분산 vs 집중
   const isSmallFreq = avgBuyAmt < 2000 && buys.length > 5;
   const isBigLump   = avgBuyAmt > 5000 || buys.length <= 3;
@@ -2202,12 +2218,14 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
 
   // ── 투자 성향 한 줄 정의 ────────────────────────────────
   let styleLabel = '';
-  if (isDca && isSmallFreq) styleLabel = '저점 판단 후 소액을 자주 분할매수하는 <strong style="color:var(--text-primary)">능동형 DCA 투자자</strong>';
+  if (isFundStyle)          styleLabel = '급여공제 등으로 정기 자동 납입되는 <strong style="color:var(--text-primary)">적립식 펀드 투자자</strong>';
+  else if (isDca && isSmallFreq) styleLabel = '저점 판단 후 소액을 자주 분할매수하는 <strong style="color:var(--text-primary)">능동형 DCA 투자자</strong>';
   else if (isBigLump)       styleLabel = '판단 시점에 큰 금액을 한 번에 투입하는 <strong style="color:var(--text-primary)">집중 매수형 투자자</strong>';
   else                      styleLabel = '분할매수와 집중매수를 병행하는 <strong style="color:var(--text-primary)">유연형 투자자</strong>';
 
   // ── 점수 계산 ────────────────────────────────────────────
-  // (1) 진입 타이밍 정확도 /30
+  // (1) 시장 대비 성과 /30 — 펀드 적립식 계좌는 매수 시점을 직접
+  // 고르지 않으므로 "타이밍 실력"이 아니라 결과적 시장 대비 성과로만 본다.
   let timingScore = 15;
   if (beatsMarket && alpha > 5)  timingScore = 25;
   else if (beatsMarket)          timingScore = 20;
@@ -2217,13 +2235,19 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
   const sizeVariance = maxBuyAmt > 0 ? (maxBuyAmt - minBuyAmt) / maxBuyAmt : 0;
   let consistencyScore = sizeVariance < 0.5 ? 17 : sizeVariance < 0.8 ? 13 : 9;
 
-  // (3) 리스크 관리 /20
-  let riskScore = numSymbols >= 5 ? 16 : numSymbols >= 3 ? 12 : 8;
-  if (topSymPct > 70) riskScore = Math.max(riskScore - 4, 5);
+  // (3) 리스크 관리 (분산) /20 — 펀드 적립식 계좌는 종목 수/집중도로
+  // 분산을 판단하지 않는다 (펀드 자체가 이미 분산 상품이므로).
+  let riskScore;
+  if (isFundStyle) {
+    riskScore = 15;
+  } else {
+    riskScore = numSymbols >= 5 ? 16 : numSymbols >= 3 ? 12 : 8;
+    if (topSymPct > 70) riskScore = Math.max(riskScore - 4, 5);
+  }
 
-  // (4) 수익 실현 판단 /15
+  // (4) 수익 실현 / 보유 판단 /15
   const sellRatio = buys.length > 0 ? sells.length / buys.length : 0;
-  let exitScore = sellRatio > 0.3 && sellRatio < 0.9 ? 12 : sellRatio === 0 ? 9 : 10;
+  let exitScore = isFundStyle ? 13 : (sellRatio > 0.3 && sellRatio < 0.9 ? 12 : sellRatio === 0 ? 9 : 10);
 
   // (5) 벤치마크 대비 /15
   let benchScore = 8;
@@ -2240,7 +2264,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
   // ── 조언 생성 ────────────────────────────────────────────
   const advices = [];
 
-  if (sizeVariance > 0.6) {
+  if (!isFundStyle && sizeVariance > 0.6) {
     advices.push({
       title: '📏 매수 단위 규칙화',
       body: `매수 금액이 $${Math.round(minBuyAmt).toLocaleString()}~$${Math.round(maxBuyAmt).toLocaleString()}으로 편차가 큽니다. ` +
@@ -2249,7 +2273,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     });
   }
 
-  if (numSymbols <= 2) {
+  if (!isFundStyle && numSymbols <= 2) {
     advices.push({
       title: '🌐 후보 종목군 미리 확보',
       body: `현재 ${numSymbols}개 종목에 집중되어 있습니다. 매수 전에 관심 종목 3~5개를 위시리스트로 관리해두면, ` +
@@ -2257,7 +2281,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     });
   }
 
-  if (topSymPct > 60) {
+  if (!isFundStyle && topSymPct > 60) {
     advices.push({
       title: `⚖️ ${topSym[0]} 비중 점검`,
       body: `${topSym[0]}가 전체 매수금액의 ${topSymPct.toFixed(0)}%를 차지합니다. ` +
@@ -2266,19 +2290,31 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     });
   }
 
-  if (sells.length === 0) {
+  if (!isFundStyle && sells.length === 0) {
     advices.push({
       title: '🎯 익절 기준 사전 설정',
       body: `아직 매도 거래가 없습니다. "목표 수익률 +30% 도달 시 절반 매도" 같은 익절 룰을 미리 설정해두면, ` +
         `상승장에서 수익을 실현하고 현금을 확보해 다음 저점 매수 기회에 재투입할 수 있습니다. ` +
         `이 스타일의 사이클을 완성하는 핵심 단계입니다.`,
     });
-  } else if (avgGap < 10 && buys.length > 10) {
+  } else if (!isFundStyle && avgGap < 10 && buys.length > 10) {
     advices.push({
       title: '⏸️ 매수 간격 점검',
       body: `평균 매수 간격이 약 ${Math.round(avgGap)}일로 짧습니다. ` +
         `빠른 분할매수는 평균 단가를 낮추는 데 효과적이지만, 반등 직전에 현금이 소진될 수 있습니다. ` +
         `"1차 매수 후 추가 하락 5% 대기" 같은 대기 조건을 두면 더 낮은 가격에 살 기회를 늘릴 수 있습니다.`,
+    });
+  }
+
+  if (isFundStyle) {
+    advices.push({
+      title: '📈 적립식 펀드 계좌 안내',
+      body: `이 계좌는 정기 자동 납입 방식이라 매수 시점을 직접 고르지 않는 구조입니다. 이런 계좌는 ` +
+        `시장 타이밍이나 종목 선택보다 <b>납입을 꾸준히 유지하는 것</b>이 핵심입니다. ` +
+        (alpha != null
+          ? `현재 S&P 500 대비 ${alpha >= 0 ? '+' : ''}${alpha.toFixed(1)}%p ${alpha >= 0 ? '앞서고' : '뒤처져'} 있습니다 — ` +
+            `단기간의 벤치마크 차이는 자연스러운 변동이며, 계좌를 조정해야 한다는 신호는 아닙니다.`
+          : ``),
     });
   }
 
@@ -2309,7 +2345,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
       </div>
       <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:6px 0; color:var(--text-secondary);">진입 타이밍 정확도</td>
+          <td style="padding:6px 0; color:var(--text-secondary);">${isFundStyle ? '시장 대비 성과' : '진입 타이밍 정확도'}</td>
           <td style="text-align:right; font-weight:600; color:${timingScore >= 22 ? '#3fb950' : timingScore >= 15 ? '#e8c84a' : '#f85149'};">${timingScore} / 30</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border);">
@@ -2317,7 +2353,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
           <td style="text-align:right; font-weight:600; color:${consistencyScore >= 15 ? '#3fb950' : consistencyScore >= 11 ? '#e8c84a' : '#f85149'};">${consistencyScore} / 20</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:6px 0; color:var(--text-secondary);">리스크 관리 (분산)</td>
+          <td style="padding:6px 0; color:var(--text-secondary);">${isFundStyle ? '분산 (펀드 자체 분산도)' : '리스크 관리 (분산)'}</td>
           <td style="text-align:right; font-weight:600; color:${riskScore >= 14 ? '#3fb950' : riskScore >= 10 ? '#e8c84a' : '#f85149'};">${riskScore} / 20</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border);">
