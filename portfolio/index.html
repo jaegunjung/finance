@@ -273,10 +273,10 @@ title: 포트폴리오
             <thead>
               <tr>
                 <th>연도</th>
-                <th style="text-align:right;">투입 원금 ($)</th>
-                <th style="text-align:right;">실현 손익 ($)</th>
-                <th style="text-align:right;">수익률 (%)</th>
-                <th style="text-align:right;">S&amp;P 500 (%)</th>
+                <th style="text-align:right;cursor:help;" title="해당 연도 말(당해 연도는 오늘)까지 누적으로 투입된 원금입니다.">누적 투입 원금 ($)</th>
+                <th style="text-align:right;cursor:help;" title="해당 연도 말(당해 연도는 오늘)까지의 누적 손익입니다 (실현 + 평가/미실현 포함).">누적 손익 ($)</th>
+                <th style="text-align:right;cursor:help;" title="누적 손익 ÷ 누적 투입 원금. 연도별 신규 납입액이 아닌, 그 시점까지의 전체 원금 기준입니다.">수익률 (%)</th>
+                <th style="text-align:right;cursor:help;" title="같은 날 같은 금액을 SPY에 투자했다면의 누적 수익률(동일 자금흐름 기준)입니다.">S&amp;P 500 (%)</th>
                 <th style="text-align:right;cursor:help;" title="Alpha = 수익률(%) − S&amp;P 500(%)&#10;시장(S&amp;P 500) 대비 초과 수익률입니다.">Alpha (%)</th>
               </tr>
             </thead>
@@ -1710,6 +1710,29 @@ async function portLoadAnalysis() {
       if (p) currentPriceMap[sym] = p;
     }));
 
+    // Best-effort full price history per held symbol, for mark-to-market
+    // valuations at arbitrary past dates (chart + year table both need this,
+    // not just "today"). Crypto symbols live under a different CSV filename
+    // here (e.g. BTC-USD.csv, not BTC.csv) so this fetch comes back empty
+    // for them and their past-date figures just fall back to realized-only —
+    // fine, since this portfolio tool's per-year table is aimed at
+    // stock/fund accounts like a 401k, not crypto.
+    const priceHistories = {};
+    await Promise.all(Object.keys(symbolTxns).map(async sym => {
+      try {
+        const r = await fetch(_STOCKS_BASE + sym + '.csv');
+        priceHistories[sym] = r.ok ? _anlParsePriceCsv(await r.text()) : {};
+      } catch(e) { priceHistories[sym] = {}; }
+    }));
+    function _priceOnOrBefore(sym, date) {
+      const hist = priceHistories[sym];
+      if (!hist) return null;
+      const near = _nearestPrice(hist, date);
+      if (near != null) return near;
+      const dates = Object.keys(hist).filter(d => d <= date).sort();
+      return dates.length ? hist[dates[dates.length - 1]] : null;
+    }
+
     // ── 4. Build event timeline for chart + table ───────────────────
     // Each event: { date, sym, type, amount, shares, price, countAsPrincipal }
     const events = tradeTxns
@@ -1789,13 +1812,23 @@ async function portLoadAnalysis() {
         }
       }
 
-      // Snapshot: realized gain only (unrealized added at "today" below)
+      // Snapshot: mark-to-market (realized so far + unrealized at this
+      // event's date, using the held symbols' price history) — not
+      // realized-only, which used to leave this line flat near $0 for
+      // years/stretches with contributions but no sells, only to jump
+      // at the very end when "today"'s unrealized got added in one shot.
+      let portUnrealAtDate = 0;
+      for (const [hsym, hh] of Object.entries(portHoldings)) {
+        if (hh.shares <= 0) continue;
+        const hp = _priceOnOrBefore(hsym, ev.date);
+        if (hp != null) portUnrealAtDate += hp * hh.shares - hh.cost;
+      }
       const spyNow = spyP ? spyUnits * spyP - spyCost : null;
       const qqqNow = qqqP ? qqqUnits * qqqP - qqqCost : null;
-      timeline.push({ date: ev.date, portGain: portRealizedGain, spyGain: spyNow, qqqGain: qqqNow });
+      timeline.push({ date: ev.date, portGain: portRealizedGain + portUnrealAtDate, spyGain: spyNow, qqqGain: qqqNow, spyCost, qqqCost });
     }
 
-    // ── 6. Add "today" snapshot with unrealized gains ───────────────
+    // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
     let portUnrealized = 0;
     for (const [sym, h] of Object.entries(portHoldings)) {
       if (h.shares <= 0) continue;
@@ -1811,47 +1844,29 @@ async function portLoadAnalysis() {
       portGain: portRealizedGain + portUnrealized,
       spyGain:  spyGainToday,
       qqqGain:  qqqGainToday,
+      spyCost, qqqCost,
     });
 
-    // ── 7. Year-by-year table (mark-to-market) ────────────────────────
-    // Past years used to show realized gain only, which reads as ~$0 for
-    // any year with contributions but no sells (e.g. a 401k that just buys
-    // every paycheck) — the price appreciation on those shares was real,
-    // it just wasn't "realized" yet. Fixed by valuing each year's closing
-    // holdings at that year-end's price (mark-to-market) instead of only
-    // counting gains from actual sells, same as the current-year figure
-    // already did with "today"'s price.
-    const spySortedDates = Object.keys(spyPrices).sort();
-    function _spyYearReturn(year) {
-      const jan = spySortedDates.find(d => d.startsWith(year + '-'));
-      const dec = [...spySortedDates].reverse().find(d => d.startsWith(year + '-'));
-      if (!jan || !dec || jan === dec) return null;
-      return (spyPrices[dec] - spyPrices[jan]) / spyPrices[jan] * 100;
+    // ── 7. Year-by-year table (cumulative-to-date, mark-to-market) ────
+    // Each row shows CUMULATIVE invested principal and CUMULATIVE gain as
+    // of that year's close (today for the current year) — not a delta for
+    // just that year divided by just that year's new money. A delta-over-
+    // new-money framing overstates % once there's a carried-over balance:
+    // the gain includes appreciation on the whole position (prior years'
+    // contributions too), not just what was newly put in that year, so
+    // gain and principal need to be on the same (cumulative) basis to mean
+    // anything. S&P 500 (%) reuses the money-weighted "same dollars, same
+    // days" SPY simulation already driving the chart below, snapshotted at
+    // the same cutoff, so Alpha is comparing like with like.
+    function _tlAt(cutoff) {
+      let last = null;
+      for (const pt of timeline) {
+        if (pt.date <= cutoff) last = pt; else break;
+      }
+      return last;
     }
 
-    // Best-effort full price history per held symbol, for year-end
-    // valuations. Crypto symbols live under a different CSV filename here
-    // (e.g. BTC-USD.csv, not BTC.csv) so this fetch comes back empty for
-    // them and their past-year figures just fall back to realized-only —
-    // fine, since this portfolio tool's per-year table is aimed at
-    // stock/fund accounts like a 401k, not crypto.
-    const priceHistories = {};
-    await Promise.all(Object.keys(symbolTxns).map(async sym => {
-      try {
-        const r = await fetch(_STOCKS_BASE + sym + '.csv');
-        priceHistories[sym] = r.ok ? _anlParsePriceCsv(await r.text()) : {};
-      } catch(e) { priceHistories[sym] = {}; }
-    }));
-    function _priceOnOrBefore(sym, date) {
-      const hist = priceHistories[sym];
-      if (!hist) return null;
-      const near = _nearestPrice(hist, date);
-      if (near != null) return near;
-      const dates = Object.keys(hist).filter(d => d <= date).sort();
-      return dates.length ? hist[dates[dates.length - 1]] : null;
-    }
-
-    const yearInvested = {}; // year -> total buys counted as principal
+    const yearInvested = {}; // year -> that year's own new buys counted as principal
     const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
     // If ANY buy in this portfolio has an explicit 원금 override (set via the
     // 거래내역 tab), switch the whole portfolio into "explicit mode": only
@@ -1904,44 +1919,45 @@ async function portLoadAnalysis() {
     }
 
     let tbody = '';
-    let totalInvested = 0, totalGain = 0, prevCumGain = 0;
+    let cumInvested = 0;
     for (const yr of allYears) {
-      const inv  = yearInvested[yr] || 0;
-      const cum  = yearCumGain[yr];
-      const gain = cum - prevCumGain;
-      prevCumGain = cum;
-      const pct  = inv > 0 ? gain / inv * 100 : null;
-      const spy  = _spyYearReturn(yr);
-      const alpha = (pct != null && spy != null) ? pct - spy : null;
-      totalInvested += inv;
-      totalGain     += gain;
+      cumInvested += (yearInvested[yr] || 0);
+      const cumGain = yearCumGain[yr];
+      const pct = cumInvested > 0 ? cumGain / cumInvested * 100 : null;
+
       const isCur = yr === curYear;
+      const cutoff = isCur ? today : `${yr}-12-31`;
+      const tl = _tlAt(cutoff);
+      const spyPct = (tl && tl.spyCost > 0) ? tl.spyGain / tl.spyCost * 100 : null;
+      const alpha = (pct != null && spyPct != null) ? pct - spyPct : null;
+
       tbody += `<tr${isCur ? ' style="background:rgba(88,166,255,0.04);"' : ''}>
         <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD</span>' : ''}</td>
-        <td style="text-align:right; color:var(--text-muted);">${inv > 0 ? '$' + inv.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
-        <td style="text-align:right;" class="${gain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${gain !== 0 ? (gain >= 0 ? '+' : '') + '$' + Math.abs(gain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${cumInvested > 0 ? '$' + cumInvested.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right;" class="${cumGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${cumGain !== 0 ? (cumGain >= 0 ? '+' : '') + '$' + Math.abs(cumGain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right;" class="${pct == null ? '' : pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—'}</td>
-        <td style="text-align:right; color:var(--text-muted);">${spy != null ? (spy >= 0 ? '+' : '') + spy.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${spyPct != null ? (spyPct >= 0 ? '+' : '') + spyPct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right;" class="${alpha == null ? '' : alpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${alpha != null ? (alpha >= 0 ? '+' : '') + alpha.toFixed(1) + '%' : '—'}</td>
       </tr>`;
     }
-    // Total row
+    // Total row — same cumulative-to-date figures as the last year row
+    // above (kept as a bold summary line); the only row a manual 원금
+    // override affects.
     // Manual override: when the per-transaction history can't reliably
     // reconstruct true principal (e.g. "as of 1/15/2024 this account held
     // about $170K" entered by hand), substitute it for the derived
-    // totalInvested used in the all-time % and Alpha figures. Per-year
-    // rows above are left as derived from transactions, since the manual
-    // figure is a single point-in-time number, not a year-by-year series.
-    // Explicit per-transaction overrides also take priority over the manual
+    // totalInvested used in the all-time % and Alpha figures.
+    // Explicit per-transaction overrides take priority over the manual
     // lump-sum total override — once the user is marking specific buys,
     // the derived total is the more precise (and current) figure.
     const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
-    const derivedInvested = totalInvested;
+    const derivedInvested = cumInvested;
+    let totalInvested = cumInvested;
     if (manualPrincipal != null && manualPrincipal > 0) totalInvested = manualPrincipal;
+    const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
 
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
-    const spyFirst = spySortedDates.find(d => d >= events[0].date);
-    const spyTotal = (spyFirst && spyToday) ? (spyToday - spyPrices[spyFirst]) / spyPrices[spyFirst] * 100 : null;
+    const spyTotal = spyCost > 0 ? spyGainToday / spyCost * 100 : null;
     const totalAlpha = (totalPct != null && spyTotal != null) ? totalPct - spyTotal : null;
     const manualNote = (manualPrincipal != null && manualPrincipal > 0)
       ? ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="거래내역 기준 합계: $${derivedInvested.toLocaleString(undefined,{maximumFractionDigits:0})}">✏️ 수동 입력${_principalOverride?.manual_principal_as_of ? ' (' + _principalOverride.manual_principal_as_of + ' 기준)' : ''}</span>`
