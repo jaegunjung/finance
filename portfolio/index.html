@@ -452,6 +452,7 @@ title: 포트폴리오
 <script>
 // Jekyll baseurl-aware data paths
 const _STOCKS_BASE  = '{{ "/assets/data/stocks/" | relative_url }}';
+const _SGOV_RETURNS_URL = '{{ "/assets/data/sgov_annual_returns.json" | relative_url }}';
 const _CRYPTO_SYMS  = ['BTC','ETH','PEPE'];
 const _STOCK_URL    = '{{ "/stock/" | relative_url }}';
 const _CRYPTO_URL   = '{{ "/crypto/" | relative_url }}';
@@ -1745,21 +1746,23 @@ async function portLoadAnalysis() {
     // designed to stay flat since ~all of its return is monthly dividend
     // income, and this site's price CSVs aren't dividend-adjusted
     // (free-tier Alpha Vantage doesn't provide that — see
-    // update_stocks.py). Tried substituting BND (real rate-driven price
-    // movement) instead, but the user specifically wants SGOV as the
-    // benchmark and supplied its actual year-by-year total return
-    // (dividend-reinvested, looked up externally) — so instead of price
-    // data, build a synthetic NAV series by compounding those known
-    // annual returns day by day. This also sidesteps SGOV's short price
-    // history on this site (only from 2025-05-30) since the synthetic
-    // series covers back to 2020.
-    const [spyText, qqqText] = await Promise.all([
+    // update_stocks.py). Instead of price data, build a synthetic NAV
+    // series by compounding SGOV's actual year-by-year total return
+    // (dividend-reinvested) day by day — sourced from
+    // assets/data/sgov_annual_returns.json, which
+    // scripts/update_sgov_returns.py regenerates automatically (via
+    // yfinance, which does provide dividend-adjusted prices for free) on
+    // the same schedule as the daily stock-data workflow. Falls back to a
+    // hardcoded snapshot if that fetch fails for any reason (e.g. the
+    // file doesn't exist yet on a fresh checkout).
+    const [spyText, qqqText, sgovReturnData] = await Promise.all([
       fetch(_STOCKS_BASE + 'SPY.csv').then(r => r.ok ? r.text() : ''),
       fetch(_STOCKS_BASE + 'QQQ.csv').then(r => r.ok ? r.text() : ''),
+      fetch(_SGOV_RETURNS_URL).then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     const spyPrices = _anlParsePriceCsv(spyText);  // { 'YYYY-MM-DD': price }
     const qqqPrices = _anlParsePriceCsv(qqqText);
-    const sgovPrices = _buildSyntheticSgovPrices();
+    const sgovPrices = _buildSyntheticSgovPrices(sgovReturnData);
 
     // ── 3. Fetch current prices for held symbols ────────────────────
     const BUY_T  = new Set(['buy','drip','buy_to_cover']);
@@ -2183,20 +2186,27 @@ function _anlParsePriceCsv(text) {
 // its NAV is designed to stay flat and virtually all of its return is
 // monthly dividend income, which this site's (dividend-unadjusted) price
 // CSVs can't capture. Rather than a real price series, compound the
-// actual year-by-year total return (dividend-reinvested, looked up
-// externally — Yahoo Finance / FinanceCharts) day by day into a
-// synthetic NAV index. Within a year this assumes SGOV earns its annual
+// actual year-by-year total return (dividend-reinvested) day by day into
+// a synthetic NAV index. Within a year this assumes SGOV earns its annual
 // return in roughly equal daily increments — a reasonable approximation
 // for a short-term-rate fund, whose income accrues steadily rather than
 // in lumps.
-// NOTE: the 2026 figure is a YTD (not annualized) snapshot as of when it
-// was looked up (~2026-08-03), spread evenly over the elapsed days of
-// 2026 up to that point, then held at that same daily rate for any dates
-// beyond it. This will drift out of date as real time passes — update
-// SGOV_ANNUAL_RETURN with the final 2026 figure once the year closes.
-const SGOV_ANNUAL_RETURN = { 2020: 0, 2021: 0.0004, 2022: 0.0158, 2023: 0.0512, 2024: 0.0527, 2025: 0.0424 };
-const SGOV_2026_YTD = { asOf: '2026-08-03', ret: 0.0192 };
-function _buildSyntheticSgovPrices() {
+// The return figures themselves come from assets/data/sgov_annual_returns.json
+// (fetched by the caller and passed in as `returnData`), which
+// scripts/update_sgov_returns.py regenerates automatically via yfinance
+// (which does provide dividend-adjusted prices for free, unlike the Alpha
+// Vantage free tier this site's own stock CSVs use) — see that script for
+// details. _SGOV_RETURN_FALLBACK below is only a last-resort snapshot for
+// if that fetch ever fails (e.g. missing file on a fresh checkout).
+const _SGOV_RETURN_FALLBACK = {
+  annual: { '2020': 0, '2021': 0.0004, '2022': 0.0158, '2023': 0.0512, '2024': 0.0527, '2025': 0.0424 },
+  ytd: { year: 2026, asOf: '2026-08-03', ret: 0.0192 },
+};
+function _buildSyntheticSgovPrices(returnData) {
+  const data = (returnData && returnData.annual && returnData.ytd) ? returnData : _SGOV_RETURN_FALLBACK;
+  const annual = data.annual;
+  const ytd = data.ytd; // { year, asOf, ret } — the current/in-progress year
+
   // Pure-UTC millisecond arithmetic throughout — mixing UTC-parsed Date
   // objects with local-time getDate()/setDate() stepping (as an earlier
   // version of this did) silently drops a day right at the end of the
@@ -2208,15 +2218,15 @@ function _buildSyntheticSgovPrices() {
   // A few days past "now" so the series always has an entry for "today"
   // regardless of the viewer's local timezone offset from UTC.
   const endMs = Date.now() + 3 * DAY_MS;
-  const ytd2026Days = Math.max(1, Math.round((Date.parse(SGOV_2026_YTD.asOf + 'T00:00:00Z') - Date.UTC(2026, 0, 1)) / DAY_MS));
-  const dailyFactor2026 = Math.pow(1 + SGOV_2026_YTD.ret, 1 / ytd2026Days);
+  const ytdDays = Math.max(1, Math.round((Date.parse(ytd.asOf + 'T00:00:00Z') - Date.UTC(ytd.year, 0, 1)) / DAY_MS));
+  const ytdDailyFactor = Math.pow(1 + ytd.ret, 1 / ytdDays);
   for (let t = startMs; t <= endMs; t += DAY_MS) {
     const yr = new Date(t).getUTCFullYear();
     let dailyFactor;
-    if (yr >= 2026) {
-      dailyFactor = dailyFactor2026;
+    if (yr >= ytd.year) {
+      dailyFactor = ytdDailyFactor;
     } else {
-      const annualRet = SGOV_ANNUAL_RETURN[yr] ?? 0.03; // fallback if a year is ever missing
+      const annualRet = annual[yr] ?? annual[String(yr)] ?? 0.03; // fallback if a year is ever missing
       const daysInYear = Math.round((Date.UTC(yr, 11, 31) - Date.UTC(yr, 0, 1)) / DAY_MS) + 1;
       dailyFactor = Math.pow(1 + annualRet, 1 / daysInYear);
     }
