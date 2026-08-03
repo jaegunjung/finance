@@ -656,25 +656,63 @@ async function fetchCurrentPrice(symbol) {
 }
 
 // ── Shared: invested-principal computation (see 분석 코치 tab) ──────────────
+// A sell whose proceeds get reinvested — a 401k fund-menu exchange (sell old
+// fund, buy new fund the same day) or a rollover recorded as sell+buy — was
+// previously counted as fresh "매수" on top of the money that was already
+// counted as principal the first time, inflating 투입 원금 past what was
+// ever actually put into the account. This nets sell proceeds against later
+// buys chronologically (a running reinvestable-cash pool): a buy only counts
+// as new principal to the extent it isn't funded by a prior sell in this same
+// portfolio. Buys excluded by the 원금 override rules below never draw from
+// or feed the pool, since they were never counted as principal to begin with.
+function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear }) {
+  const BUY_T  = new Set(['buy', 'drip', 'buy_to_cover']);
+  const SELL_T = new Set(['sell', 'sell_short']);
+  let cashPool = 0, totalNet = 0;
+  const yearNet = {};
+  for (const ev of sortedEvents) {
+    if (SELL_T.has(ev.type)) {
+      cashPool += ev.amount;
+    } else if (BUY_T.has(ev.type)) {
+      const yr = (ev.date || '').slice(0, 4);
+      const counts = hasExplicitOverrides
+        ? ev.countAsPrincipal === true
+        : !(zeroFromYear && Number(yr) >= zeroFromYear);
+      if (!counts) continue;
+      const fromPool = Math.min(cashPool, ev.amount);
+      cashPool -= fromPool;
+      const newMoney = ev.amount - fromPool;
+      if (newMoney > 0) {
+        totalNet += newMoney;
+        yearNet[yr] = (yearNet[yr] || 0) + newMoney;
+      }
+    }
+  }
+  return { totalNet, yearNet };
+}
+
 // Mirrors the priority rules used in portLoadAnalysis: an explicit
 // per-transaction 원금 override (거래내역 tab), if any exist for this
 // portfolio, fully replaces the zero_principal_from_year / manual_principal
 // account-level settings (opt-in: only true-flagged buys count). Otherwise
-// falls back to those settings, or the raw buy total if neither is set.
+// falls back to those settings (net of reinvested sells), or a manually
+// entered total if neither is set.
 function _computePortfolioPrincipal(allTxns, pf) {
-  const BUY_T = new Set(['buy', 'drip', 'buy_to_cover']);
+  const BUY_T  = new Set(['buy', 'drip', 'buy_to_cover']);
+  const SELL_T = new Set(['sell', 'sell_short']);
   const zeroFromYear = pf?.zero_principal_from_year || null;
   const manualPrincipal = pf?.manual_principal != null ? Number(pf.manual_principal) : null;
-  const buys = allTxns.filter(t => BUY_T.has(t.type));
-  const hasExplicit = buys.some(t => t.count_as_principal === true || t.count_as_principal === false);
-  let derived = 0;
-  for (const t of buys) {
-    const yr = (t.trade_date || '').slice(0, 4);
-    const counts = hasExplicit
-      ? (t.count_as_principal === true)
-      : !(zeroFromYear && Number(yr) >= zeroFromYear);
-    if (counts) derived += Math.abs(Number(t.amount) || 0);
-  }
+  const relevant = allTxns.filter(t => BUY_T.has(t.type) || SELL_T.has(t.type));
+  const hasExplicit = relevant.some(t => BUY_T.has(t.type) && (t.count_as_principal === true || t.count_as_principal === false));
+  const sortedEvents = relevant
+    .map(t => ({
+      date: t.trade_date,
+      type: t.type,
+      amount: Math.abs(Number(t.amount) || 0),
+      countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const { totalNet: derived } = _computeNetPrincipal(sortedEvents, { hasExplicitOverrides: hasExplicit, zeroFromYear });
   const principal = hasExplicit || !(manualPrincipal != null && manualPrincipal > 0)
     ? derived
     : manualPrincipal;
@@ -1868,7 +1906,6 @@ async function portLoadAnalysis() {
       return last;
     }
 
-    const yearInvested = {}; // year -> that year's own new buys counted as principal
     const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
     // If ANY buy in this portfolio has an explicit 원금 override (set via the
     // 거래내역 tab), switch the whole portfolio into "explicit mode": only
@@ -1878,6 +1915,11 @@ async function portLoadAnalysis() {
     // control instead of the coarse year-cutoff / manual-total overrides).
     const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
     _anlHasExplicitPrincipalOverrides = hasExplicitPrincipalOverrides; // stash for the settings modal
+
+    // year -> that year's genuinely new principal (sell proceeds that get
+    // reinvested — fund exchanges, rollovers recorded as sell+buy — are
+    // netted out chronologically, not double-counted as fresh money).
+    const { yearNet: yearInvested } = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromYear });
 
     const curYear = today.slice(0, 4);
     const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
@@ -1892,14 +1934,9 @@ async function portLoadAnalysis() {
       const cutoff  = isCurYr ? today : `${yr}-12-31`;
       while (evIdx < events.length && events[evIdx].date <= cutoff) {
         const ev   = events[evIdx];
-        const evYr = ev.date.slice(0, 4);
         const h = mtmHold[ev.sym] || { shares: 0, cost: 0 };
         if (BUY_T.has(ev.type)) {
           h.shares += ev.shares; h.cost += ev.amount;
-          const countsAsPrincipal = hasExplicitPrincipalOverrides
-            ? ev.countAsPrincipal === true
-            : !(zeroFromYear && Number(evYr) >= zeroFromYear);
-          if (countsAsPrincipal) yearInvested[evYr] = (yearInvested[evYr] || 0) + ev.amount;
         } else if (SELL_T.has(ev.type) && h.shares > 0) {
           const ratio = Math.min(ev.shares / h.shares, 1);
           const cbs = h.cost * ratio;
