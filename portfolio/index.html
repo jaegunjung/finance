@@ -277,7 +277,7 @@ title: 포트폴리오
                 <th style="text-align:right;">실현 손익 ($)</th>
                 <th style="text-align:right;">수익률 (%)</th>
                 <th style="text-align:right;">S&amp;P 500 (%)</th>
-                <th style="text-align:right;">Alpha (%)</th>
+                <th style="text-align:right;cursor:help;" title="Alpha = 수익률(%) − S&amp;P 500(%)&#10;시장(S&amp;P 500) 대비 초과 수익률입니다.">Alpha (%)</th>
               </tr>
             </thead>
             <tbody id="anlYearTableBody"></tbody>
@@ -985,7 +985,7 @@ function portRenderHoldings() {
 
   const sortFn = (a, b) => {
     const col = _holdingsSort.col, dir = _holdingsSort.dir;
-    const map = { sym:'sym', curValue:'curValue', todayVal:'todayVal', allTimeGain:'allTimeGain' };
+    const map = { sym:'sym', curValue:'curValue', todayVal:'todayVal', realizedGain:'realizedGain', unrealGain:'unrealGain', allTimeGain:'allTimeGain' };
     let va = a[map[col] ?? col] ?? -Infinity;
     let vb = b[map[col] ?? col] ?? -Infinity;
     if (typeof va === 'string') return va.localeCompare(vb) * dir;
@@ -1016,11 +1016,19 @@ function portRenderHoldings() {
 
   const buildRow = (row) => {
     const { sym, price, remainingShares, avgCost, totalCost, curValue,
-      unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct } = row;
+      unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct, totalBought } = row;
 
     const priceStr   = price != null ? fA(price) : '—';
     const todayStr   = todayVal != null
       ? `<div class="${cls(todayVal)}">${fS(todayVal)}</div><div class="${cls(todayPct)} h-sub">${fP(todayPct)}</div>`
+      : `<div style="color:var(--text-muted);">—</div>`;
+    const realizedPct = totalBought > 0 ? realizedGain / totalBought * 100 : 0;
+    const realizedStr = realizedGain !== 0
+      ? `<div class="${cls(realizedGain)}">${fS(realizedGain)}</div>${totalBought > 0 ? `<div class="${cls(realizedGain)} h-sub">${fP(realizedPct)}</div>` : ''}`
+      : `<div style="color:var(--text-muted);">—</div>`;
+    const unrealPct = totalCost > 0 ? (unrealGain ?? 0) / totalCost * 100 : 0;
+    const unrealStr = unrealGain != null
+      ? `<div class="${cls(unrealGain)}">${fS(unrealGain)}</div><div class="${cls(unrealGain)} h-sub">${fP(unrealPct)}</div>`
       : `<div style="color:var(--text-muted);">—</div>`;
     const totalStr   = `<div class="${cls(allTimeGain)}">${fS(allTimeGain)}</div><div class="${cls(allTimePct)} h-sub">${fP(allTimePct)}</div>`;
     const curValStr  = curValue != null
@@ -1040,6 +1048,8 @@ function portRenderHoldings() {
       </td>
       <td>${isCashSym ? `<div class="h-val">${fA(remainingShares, 2)}</div>` : curValStr}</td>
       <td>${isCashSym ? `<div style="color:var(--text-muted);">—</div>` : todayStr}</td>
+      <td>${isCashSym ? `<div style="color:var(--text-muted);">—</div>` : realizedStr}</td>
+      <td>${isCashSym ? `<div style="color:var(--text-muted);">—</div>` : unrealStr}</td>
       <td>${isCashSym ? `<div style="color:var(--text-muted);">—</div>` : totalStr}</td>
     </tr>`;
   };
@@ -1054,20 +1064,23 @@ function portRenderHoldings() {
         oninput="holdingsApplyFilter(this.value)"
         style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.78rem;padding:4px 8px;width:140px;">
     </div>
+    <div style="overflow-x:auto;">
     <table class="h-table">
       <thead><tr>
         <th style="${thStyle}" onclick="holdingsSortBy('sym')"><span class="en-only">Ticker</span><span class="ko-only">종목</span>${siIcon('sym')}</th>
         <th style="${thStyle}" onclick="holdingsSortBy('curValue')"><span class="en-only">Value / Cost</span><span class="ko-only">평가 / 비용</span>${siIcon('curValue')}</th>
         <th style="${thStyle}" onclick="holdingsSortBy('todayVal')" title="${_holdingsAsOfDate || ''}"><span class="en-only">${todayColLabelEn}</span><span class="ko-only">${todayColLabelKo}</span>${siIcon('todayVal')}</th>
+        <th style="${thStyle}" onclick="holdingsSortBy('realizedGain')"><span class="en-only">Realized</span><span class="ko-only">실현</span>${siIcon('realizedGain')}</th>
+        <th style="${thStyle}" onclick="holdingsSortBy('unrealGain')"><span class="en-only">Unrealized</span><span class="ko-only">미실현</span>${siIcon('unrealGain')}</th>
         <th style="${thStyle}" onclick="holdingsSortBy('allTimeGain')"><span class="en-only">Total</span><span class="ko-only">총 손익</span>${siIcon('allTimeGain')}</th>
       </tr></thead>
       <tbody>`;
 
   if (openRows.length) html += openRows.map(buildRow).join('');
-  else html += `<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem;">검색 결과 없음</td></tr>`;
+  else html += `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem;">검색 결과 없음</td></tr>`;
 
   if (closedRows.length) {
-    html += `<tr><td colspan="4" style="padding:6px 12px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-blue);background:var(--bg-secondary);">
+    html += `<tr><td colspan="6" style="padding:6px 12px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-blue);background:var(--bg-secondary);">
       <span class="en-only">Closed Positions</span><span class="ko-only">청산 포지션</span></td></tr>`;
     html += closedRows.map(buildRow).join('');
   }
@@ -1107,10 +1120,18 @@ function portRenderHoldings() {
           ? `<div class="${cls(totalTodayVal)}">${fS(totalTodayVal)}</div><div class="${cls(totalTodayPct)} h-sub">${fP(totalTodayPct)}</div>`
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
+        <td>${totalRealGain !== 0
+          ? `<div class="${cls(totalRealGain)}">${fS(totalRealGain)}</div>${totalBoughtAll > 0 ? `<div class="${cls(totalRealGain)} h-sub">${fP(totalRealGain / totalBoughtAll * 100)}</div>` : ''}`
+          : `<div style="color:var(--text-muted);">—</div>`}
+        </td>
+        <td>${totalUnrealGain !== 0
+          ? `<div class="${cls(totalUnrealGain)}">${fS(totalUnrealGain)}</div><div class="${cls(totalUnrealGain)} h-sub">${fP(totalCostAll > 0 ? totalUnrealGain / totalCostAll * 100 : 0)}</div>`
+          : `<div style="color:var(--text-muted);">—</div>`}
+        </td>
         <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>${principalLine}</td>
       </tr>
     </tfoot>
-    </table></div>`;
+    </table></div></div>`;
 
   contentEl.innerHTML = html;
 }
@@ -1792,7 +1813,14 @@ async function portLoadAnalysis() {
       qqqGain:  qqqGainToday,
     });
 
-    // ── 7. Year-by-year table ───────────────────────────────────────
+    // ── 7. Year-by-year table (mark-to-market) ────────────────────────
+    // Past years used to show realized gain only, which reads as ~$0 for
+    // any year with contributions but no sells (e.g. a 401k that just buys
+    // every paycheck) — the price appreciation on those shares was real,
+    // it just wasn't "realized" yet. Fixed by valuing each year's closing
+    // holdings at that year-end's price (mark-to-market) instead of only
+    // counting gains from actual sells, same as the current-year figure
+    // already did with "today"'s price.
     const spySortedDates = Object.keys(spyPrices).sort();
     function _spyYearReturn(year) {
       const jan = spySortedDates.find(d => d.startsWith(year + '-'));
@@ -1801,9 +1829,29 @@ async function portLoadAnalysis() {
       return (spyPrices[dec] - spyPrices[jan]) / spyPrices[jan] * 100;
     }
 
-    // Realized gain per year
-    const yearGains    = {}; // year -> realized gain
-    const yearInvested = {}; // year -> total buys
+    // Best-effort full price history per held symbol, for year-end
+    // valuations. Crypto symbols live under a different CSV filename here
+    // (e.g. BTC-USD.csv, not BTC.csv) so this fetch comes back empty for
+    // them and their past-year figures just fall back to realized-only —
+    // fine, since this portfolio tool's per-year table is aimed at
+    // stock/fund accounts like a 401k, not crypto.
+    const priceHistories = {};
+    await Promise.all(Object.keys(symbolTxns).map(async sym => {
+      try {
+        const r = await fetch(_STOCKS_BASE + sym + '.csv');
+        priceHistories[sym] = r.ok ? _anlParsePriceCsv(await r.text()) : {};
+      } catch(e) { priceHistories[sym] = {}; }
+    }));
+    function _priceOnOrBefore(sym, date) {
+      const hist = priceHistories[sym];
+      if (!hist) return null;
+      const near = _nearestPrice(hist, date);
+      if (near != null) return near;
+      const dates = Object.keys(hist).filter(d => d <= date).sort();
+      return dates.length ? hist[dates[dates.length - 1]] : null;
+    }
+
+    const yearInvested = {}; // year -> total buys counted as principal
     const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
     // If ANY buy in this portfolio has an explicit 원금 override (set via the
     // 거래내역 tab), switch the whole portfolio into "explicit mode": only
@@ -1813,53 +1861,55 @@ async function portLoadAnalysis() {
     // control instead of the coarse year-cutoff / manual-total overrides).
     const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
     _anlHasExplicitPrincipalOverrides = hasExplicitPrincipalOverrides; // stash for the settings modal
-    let cumCost = 0, cumRealized = 0;
-    for (const ev of events) {
-      const yr = ev.date.slice(0, 4);
-      if (BUY_T.has(ev.type)) {
-        const countsAsPrincipal = hasExplicitPrincipalOverrides
-          ? ev.countAsPrincipal === true
-          : !(zeroFromYear && Number(yr) >= zeroFromYear);
-        if (countsAsPrincipal) yearInvested[yr] = (yearInvested[yr] || 0) + ev.amount;
-        cumCost += ev.amount;
-      } else if (SELL_T.has(ev.type)) {
-        const h = portHoldings[ev.sym];
-        // gain already in portRealizedGain; recalculate incrementally
-      }
-    }
 
-    // Recalculate realized gain per year cleanly
-    const portH2 = {};
-    let cumReal2 = 0;
-    const yearRealGain = {};
-    for (const ev of events) {
-      const yr = ev.date.slice(0, 4);
-      const h = portH2[ev.sym] || { shares: 0, cost: 0 };
-      if (BUY_T.has(ev.type)) {
-        h.shares += ev.shares;
-        h.cost   += ev.amount;
-      } else if (SELL_T.has(ev.type) && h.shares > 0) {
-        const ratio = Math.min(ev.shares / h.shares, 1);
-        const cbs = h.cost * ratio;
-        const gain = ev.amount - cbs;
-        yearRealGain[yr] = (yearRealGain[yr] || 0) + gain;
-        cumReal2 += gain;
-        h.shares -= ev.shares; h.cost -= cbs;
-        if (h.shares < 0) h.shares = 0;
-        if (h.cost   < 0) h.cost   = 0;
-      }
-      portH2[ev.sym] = h;
-    }
-    // Current year: add unrealized
     const curYear = today.slice(0, 4);
-    yearRealGain[curYear] = (yearRealGain[curYear] || 0) + portUnrealized;
-
     const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
+
+    // Replay holdings chronologically, snapshotting cumulative mark-to-market
+    // total gain (realized + unrealized-at-cutoff) at the close of each year.
+    const mtmHold = {};
+    let mtmRealized = 0, evIdx = 0;
+    const yearCumGain = {};
+    for (const yr of allYears) {
+      const isCurYr = yr === curYear;
+      const cutoff  = isCurYr ? today : `${yr}-12-31`;
+      while (evIdx < events.length && events[evIdx].date <= cutoff) {
+        const ev   = events[evIdx];
+        const evYr = ev.date.slice(0, 4);
+        const h = mtmHold[ev.sym] || { shares: 0, cost: 0 };
+        if (BUY_T.has(ev.type)) {
+          h.shares += ev.shares; h.cost += ev.amount;
+          const countsAsPrincipal = hasExplicitPrincipalOverrides
+            ? ev.countAsPrincipal === true
+            : !(zeroFromYear && Number(evYr) >= zeroFromYear);
+          if (countsAsPrincipal) yearInvested[evYr] = (yearInvested[evYr] || 0) + ev.amount;
+        } else if (SELL_T.has(ev.type) && h.shares > 0) {
+          const ratio = Math.min(ev.shares / h.shares, 1);
+          const cbs = h.cost * ratio;
+          mtmRealized += ev.amount - cbs;
+          h.shares -= ev.shares; h.cost -= cbs;
+          if (h.shares < 0) h.shares = 0;
+          if (h.cost   < 0) h.cost   = 0;
+        }
+        mtmHold[ev.sym] = h;
+        evIdx++;
+      }
+      let unreal = 0;
+      for (const [sym, h] of Object.entries(mtmHold)) {
+        if (h.shares <= 0) continue;
+        const p = isCurYr ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, cutoff)) : _priceOnOrBefore(sym, cutoff);
+        if (p != null) unreal += p * h.shares - h.cost;
+      }
+      yearCumGain[yr] = mtmRealized + unreal;
+    }
+
     let tbody = '';
-    let totalInvested = 0, totalGain = 0;
+    let totalInvested = 0, totalGain = 0, prevCumGain = 0;
     for (const yr of allYears) {
       const inv  = yearInvested[yr] || 0;
-      const gain = yearRealGain[yr] || 0;
+      const cum  = yearCumGain[yr];
+      const gain = cum - prevCumGain;
+      prevCumGain = cum;
       const pct  = inv > 0 ? gain / inv * 100 : null;
       const spy  = _spyYearReturn(yr);
       const alpha = (pct != null && spy != null) ? pct - spy : null;
@@ -1867,7 +1917,7 @@ async function portLoadAnalysis() {
       totalGain     += gain;
       const isCur = yr === curYear;
       tbody += `<tr${isCur ? ' style="background:rgba(88,166,255,0.04);"' : ''}>
-        <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD+미실현</span>' : ''}</td>
+        <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD</span>' : ''}</td>
         <td style="text-align:right; color:var(--text-muted);">${inv > 0 ? '$' + inv.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right;" class="${gain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${gain !== 0 ? (gain >= 0 ? '+' : '') + '$' + Math.abs(gain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right;" class="${pct == null ? '' : pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—'}</td>
