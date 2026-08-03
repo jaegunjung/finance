@@ -278,6 +278,8 @@ title: 포트폴리오
                 <th style="text-align:right;cursor:help;" title="누적 손익 ÷ 누적 투입 원금. 연도별 신규 납입액이 아닌, 그 시점까지의 전체 원금 기준입니다.">수익률 (%)</th>
                 <th style="text-align:right;cursor:help;" title="같은 날 같은 금액을 SPY에 투자했다면의 누적 수익률(동일 자금흐름 기준)입니다.">S&amp;P 500 (%)</th>
                 <th style="text-align:right;cursor:help;" title="Alpha = 수익률(%) − S&amp;P 500(%)&#10;시장(S&amp;P 500) 대비 초과 수익률입니다.">Alpha (%)</th>
+                <th style="text-align:right;cursor:help;" title="같은 날 같은 금액을 SGOV(0~3개월 미국 단기국채 ETF, 현금성 자산)에 투자했다면의 누적 수익률입니다. 2025-05-30 이전 데이터는 없습니다.">SGOV (%)</th>
+                <th style="text-align:right;cursor:help;" title="BETA = 수익률(%) − SGOV(%)&#10;현금성 자산(SGOV) 대비 초과 수익률입니다. SGOV는 변동성이 거의 없어, 통계적 베타(민감도) 계수가 아니라 Alpha와 같은 방식의 '초과 수익률'입니다.">BETA (%)</th>
               </tr>
             </thead>
             <tbody id="anlYearTableBody"></tbody>
@@ -301,9 +303,13 @@ title: 포트폴리오
           <span style="display:flex; align-items:center; gap:6px;">
             <span style="display:inline-block; width:20px; height:3px; background:#c792ea; border-radius:2px;"></span>QQQ (동일 투자)
           </span>
+          <span style="display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-block; width:20px; height:3px; background:#e8c84a; border-radius:2px;"></span>SGOV (동일 투자)
+          </span>
         </div>
         <p style="color:var(--text-muted); font-size:0.73rem; margin-top:8px;">
-          같은 날 같은 금액을 SPY / QQQ에 투자했다면의 가상 손익과 비교. 실현손익 기준 (미실현은 현재가 기준 추산).
+          같은 날 같은 금액을 SPY / QQQ / SGOV(0~3개월 미국 단기국채 ETF, 현금성 자산 대용)에 투자했다면의 가상 손익과 비교.
+          SGOV 가격 데이터는 2025-05-30부터 있어 그 이전 구간은 표시되지 않습니다.
         </p>
       </div>
 
@@ -665,8 +671,13 @@ async function fetchCurrentPrice(symbol) {
 // as new principal to the extent it isn't funded by a prior sell in this same
 // portfolio. Buys excluded by the 원금 override rules below never draw from
 // or feed the pool, since they were never counted as principal to begin with.
+// DRIP (dividend reinvestment) is excluded entirely — it's investment
+// income being reinvested, not new money from the investor, matching
+// computePnL's own treatment (transactions.js: "DRIP adds shares but not
+// cost basis") that 보유현황's 비용 is built from. Counting it here was
+// exactly why 누적 투입 원금 drifted above 보유현황's cost basis over time.
 function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear }) {
-  const BUY_T  = new Set(['buy', 'drip', 'buy_to_cover']);
+  const BUY_T  = new Set(['buy', 'buy_to_cover']);
   const SELL_T = new Set(['sell', 'sell_short']);
   let cashPool = 0, totalNet = 0;
   const yearNet = {};
@@ -1729,13 +1740,20 @@ async function portLoadAnalysis() {
       return;
     }
 
-    // ── 2. Fetch SPY + QQQ price CSVs ──────────────────────────────
-    const [spyText, qqqText] = await Promise.all([
+    // ── 2. Fetch SPY + QQQ + SGOV price CSVs ─────────────────────────
+    // SGOV (0-3 month T-bill ETF) stands in as a cash/near-risk-free
+    // benchmark — note its price history here only starts 2025-05-30, so
+    // the money-weighted SGOV comparison can't cover contributions made
+    // before that date (those events just get skipped for SGOV, same as
+    // any symbol with no price on a given date).
+    const [spyText, qqqText, sgovText] = await Promise.all([
       fetch(_STOCKS_BASE + 'SPY.csv').then(r => r.ok ? r.text() : ''),
       fetch(_STOCKS_BASE + 'QQQ.csv').then(r => r.ok ? r.text() : ''),
+      fetch(_STOCKS_BASE + 'SGOV.csv').then(r => r.ok ? r.text() : ''),
     ]);
-    const spyPrices = _anlParsePriceCsv(spyText);  // { 'YYYY-MM-DD': price }
-    const qqqPrices = _anlParsePriceCsv(qqqText);
+    const spyPrices  = _anlParsePriceCsv(spyText);  // { 'YYYY-MM-DD': price }
+    const qqqPrices  = _anlParsePriceCsv(qqqText);
+    const sgovPrices = _anlParsePriceCsv(sgovText);
 
     // ── 3. Fetch current prices for held symbols ────────────────────
     const BUY_T  = new Set(['buy','drip','buy_to_cover']);
@@ -1790,16 +1808,17 @@ async function portLoadAnalysis() {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    // ── 5. Money-weighted SPY/QQQ simulation ───────────────────────
-    // On each BUY: buy same $ amount of SPY & QQQ
-    // On each SELL: sell proportional SPY & QQQ units (by cost ratio)
+    // ── 5. Money-weighted SPY/QQQ/SGOV simulation ────────────────────
+    // On each BUY: buy same $ amount of SPY & QQQ & SGOV
+    // On each SELL: sell proportional SPY & QQQ & SGOV units (by cost ratio)
     let spyUnits = 0, spyCost = 0;
     let qqqUnits = 0, qqqCost = 0;
+    let sgovUnits = 0, sgovCost = 0;
 
     // Portfolio: track per-symbol cost basis and remaining shares
     const portHoldings = {}; // sym -> { shares, cost }
 
-    // Cumulative realized gain timeline: [{ date, portGain, spyGain, qqqGain }]
+    // Cumulative realized gain timeline: [{ date, portGain, spyGain, qqqGain, sgovGain }]
     const timeline = [];
     let portRealizedGain = 0;
 
@@ -1815,17 +1834,22 @@ async function portLoadAnalysis() {
     }
 
     for (const ev of events) {
-      const spyP = _nearestPrice(spyPrices, ev.date);
-      const qqqP = _nearestPrice(qqqPrices, ev.date);
+      const spyP  = _nearestPrice(spyPrices, ev.date);
+      const qqqP  = _nearestPrice(qqqPrices, ev.date);
+      const sgovP = _nearestPrice(sgovPrices, ev.date);
       const h = portHoldings[ev.sym] || { shares: 0, cost: 0 };
 
       if (BUY_T.has(ev.type)) {
         h.shares += ev.shares;
-        h.cost   += ev.amount;
+        // DRIP (reinvested dividends) adds shares but not cost basis —
+        // mirrors computePnL's treatment (transactions.js) exactly, so this
+        // chart's portfolio line and 보유현황's cost/gain figures agree.
+        if (ev.type !== 'drip') h.cost += ev.amount;
         portHoldings[ev.sym] = h;
-        // Buy same $ in SPY/QQQ
-        if (spyP) { spyUnits += ev.amount / spyP; spyCost += ev.amount; }
-        if (qqqP) { qqqUnits += ev.amount / qqqP; qqqCost += ev.amount; }
+        // Buy same $ in SPY/QQQ/SGOV
+        if (spyP)  { spyUnits  += ev.amount / spyP;  spyCost  += ev.amount; }
+        if (qqqP)  { qqqUnits  += ev.amount / qqqP;  qqqCost  += ev.amount; }
+        if (sgovP) { sgovUnits += ev.amount / sgovP; sgovCost += ev.amount; }
       } else if (SELL_T.has(ev.type) && h.shares > 0) {
         const ratio = Math.min(ev.shares / h.shares, 1);
         const costBasisSold = h.cost * ratio;
@@ -1835,7 +1859,7 @@ async function portLoadAnalysis() {
         if (h.shares < 0) h.shares = 0;
         if (h.cost   < 0) h.cost   = 0;
         portHoldings[ev.sym] = h;
-        // Sell proportional SPY/QQQ
+        // Sell proportional SPY/QQQ/SGOV
         if (spyP && spyUnits > 0) {
           const sellRatio = spyCost > 0 ? ev.amount / (spyCost + portRealizedGain) : 0;
           const unitsSold = spyUnits * Math.min(sellRatio, 1);
@@ -1850,6 +1874,13 @@ async function portLoadAnalysis() {
           qqqCost  -= ev.amount;
           if (qqqCost < 0) qqqCost = 0;
         }
+        if (sgovP && sgovUnits > 0) {
+          const sellRatio = sgovCost > 0 ? ev.amount / (sgovCost + portRealizedGain) : 0;
+          const unitsSold = sgovUnits * Math.min(sellRatio, 1);
+          sgovUnits -= unitsSold;
+          sgovCost  -= ev.amount;
+          if (sgovCost < 0) sgovCost = 0;
+        }
       }
 
       // Snapshot: mark-to-market (realized so far + unrealized at this
@@ -1863,9 +1894,10 @@ async function portLoadAnalysis() {
         const hp = _priceOnOrBefore(hsym, ev.date);
         if (hp != null) portUnrealAtDate += hp * hh.shares - hh.cost;
       }
-      const spyNow = spyP ? spyUnits * spyP - spyCost : null;
-      const qqqNow = qqqP ? qqqUnits * qqqP - qqqCost : null;
-      timeline.push({ date: ev.date, portGain: portRealizedGain + portUnrealAtDate, spyGain: spyNow, qqqGain: qqqNow, spyCost, qqqCost });
+      const spyNow  = spyP  ? spyUnits  * spyP  - spyCost  : null;
+      const qqqNow  = qqqP  ? qqqUnits  * qqqP  - qqqCost  : null;
+      const sgovNow = sgovP ? sgovUnits * sgovP - sgovCost : null;
+      timeline.push({ date: ev.date, portGain: portRealizedGain + portUnrealAtDate, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
     }
 
     // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
@@ -1877,14 +1909,17 @@ async function portLoadAnalysis() {
     }
     const spyToday  = _nearestPrice(spyPrices, today);
     const qqqToday  = _nearestPrice(qqqPrices, today);
-    const spyGainToday = spyToday ? spyUnits * spyToday - spyCost : null;
-    const qqqGainToday = qqqToday ? qqqUnits * qqqToday - qqqCost : null;
+    const sgovToday = _nearestPrice(sgovPrices, today);
+    const spyGainToday  = spyToday  ? spyUnits  * spyToday  - spyCost  : null;
+    const qqqGainToday  = qqqToday  ? qqqUnits  * qqqToday  - qqqCost  : null;
+    const sgovGainToday = sgovToday ? sgovUnits * sgovToday - sgovCost : null;
     timeline.push({
       date: today,
       portGain: portRealizedGain + portUnrealized,
       spyGain:  spyGainToday,
       qqqGain:  qqqGainToday,
-      spyCost, qqqCost,
+      sgovGain: sgovGainToday,
+      spyCost, qqqCost, sgovCost,
     });
 
     // ── 7. Year-by-year table (cumulative-to-date, mark-to-market) ────
@@ -1936,7 +1971,8 @@ async function portLoadAnalysis() {
         const ev   = events[evIdx];
         const h = mtmHold[ev.sym] || { shares: 0, cost: 0 };
         if (BUY_T.has(ev.type)) {
-          h.shares += ev.shares; h.cost += ev.amount;
+          h.shares += ev.shares;
+          if (ev.type !== 'drip') h.cost += ev.amount; // matches computePnL: DRIP adds shares, not cost basis
         } else if (SELL_T.has(ev.type) && h.shares > 0) {
           const ratio = Math.min(ev.shares / h.shares, 1);
           const cbs = h.cost * ratio;
@@ -1967,8 +2003,10 @@ async function portLoadAnalysis() {
       const isCur = yr === curYear;
       const cutoff = isCur ? today : `${yr}-12-31`;
       const tl = _tlAt(cutoff);
-      const spyPct = (tl && tl.spyCost > 0) ? tl.spyGain / tl.spyCost * 100 : null;
-      const alpha = (pct != null && spyPct != null) ? pct - spyPct : null;
+      const spyPct  = (tl && tl.spyCost  > 0) ? tl.spyGain  / tl.spyCost  * 100 : null;
+      const sgovPct = (tl && tl.sgovCost > 0) ? tl.sgovGain / tl.sgovCost * 100 : null;
+      const alpha = (pct != null && spyPct  != null) ? pct - spyPct  : null;
+      const beta  = (pct != null && sgovPct != null) ? pct - sgovPct : null;
 
       tbody += `<tr${isCur ? ' style="background:rgba(88,166,255,0.04);"' : ''}>
         <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD</span>' : ''}</td>
@@ -1977,6 +2015,8 @@ async function portLoadAnalysis() {
         <td style="text-align:right;" class="${pct == null ? '' : pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right; color:var(--text-muted);">${spyPct != null ? (spyPct >= 0 ? '+' : '') + spyPct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right;" class="${alpha == null ? '' : alpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${alpha != null ? (alpha >= 0 ? '+' : '') + alpha.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${sgovPct != null ? (sgovPct >= 0 ? '+' : '') + sgovPct.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right;" class="${beta == null ? '' : beta >= 0 ? 'pnl-pos' : 'pnl-neg'}">${beta != null ? (beta >= 0 ? '+' : '') + beta.toFixed(1) + '%' : '—'}</td>
       </tr>`;
     }
     // Total row — only shown when it would actually say something the last
@@ -1994,8 +2034,10 @@ async function portLoadAnalysis() {
       const totalInvested = manualPrincipal;
       const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
       const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
-      const spyTotal = spyCost > 0 ? spyGainToday / spyCost * 100 : null;
-      const totalAlpha = (totalPct != null && spyTotal != null) ? totalPct - spyTotal : null;
+      const spyTotal  = spyCost  > 0 ? spyGainToday  / spyCost  * 100 : null;
+      const sgovTotal = sgovCost > 0 ? sgovGainToday / sgovCost * 100 : null;
+      const totalAlpha = (totalPct != null && spyTotal  != null) ? totalPct - spyTotal  : null;
+      const totalBeta  = (totalPct != null && sgovTotal != null) ? totalPct - sgovTotal : null;
       const manualNote = ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="거래내역 기준 합계: $${derivedInvested.toLocaleString(undefined,{maximumFractionDigits:0})}">✏️ 수동 입력${_principalOverride?.manual_principal_as_of ? ' (' + _principalOverride.manual_principal_as_of + ' 기준)' : ''}</span>`;
       tbody += `<tr style="font-weight:700; background:var(--bg-secondary);">
         <td>전체 누적</td>
@@ -2004,6 +2046,8 @@ async function portLoadAnalysis() {
         <td style="text-align:right;" class="${totalPct == null ? '' : totalPct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalPct != null ? (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right; color:var(--text-muted);">${spyTotal != null ? (spyTotal >= 0 ? '+' : '') + spyTotal.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right;" class="${totalAlpha == null ? '' : totalAlpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalAlpha != null ? (totalAlpha >= 0 ? '+' : '') + totalAlpha.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${sgovTotal != null ? (sgovTotal >= 0 ? '+' : '') + sgovTotal.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right;" class="${totalBeta == null ? '' : totalBeta >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalBeta != null ? (totalBeta >= 0 ? '+' : '') + totalBeta.toFixed(1) + '%' : '—'}</td>
       </tr>`;
     }
     const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
@@ -2027,6 +2071,7 @@ async function portLoadAnalysis() {
     const portData     = tlSorted.map(p => p.portGain != null ? +p.portGain.toFixed(2) : null);
     const spyData      = tlSorted.map(p => p.spyGain  != null ? +p.spyGain.toFixed(2)  : null);
     const qqqData      = tlSorted.map(p => p.qqqGain  != null ? +p.qqqGain.toFixed(2)  : null);
+    const sgovData     = tlSorted.map(p => p.sgovGain != null ? +p.sgovGain.toFixed(2) : null);
 
     const ctx = document.getElementById('anlGainChart').getContext('2d');
     _anlChart = new Chart(ctx, {
@@ -2037,6 +2082,7 @@ async function portLoadAnalysis() {
           { label: '내 포트폴리오', data: portData, borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'SPY',          data: spyData,  borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'QQQ',          data: qqqData,  borderColor: '#c792ea', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          { label: 'SGOV',         data: sgovData, borderColor: '#e8c84a', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
         ],
       },
       options: {
