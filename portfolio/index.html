@@ -427,7 +427,7 @@ title: 포트폴리오
       </label>
       <p style="color:var(--text-muted); font-size:0.76rem; line-height:1.5; margin:0 0 8px 26px;">
         거래내역으로 원금을 정확히 산출하기 어려운 경우, 알고 있는 시점의 원금을 직접 입력하세요.
-        "전체 누적" 행의 투입 원금 및 수익률 계산에 사용됩니다 (연도별 행은 거래내역 기준 그대로 표시).
+        연도별 수익률 표의 모든 행에서 이 값을 투입 원금으로 사용해 수익률을 계산합니다 (연도마다 달라지는 값이 아닌, 고정된 하나의 원금 기준).
       </p>
       <div id="pmManualRow" style="display:none; margin-left:26px; gap:12px; flex-wrap:wrap;">
         <div>
@@ -1960,6 +1960,14 @@ async function portLoadAnalysis() {
     const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
     _anlHasExplicitPrincipalOverrides = hasExplicitPrincipalOverrides; // stash for the settings modal
 
+    // A manual 원금 (e.g. "as of 1/15/2024 this account held about $170K",
+    // entered by hand — typically a 401k→IRA rollover where the recorded
+    // buy/sell history doesn't represent real new money) is a single
+    // point-in-time figure, not a year-by-year series — so unlike the
+    // derived cumInvested below, it applies as-is to every row, not just
+    // the total. Explicit per-transaction overrides take priority over it.
+    const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
+
     // year -> that year's genuinely new principal (sell proceeds that get
     // reinvested — fund exchanges, rollovers recorded as sell+buy — are
     // netted out chronologically, not double-counted as fresh money).
@@ -2006,8 +2014,13 @@ async function portLoadAnalysis() {
     let cumInvested = 0;
     for (const yr of allYears) {
       cumInvested += (yearInvested[yr] || 0);
+      // A manual 원금 override is a fixed point-in-time figure, not a
+      // year-by-year series — show and calculate against it directly on
+      // every row instead of the derived (possibly zero, e.g. if every
+      // buy is excluded via 연도별 $0 처리) running total.
+      const displayInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
       const cumGain = yearCumGain[yr];
-      const pct = cumInvested > 0 ? cumGain / cumInvested * 100 : null;
+      const pct = displayInvested > 0 ? cumGain / displayInvested * 100 : null;
 
       const isCur = yr === curYear;
       const cutoff = isCur ? today : `${yr}-12-31`;
@@ -2019,7 +2032,7 @@ async function portLoadAnalysis() {
 
       tbody += `<tr${isCur ? ' style="background:rgba(88,166,255,0.04);"' : ''}>
         <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD</span>' : ''}</td>
-        <td style="text-align:right; color:var(--text-muted);">${cumInvested > 0 ? '$' + cumInvested.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${displayInvested > 0 ? '$' + displayInvested.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right;" class="${cumGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${cumGain !== 0 ? (cumGain >= 0 ? '+' : '') + '$' + Math.abs(cumGain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right;" class="${pct == null ? '' : pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right; color:var(--text-muted);">${spyPct != null ? (spyPct >= 0 ? '+' : '') + spyPct.toFixed(1) + '%' : '—'}</td>
@@ -2028,37 +2041,10 @@ async function portLoadAnalysis() {
         <td style="text-align:right;" class="${beta == null ? '' : beta >= 0 ? 'pnl-pos' : 'pnl-neg'}">${beta != null ? (beta >= 0 ? '+' : '') + beta.toFixed(1) + '%' : '—'}</td>
       </tr>`;
     }
-    // Total row — only shown when it would actually say something the last
-    // year row above doesn't. Both already show the same cumulative-to-date
-    // figures (that's the point of the cumulative design), so a plain
-    // "전체 누적" row would just repeat the last year row verbatim. The one
-    // case it differs: a manual 원금 override (e.g. "as of 1/15/2024 this
-    // account held about $170K" entered by hand) swaps in a hand-entered
-    // total in place of the derived figure — worth its own row since the
-    // per-year rows above are left un-overridden (a manual total is a
-    // single point-in-time number, not a year-by-year series).
-    const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
-    if (manualPrincipal != null && manualPrincipal > 0) {
-      const derivedInvested = cumInvested;
-      const totalInvested = manualPrincipal;
-      const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
-      const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
-      const spyTotal  = spyCost  > 0 ? spyGainToday  / spyCost  * 100 : null;
-      const sgovTotal = sgovCost > 0 ? sgovGainToday / sgovCost * 100 : null;
-      const totalAlpha = (totalPct != null && spyTotal  != null) ? totalPct - spyTotal  : null;
-      const totalBeta  = (totalPct != null && sgovTotal != null) ? totalPct - sgovTotal : null;
-      const manualNote = ` <span style="font-size:0.68rem;color:var(--accent-blue);" title="거래내역 기준 합계: $${derivedInvested.toLocaleString(undefined,{maximumFractionDigits:0})}">✏️ 수동 입력${_principalOverride?.manual_principal_as_of ? ' (' + _principalOverride.manual_principal_as_of + ' 기준)' : ''}</span>`;
-      tbody += `<tr style="font-weight:700; background:var(--bg-secondary);">
-        <td>전체 누적</td>
-        <td style="text-align:right;">$${totalInvested.toLocaleString(undefined,{maximumFractionDigits:0})}${manualNote}</td>
-        <td style="text-align:right;" class="${totalGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalGain >= 0 ? '+' : ''}$${Math.abs(totalGain).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
-        <td style="text-align:right;" class="${totalPct == null ? '' : totalPct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalPct != null ? (totalPct >= 0 ? '+' : '') + totalPct.toFixed(1) + '%' : '—'}</td>
-        <td style="text-align:right; color:var(--text-muted);">${spyTotal != null ? (spyTotal >= 0 ? '+' : '') + spyTotal.toFixed(1) + '%' : '—'}</td>
-        <td style="text-align:right;" class="${totalAlpha == null ? '' : totalAlpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalAlpha != null ? (totalAlpha >= 0 ? '+' : '') + totalAlpha.toFixed(1) + '%' : '—'}</td>
-        <td style="text-align:right; color:var(--text-muted);">${sgovTotal != null ? (sgovTotal >= 0 ? '+' : '') + sgovTotal.toFixed(1) + '%' : '—'}</td>
-        <td style="text-align:right;" class="${totalBeta == null ? '' : totalBeta >= 0 ? 'pnl-pos' : 'pnl-neg'}">${totalBeta != null ? (totalBeta >= 0 ? '+' : '') + totalBeta.toFixed(1) + '%' : '—'}</td>
-      </tr>`;
-    }
+    // No separate "전체 누적" row: with the manual-원금 override now applied
+    // to every per-year row above (not just a trailing summary), the last
+    // year row already shows these exact cumulative-to-date figures — a
+    // dedicated total row would just repeat it verbatim.
     const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
     const totalInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
