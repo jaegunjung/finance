@@ -1719,11 +1719,9 @@ async function portLoadAnalysis() {
     // rolled into a Traditional IRA, where rollover-in "buys" aren't new
     // principal contributed by the user).
     let _principalOverride = null; // { zero_principal_from_year, manual_principal, manual_principal_as_of }
-    let _activePortfolioName = null;
     if (portActivePortfolioId) {
       const activePf = portPortfolios.find(p => p.id === portActivePortfolioId);
       if (activePf) {
-        _activePortfolioName = activePf.name || null;
         _principalOverride = {
           zero_principal_from_year: activePf.zero_principal_from_year || null,
           manual_principal: activePf.manual_principal != null ? Number(activePf.manual_principal) : null,
@@ -1817,6 +1815,26 @@ async function portLoadAnalysis() {
 
     const today = new Date().toISOString().slice(0, 10);
 
+    const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
+    // If ANY buy in this portfolio has an explicit 원금 override (set via the
+    // 거래내역 tab), switch the whole portfolio into "explicit mode": only
+    // buys explicitly marked 원금(true) count, and the account-level
+    // zero_principal_from_year / manual_principal settings are ignored
+    // entirely (the user is telling us they want precise, transaction-level
+    // control instead of the coarse year-cutoff / manual-total overrides).
+    const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
+    _anlHasExplicitPrincipalOverrides = hasExplicitPrincipalOverrides; // stash for the settings modal
+
+    // A manual 원금 (e.g. "as of 1/15/2024 this account held about $170K",
+    // entered by hand — typically a 401k→IRA rollover where the recorded
+    // buy/sell history doesn't represent real new money) is a single
+    // point-in-time figure, not a year-by-year series — applies as-is
+    // throughout (chart + every table row), not just a trailing total.
+    // Needed already in step 5 below: for such an account the chart's
+    // portfolio line should also be market-value-minus-principal, not
+    // cost-basis P&L (see the long comment in step 7 for why).
+    const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
+
     // ── 5. Money-weighted SPY/QQQ/SGOV simulation ────────────────────
     // On each BUY: buy same $ amount of SPY & QQQ & SGOV
     // On each SELL: sell proportional SPY & QQQ & SGOV units (by cost ratio)
@@ -1868,27 +1886,32 @@ async function portLoadAnalysis() {
         if (h.shares < 0) h.shares = 0;
         if (h.cost   < 0) h.cost   = 0;
         portHoldings[ev.sym] = h;
-        // Sell proportional SPY/QQQ/SGOV
+        // Sell proportional SPY/QQQ/SGOV — cost basis must shrink by the
+        // SAME ratio as units, not by the real portfolio's raw sell dollar
+        // amount. Subtracting ev.amount from *Cost directly (the previous
+        // version of this) desynced cost from units whenever ev.amount
+        // didn't happen to match this leg's own cost basis (which it
+        // essentially never does — it's a dollar figure from a completely
+        // different instrument), which could make units*price - cost dip
+        // negative even for SGOV, where that's supposed to be impossible
+        // since its simulated price never declines.
         if (spyP && spyUnits > 0) {
           const sellRatio = spyCost > 0 ? ev.amount / (spyCost + portRealizedGain) : 0;
-          const unitsSold = spyUnits * Math.min(sellRatio, 1);
-          spyUnits -= unitsSold;
-          spyCost  -= ev.amount;
-          if (spyCost < 0) spyCost = 0;
+          const ratioClamped = Math.min(sellRatio, 1);
+          spyUnits -= spyUnits * ratioClamped;
+          spyCost  -= spyCost  * ratioClamped;
         }
         if (qqqP && qqqUnits > 0) {
           const sellRatio = qqqCost > 0 ? ev.amount / (qqqCost + portRealizedGain) : 0;
-          const unitsSold = qqqUnits * Math.min(sellRatio, 1);
-          qqqUnits -= unitsSold;
-          qqqCost  -= ev.amount;
-          if (qqqCost < 0) qqqCost = 0;
+          const ratioClamped = Math.min(sellRatio, 1);
+          qqqUnits -= qqqUnits * ratioClamped;
+          qqqCost  -= qqqCost  * ratioClamped;
         }
         if (sgovP && sgovUnits > 0) {
           const sellRatio = sgovCost > 0 ? ev.amount / (sgovCost + portRealizedGain) : 0;
-          const unitsSold = sgovUnits * Math.min(sellRatio, 1);
-          sgovUnits -= unitsSold;
-          sgovCost  -= ev.amount;
-          if (sgovCost < 0) sgovCost = 0;
+          const ratioClamped = Math.min(sellRatio, 1);
+          sgovUnits -= sgovUnits * ratioClamped;
+          sgovCost  -= sgovCost  * ratioClamped;
         }
       }
 
@@ -1897,25 +1920,37 @@ async function portLoadAnalysis() {
       // realized-only, which used to leave this line flat near $0 for
       // years/stretches with contributions but no sells, only to jump
       // at the very end when "today"'s unrealized got added in one shot.
-      let portUnrealAtDate = 0;
+      let portUnrealAtDate = 0, portValueAtDate = 0;
       for (const [hsym, hh] of Object.entries(portHoldings)) {
         if (hh.shares <= 0) continue;
         const hp = _priceOnOrBefore(hsym, ev.date);
-        if (hp != null) portUnrealAtDate += hp * hh.shares - hh.cost;
+        if (hp != null) { portUnrealAtDate += hp * hh.shares - hh.cost; portValueAtDate += hp * hh.shares; }
       }
+      // For a manual-원금 (rollover) account, plot market value minus the
+      // fixed principal instead of cost-basis P&L — same reasoning as the
+      // year table below (rollover "buys" carry the position's market
+      // value AT ROLLOVER TIME as cost basis, not its true original
+      // purchase price, so cost-basis P&L understates gain relative to the
+      // real principal). Matches 보유현황's own "원금 …" comparison line.
+      const portGainAtDate = (manualPrincipal != null && manualPrincipal > 0)
+        ? portValueAtDate - manualPrincipal
+        : portRealizedGain + portUnrealAtDate;
       const spyNow  = spyP  ? spyUnits  * spyP  - spyCost  : null;
       const qqqNow  = qqqP  ? qqqUnits  * qqqP  - qqqCost  : null;
       const sgovNow = sgovP ? sgovUnits * sgovP - sgovCost : null;
-      timeline.push({ date: ev.date, portGain: portRealizedGain + portUnrealAtDate, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
+      timeline.push({ date: ev.date, portGain: portGainAtDate, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
     }
 
     // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
-    let portUnrealized = 0;
+    let portUnrealized = 0, portValueToday = 0;
     for (const [sym, h] of Object.entries(portHoldings)) {
       if (h.shares <= 0) continue;
       const cp = currentPriceMap[sym];
-      if (cp) portUnrealized += cp * h.shares - h.cost;
+      if (cp) { portUnrealized += cp * h.shares - h.cost; portValueToday += cp * h.shares; }
     }
+    const portGainToday = (manualPrincipal != null && manualPrincipal > 0)
+      ? portValueToday - manualPrincipal
+      : portRealizedGain + portUnrealized;
     const spyToday  = _nearestPrice(spyPrices, today);
     const qqqToday  = _nearestPrice(qqqPrices, today);
     const sgovToday = _nearestPrice(sgovPrices, today);
@@ -1924,7 +1959,7 @@ async function portLoadAnalysis() {
     const sgovGainToday = sgovToday ? sgovUnits * sgovToday - sgovCost : null;
     timeline.push({
       date: today,
-      portGain: portRealizedGain + portUnrealized,
+      portGain: portGainToday,
       spyGain:  spyGainToday,
       qqqGain:  qqqGainToday,
       sgovGain: sgovGainToday,
@@ -1950,24 +1985,6 @@ async function portLoadAnalysis() {
       return last;
     }
 
-    const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
-    // If ANY buy in this portfolio has an explicit 원금 override (set via the
-    // 거래내역 tab), switch the whole portfolio into "explicit mode": only
-    // buys explicitly marked 원금(true) count, and the account-level
-    // zero_principal_from_year / manual_principal settings are ignored
-    // entirely (the user is telling us they want precise, transaction-level
-    // control instead of the coarse year-cutoff / manual-total overrides).
-    const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
-    _anlHasExplicitPrincipalOverrides = hasExplicitPrincipalOverrides; // stash for the settings modal
-
-    // A manual 원금 (e.g. "as of 1/15/2024 this account held about $170K",
-    // entered by hand — typically a 401k→IRA rollover where the recorded
-    // buy/sell history doesn't represent real new money) is a single
-    // point-in-time figure, not a year-by-year series — so unlike the
-    // derived cumInvested below, it applies as-is to every row, not just
-    // the total. Explicit per-transaction overrides take priority over it.
-    const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
-
     // year -> that year's genuinely new principal (sell proceeds that get
     // reinvested — fund exchanges, rollovers recorded as sell+buy — are
     // netted out chronologically, not double-counted as fresh money).
@@ -1981,6 +1998,7 @@ async function portLoadAnalysis() {
     const mtmHold = {};
     let mtmRealized = 0, evIdx = 0;
     const yearCumGain = {};
+    const yearMtmValue = {}; // total market value of holdings at each cutoff (not gain) — used instead of cost-basis P&L for rollover accounts with a manual 원금 override, see below
     for (const yr of allYears) {
       const isCurYr = yr === curYear;
       const cutoff  = isCurYr ? today : `${yr}-12-31`;
@@ -2001,13 +2019,14 @@ async function portLoadAnalysis() {
         mtmHold[ev.sym] = h;
         evIdx++;
       }
-      let unreal = 0;
+      let unreal = 0, mtmValue = 0;
       for (const [sym, h] of Object.entries(mtmHold)) {
         if (h.shares <= 0) continue;
         const p = isCurYr ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, cutoff)) : _priceOnOrBefore(sym, cutoff);
-        if (p != null) unreal += p * h.shares - h.cost;
+        if (p != null) { unreal += p * h.shares - h.cost; mtmValue += p * h.shares; }
       }
       yearCumGain[yr] = mtmRealized + unreal;
+      yearMtmValue[yr] = mtmValue;
     }
 
     let tbody = '';
@@ -2019,7 +2038,17 @@ async function portLoadAnalysis() {
       // every row instead of the derived (possibly zero, e.g. if every
       // buy is excluded via 연도별 $0 처리) running total.
       const displayInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
-      const cumGain = yearCumGain[yr];
+      // For a manual-원금 (rollover) account, use market VALUE minus the
+      // fixed principal — not cost-basis P&L (mtmRealized + unreal).
+      // Rollover-recorded "buys" get their cost basis set to each
+      // position's market value AT ROLLOVER TIME, not its true original
+      // purchase price, so cost-basis P&L understates gain relative to the
+      // real (much lower, pre-rollover) principal baseline — exactly the
+      // reasoning already documented on 보유현황's own "원금 …" comparison
+      // line, which this mirrors so the two tabs agree.
+      const cumGain = (manualPrincipal != null && manualPrincipal > 0)
+        ? yearMtmValue[yr] - manualPrincipal
+        : yearCumGain[yr];
       const pct = displayInvested > 0 ? cumGain / displayInvested * 100 : null;
 
       const isCur = yr === curYear;
@@ -2045,7 +2074,9 @@ async function portLoadAnalysis() {
     // to every per-year row above (not just a trailing summary), the last
     // year row already shows these exact cumulative-to-date figures — a
     // dedicated total row would just repeat it verbatim.
-    const totalGain = allYears.length ? yearCumGain[allYears[allYears.length - 1]] : 0;
+    const lastYr = allYears.length ? allYears[allYears.length - 1] : null;
+    const totalGain = lastYr == null ? 0
+      : (manualPrincipal != null && manualPrincipal > 0) ? yearMtmValue[lastYr] - manualPrincipal : yearCumGain[lastYr];
     const totalInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
     const spyTotal = spyCost > 0 ? spyGainToday / spyCost * 100 : null;
@@ -2140,7 +2171,7 @@ async function portLoadAnalysis() {
     }).filter(r => r.diff != null);
 
     // ── 10. Coaching text ────────────────────────────────────────────
-    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, _activePortfolioName, symReturns);
+    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, symReturns);
 
     loadEl.style.display = 'none';
     contentEl.style.display = '';
@@ -2323,17 +2354,20 @@ async function anlSavePrincipalSettings() {
   }
 }
 
-// 미국 뮤추얼펀드 티커 관례(4~5자 + 'X', 예: FXAIX/OGGYX/VTSAX/FSKAX)와
-// 은퇴계좌 이름 패턴으로, "개별 종목을 골라 사고파는" 계좌가 아니라
-// "이미 분산된 펀드에 정기 납입만 하는" 계좌인지 판별한다. 이 경우
-// 시장 타이밍/종목 집중도/익절 타이밍 같은 주식 트레이딩형 조언은
-// 애초에 해당 사항이 없다 (매수 시점을 직접 고르지 않고, FXAIX 80%는
-// "종목 집중"이 아니라 그냥 S&P500 인덱스 비중일 뿐).
+// 미국 뮤추얼펀드 티커 관례(4~5자 + 'X', 예: FXAIX/OGGYX/VTSAX/FSKAX)로,
+// "개별 종목을 골라 사고파는" 계좌가 아니라 "이미 분산된 펀드에 정기
+// 납입만 하는" 계좌인지 판별한다. 이 경우 시장 타이밍/종목 집중도/익절
+// 타이밍 같은 주식 트레이딩형 조언은 애초에 해당 사항이 없다 (매수
+// 시점을 직접 고르지 않고, FXAIX 80%는 "종목 집중"이 아니라 그냥
+// S&P500 인덱스 비중일 뿐). 계좌 "이름"으로 401k/IRA 여부를 추측하지
+//않는다 — 이름은 사용자가 임의로 붙이는 라벨이라 신뢰할 수 없다 (예:
+// "401k all new"라는 이름의 계좌가 실제로는 개별 종목을 직접 고르는
+// Traditional/Roth IRA인 경우). 실제 보유 종목 구성이 훨씬 신뢰할 수
+// 있는 신호다.
 function _isFundTicker(sym) { return /^[A-Z]{4,5}X$/.test(sym); }
-const _RETIREMENT_NAME_RE = /401\s*\(?k\)?|403\s*\(?b\)?|\bira\b|roth|pension|퇴직연금|연금저축/i;
 
 // ── Rule-based coaching text generator ─────────────────────────────
-function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices, portfolioName, symReturns) {
+function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices, symReturns) {
   const BUY_T  = new Set(['buy','drip','buy_to_cover']);
   const SELL_T = new Set(['sell','sell_short']);
   const buys   = events.filter(e => BUY_T.has(e.type));
@@ -2357,10 +2391,9 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
   const topSymPct  = topSym ? topSym[1] / buys.reduce((s, e) => s + e.amount, 0) * 100 : 0;
   const numSymbols = symsSorted.length;
 
-  // 펀드 적립식 계좌 판별: 계좌명이 401k/IRA류이거나, 보유 종목이 전부
-  // 뮤추얼펀드 티커 패턴이면 "종목 고르기"가 아닌 "펀드 적립"으로 취급.
-  const isFundStyle = _RETIREMENT_NAME_RE.test(portfolioName || '')
-    || (numSymbols > 0 && symsSorted.every(([sym]) => _isFundTicker(sym)));
+  // 펀드 적립식 계좌 판별: 보유 종목이 전부 뮤추얼펀드 티커 패턴이면
+  // "종목 고르기"가 아닌 "펀드 적립"으로 취급 (계좌 이름은 신뢰하지 않음).
+  const isFundStyle = numSymbols > 0 && symsSorted.every(([sym]) => _isFundTicker(sym));
 
   // 매수 패턴: 분산 vs 집중
   const isSmallFreq = avgBuyAmt < 2000 && buys.length > 5;
