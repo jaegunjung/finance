@@ -1905,32 +1905,46 @@ async function portLoadAnalysis() {
         if (h.shares < 0) h.shares = 0;
         if (h.cost   < 0) h.cost   = 0;
         portHoldings[ev.sym] = h;
-        // Sell proportional SPY/QQQ/SGOV — cost basis must shrink by the
-        // SAME ratio as units, not by the real portfolio's raw sell dollar
-        // amount. Subtracting ev.amount from *Cost directly (the previous
-        // version of this) desynced cost from units whenever ev.amount
-        // didn't happen to match this leg's own cost basis (which it
-        // essentially never does — it's a dollar figure from a completely
-        // different instrument), which could make units*price - cost dip
-        // negative even for SGOV, where that's supposed to be impossible
-        // since its simulated price never declines.
+        // Sell the same FRACTION of each simulated SPY/QQQ/SGOV position as
+        // this sell represents of the real portfolio's total value — both
+        // units and cost shrink by that same fraction (cost basis must
+        // shrink by the SAME ratio as units, not by the real portfolio's
+        // raw sell dollar amount; doing that desynced cost from units and
+        // could make units*price - cost go negative even for SGOV, where
+        // that's supposed to be impossible since its price never declines).
+        //
+        // The fraction used to be ev.amount / (spyCost + portRealizedGain)
+        // — mixing SPY's own simulated cost with the REAL portfolio's
+        // unrelated realized gain as a stand-in for "total portfolio
+        // value". That proxy can go negative whenever the account has
+        // realized LOSSES elsewhere (portRealizedGain very negative),
+        // producing a nonsensical negative ratio — and since only the
+        // upper bound was clamped (Math.min(ratio, 1)), a negative ratio
+        // slipped through and actually multiplied the simulated position
+        // instead of shrinking it (observed: one sell event inflating
+        // spyCost from $65K to $365K). Now uses the real portfolio's
+        // actual total market value at this date instead, which can never
+        // go negative, and clamps to [0, 1] on both ends.
+        let totalPortValueAfter = 0;
+        for (const [hsym, hh] of Object.entries(portHoldings)) {
+          if (hh.shares <= 0) continue;
+          const hp = _priceOnOrBefore(hsym, ev.date);
+          if (hp != null) totalPortValueAfter += hp * hh.shares;
+        }
+        const sellFrac = (totalPortValueAfter + ev.amount) > 0
+          ? Math.max(0, Math.min(ev.amount / (totalPortValueAfter + ev.amount), 1))
+          : 0;
         if (spyP && spyUnits > 0) {
-          const sellRatio = spyCost > 0 ? ev.amount / (spyCost + portRealizedGain) : 0;
-          const ratioClamped = Math.min(sellRatio, 1);
-          spyUnits -= spyUnits * ratioClamped;
-          spyCost  -= spyCost  * ratioClamped;
+          spyUnits -= spyUnits * sellFrac;
+          spyCost  -= spyCost  * sellFrac;
         }
         if (qqqP && qqqUnits > 0) {
-          const sellRatio = qqqCost > 0 ? ev.amount / (qqqCost + portRealizedGain) : 0;
-          const ratioClamped = Math.min(sellRatio, 1);
-          qqqUnits -= qqqUnits * ratioClamped;
-          qqqCost  -= qqqCost  * ratioClamped;
+          qqqUnits -= qqqUnits * sellFrac;
+          qqqCost  -= qqqCost  * sellFrac;
         }
         if (sgovP && sgovUnits > 0) {
-          const sellRatio = sgovCost > 0 ? ev.amount / (sgovCost + portRealizedGain) : 0;
-          const ratioClamped = Math.min(sellRatio, 1);
-          sgovUnits -= sgovUnits * ratioClamped;
-          sgovCost  -= sgovCost  * ratioClamped;
+          sgovUnits -= sgovUnits * sellFrac;
+          sgovCost  -= sgovCost  * sellFrac;
         }
       }
 
