@@ -1848,6 +1848,17 @@ async function portLoadAnalysis() {
     // portfolio line should also be market-value-minus-principal, not
     // cost-basis P&L (see the long comment in step 7 for why).
     const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
+    // Same reasoning extends to the SPY/QQQ/SGOV chart lines: on a
+    // high-turnover account the money-weighted trading simulation below
+    // accumulates cost basis from every sell-then-rebuy cycle (each rebuy
+    // counts as "new money in", even though it's the same capital being
+    // recycled), which can dwarf the fixed 원금 baseline and make those
+    // lines' dollar figures incomparable to the portfolio line (which is
+    // pinned to manualPrincipal). So for a manual-원금 account, SPY/QQQ/
+    // SGOV chart lines also switch to simple buy-and-hold dollar growth
+    // from manualPrincipal invested at manual_principal_as_of — computed
+    // after 3-symbol price fetch below since it needs spyPrices etc.
+    const manualAsOfDate = _principalOverride?.manual_principal_as_of || (events[0]?.date ?? null);
 
     // ── 5. Money-weighted SPY/QQQ/SGOV simulation ────────────────────
     // On each BUY: buy same $ amount of SPY & QQQ & SGOV
@@ -1873,6 +1884,13 @@ async function portLoadAnalysis() {
       }
       return null;
     }
+
+    // Buy-and-hold baseline prices for manual-원금 accounts (see comment
+    // above manualAsOfDate) — null when there's no manual override, in
+    // which case the buy-and-hold branches below never trigger anyway.
+    const spyBaseAtManualAsOf  = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(spyPrices,  manualAsOfDate) : null;
+    const qqqBaseAtManualAsOf  = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(qqqPrices,  manualAsOfDate) : null;
+    const sgovBaseAtManualAsOf = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(sgovPrices, manualAsOfDate) : null;
 
     for (const ev of events) {
       const spyP  = _nearestPrice(spyPrices, ev.date);
@@ -1968,9 +1986,20 @@ async function portLoadAnalysis() {
       const portGainAtDate = (manualPrincipal != null && manualPrincipal > 0)
         ? portValueAtDate - manualPrincipal
         : portRealizedGain + portUnrealAtDate;
-      const spyNow  = spyP  ? spyUnits  * spyP  - spyCost  : null;
-      const qqqNow  = qqqP  ? qqqUnits  * qqqP  - qqqCost  : null;
-      const sgovNow = sgovP ? sgovUnits * sgovP - sgovCost : null;
+      // Same buy-and-hold-from-manualPrincipal switch as portGainAtDate
+      // above, for the SPY/QQQ/SGOV lines — see the comment above
+      // manualAsOfDate for why the money-weighted trading simulation
+      // (spyUnits*price - spyCost) isn't comparable to a fixed-baseline
+      // portfolio line on a high-turnover account.
+      const spyNow  = (manualPrincipal != null && manualPrincipal > 0)
+        ? (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null
+        : spyP  ? spyUnits  * spyP  - spyCost  : null;
+      const qqqNow  = (manualPrincipal != null && manualPrincipal > 0)
+        ? (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null
+        : qqqP  ? qqqUnits  * qqqP  - qqqCost  : null;
+      const sgovNow = (manualPrincipal != null && manualPrincipal > 0)
+        ? (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null
+        : sgovP ? sgovUnits * sgovP - sgovCost : null;
       timeline.push({ date: ev.date, portGain: portGainAtDate, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
     }
 
@@ -1987,9 +2016,15 @@ async function portLoadAnalysis() {
     const spyToday  = _nearestPrice(spyPrices, today);
     const qqqToday  = _nearestPrice(qqqPrices, today);
     const sgovToday = _nearestPrice(sgovPrices, today);
-    const spyGainToday  = spyToday  ? spyUnits  * spyToday  - spyCost  : null;
-    const qqqGainToday  = qqqToday  ? qqqUnits  * qqqToday  - qqqCost  : null;
-    const sgovGainToday = sgovToday ? sgovUnits * sgovToday - sgovCost : null;
+    const spyGainToday  = (manualPrincipal != null && manualPrincipal > 0)
+      ? (spyBaseAtManualAsOf  && spyToday)  ? manualPrincipal * (spyToday  / spyBaseAtManualAsOf  - 1) : null
+      : spyToday  ? spyUnits  * spyToday  - spyCost  : null;
+    const qqqGainToday  = (manualPrincipal != null && manualPrincipal > 0)
+      ? (qqqBaseAtManualAsOf  && qqqToday)  ? manualPrincipal * (qqqToday  / qqqBaseAtManualAsOf  - 1) : null
+      : qqqToday  ? qqqUnits  * qqqToday  - qqqCost  : null;
+    const sgovGainToday = (manualPrincipal != null && manualPrincipal > 0)
+      ? (sgovBaseAtManualAsOf && sgovToday) ? manualPrincipal * (sgovToday / sgovBaseAtManualAsOf - 1) : null
+      : sgovToday ? sgovUnits * sgovToday - sgovCost : null;
     timeline.push({
       date: today,
       portGain: portGainToday,
@@ -2064,20 +2099,6 @@ async function portLoadAnalysis() {
       yearMtmValue[yr] = mtmValue;
     }
 
-    // For a manual-원금 account, the portfolio side is already a simple
-    // point-in-time comparison (value at cutoff minus a fixed baseline
-    // amount) — not a money-weighted trading simulation. The S&P/SGOV
-    // side needs to match that shape, or Alpha/Beta ends up comparing two
-    // incompatible bases: a high-turnover account's money-weighted SPY
-    // simulation accumulates cost basis from every sell-then-rebuy cycle
-    // (each rebuy counts as "new money in" for the simulation, even though
-    // it's the same capital being recycled), which can dwarf the fixed
-    // 원금 baseline and make S&P/SGOV % look like it's shrinking every
-    // year — that's the simulation's cost basis ballooning from turnover,
-    // not the market doing anything unusual. A simple buy-and-hold return
-    // from the same manual_principal_as_of date doesn't have that problem.
-    const manualAsOfDate = _principalOverride?.manual_principal_as_of || (events[0]?.date ?? null);
-
     let tbody = '';
     let cumInvested = 0;
     for (const yr of allYears) {
@@ -2105,12 +2126,10 @@ async function portLoadAnalysis() {
 
       let spyPct, sgovPct;
       if (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) {
-        const spyBase  = _nearestPrice(spyPrices, manualAsOfDate);
-        const spyNow   = _nearestPrice(spyPrices, cutoff);
-        const sgovBase = _nearestPrice(sgovPrices, manualAsOfDate);
-        const sgovNow  = _nearestPrice(sgovPrices, cutoff);
-        spyPct  = (spyBase  && spyNow)  ? (spyNow  / spyBase  - 1) * 100 : null;
-        sgovPct = (sgovBase && sgovNow) ? (sgovNow / sgovBase - 1) * 100 : null;
+        const spyNow  = _nearestPrice(spyPrices, cutoff);
+        const sgovNow = _nearestPrice(sgovPrices, cutoff);
+        spyPct  = (spyBaseAtManualAsOf  && spyNow)  ? (spyNow  / spyBaseAtManualAsOf  - 1) * 100 : null;
+        sgovPct = (sgovBaseAtManualAsOf && sgovNow) ? (sgovNow / sgovBaseAtManualAsOf - 1) * 100 : null;
       } else {
         const tl = _tlAt(cutoff);
         spyPct  = (tl && tl.spyCost  > 0) ? tl.spyGain  / tl.spyCost  * 100 : null;
@@ -2140,10 +2159,7 @@ async function portLoadAnalysis() {
     const totalInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
     const spyTotal = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate)
-      ? (() => {
-          const spyBase = _nearestPrice(spyPrices, manualAsOfDate);
-          return (spyBase && spyToday) ? (spyToday / spyBase - 1) * 100 : null;
-        })()
+      ? (spyBaseAtManualAsOf && spyToday) ? (spyToday / spyBaseAtManualAsOf - 1) * 100 : null
       : (spyCost > 0 ? spyGainToday / spyCost * 100 : null);
     document.getElementById('anlYearTableBody').innerHTML = tbody;
 
