@@ -1733,7 +1733,13 @@ async function portLoadAnalysis() {
 
     // ── 1. Fetch transactions ───────────────────────────────────────
     const allTxns = await window.txns.getTransactions(null, portActivePortfolioId);
-    const tradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short'].includes(t.type));
+    // 'split' must be included here — computePnL (used by 보유현황, via
+    // transactions.js) applies stock splits to remaining share counts, but
+    // this tab's own event replay didn't, so any split-adjusted symbol
+    // (e.g. AVGO's 10:1 split in 2024) came out understated here by
+    // whatever the split ratio was, throwing off both this tab's total
+    // gain and the "내 포트폴리오" chart line relative to 보유현황.
+    const tradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short','split'].includes(t.type));
     if (!tradeTxns.length) {
       loadEl.textContent = '거래 내역이 없습니다.';
       return;
@@ -1811,7 +1817,15 @@ async function portLoadAnalysis() {
         // Per-transaction override (거래내역 tab). null = no override.
         countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
       }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      // Same-day tie-break: splits before buys/sells, matching computePnL
+      // (transactions.js) exactly — a same-day split must apply to shares
+      // bought earlier that day, not be skipped by running out of order.
+      .sort((a, b) => {
+        const dateCmp = a.date.localeCompare(b.date);
+        if (dateCmp !== 0) return dateCmp;
+        const rank = e => e.type === 'split' ? 0 : ['buy','drip','buy_to_cover'].includes(e.type) ? 1 : 2;
+        return rank(a) - rank(b);
+      });
 
     const today = new Date().toISOString().slice(0, 10);
 
@@ -1866,7 +1880,12 @@ async function portLoadAnalysis() {
       const sgovP = _nearestPrice(sgovPrices, ev.date);
       const h = portHoldings[ev.sym] || { shares: 0, cost: 0 };
 
-      if (BUY_T.has(ev.type)) {
+      if (ev.type === 'split') {
+        // Mirrors computePnL's split handling (transactions.js) exactly —
+        // cost basis is untouched, only share count changes.
+        _applySplit(h, ev);
+        portHoldings[ev.sym] = h;
+      } else if (BUY_T.has(ev.type)) {
         h.shares += ev.shares;
         // DRIP (reinvested dividends) adds shares but not cost basis —
         // mirrors computePnL's treatment (transactions.js) exactly, so this
@@ -2005,7 +2024,9 @@ async function portLoadAnalysis() {
       while (evIdx < events.length && events[evIdx].date <= cutoff) {
         const ev   = events[evIdx];
         const h = mtmHold[ev.sym] || { shares: 0, cost: 0 };
-        if (BUY_T.has(ev.type)) {
+        if (ev.type === 'split') {
+          _applySplit(h, ev);
+        } else if (BUY_T.has(ev.type)) {
           h.shares += ev.shares;
           if (ev.type !== 'drip') h.cost += ev.amount; // matches computePnL: DRIP adds shares, not cost basis
         } else if (SELL_T.has(ev.type) && h.shares > 0) {
@@ -2179,6 +2200,26 @@ async function portLoadAnalysis() {
     console.error('[Analysis]', e);
     loadEl.textContent = '분석 중 오류가 발생했습니다: ' + e.message;
   }
+}
+
+// ── Apply a 'split' event to a { shares, cost } holding ─────────────
+// Exact mirror of computePnL's split handling (assets/js/transactions.js)
+// — cost basis is untouched, only share count changes. Used by both the
+// chart's per-event replay and the year table's per-year replay so a
+// split-adjusted symbol (e.g. AVGO's 10:1 split in 2024) isn't understated
+// relative to 보유현황, which goes through computePnL directly.
+function _applySplit(h, ev) {
+  const sh = ev.shares, price = ev.price;
+  let ratio = price >= 2 ? price : 0; // fallback: ratio in price field
+  if (sh >= 2 && sh <= 100) {
+    ratio = sh; // likely a ratio (2:1, 3:1, ..., 20:1)
+    if (h.shares > 0) h.shares *= ratio;
+  } else if (sh > 100) {
+    h.shares += sh; // likely additional shares received (MSP "delta" format)
+  } else if (ratio >= 2) {
+    if (h.shares > 0) h.shares *= ratio;
+  }
+  // else: no usable split info — no-op, matching computePnL
 }
 
 // ── Parse stock CSV → { 'YYYY-MM-DD': adj_close } ──────────────────
