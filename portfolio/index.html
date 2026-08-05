@@ -2064,6 +2064,20 @@ async function portLoadAnalysis() {
       yearMtmValue[yr] = mtmValue;
     }
 
+    // For a manual-원금 account, the portfolio side is already a simple
+    // point-in-time comparison (value at cutoff minus a fixed baseline
+    // amount) — not a money-weighted trading simulation. The S&P/SGOV
+    // side needs to match that shape, or Alpha/Beta ends up comparing two
+    // incompatible bases: a high-turnover account's money-weighted SPY
+    // simulation accumulates cost basis from every sell-then-rebuy cycle
+    // (each rebuy counts as "new money in" for the simulation, even though
+    // it's the same capital being recycled), which can dwarf the fixed
+    // 원금 baseline and make S&P/SGOV % look like it's shrinking every
+    // year — that's the simulation's cost basis ballooning from turnover,
+    // not the market doing anything unusual. A simple buy-and-hold return
+    // from the same manual_principal_as_of date doesn't have that problem.
+    const manualAsOfDate = _principalOverride?.manual_principal_as_of || (events[0]?.date ?? null);
+
     let tbody = '';
     let cumInvested = 0;
     for (const yr of allYears) {
@@ -2088,9 +2102,20 @@ async function portLoadAnalysis() {
 
       const isCur = yr === curYear;
       const cutoff = isCur ? today : `${yr}-12-31`;
-      const tl = _tlAt(cutoff);
-      const spyPct  = (tl && tl.spyCost  > 0) ? tl.spyGain  / tl.spyCost  * 100 : null;
-      const sgovPct = (tl && tl.sgovCost > 0) ? tl.sgovGain / tl.sgovCost * 100 : null;
+
+      let spyPct, sgovPct;
+      if (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) {
+        const spyBase  = _nearestPrice(spyPrices, manualAsOfDate);
+        const spyNow   = _nearestPrice(spyPrices, cutoff);
+        const sgovBase = _nearestPrice(sgovPrices, manualAsOfDate);
+        const sgovNow  = _nearestPrice(sgovPrices, cutoff);
+        spyPct  = (spyBase  && spyNow)  ? (spyNow  / spyBase  - 1) * 100 : null;
+        sgovPct = (sgovBase && sgovNow) ? (sgovNow / sgovBase - 1) * 100 : null;
+      } else {
+        const tl = _tlAt(cutoff);
+        spyPct  = (tl && tl.spyCost  > 0) ? tl.spyGain  / tl.spyCost  * 100 : null;
+        sgovPct = (tl && tl.sgovCost > 0) ? tl.sgovGain / tl.sgovCost * 100 : null;
+      }
       const alpha = (pct != null && spyPct  != null) ? pct - spyPct  : null;
       const beta  = (pct != null && sgovPct != null) ? pct - sgovPct : null;
 
@@ -2114,7 +2139,12 @@ async function portLoadAnalysis() {
       : (manualPrincipal != null && manualPrincipal > 0) ? yearMtmValue[lastYr] - manualPrincipal : yearCumGain[lastYr];
     const totalInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
-    const spyTotal = spyCost > 0 ? spyGainToday / spyCost * 100 : null;
+    const spyTotal = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate)
+      ? (() => {
+          const spyBase = _nearestPrice(spyPrices, manualAsOfDate);
+          return (spyBase && spyToday) ? (spyToday / spyBase - 1) * 100 : null;
+        })()
+      : (spyCost > 0 ? spyGainToday / spyCost * 100 : null);
     document.getElementById('anlYearTableBody').innerHTML = tbody;
 
     // Show "원금 설정" button only when a single account/portfolio is
