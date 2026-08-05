@@ -1863,9 +1863,9 @@ async function portLoadAnalysis() {
     // ── 5. Money-weighted SPY/QQQ/SGOV simulation ────────────────────
     // On each BUY: buy same $ amount of SPY & QQQ & SGOV
     // On each SELL: sell proportional SPY & QQQ & SGOV units (by cost ratio)
-    let spyUnits = 0, spyCost = 0;
-    let qqqUnits = 0, qqqCost = 0;
-    let sgovUnits = 0, sgovCost = 0;
+    let spyUnits = 0, spyCost = 0, spyRealizedGain = 0, spyBoughtTotal = 0;
+    let qqqUnits = 0, qqqCost = 0, qqqRealizedGain = 0, qqqBoughtTotal = 0;
+    let sgovUnits = 0, sgovCost = 0, sgovRealizedGain = 0, sgovBoughtTotal = 0;
 
     // Portfolio: track per-symbol cost basis and remaining shares
     const portHoldings = {}; // sym -> { shares, cost }
@@ -1911,9 +1911,9 @@ async function portLoadAnalysis() {
         if (ev.type !== 'drip') h.cost += ev.amount;
         portHoldings[ev.sym] = h;
         // Buy same $ in SPY/QQQ/SGOV
-        if (spyP)  { spyUnits  += ev.amount / spyP;  spyCost  += ev.amount; }
-        if (qqqP)  { qqqUnits  += ev.amount / qqqP;  qqqCost  += ev.amount; }
-        if (sgovP) { sgovUnits += ev.amount / sgovP; sgovCost += ev.amount; }
+        if (spyP)  { spyUnits  += ev.amount / spyP;  spyCost  += ev.amount; spyBoughtTotal  += ev.amount; }
+        if (qqqP)  { qqqUnits  += ev.amount / qqqP;  qqqCost  += ev.amount; qqqBoughtTotal  += ev.amount; }
+        if (sgovP) { sgovUnits += ev.amount / sgovP; sgovCost += ev.amount; sgovBoughtTotal += ev.amount; }
       } else if (SELL_T.has(ev.type) && h.shares > 0) {
         const ratio = Math.min(ev.shares / h.shares, 1);
         const costBasisSold = h.cost * ratio;
@@ -1952,17 +1952,33 @@ async function portLoadAnalysis() {
         const sellFrac = (totalPortValueAfter + ev.amount) > 0
           ? Math.max(0, Math.min(ev.amount / (totalPortValueAfter + ev.amount), 1))
           : 0;
+        // The gain on the sold-off fraction must be banked into a running
+        // realized-gain total, not just dropped — otherwise every sell
+        // permanently erases whatever the simulated position had gained up
+        // to that point, making the cumulative % look like it "resets"
+        // after any sell (this is exactly why crypto/high-turnover
+        // accounts showed a later year's cumulative S&P/SGOV % lower than
+        // an earlier year's, even with the sell-ratio fix already in
+        // place: the ratio was correct, but the realized portion of the
+        // gain just vanished instead of carrying forward). Mirrors
+        // portRealizedGain's treatment of the real portfolio's own sells.
         if (spyP && spyUnits > 0) {
-          spyUnits -= spyUnits * sellFrac;
-          spyCost  -= spyCost  * sellFrac;
+          const soldUnits = spyUnits * sellFrac, soldCost = spyCost * sellFrac;
+          spyRealizedGain += soldUnits * spyP - soldCost;
+          spyUnits -= soldUnits;
+          spyCost  -= soldCost;
         }
         if (qqqP && qqqUnits > 0) {
-          qqqUnits -= qqqUnits * sellFrac;
-          qqqCost  -= qqqCost  * sellFrac;
+          const soldUnits = qqqUnits * sellFrac, soldCost = qqqCost * sellFrac;
+          qqqRealizedGain += soldUnits * qqqP - soldCost;
+          qqqUnits -= soldUnits;
+          qqqCost  -= soldCost;
         }
         if (sgovP && sgovUnits > 0) {
-          sgovUnits -= sgovUnits * sellFrac;
-          sgovCost  -= sgovCost  * sellFrac;
+          const soldUnits = sgovUnits * sellFrac, soldCost = sgovCost * sellFrac;
+          sgovRealizedGain += soldUnits * sgovP - soldCost;
+          sgovUnits -= soldUnits;
+          sgovCost  -= soldCost;
         }
       }
 
@@ -1993,14 +2009,14 @@ async function portLoadAnalysis() {
       // portfolio line on a high-turnover account.
       const spyNow  = (manualPrincipal != null && manualPrincipal > 0)
         ? (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null
-        : spyP  ? spyUnits  * spyP  - spyCost  : null;
+        : spyP  ? spyRealizedGain  + (spyUnits  * spyP  - spyCost)  : null;
       const qqqNow  = (manualPrincipal != null && manualPrincipal > 0)
         ? (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null
-        : qqqP  ? qqqUnits  * qqqP  - qqqCost  : null;
+        : qqqP  ? qqqRealizedGain  + (qqqUnits  * qqqP  - qqqCost)  : null;
       const sgovNow = (manualPrincipal != null && manualPrincipal > 0)
         ? (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null
-        : sgovP ? sgovUnits * sgovP - sgovCost : null;
-      timeline.push({ date: ev.date, portGain: portGainAtDate, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
+        : sgovP ? sgovRealizedGain + (sgovUnits * sgovP - sgovCost) : null;
+      timeline.push({ date: ev.date, portGain: portGainAtDate, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyBoughtTotal, qqqBoughtTotal, sgovBoughtTotal });
     }
 
     // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
@@ -2018,20 +2034,20 @@ async function portLoadAnalysis() {
     const sgovToday = _nearestPrice(sgovPrices, today);
     const spyGainToday  = (manualPrincipal != null && manualPrincipal > 0)
       ? (spyBaseAtManualAsOf  && spyToday)  ? manualPrincipal * (spyToday  / spyBaseAtManualAsOf  - 1) : null
-      : spyToday  ? spyUnits  * spyToday  - spyCost  : null;
+      : spyToday  ? spyRealizedGain  + (spyUnits  * spyToday  - spyCost)  : null;
     const qqqGainToday  = (manualPrincipal != null && manualPrincipal > 0)
       ? (qqqBaseAtManualAsOf  && qqqToday)  ? manualPrincipal * (qqqToday  / qqqBaseAtManualAsOf  - 1) : null
-      : qqqToday  ? qqqUnits  * qqqToday  - qqqCost  : null;
+      : qqqToday  ? qqqRealizedGain  + (qqqUnits  * qqqToday  - qqqCost)  : null;
     const sgovGainToday = (manualPrincipal != null && manualPrincipal > 0)
       ? (sgovBaseAtManualAsOf && sgovToday) ? manualPrincipal * (sgovToday / sgovBaseAtManualAsOf - 1) : null
-      : sgovToday ? sgovUnits * sgovToday - sgovCost : null;
+      : sgovToday ? sgovRealizedGain + (sgovUnits * sgovToday - sgovCost) : null;
     timeline.push({
       date: today,
       portGain: portGainToday,
       spyGain:  spyGainToday,
       qqqGain:  qqqGainToday,
       sgovGain: sgovGainToday,
-      spyCost, qqqCost, sgovCost,
+      spyBoughtTotal, qqqBoughtTotal, sgovBoughtTotal,
     });
 
     // ── 7. Year-by-year table (cumulative-to-date, mark-to-market) ────
@@ -2131,9 +2147,16 @@ async function portLoadAnalysis() {
         spyPct  = (spyBaseAtManualAsOf  && spyNow)  ? (spyNow  / spyBaseAtManualAsOf  - 1) * 100 : null;
         sgovPct = (sgovBaseAtManualAsOf && sgovNow) ? (sgovNow / sgovBaseAtManualAsOf - 1) * 100 : null;
       } else {
+        // Denominator is cumulative $ ever bought into the simulated leg
+        // (never reduced by sells), matching how the portfolio's own
+        // pct = totalGain / totalBought works (allTimePct in 보유현황).
+        // Using spyCost (which DOES shrink on sells) here would be wrong
+        // now that spyGain includes the realized-gain component from sold
+        // portions — that gain's cost basis is no longer in spyCost, so
+        // dividing by it would inflate the % on any account with sells.
         const tl = _tlAt(cutoff);
-        spyPct  = (tl && tl.spyCost  > 0) ? tl.spyGain  / tl.spyCost  * 100 : null;
-        sgovPct = (tl && tl.sgovCost > 0) ? tl.sgovGain / tl.sgovCost * 100 : null;
+        spyPct  = (tl && tl.spyBoughtTotal  > 0) ? tl.spyGain  / tl.spyBoughtTotal  * 100 : null;
+        sgovPct = (tl && tl.sgovBoughtTotal > 0) ? tl.sgovGain / tl.sgovBoughtTotal * 100 : null;
       }
       const alpha = (pct != null && spyPct  != null) ? pct - spyPct  : null;
       const beta  = (pct != null && sgovPct != null) ? pct - sgovPct : null;
@@ -2160,7 +2183,7 @@ async function portLoadAnalysis() {
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
     const spyTotal = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate)
       ? (spyBaseAtManualAsOf && spyToday) ? (spyToday / spyBaseAtManualAsOf - 1) * 100 : null
-      : (spyCost > 0 ? spyGainToday / spyCost * 100 : null);
+      : (spyBoughtTotal > 0 ? spyGainToday / spyBoughtTotal * 100 : null);
     document.getElementById('anlYearTableBody').innerHTML = tbody;
 
     // Show "원금 설정" button only when a single account/portfolio is
