@@ -89,5 +89,5 @@
     "XOM"
   ],
   "csv_output_dir": "assets/data/stocks",
-  "_stock_cursor": 35
+  "_stock_cursor": 65
 }
