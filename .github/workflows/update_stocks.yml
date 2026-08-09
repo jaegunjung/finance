@@ -44,6 +44,15 @@ jobs:
         # stock-CSV commit above, which already succeeded independently.
         continue-on-error: true
 
+      - name: Update crypto CSVs (CoinGecko)
+        run: python scripts/update_crypto_stocks.py
+        # Alpha Vantage's TIME_SERIES_DAILY (used by update_stocks.py above)
+        # doesn't support crypto tickers at all — every crypto symbol in
+        # config/symbols.json was silently stuck at whatever date it was
+        # last manually seeded (some for months) until this was added.
+        # continue-on-error for the same reason as the SGOV step above.
+        continue-on-error: true
+
       - name: Commit and push if data changed
         run: |
           git config user.name "github-actions[bot]"
