@@ -6,3 +6,7 @@ _config_local.yml
 vendor/
 Gemfile.lock
 *.gem
+node_modules/
+qa-results/
+playwright-report/
+test-results/

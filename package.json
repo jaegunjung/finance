@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "description": "Playwright integration tests for JJ Financial Analysis — driven by git log analysis",
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug",
+    "test": "playwright test tests/integration.spec.js",
+    "test:headed": "playwright test tests/integration.spec.js --headed",
+    "test:debug": "playwright test tests/integration.spec.js --debug",
     "test:report": "playwright show-report",
-    "test:ui": "playwright test --ui"
+    "test:ui": "playwright test tests/integration.spec.js --ui",
+    "qa": "playwright test tests/freshness-check.spec.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.44.0"
+    "@playwright/test": "^1.44.0",
+    "nodemailer": "^6.9.14"
   }
 }

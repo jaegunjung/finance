@@ -1,0 +1,48 @@
+name: Daily QA (Production Freshness Check)
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # UTC 09:00 (미국 서부 새벽 2시)
+  workflow_dispatch:
+
+jobs:
+  daily-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # 로컬 빌드/서버 없이 실제 배포된 프로덕션 사이트를 직접 점검한다.
+      - name: Run freshness checks against production
+        run: npx playwright test tests/freshness-check.spec.js
+        env:
+          SITE_URL: "https://jaegunjung.github.io/finance"
+
+      - name: Aggregate results, write summary, send alert if needed
+        if: always()
+        run: node scripts/send-qa-alert.js
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+
+      - name: Upload raw QA results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-results
+          path: qa-results/
+          retention-days: 30
