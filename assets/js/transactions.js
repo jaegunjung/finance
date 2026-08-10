@@ -548,24 +548,29 @@
 
       // ── MSP special: USD=CASH rows with crypto/dividend notes ──────────────
       if (symbol === 'USD=CASH' && notes && trade_date) {
-        const noteLower = notes.toLowerCase();
-        // BTC-USD cash flows: generate a BTC-USD row (direction from notes) +
-        // keep the USD=CASH row with the MSP original type (already correct).
-        const btcMatch = noteLower.match(/(?:purchased|sold)\s+btc-usd/);
-        if (btcMatch) {
-          const isBuy = noteLower.startsWith('purchased');
-          const cashAmt = Math.abs(Number(amount) || 0);
-          // BTC-USD transaction (direction derived from notes)
-          rows.push({ symbol: 'BTC-USD', trade_date, trade_time,
-            type: isBuy ? 'buy' : 'sell', shares: null, price: null,
-            amount: cashAmt, commission: 0, notes, portfolio_name });
-          // USD=CASH transaction: use MSP original type — it already reflects
-          // the correct cash direction (buy=cash in, sell=cash out).
-          rows.push({ symbol: 'USD=CASH', trade_date, trade_time,
-            type, shares: cashAmt, price: 0,
-            amount: cashAmt, commission: 0, notes, portfolio_name });
-          continue;
-        }
+        // BTC-USD cash flows: a MSP "USD=CASH" row noting "Purchased/Sold
+        // BTC-USD" only tells us the DOLLAR AMOUNT that moved — it carries
+        // no share count or execution price for the BTC-USD leg at all.
+        // A previous version of this code synthesized a BTC-USD buy/sell
+        // row here anyway, with shares/price left null — which corrupted
+        // every downstream cost-basis calculation (computePnL, and the
+        // portfolio-analysis tab's own replay both do `cost += amount`
+        // unconditionally on a buy, but `shares += shares` only adds
+        // real share counts; with shares stuck at null→0 forever, cost
+        // basis inflates with zero shares behind it, and avgCost balloons
+        // — this is exactly what caused BTC-USD's average cost to show
+        // ~$122K against the ~$64K the source portfolio tracker reports).
+        // Fixed by NOT fabricating a symbol-level transaction from a cash
+        // note that structurally cannot contain the data needed for one —
+        // only the (legitimate, complete) USD=CASH cash-ledger entry below
+        // gets imported. A real BTC-USD position needs importing the
+        // actual BTC-USD-tagged rows from MSP (which do carry real shares/
+        // price/cost-basis-method whenever MSP exports them under a
+        // symbol row rather than folded into the cash ledger).
+        // (Falls through to the generic USD=CASH handling below regardless
+        // of whether the note mentions BTC-USD — the cash movement itself
+        // is still valid and worth importing, just not as a synthesized
+        // crypto trade.)
         // Dividends: "Dividends from XXXX - ..."
         const divMatch = notes.match(/^Dividends from ([A-Z0-9.\-]+)/i);
         if (divMatch && amount != null) {
