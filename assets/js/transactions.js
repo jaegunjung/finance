@@ -337,8 +337,9 @@
       .map(x => x.t);
 
     for (const t of sorted) {
-      const sh  = Number(t.shares) || 0;
-      const amt = Number(t.amount) || 0;
+      const sh   = Number(t.shares) || 0;
+      const amt  = Number(t.amount) || 0;
+      const comm = Number(t.commission) || 0;
 
       if (t.type === 'split') {
         // Determine split ratio. Support three common recording formats:
@@ -374,7 +375,7 @@
 
       if (buyTypes.has(t.type)) {
         shares += sh;
-        if (t.type !== 'drip') cost += amt; // DRIP adds shares but not cost basis
+        if (t.type !== 'drip') cost += amt + comm; // DRIP adds shares but not cost basis; commission is part of what you paid
       } else if (sellTypes.has(t.type) && sh > 0) {
         const avgCostPerShare = shares > 0 ? cost / shares : 0;
         // Cap shares sold at what's actually on hand — a sell that exceeds
@@ -382,7 +383,7 @@
         // should not be allowed to drag `shares` to 0 while still
         // computing realized gain on the full (wrong) sale size.
         const sellSh = Math.min(sh, shares);
-        const saleProfit = amt - avgCostPerShare * sellSh;
+        const saleProfit = (amt - comm) - avgCostPerShare * sellSh; // commission reduces net sale proceeds
         realizedGain += saleProfit;
         if (t.trade_date.startsWith(thisYear)) realizedGainYTD += saleProfit;
         cost   -= avgCostPerShare * sellSh;

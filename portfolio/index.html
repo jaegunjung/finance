@@ -684,17 +684,19 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
   let cashPool = 0, totalNet = 0;
   const yearNet = {};
   for (const ev of sortedEvents) {
+    const comm = Number(ev.commission) || 0;
     if (SELL_T.has(ev.type)) {
-      cashPool += ev.amount;
+      cashPool += ev.amount - comm; // commission reduces net cash received
     } else if (BUY_T.has(ev.type)) {
       const yr = (ev.date || '').slice(0, 4);
       const counts = hasExplicitOverrides
         ? ev.countAsPrincipal === true
         : !(zeroFromYear && Number(yr) >= zeroFromYear);
       if (!counts) continue;
-      const fromPool = Math.min(cashPool, ev.amount);
+      const buyAmt = ev.amount + comm; // commission is part of what you paid
+      const fromPool = Math.min(cashPool, buyAmt);
       cashPool -= fromPool;
-      const newMoney = ev.amount - fromPool;
+      const newMoney = buyAmt - fromPool;
       if (newMoney > 0) {
         totalNet += newMoney;
         yearNet[yr] = (yearNet[yr] || 0) + newMoney;
@@ -722,6 +724,7 @@ function _computePortfolioPrincipal(allTxns, pf) {
       date: t.trade_date,
       type: t.type,
       amount: Math.abs(Number(t.amount) || 0),
+      commission: Number(t.commission) || 0,
       countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -1813,6 +1816,7 @@ async function portLoadAnalysis() {
         sym:    t.symbol,
         type:   t.type,
         amount: Math.abs(Number(t.amount) || 0),
+        commission: Number(t.commission) || 0,
         shares: Math.abs(Number(t.shares) || 0),
         price:  Number(t.price) || 0,
         // Per-transaction override (거래내역 tab). null = no override.
@@ -2078,11 +2082,11 @@ async function portLoadAnalysis() {
           _applySplit(h, ev);
         } else if (BUY_T.has(ev.type)) {
           h.shares += ev.shares;
-          if (ev.type !== 'drip') h.cost += ev.amount; // matches computePnL: DRIP adds shares, not cost basis
+          if (ev.type !== 'drip') h.cost += ev.amount + (ev.commission || 0); // matches computePnL: DRIP adds shares, not cost basis; commission is part of cost
         } else if (SELL_T.has(ev.type) && h.shares > 0) {
           const ratio = Math.min(ev.shares / h.shares, 1);
           const cbs = h.cost * ratio;
-          mtmRealized += ev.amount - cbs;
+          mtmRealized += (ev.amount - (ev.commission || 0)) - cbs; // commission reduces net sale proceeds, matching computePnL
           h.shares -= ev.shares; h.cost -= cbs;
           if (h.shares < 0) h.shares = 0;
           if (h.cost   < 0) h.cost   = 0;
