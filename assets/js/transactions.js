@@ -27,6 +27,9 @@
  *   amount NUMERIC NOT NULL,
  *   commission NUMERIC DEFAULT 0,
  *   lot_method TEXT, -- which lot(s) a SELL draws down: 'FIFO'|'LIFO'|'HIGH_COST'|'LOW_COST'; NULL = FIFO default
+ *   external_id TEXT, -- source system's own row id (e.g. MSP's "Id" column) — lets
+ *                      -- dedup tell apart two genuinely distinct trades at the same
+ *                      -- date/time/price/size instead of relying on those fields alone
  *   trade_time TIME,
  *   linked_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
  *   notes TEXT,
@@ -40,6 +43,7 @@
  *
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS commission NUMERIC DEFAULT 0;
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS lot_method TEXT;
+ * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS external_id TEXT;
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS trade_time TIME;
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS linked_transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL;
  * ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_type_check;
@@ -314,21 +318,23 @@
     // ── De-duplicate ─────────────────────────────────────────────────────
     // Re-importing the same CSV (or the "always re-attach split rows on
     // import" behavior in importSubmit) can create exact duplicate rows.
-    // A row is a duplicate if date+time+type+shares+price+amount all match.
     // This keeps computePnL correct even if dedup at import time was
     // bypassed (e.g. rows added before the import-time dedup existed).
+    // Prefers external_id (source system's own row id, e.g. MSP's "Id"
+    // column) when present — exact, and immune to two genuinely distinct
+    // trades sharing date+time+price+size (MSP only timestamps to the
+    // minute, so this happens for real on an active trading day; a key
+    // without external_id wrongly collapsed real BTC-USD trades during
+    // this fix's own QA). Falls back to date+time+type+shares+price+amount
+    // when external_id isn't available.
     const seen = new Set();
     const deduped = [];
     for (const t of txns) {
-      // Include portfolio_id AND trade_time in the key so identical trades
-      // in different portfolios, or genuinely distinct same-day trades at
-      // the same price/size (common on an active trading day — same key
-      // without trade_time wrongly collapsed 4 real BTC-USD buys during
-      // this fix's own QA), are NOT deduped — only true duplicates (same
-      // portfolio, same date+time, e.g. a CSV imported twice) are removed.
-      const key = [t.portfolio_id || '', t.trade_date, t.trade_time || '', t.type,
-        Number(t.shares) || 0, Number(t.price) || 0, Number(t.amount) || 0
-      ].join('|');
+      const key = t.external_id
+        ? ['ext', t.portfolio_id || '', (t.symbol || '').toUpperCase(), t.type, t.external_id].join('|')
+        : [t.portfolio_id || '', t.trade_date, t.trade_time || '', t.type,
+            Number(t.shares) || 0, Number(t.price) || 0, Number(t.amount) || 0
+          ].join('|');
       if (seen.has(key)) continue;
       seen.add(key);
       deduped.push(t);
@@ -467,6 +473,7 @@
       amount:     ['amount', 'total', 'total amount', 'value'],
       commission: ['commission', 'fee', 'fees'],
       accounting: ['accounting', 'accounting method', 'cost basis method', 'lot method', 'lot_method'],
+      external_id: ['id', 'transaction id', 'txn id', 'external id', 'external_id'],
       notes:      ['notes', 'note', 'memo', 'comment', 'comments'],
       portfolio:  ['portfolio', 'account', 'portfolio name'],
     };
@@ -565,6 +572,7 @@
       let   amount = parseNum(cols.amount >= 0 ? f[cols.amount] : null);
       const commission = parseNum(cols.commission >= 0 ? f[cols.commission] : null);
       const lot_method = normalizeLotMethod(cols.accounting >= 0 ? f[cols.accounting] : null);
+      const external_id = cols.external_id >= 0 ? (f[cols.external_id] || null) : null;
       const notes  = cols.notes >= 0 ? (f[cols.notes] || null) : null;
       const portfolio_name = cols.portfolio >= 0 ? (f[cols.portfolio] || null) : null;
       const shareKey = `${symbol || ''}|${portfolio_name || ''}`;
@@ -584,7 +592,7 @@
       // price may be filled with the stock price (irrelevant for cash income).
       // Must run BEFORE the shares×price auto-compute below.
       if ((type === 'dividend' || type === 'interest') && shares != null && shares !== 0 && (amount == null || amount === 0)) {
-        rows.push({ symbol, trade_date, trade_time, type, shares: null, price: null, amount: shares, commission, notes, portfolio_name });
+        rows.push({ symbol, trade_date, trade_time, type, shares: null, price: null, amount: shares, commission, external_id, notes, portfolio_name });
         continue;
       }
 
@@ -626,11 +634,11 @@
           const divAmt = Math.abs(Number(amount));
           rows.push({ symbol: divMatch[1].toUpperCase(), trade_date, trade_time,
             type: 'dividend', shares: null, price: null,
-            amount: divAmt, commission: 0, notes, portfolio_name });
+            amount: divAmt, commission: 0, external_id, notes, portfolio_name });
           // Also add USD=CASH BUY (dividend cash received)
           rows.push({ symbol: 'USD=CASH', trade_date, trade_time,
             type: 'buy', shares: divAmt, price: 0,
-            amount: divAmt, commission: 0, notes, portfolio_name });
+            amount: divAmt, commission: 0, external_id, notes, portfolio_name });
           continue;
         }
         // Generic USD=CASH (stock proceeds, purchases, deposits, withdrawals, interest) — import as-is
@@ -654,7 +662,7 @@
         else if (sh > 100) runningShares.set(shareKey, cur + sh);
       }
 
-      rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, lot_method, notes, portfolio_name });
+      rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, lot_method, external_id, notes, portfolio_name });
     }
 
     return { rows, format };
@@ -696,7 +704,7 @@
       if (importSymbols.length) {
         const { data: existing, error: exErr } = await sb
           .from('transactions')
-          .select('portfolio_id, symbol, trade_date, trade_time, type, shares, price, amount')
+          .select('portfolio_id, symbol, trade_date, trade_time, type, shares, price, amount, external_id')
           .eq('user_id', user.id)
           .in('symbol', importSymbols);
         if (exErr) throw exErr;
@@ -747,6 +755,7 @@
       amount:       Number(r.amount),
       commission:   r.commission != null ? Number(r.commission) : 0,
       lot_method:   r.lot_method || null,
+      external_id:  r.external_id || null,
       notes:        r.notes || null,
       source:       'import',
       count_as_principal: overrideMap.has(r._sig) ? overrideMap.get(r._sig) : null,
@@ -762,15 +771,26 @@
 return { imported: (data || []).length, skipped, skippedRows, errors: [] };
   }
 
-  // Build a stable signature for duplicate detection: date+symbol+type+
-  // shares+price+amount. Numbers are rounded to 7 decimal places to avoid
-  // float-precision mismatches (e.g. 501.25 vs 501.2500031 were incorrectly
-  // collapsing with the old 4-decimal rounding).
+  // Build a stable signature for duplicate detection. Prefers the source
+  // system's own row id (external_id, e.g. MSP's "Id" column) when present —
+  // exact and immune to two genuinely distinct trades sharing the same
+  // date/time/price/size (MSP only timestamps to the minute, so this happens
+  // for real on an active trading day). Falls back to date+symbol+type+
+  // shares+price+amount otherwise. Numbers are rounded to 7 decimal places
+  // to avoid float-precision mismatches (e.g. 501.25 vs 501.2500031 were
+  // incorrectly collapsing with the old 4-decimal rounding).
   function _txnSignature(r) {
     const round = n => {
       const v = Number(n);
       return isNaN(v) ? 0 : Math.round(v * 1e7) / 1e7;
     };
+    if (r.external_id) {
+      // Combined with symbol+type (not external_id alone) since one source
+      // row can fan out into multiple DB rows (e.g. a dividend note becomes
+      // both a 'dividend' row and a linked USD=CASH 'buy' row) that must
+      // stay distinguishable from each other despite sharing an external_id.
+      return ['ext', (r.portfolio_id || ''), (r.symbol || '').toUpperCase(), r.type, r.external_id].join('|');
+    }
     return [
       (r.portfolio_id || ''),
       (r.symbol || '').toUpperCase(),
