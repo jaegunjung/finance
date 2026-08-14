@@ -740,6 +740,7 @@
       portfolio_id: portfolioId || (r.portfolio_name ? (resolvedMap[r.portfolio_name] ?? null) : null),
       symbol:       (r.symbol || '').toUpperCase(),
       trade_date:   r.trade_date,
+      trade_time:   r.trade_time || null,
       type:         r.type,
       shares:       r.shares != null ? Number(r.shares) : null,
       price:        r.price  != null ? Number(r.price)  : null,
