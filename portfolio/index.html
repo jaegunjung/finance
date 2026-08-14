@@ -378,6 +378,16 @@ title: 포트폴리오
         <label>Commission ($)</label>
         <input type="number" id="editCommission" class="modal-input" placeholder="0.00" step="any" min="0" value="0">
       </div>
+      <div class="modal-field">
+        <label>Lot Method (Sell only)</label>
+        <select id="editLotMethod" class="modal-input">
+          <option value="">FIFO (default)</option>
+          <option value="FIFO">FIFO</option>
+          <option value="LIFO">LIFO</option>
+          <option value="HIGH_COST">High Cost</option>
+          <option value="LOW_COST">Low Cost</option>
+        </select>
+      </div>
       <div class="modal-field" style="grid-column:1/-1;">
         <label>Notes</label>
         <input type="text" id="editNotes" class="modal-input" placeholder="Optional">
@@ -1602,12 +1612,12 @@ function portExportCsv() {
   });
 
   const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['date','portfolio','symbol','type','shares','price','amount','commission','notes','source'];
+  const header = ['date','portfolio','symbol','type','shares','price','amount','commission','lot_method','notes','source'];
   const lines = [header.join(',')];
   for (const t of rows) {
     lines.push([
       t.trade_date, portNameMap[t.portfolio_id] || '', t.symbol, t.type,
-      t.shares ?? '', t.price ?? '', t.amount ?? '', t.commission ?? '', t.notes || '', t.source || ''
+      t.shares ?? '', t.price ?? '', t.amount ?? '', t.commission ?? '', t.lot_method ?? '', t.notes || '', t.source || ''
     ].map(esc).join(','));
   }
 
@@ -1655,6 +1665,7 @@ function editModalOpen(id) {
   document.getElementById('editPrice').value       = txn.price  != null ? txn.price  : '';
   document.getElementById('editAmount').value      = txn.amount != null ? txn.amount : '';
   document.getElementById('editCommission').value  = txn.commission != null ? txn.commission : 0;
+  document.getElementById('editLotMethod').value   = txn.lot_method || '';
   document.getElementById('editNotes').value       = txn.notes || '';
   document.getElementById('editStatus').style.display = 'none';
   document.getElementById('editModal').classList.add('open');
@@ -1683,6 +1694,7 @@ async function editSave() {
       price:       document.getElementById('editPrice').value  !== '' ? parseFloat(document.getElementById('editPrice').value)  : null,
       amount:      parseFloat(document.getElementById('editAmount').value),
       commission:  parseFloat(document.getElementById('editCommission').value) || 0,
+      lot_method:  document.getElementById('editLotMethod').value || null,
       notes:       document.getElementById('editNotes').value.trim() || null,
     });
     editModalClose();
@@ -1817,6 +1829,7 @@ async function portLoadAnalysis() {
         type:   t.type,
         amount: Math.abs(Number(t.amount) || 0),
         commission: Number(t.commission) || 0,
+        lotMethod: t.lot_method || null,
         shares: Math.abs(Number(t.shares) || 0),
         price:  Number(t.price) || 0,
         // Per-transaction override (거래내역 tab). null = no override.
@@ -1872,8 +1885,8 @@ async function portLoadAnalysis() {
     let qqqUnits = 0, qqqCost = 0;
     let sgovUnits = 0, sgovCost = 0;
 
-    // Portfolio: track per-symbol cost basis and remaining shares
-    const portHoldings = {}; // sym -> { shares, cost }
+    // Portfolio: track per-symbol lots (see _lotTotals/_sellFromLots below)
+    const portHoldings = {}; // sym -> { lots: [{ shares, costPerShare }] }
 
     // Cumulative realized gain timeline: [{ date, portGain, spyGain, qqqGain, sgovGain }]
     const timeline = [];
@@ -1934,19 +1947,20 @@ async function portLoadAnalysis() {
       const spyP  = _nearestPrice(spyPrices, ev.date);
       const qqqP  = _nearestPrice(qqqPrices, ev.date);
       const sgovP = _nearestPrice(sgovPrices, ev.date);
-      const h = portHoldings[ev.sym] || { shares: 0, cost: 0 };
+      const h = portHoldings[ev.sym] || { lots: [] };
 
       if (ev.type === 'split') {
         // Mirrors computePnL's split handling (transactions.js) exactly —
         // cost basis is untouched, only share count changes.
         _applySplit(h, ev);
         portHoldings[ev.sym] = h;
-      } else if (BUY_T.has(ev.type)) {
-        h.shares += ev.shares;
+      } else if (BUY_T.has(ev.type) && ev.shares > 0) {
         // DRIP (reinvested dividends) adds shares but not cost basis —
         // mirrors computePnL's treatment (transactions.js) exactly, so this
         // chart's portfolio line and 보유현황's cost/gain figures agree.
-        if (ev.type !== 'drip') h.cost += ev.amount;
+        // Commission is part of cost, also matching computePnL.
+        const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
+        h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
         portHoldings[ev.sym] = h;
         // Buy-and-hold SPY/QQQ/SGOV with only the net-new-money portion of
         // this buy (see simNewMoney comment above) — never sold, regardless
@@ -1957,14 +1971,12 @@ async function portLoadAnalysis() {
           if (qqqP)  { qqqUnits  += simAmt / qqqP;  qqqCost  += simAmt; }
           if (sgovP) { sgovUnits += simAmt / sgovP; sgovCost += simAmt; }
         }
-      } else if (SELL_T.has(ev.type) && h.shares > 0) {
-        const ratio = Math.min(ev.shares / h.shares, 1);
-        const costBasisSold = h.cost * ratio;
-        portRealizedGain += ev.amount - costBasisSold;
-        h.shares -= ev.shares;
-        h.cost   -= costBasisSold;
-        if (h.shares < 0) h.shares = 0;
-        if (h.cost   < 0) h.cost   = 0;
+      } else if (SELL_T.has(ev.type) && ev.shares > 0) {
+        // Consumes lots per this sell's own lot_method (FIFO/LIFO/High
+        // Cost/Low Cost) — matches computePnL exactly, so this chart's
+        // realized gain agrees with 보유현황's and the year table's.
+        const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
+        portRealizedGain += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds
         portHoldings[ev.sym] = h;
         // No SPY/QQQ/SGOV-side effect — see the buy-and-hold comment above
         // simNewMoney for why selling the real portfolio doesn't touch the
@@ -1978,9 +1990,10 @@ async function portLoadAnalysis() {
       // at the very end when "today"'s unrealized got added in one shot.
       let portUnrealAtDate = 0, portValueAtDate = 0;
       for (const [hsym, hh] of Object.entries(portHoldings)) {
-        if (hh.shares <= 0) continue;
+        const { shares: hhShares, cost: hhCost } = _lotTotals(hh.lots);
+        if (hhShares <= 0) continue;
         const hp = _priceOnOrBefore(hsym, ev.date);
-        if (hp != null) { portUnrealAtDate += hp * hh.shares - hh.cost; portValueAtDate += hp * hh.shares; }
+        if (hp != null) { portUnrealAtDate += hp * hhShares - hhCost; portValueAtDate += hp * hhShares; }
       }
       // For a manual-원금 (rollover) account, plot market value minus the
       // fixed principal instead of cost-basis P&L — same reasoning as the
@@ -2011,9 +2024,10 @@ async function portLoadAnalysis() {
     // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
     let portUnrealized = 0, portValueToday = 0;
     for (const [sym, h] of Object.entries(portHoldings)) {
-      if (h.shares <= 0) continue;
+      const { shares: hShares, cost: hCost } = _lotTotals(h.lots);
+      if (hShares <= 0) continue;
       const cp = currentPriceMap[sym];
-      if (cp) { portUnrealized += cp * h.shares - h.cost; portValueToday += cp * h.shares; }
+      if (cp) { portUnrealized += cp * hShares - hCost; portValueToday += cp * hShares; }
     }
     const portGainToday = (manualPrincipal != null && manualPrincipal > 0)
       ? portValueToday - manualPrincipal
@@ -2068,6 +2082,9 @@ async function portLoadAnalysis() {
 
     // Replay holdings chronologically, snapshotting cumulative mark-to-market
     // total gain (realized + unrealized-at-cutoff) at the close of each year.
+    // Tracks individual lots per symbol (mirrors computePnL in transactions.js
+    // — see _applySplit / _lotTotals / _sellFromLots below) so a sell's own
+    // lot_method picks the same shares as 보유현황's computePnL would.
     const mtmHold = {};
     let mtmRealized = 0, evIdx = 0;
     const yearCumGain = {};
@@ -2076,29 +2093,27 @@ async function portLoadAnalysis() {
       const isCurYr = yr === curYear;
       const cutoff  = isCurYr ? today : `${yr}-12-31`;
       while (evIdx < events.length && events[evIdx].date <= cutoff) {
-        const ev   = events[evIdx];
-        const h = mtmHold[ev.sym] || { shares: 0, cost: 0 };
+        const ev = events[evIdx];
+        const h  = mtmHold[ev.sym] || { lots: [] };
         if (ev.type === 'split') {
           _applySplit(h, ev);
-        } else if (BUY_T.has(ev.type)) {
-          h.shares += ev.shares;
-          if (ev.type !== 'drip') h.cost += ev.amount + (ev.commission || 0); // matches computePnL: DRIP adds shares, not cost basis; commission is part of cost
-        } else if (SELL_T.has(ev.type) && h.shares > 0) {
-          const ratio = Math.min(ev.shares / h.shares, 1);
-          const cbs = h.cost * ratio;
-          mtmRealized += (ev.amount - (ev.commission || 0)) - cbs; // commission reduces net sale proceeds, matching computePnL
-          h.shares -= ev.shares; h.cost -= cbs;
-          if (h.shares < 0) h.shares = 0;
-          if (h.cost   < 0) h.cost   = 0;
+        } else if (BUY_T.has(ev.type) && ev.shares > 0) {
+          // DRIP adds shares but not cost basis, matching computePnL.
+          const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
+          h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
+        } else if (SELL_T.has(ev.type) && ev.shares > 0) {
+          const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
+          mtmRealized += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds, matching computePnL
         }
         mtmHold[ev.sym] = h;
         evIdx++;
       }
       let unreal = 0, mtmValue = 0;
       for (const [sym, h] of Object.entries(mtmHold)) {
-        if (h.shares <= 0) continue;
+        const { shares, cost } = _lotTotals(h.lots);
+        if (shares <= 0) continue;
         const p = isCurYr ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, cutoff)) : _priceOnOrBefore(sym, cutoff);
-        if (p != null) { unreal += p * h.shares - h.cost; mtmValue += p * h.shares; }
+        if (p != null) { unreal += p * shares - cost; mtmValue += p * shares; }
       }
       yearCumGain[yr] = mtmRealized + unreal;
       yearMtmValue[yr] = mtmValue;
@@ -2276,16 +2291,59 @@ async function portLoadAnalysis() {
 // relative to 보유현황, which goes through computePnL directly.
 function _applySplit(h, ev) {
   const sh = ev.shares, price = ev.price;
+  const totalShares = h.lots.reduce((s, l) => s + l.shares, 0);
   let ratio = price >= 2 ? price : 0; // fallback: ratio in price field
   if (sh >= 2 && sh <= 100) {
     ratio = sh; // likely a ratio (2:1, 3:1, ..., 20:1)
-    if (h.shares > 0) h.shares *= ratio;
   } else if (sh > 100) {
-    h.shares += sh; // likely additional shares received (MSP "delta" format)
-  } else if (ratio >= 2) {
-    if (h.shares > 0) h.shares *= ratio;
+    // Likely additional shares received (MSP "delta" format) — express as
+    // an equivalent ratio so every lot dilutes proportionally, preserving
+    // each lot's total cost (only its per-share cost drops), matching
+    // computePnL (transactions.js).
+    ratio = totalShares > 0 ? (totalShares + sh) / totalShares : 0;
+  }
+  if (ratio >= 2 && totalShares > 0) {
+    for (const lot of h.lots) lot.shares *= ratio;
   }
   // else: no usable split info — no-op, matching computePnL
+}
+
+// Sums remaining shares/cost across a symbol's open lots — for display
+// (avgCost-style totals) and unrealized-gain snapshots.
+function _lotTotals(lots) {
+  const shares = lots.reduce((s, l) => s + l.shares, 0);
+  const cost   = lots.reduce((s, l) => s + l.shares * l.costPerShare, 0);
+  return { shares, cost };
+}
+
+// Consumes `sellShares` from `lots` in-place per lot_method ('FIFO' default,
+// 'LIFO', 'HIGH_COST', 'LOW_COST' — matches computePnL in transactions.js
+// exactly, including capping at what's actually on hand) and returns the
+// cost basis of the shares sold.
+function _sellFromLots(lots, sellShares, lotMethod) {
+  const EPS = 1e-9;
+  const totalShares = lots.reduce((s, l) => s + l.shares, 0);
+  let remaining = Math.min(sellShares, totalShares);
+  const method = String(lotMethod || 'FIFO').toUpperCase();
+  let order;
+  if (method === 'LIFO') order = [...lots].reverse();
+  else if (method === 'HIGH_COST') order = [...lots].sort((a, b) => b.costPerShare - a.costPerShare);
+  else if (method === 'LOW_COST') order = [...lots].sort((a, b) => a.costPerShare - b.costPerShare);
+  else order = lots; // FIFO — lots array is already in chronological (insertion) order
+
+  let costOfSold = 0;
+  for (const lot of order) {
+    if (remaining <= EPS) break;
+    if (lot.shares <= EPS) continue;
+    const take = Math.min(lot.shares, remaining);
+    costOfSold += take * lot.costPerShare;
+    lot.shares -= take;
+    remaining -= take;
+  }
+  const kept = lots.filter(l => l.shares > EPS);
+  lots.length = 0;
+  lots.push(...kept);
+  return costOfSold;
 }
 
 // ── Parse stock CSV → { 'YYYY-MM-DD': adj_close } ──────────────────

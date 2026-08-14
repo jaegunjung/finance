@@ -68,6 +68,19 @@
 - SPY/QQQ/SGOV 벤치마크 시뮬레이션의 매도 비율식이 음수로 튀는 경우 존재.
 - 원금 수동 설정(rollover 계좌) 시 두 탭이 서로 다른 기준(cost-basis vs
   market-value)으로 손익을 계산해 부호까지 반대로 나온 적 있음.
+- 커미션(commission)을 원가/실현손익 계산에서 두 탭 모두 완전히 누락 —
+  게다가 `분석 코치`의 **차트용 replay**(연도별 테이블 replay와는 별개의
+  세 번째 재구현)만 따로 놓쳐서 나중에 또 발견된 적 있음 (2026-08 세션).
+  `분석 코치` 안에 이런 병렬 재구현이 최소 2곳(연도별 테이블, 차트) 있다는
+  것 자체를 항상 의식할 것.
+- computePnL은 원래 단일 평단(blended average-cost)이었으나, 2026-08 세션에
+  lot 단위 회계(FIFO/LIFO/HIGH_COST/LOW_COST, 거래별 `lot_method` 컬럼,
+  기본값 FIFO)로 전면 재작성됨 — MSP 앱의 매도별 Accounting 방식을 그대로
+  재현하기 위함. `_applySplit`/`_lotTotals`/`_sellFromLots`
+  (portfolio/index.html)가 computePnL의 lot 로직과 정확히 대응해야 함.
+  **`transactions` 테이블에 `lot_method TEXT` 컬럼이 아직 없으면 import/edit
+  저장이 전부 실패한다** — Supabase SQL Editor에서 마이그레이션 SQL
+  (transactions.js 파일 상단 주석 참조)을 먼저 실행했는지 항상 확인할 것.
 
 **새 계산 로직을 추가/수정할 때는 반드시 두 탭에 동시에 반영하거나, 최소한
 "보유현황 순익 == 분석코치 손익 (동일 종목·동일 시점 기준)"을 로컬에서 직접

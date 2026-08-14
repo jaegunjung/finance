@@ -26,6 +26,7 @@
  *   price NUMERIC,
  *   amount NUMERIC NOT NULL,
  *   commission NUMERIC DEFAULT 0,
+ *   lot_method TEXT, -- which lot(s) a SELL draws down: 'FIFO'|'LIFO'|'HIGH_COST'|'LOW_COST'; NULL = FIFO default
  *   trade_time TIME,
  *   linked_transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
  *   notes TEXT,
@@ -38,6 +39,7 @@
  * ── Migration SQL (if table already exists) ───────────────────────────────────
  *
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS commission NUMERIC DEFAULT 0;
+ * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS lot_method TEXT;
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS trade_time TIME;
  * ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS linked_transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL;
  * ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_type_check;
@@ -177,6 +179,7 @@
       price:        data.price  != null ? Number(data.price)  : null,
       amount:       Number(data.amount),
       commission:   data.commission != null ? Number(data.commission) : 0,
+      lot_method:   data.lot_method || null,
       trade_time:   data.trade_time || null,
       linked_transaction_id: data.linked_transaction_id || null,
       notes:        data.notes || null,
@@ -200,6 +203,7 @@
     if (data.price       !== undefined) fields.price       = data.price  != null ? Number(data.price)  : null;
     if (data.amount      !== undefined) fields.amount      = Number(data.amount);
     if (data.commission  !== undefined) fields.commission  = data.commission != null ? Number(data.commission) : 0;
+    if (data.lot_method  !== undefined) fields.lot_method  = data.lot_method || null;
     if (data.trade_time  !== undefined) fields.trade_time  = data.trade_time || null;
     if (data.notes       !== undefined) fields.notes       = data.notes || null;
     if (data.count_as_principal !== undefined) fields.count_as_principal = data.count_as_principal;
@@ -290,29 +294,39 @@
   // ── P&L computation helper ────────────────────────────────────────────────
   // Returns { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD }
   // for a sorted array of transactions (buy/sell/drip/split/buy_to_cover/sell_short)
+  //
+  // Tracks individual purchase lots rather than one blended average cost, so
+  // that a sell's own lot_method ('FIFO'|'LIFO'|'HIGH_COST'|'LOW_COST', NULL
+  // defaults to FIFO) determines which shares it's actually selling — matching
+  // how MSP (and most brokerages) let you pick a cost-basis method per sale.
+  // avgCost/totalCost in the return value are still the blended weighted
+  // average across whatever lots remain, for display purposes only.
   function computePnL(txns) {
     const buyTypes  = new Set(['buy', 'drip', 'buy_to_cover']);
     const sellTypes = new Set(['sell', 'sell_short']);
     const thisYear  = new Date().getFullYear().toString();
+    const EPS = 1e-9;
 
-    let shares = 0;  // remaining shares
-    let cost   = 0;  // total cost basis
+    let lots = []; // { shares, costPerShare } — insertion order = chronological (FIFO) order
     let realizedGain    = 0;
     let realizedGainYTD = 0;
 
     // ── De-duplicate ─────────────────────────────────────────────────────
     // Re-importing the same CSV (or the "always re-attach split rows on
     // import" behavior in importSubmit) can create exact duplicate rows.
-    // A row is a duplicate if date+type+shares+price+amount all match.
+    // A row is a duplicate if date+time+type+shares+price+amount all match.
     // This keeps computePnL correct even if dedup at import time was
     // bypassed (e.g. rows added before the import-time dedup existed).
     const seen = new Set();
     const deduped = [];
     for (const t of txns) {
-      // Include portfolio_id in the key so identical trades in different
-      // portfolios are NOT deduped — only true duplicates within the same
-      // portfolio (e.g. same CSV imported twice) are removed.
-      const key = [t.portfolio_id || '', t.trade_date, t.type,
+      // Include portfolio_id AND trade_time in the key so identical trades
+      // in different portfolios, or genuinely distinct same-day trades at
+      // the same price/size (common on an active trading day — same key
+      // without trade_time wrongly collapsed 4 real BTC-USD buys during
+      // this fix's own QA), are NOT deduped — only true duplicates (same
+      // portfolio, same date+time, e.g. a CSV imported twice) are removed.
+      const key = [t.portfolio_id || '', t.trade_date, t.trade_time || '', t.type,
         Number(t.shares) || 0, Number(t.price) || 0, Number(t.amount) || 0
       ].join('|');
       if (seen.has(key)) continue;
@@ -348,16 +362,18 @@
         //   3. price field holds ratio when shares is missing/zero
         // Heuristic: if shares looks like a small integer ratio (≤ 100),
         // treat it as a multiplier; otherwise treat as additional shares.
+        const totalShares = lots.reduce((s, l) => s + l.shares, 0);
         let ratio = Number(t.price) >= 2 ? Number(t.price) : 0; // fallback: ratio in price
         if (sh >= 2 && sh <= 100) {
-          // Likely a ratio (2:1, 3:1, 4:1, 5:1, 10:1, 20:1, etc.)
-          ratio = sh;
-          if (shares > 0) shares *= ratio;
+          ratio = sh; // likely a ratio (2:1, 3:1, 4:1, 5:1, 10:1, 20:1, etc.)
         } else if (sh > 100) {
-          // Likely additional shares received (MSP "delta" format)
-          shares += sh;
-        } else if (ratio >= 2) {
-          if (shares > 0) shares *= ratio;
+          // Likely additional shares received (MSP "delta" format) —
+          // express as an equivalent ratio so every lot dilutes proportionally,
+          // preserving each lot's total cost (only its per-share cost drops).
+          ratio = totalShares > 0 ? (totalShares + sh) / totalShares : 0;
+        }
+        if (ratio >= 2 && totalShares > 0) {
+          for (const lot of lots) lot.shares *= ratio;
         }
         // else: no usable split info — skip silently (no change)
         continue;
@@ -373,28 +389,48 @@
         continue;
       }
 
-      if (buyTypes.has(t.type)) {
-        shares += sh;
-        if (t.type !== 'drip') cost += amt + comm; // DRIP adds shares but not cost basis; commission is part of what you paid
+      if (buyTypes.has(t.type) && sh > 0) {
+        // DRIP adds shares but not cost basis (dividend income already
+        // counted above), so its lot carries $0 cost — matches prior
+        // aggregate-average behavior exactly.
+        const lotCost = t.type !== 'drip' ? amt + comm : 0; // commission is part of what you paid
+        lots.push({ shares: sh, costPerShare: lotCost / sh });
       } else if (sellTypes.has(t.type) && sh > 0) {
-        const avgCostPerShare = shares > 0 ? cost / shares : 0;
+        const totalShares = lots.reduce((s, l) => s + l.shares, 0);
         // Cap shares sold at what's actually on hand — a sell that exceeds
         // recorded holdings (often itself a symptom of a missed split)
-        // should not be allowed to drag `shares` to 0 while still
+        // should not be allowed to drag holdings negative while still
         // computing realized gain on the full (wrong) sale size.
-        const sellSh = Math.min(sh, shares);
-        const saleProfit = (amt - comm) - avgCostPerShare * sellSh; // commission reduces net sale proceeds
+        let remaining = Math.min(sh, totalShares);
+
+        const method = String(t.lot_method || 'FIFO').toUpperCase();
+        let order;
+        if (method === 'LIFO') order = [...lots].reverse();
+        else if (method === 'HIGH_COST') order = [...lots].sort((a, b) => b.costPerShare - a.costPerShare);
+        else if (method === 'LOW_COST') order = [...lots].sort((a, b) => a.costPerShare - b.costPerShare);
+        else order = lots; // FIFO — lots array is already in chronological (insertion) order
+
+        let costOfSold = 0;
+        for (const lot of order) {
+          if (remaining <= EPS) break;
+          if (lot.shares <= EPS) continue;
+          const take = Math.min(lot.shares, remaining);
+          costOfSold += take * lot.costPerShare;
+          lot.shares -= take;
+          remaining -= take;
+        }
+        lots = lots.filter(l => l.shares > EPS);
+
+        const saleProfit = (amt - comm) - costOfSold; // commission reduces net sale proceeds
         realizedGain += saleProfit;
         if (t.trade_date.startsWith(thisYear)) realizedGainYTD += saleProfit;
-        cost   -= avgCostPerShare * sellSh;
-        shares -= sellSh;
-        if (shares < 0) shares = 0;
-        if (cost   < 0) cost   = 0;
       }
     }
 
-    const avgCost = shares > 0 ? cost / shares : 0;
-    return { avgCost, remainingShares: shares, totalCost: cost, realizedGain, realizedGainYTD };
+    const remainingShares = lots.reduce((s, l) => s + l.shares, 0);
+    const totalCost = lots.reduce((s, l) => s + l.shares * l.costPerShare, 0);
+    const avgCost = remainingShares > 0 ? totalCost / remainingShares : 0;
+    return { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD };
   }
 
   // ── MSP CSV Parser ────────────────────────────────────────────────────────
@@ -430,6 +466,7 @@
       price:      ['cost per share', 'price', 'unit price', 'cost price', 'avg price'],
       amount:     ['amount', 'total', 'total amount', 'value'],
       commission: ['commission', 'fee', 'fees'],
+      accounting: ['accounting', 'accounting method', 'cost basis method', 'lot method', 'lot_method'],
       notes:      ['notes', 'note', 'memo', 'comment', 'comments'],
       portfolio:  ['portfolio', 'account', 'portfolio name'],
     };
@@ -499,6 +536,16 @@
       return isNaN(n) ? null : n;
     }
 
+    function normalizeLotMethod(str) {
+      if (!str) return null;
+      const s = String(str).trim().toLowerCase();
+      if (s === 'fifo') return 'FIFO';
+      if (s === 'lifo') return 'LIFO';
+      if (s === 'high cost' || s === 'highcost' || s === 'high_cost') return 'HIGH_COST';
+      if (s === 'low cost'  || s === 'lowcost'  || s === 'low_cost')  return 'LOW_COST';
+      return null; // unrecognized (e.g. MSP blank) — computePnL defaults to FIFO
+    }
+
     const rows = [];
     // Running position size per symbol+portfolio, tracked as rows are parsed
     // in file order — used to fill in the quantity for "Sell All" rows,
@@ -517,6 +564,7 @@
       const price  = parseNum(cols.price  >= 0 ? f[cols.price]  : null);
       let   amount = parseNum(cols.amount >= 0 ? f[cols.amount] : null);
       const commission = parseNum(cols.commission >= 0 ? f[cols.commission] : null);
+      const lot_method = normalizeLotMethod(cols.accounting >= 0 ? f[cols.accounting] : null);
       const notes  = cols.notes >= 0 ? (f[cols.notes] || null) : null;
       const portfolio_name = cols.portfolio >= 0 ? (f[cols.portfolio] || null) : null;
       const shareKey = `${symbol || ''}|${portfolio_name || ''}`;
@@ -606,7 +654,7 @@
         else if (sh > 100) runningShares.set(shareKey, cur + sh);
       }
 
-      rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, notes, portfolio_name });
+      rows.push({ symbol, trade_date, trade_time, type, shares, price, amount, commission, lot_method, notes, portfolio_name });
     }
 
     return { rows, format };
@@ -697,6 +745,7 @@
       price:        r.price  != null ? Number(r.price)  : null,
       amount:       Number(r.amount),
       commission:   r.commission != null ? Number(r.commission) : 0,
+      lot_method:   r.lot_method || null,
       notes:        r.notes || null,
       source:       'import',
       count_as_principal: overrideMap.has(r._sig) ? overrideMap.get(r._sig) : null,
