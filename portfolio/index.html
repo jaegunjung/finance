@@ -1612,12 +1612,12 @@ function portExportCsv() {
   });
 
   const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const header = ['date','portfolio','symbol','type','shares','price','amount','commission','lot_method','notes','source'];
+  const header = ['date','portfolio','symbol','type','shares','price','amount','commission','lot_method','external_id','notes','source'];
   const lines = [header.join(',')];
   for (const t of rows) {
     lines.push([
       t.trade_date, portNameMap[t.portfolio_id] || '', t.symbol, t.type,
-      t.shares ?? '', t.price ?? '', t.amount ?? '', t.commission ?? '', t.lot_method ?? '', t.notes || '', t.source || ''
+      t.shares ?? '', t.price ?? '', t.amount ?? '', t.commission ?? '', t.lot_method ?? '', t.external_id ?? '', t.notes || '', t.source || ''
     ].map(esc).join(','));
   }
 

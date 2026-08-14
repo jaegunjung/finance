@@ -301,6 +301,7 @@ function importModalClose() {
   const btn = document.getElementById('importSubmitBtn');
   btn.disabled = true; btn.style.opacity = '0.4'; btn.style.pointerEvents = 'none';
   btn.textContent = 'Import';
+  btn.onclick = () => importSubmit(); // undo the "Done!" -> close redirect from a prior successful import
 }
 
 // Close on backdrop click
@@ -557,7 +558,13 @@ async function importSubmit() {
         `<tbody>${tableRows}</tbody></table></div>`;
     }
     importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.${skipMsg}`);
+    // Re-point this button at closing the modal instead of re-running the
+    // import — previously it just stayed disabled with "Done!" as an inert
+    // label whenever an unknown-symbol banner suppressed the auto-close
+    // below, leaving Cancel as the only way out.
+    btn.disabled = false;
     btn.textContent = 'Done!';
+    btn.onclick = () => importModalClose();
 
     // Detect symbols not in the supported data set → show fetch prompt
     const importedSyms = [...new Set(rowsToImport.map(r => r.symbol).filter(Boolean))];
