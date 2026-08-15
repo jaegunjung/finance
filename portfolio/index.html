@@ -1941,6 +1941,7 @@ async function portLoadAnalysis() {
     // counting anything. simNewMoney below still exists, but now only
     // feeds spyCost/qqqCost/sgovCost — the NET-NEW-money denominator used
     // for % returns — decoupled from the lot mechanics themselves.
+    const _CASH_SYMS  = new Set(['USD=CASH', 'USD']);
     const _SIM_BUY_T  = new Set(['buy', 'buy_to_cover']);
     const _SIM_SELL_T = new Set(['sell', 'sell_short']);
     let _simPool = 0;
@@ -1981,11 +1982,19 @@ async function portLoadAnalysis() {
         // Buy the full amount into SPY/QQQ/SGOV (see the design comment
         // above simNewMoney) — funding source doesn't affect $ gain
         // accuracy, only the separate net-invested tally below.
-        if (spyP)  spyLots.push({ shares: ev.amount / spyP,   costPerShare: spyP  });
-        if (qqqP)  qqqLots.push({ shares: ev.amount / qqqP,   costPerShare: qqqP  });
-        if (sgovP) sgovLots.push({ shares: ev.amount / sgovP, costPerShare: sgovP });
-        const simAmt = simNewMoney[_evIdx5];
-        if (simAmt > 0) { spyCost += simAmt; qqqCost += simAmt; sgovCost += simAmt; }
+        // Skip USD=CASH: it's the cash-ledger side of a real trade (e.g.
+        // "cash out to fund a stock buy"), already represented once by
+        // that trade's own stock-side event — letting it also trigger the
+        // SPY/QQQ/SGOV mirror double-counts the same real trade (measured
+        // against real data: 179 USD=CASH events moving ~$485K of pure
+        // bookkeeping volume inflated one account's simulated gain ~19%).
+        if (!_CASH_SYMS.has(ev.sym)) {
+          if (spyP)  spyLots.push({ shares: ev.amount / spyP,   costPerShare: spyP  });
+          if (qqqP)  qqqLots.push({ shares: ev.amount / qqqP,   costPerShare: qqqP  });
+          if (sgovP) sgovLots.push({ shares: ev.amount / sgovP, costPerShare: sgovP });
+          const simAmt = simNewMoney[_evIdx5];
+          if (simAmt > 0) { spyCost += simAmt; qqqCost += simAmt; sgovCost += simAmt; }
+        }
       } else if (SELL_T.has(ev.type) && ev.shares > 0) {
         // This sale's share of total real-portfolio value, computed BEFORE
         // mutating this symbol's lots below, so the SPY/QQQ/SGOV mirror
@@ -2015,7 +2024,9 @@ async function portLoadAnalysis() {
         // further $ gain) unless a later buy re-invests fresh dollars —
         // see the design comment above simNewMoney for why this needs no
         // separate "cash" bucket to stay correct.
-        if (sellRatio > 0) {
+        // Skip USD=CASH sells too — same double-counting reason as the
+        // buy branch above.
+        if (sellRatio > 0 && !_CASH_SYMS.has(ev.sym)) {
           if (spyP)  { const sh = _lotTotals(spyLots).shares  * sellRatio; if (sh > 0) { const c = _sellFromLots(spyLots,  sh, null); spyRealizedGain  += sh * spyP  - c; } }
           if (qqqP)  { const sh = _lotTotals(qqqLots).shares  * sellRatio; if (sh > 0) { const c = _sellFromLots(qqqLots,  sh, null); qqqRealizedGain  += sh * qqqP  - c; } }
           if (sgovP) { const sh = _lotTotals(sgovLots).shares * sellRatio; if (sh > 0) { const c = _sellFromLots(sgovLots, sh, null); sgovRealizedGain += sh * sgovP - c; } }
