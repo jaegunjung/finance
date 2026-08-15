@@ -379,7 +379,13 @@
           ratio = totalShares > 0 ? (totalShares + sh) / totalShares : 0;
         }
         if (ratio >= 2 && totalShares > 0) {
-          for (const lot of lots) lot.shares *= ratio;
+          // costPerShare is per-share, not a lot total — must be divided by
+          // the same ratio shares are multiplied by, or a split silently
+          // inflates the lot's total cost (shares*costPerShare) by ratio×,
+          // instead of just redistributing the same total cost across more
+          // shares. (Caught via a real 20:1 AMZN split showing -$321,768
+          // realized loss on a position that should have shown +$8,997.)
+          for (const lot of lots) { lot.shares *= ratio; lot.costPerShare /= ratio; }
         }
         // else: no usable split info — skip silently (no change)
         continue;

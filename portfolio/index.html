@@ -2315,7 +2315,10 @@ function _applySplit(h, ev) {
     ratio = totalShares > 0 ? (totalShares + sh) / totalShares : 0;
   }
   if (ratio >= 2 && totalShares > 0) {
-    for (const lot of h.lots) lot.shares *= ratio;
+    // costPerShare is per-share, not a lot total — must be divided by the
+    // same ratio shares are multiplied by, or a split silently inflates
+    // the lot's total cost by ratio×. See computePnL (transactions.js).
+    for (const lot of h.lots) { lot.shares *= ratio; lot.costPerShare /= ratio; }
   }
   // else: no usable split info — no-op, matching computePnL
 }
