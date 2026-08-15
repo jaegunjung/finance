@@ -628,19 +628,18 @@
         // of whether the note mentions BTC-USD — the cash movement itself
         // is still valid and worth importing, just not as a synthesized
         // crypto trade.)
-        // Dividends: "Dividends from XXXX - ..."
-        const divMatch = notes.match(/^Dividends from ([A-Z0-9.\-]+)/i);
-        if (divMatch && amount != null) {
-          const divAmt = Math.abs(Number(amount));
-          rows.push({ symbol: divMatch[1].toUpperCase(), trade_date, trade_time,
-            type: 'dividend', shares: null, price: null,
-            amount: divAmt, commission: 0, external_id, notes, portfolio_name });
-          // Also add USD=CASH BUY (dividend cash received)
-          rows.push({ symbol: 'USD=CASH', trade_date, trade_time,
-            type: 'buy', shares: divAmt, price: 0,
-            amount: divAmt, commission: 0, external_id, notes, portfolio_name });
-          continue;
-        }
+        //
+        // Dividends: a USD=CASH row noting "Dividends from XXXX - ..." is
+        // NOT a standalone income event to synthesize a symbol-level
+        // 'dividend' row from — MSP already exports a direct
+        // Symbol=XXXX/Type=Dividend row for the same payment (verified
+        // across every dividend-note symbol in a real export: SGOV, META,
+        // AVGO, ORCL, UNH, AAPL, GOOGL, SPY, QQQ, and others all had a
+        // matching direct row). Synthesizing a second 'dividend' row here
+        // double-counted every dividend-paying symbol's realized gain
+        // (e.g. SGOV showed +$1,117.50 instead of the correct +$550.77 —
+        // almost exactly double). Just import the cash-ledger entry as-is;
+        // the real income is already captured via the direct-symbol row.
         // Generic USD=CASH (stock proceeds, purchases, deposits, withdrawals, interest) — import as-is
       }
 
