@@ -23,7 +23,7 @@ excerpt_ko: "톰 틸리스 상원의원(공화)과 루벤 갈레고 상원의원
 
 ## From "Shelved" Back to "In Play" in Two Days
 
-[Our July 28 post](/finance/crypto/2026/07/28/clarity-act-vote-shelved-before-recess/) covered Senate leadership shelving the pre-recess floor vote and passage odds crashing to 30-37%. That was the low point of the week. Since then, the story has moved again — not to a resolution, but to a new, more specific attempt at one.
+[Our July 28 post](/crypto/2026/07/28/clarity-act-vote-shelved-before-recess/) covered Senate leadership shelving the pre-recess floor vote and passage odds crashing to 30-37%. That was the low point of the week. Since then, the story has moved again — not to a resolution, but to a new, more specific attempt at one.
 
 On July 30, Republican Sen. Thom Tillis and Democratic Sen. Ruben Gallego sent a bipartisan counterproposal on the bill's ethics provisions to the White House, according to Punchbowl News, corroborated by CoinDesk, The Block, crypto.news, and Crypto Briefing. This is a materially different kind of document than the one that failed on July 27: that proposal was drafted by the White House and Senate Republicans (Sens. Lummis and Moreno) and rejected by Democrats within 48 hours. This one has an actual Democratic co-author. Trump and the White House are reviewing it over the weekend of August 1-2, with the August 10 recess deadline now nine days out.
 
@@ -67,7 +67,7 @@ Nothing here resolves the bill. But the shape of the news changed: instead of "W
 
 ## "보류"에서 다시 "진행 중"으로, 이틀 만에
 
-[7월 28일 글](/finance/crypto/2026/07/28/clarity-act-vote-shelved-before-recess/)에서는 상원 지도부가 휴회 전 본회의 표결을 보류했고, 통과 확률이 30~37%로 붕괴했다고 전했다. 그것이 그 주의 저점이었다. 이후 상황은 다시 움직였다 — 해결로 가는 것은 아니지만, 더 구체적인 새로운 시도로 이어졌다.
+[7월 28일 글](/crypto/2026/07/28/clarity-act-vote-shelved-before-recess/)에서는 상원 지도부가 휴회 전 본회의 표결을 보류했고, 통과 확률이 30~37%로 붕괴했다고 전했다. 그것이 그 주의 저점이었다. 이후 상황은 다시 움직였다 — 해결로 가는 것은 아니지만, 더 구체적인 새로운 시도로 이어졌다.
 
 7월 30일, 공화당 톰 틸리스 상원의원과 민주당 루벤 갈레고 상원의원이 법안의 윤리 조항에 대한 초당적 대안을 백악관에 제출했다고 Punchbowl News가 보도했고, CoinDesk, The Block, crypto.news, Crypto Briefing이 이를 확인했다. 이는 7월 27일 거부됐던 문서와는 성격이 다르다: 그 안은 백악관과 공화당 상원의원들(루미스, 모레노)이 작성해 민주당이 48시간 만에 거부한 것이었다. 이번 안에는 실제 민주당 공동 저자가 있다. 트럼프와 백악관은 8월 1~2일 주말 동안 이를 검토하고 있으며, 8월 10일 휴회 데드라인까지는 이제 9일 남았다.
 

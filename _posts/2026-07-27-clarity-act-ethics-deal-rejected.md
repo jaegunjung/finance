@@ -23,7 +23,7 @@ excerpt_ko: "60표 확보를 위해 백악관이 내놓은 구체적인 윤리 �
 
 ## The Tell We Flagged Actually Showed Up
 
-In [our August 10 deadline post](/finance/crypto/2026/07/26/clarity-act-august-10-deadline/) last night, we wrote: "watch for committee-level ethics-provision text becoming public — that's the tell for whether a deal is close." That text became public days before we even wrote that line — and it's already been rejected.
+In [our August 10 deadline post](/crypto/2026/07/26/clarity-act-august-10-deadline/) last night, we wrote: "watch for committee-level ethics-provision text becoming public — that's the tell for whether a deal is close." That text became public days before we even wrote that line — and it's already been rejected.
 
 ## What the White House Actually Offered
 
@@ -63,7 +63,7 @@ This doesn't kill the bill, and it doesn't change the medium-term thesis of inst
 
 ## 우리가 짚었던 신호가 실제로 나타났다
 
-지난밤 [8월 10일 데드라인 글](/finance/crypto/2026/07/26/clarity-act-august-10-deadline/)에서 우리는 "위원회 차원의 윤리 조항 문구가 공개되는 시점을 주시할 필요가 있다 — 합의가 임박했는지를 보여주는 신호다"라고 썼다. 그 문구는 우리가 그 글을 쓰기도 전에 이미 공개됐고, 이미 거부까지 당했다.
+지난밤 [8월 10일 데드라인 글](/crypto/2026/07/26/clarity-act-august-10-deadline/)에서 우리는 "위원회 차원의 윤리 조항 문구가 공개되는 시점을 주시할 필요가 있다 — 합의가 임박했는지를 보여주는 신호다"라고 썼다. 그 문구는 우리가 그 글을 쓰기도 전에 이미 공개됐고, 이미 거부까지 당했다.
 
 ## 백악관이 실제로 내놓은 안
 

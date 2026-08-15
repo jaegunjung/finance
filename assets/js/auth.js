@@ -73,7 +73,7 @@
         const modalWasOpen = modal && modal.style.display !== 'none';
         navLoginModalClose();
         if (modalWasOpen && !window.location.pathname.includes('/portfolio')) {
-          window.location.href = '/finance/portfolio/';
+          window.location.href = '/portfolio/';
         }
       }
     });

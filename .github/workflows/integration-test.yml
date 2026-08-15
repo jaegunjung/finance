@@ -154,7 +154,7 @@ jobs:
 
           echo "Jekyll 서버 대기 중..."
           for i in $(seq 1 60); do
-            if curl -sf http://localhost:4000/finance/ > /dev/null 2>&1; then
+            if curl -sf http://localhost:4000/ > /dev/null 2>&1; then
               echo "✅ 서버 준비 완료 (시도 ${i}회)"
               break
             fi

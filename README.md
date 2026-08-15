@@ -1,6 +1,6 @@
 # 📊 JJ Financial Analysis
 
-> **Live Site → [jaegunjung.github.io/finance](https://jaegunjung.github.io/finance/)**
+> **Live Site → [jjanalysis.com](https://jjanalysis.com/)**
 >
 > S&P 500 · Bitcoin · Crypto · Stocks · Interest Rates · Macro Indicators
 
@@ -51,12 +51,12 @@
 
 ---
 
-## 🌐 Website Structure (`jaegunjung.github.io/finance/`)
+## 🌐 Website Structure (`jjanalysis.com`)
 
-Jekyll 정적 사이트 생성기로 빌드, GitHub Pages로 호스팅.
+Jekyll 정적 사이트 생성기로 빌드, GitHub Pages로 호스팅 (커스텀 도메인).
 
 ```
-jaegunjung.github.io/finance/
+jjanalysis.com/
 │
 ├── /                    → 홈 (연간 수익률 테이블 + 주요 차트 링크)
 │
@@ -364,7 +364,7 @@ CREATE POLICY "delete_own" ON public.comments FOR DELETE USING  (auth.uid() = us
 # Jekyll 로컬 서버
 bundle install
 bundle exec jekyll serve
-# → http://localhost:4000/finance/
+# → http://localhost:4000/
 
 # Python 스크립트 직접 실행
 pip install yfinance pandas requests
@@ -401,7 +401,7 @@ FRED_API_KEY=your_key python scripts/update_macro.py
 
 ## 🔗 관련 링크
 
-- 🌐 **라이브 사이트**: [jaegunjung.github.io/finance](https://jaegunjung.github.io/finance/)
+- 🌐 **라이브 사이트**: [jjanalysis.com](https://jjanalysis.com/)
 - 📦 **GitHub 레포**: [github.com/jaegunjung/finance](https://github.com/jaegunjung/finance)
 - 📊 **Alpha Vantage API 키 발급**: [alphavantage.co/support/#api-key](https://www.alphavantage.co/support/#api-key)
 - 📈 **FRED API 키 발급**: [fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html)

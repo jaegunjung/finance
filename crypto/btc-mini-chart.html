@@ -167,7 +167,7 @@
 
       // 1. Try daily CSV
       try {
-        const r = await fetch('/finance/crypto/data/btc_daily.csv');
+        const r = await fetch('/crypto/data/btc_daily.csv');
         if (r.ok) {
           const text = await r.text();
           const result = Papa.parse(text.trim(), { header: true, skipEmptyLines: true });

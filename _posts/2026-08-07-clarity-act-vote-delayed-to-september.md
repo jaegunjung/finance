@@ -23,7 +23,7 @@ excerpt_ko: "7월 26일 글부터 추적해온 데드라인이 이제 공식적�
 
 ## The Deadline We've Tracked for Two Weeks Just Passed
 
-[Our August 5 post](/finance/crypto/2026/08/05/clarity-act-white-house-silence-odds-crash/) closed with a specific test: watch whether the White House responds to the Tillis-Gallego ethics fix, and whether Thune actually schedules floor time before the August 10 recess. Neither happened. On August 7, Senate Majority Leader John Thune confirmed on the record — reported simultaneously by The Block, CoinDesk, AltcoinBuzz, ForkLog, and CoinGape — that there will be no floor vote before the Senate leaves for its August recess. The August 10 deadline this blog first flagged on July 26 is now officially blown, not just at risk.
+[Our August 5 post](/crypto/2026/08/05/clarity-act-white-house-silence-odds-crash/) closed with a specific test: watch whether the White House responds to the Tillis-Gallego ethics fix, and whether Thune actually schedules floor time before the August 10 recess. Neither happened. On August 7, Senate Majority Leader John Thune confirmed on the record — reported simultaneously by The Block, CoinDesk, AltcoinBuzz, ForkLog, and CoinGape — that there will be no floor vote before the Senate leaves for its August recess. The August 10 deadline this blog first flagged on July 26 is now officially blown, not just at risk.
 
 ## What Thune Actually Said
 
@@ -63,7 +63,7 @@ This is the third consecutive deadline this bill has missed since our coverage b
 
 ## 2주간 추적해온 데드라인이 방금 지나갔다
 
-[8월 5일 글](/finance/crypto/2026/08/05/clarity-act-white-house-silence-odds-crash/)은 구체적인 테스트로 마무리됐다: 백악관이 틸리스-갈레고 윤리 조항 대안에 답하는지, 그리고 튠 원내대표가 8월 10일 휴회 전에 실제로 본회의 일정을 잡는지 지켜보라는 것이었다. 둘 다 일어나지 않았다. 8월 7일, 존 튠 상원 원내대표는 — The Block, CoinDesk, AltcoinBuzz, ForkLog, CoinGape가 동시에 보도한 바에 따르면 — 상원이 8월 휴회에 들어가기 전 본회의 표결이 없을 것이라고 공식 확인했다. 이 블로그가 7월 26일 글에서 처음 짚었던 8월 10일 데드라인은 이제 '위태로운' 상태가 아니라 공식적으로 무산됐다.
+[8월 5일 글](/crypto/2026/08/05/clarity-act-white-house-silence-odds-crash/)은 구체적인 테스트로 마무리됐다: 백악관이 틸리스-갈레고 윤리 조항 대안에 답하는지, 그리고 튠 원내대표가 8월 10일 휴회 전에 실제로 본회의 일정을 잡는지 지켜보라는 것이었다. 둘 다 일어나지 않았다. 8월 7일, 존 튠 상원 원내대표는 — The Block, CoinDesk, AltcoinBuzz, ForkLog, CoinGape가 동시에 보도한 바에 따르면 — 상원이 8월 휴회에 들어가기 전 본회의 표결이 없을 것이라고 공식 확인했다. 이 블로그가 7월 26일 글에서 처음 짚었던 8월 10일 데드라인은 이제 '위태로운' 상태가 아니라 공식적으로 무산됐다.
 
 ## 튠이 실제로 한 말
 

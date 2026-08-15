@@ -23,7 +23,7 @@ excerpt_ko: "상원이 8월 휴회를 앞두고 Clarity Act 본회의 표결을 
 
 ## From "Rejected Compromise" to "Vote Shelved" in 24 Hours
 
-[Yesterday's post](/finance/crypto/2026/07/27/clarity-act-ethics-deal-rejected/) covered the White House's ethics compromise getting rejected by Senate Democrats within 48 hours, and flagged that this "meaningfully lowers the odds of a floor vote landing before the August 10 recess window." That was still framed as an open question. It no longer is. Late on July 27, CoinDesk reported the Senate is putting off the Clarity Act "for now as it focuses limited bandwidth elsewhere," and by the morning of July 28, Yahoo Finance's headline read flatly: "U.S. Senate Shelves Clarity Act Ahead Of Summer Break." Blockhead.co went further: "CLARITY Act Shelved Until September."
+[Yesterday's post](/crypto/2026/07/27/clarity-act-ethics-deal-rejected/) covered the White House's ethics compromise getting rejected by Senate Democrats within 48 hours, and flagged that this "meaningfully lowers the odds of a floor vote landing before the August 10 recess window." That was still framed as an open question. It no longer is. Late on July 27, CoinDesk reported the Senate is putting off the Clarity Act "for now as it focuses limited bandwidth elsewhere," and by the morning of July 28, Yahoo Finance's headline read flatly: "U.S. Senate Shelves Clarity Act Ahead Of Summer Break." Blockhead.co went further: "CLARITY Act Shelved Until September."
 
 This is a different kind of update than the last two posts in this thread. May's post set July 4 as the target; July 26's post reset that to August 10; July 27's post showed the specific ethics fix meant to bridge the gap failing on contact. Today's news is Senate leadership itself confirming there will be no pre-recess vote — not because a specific provision failed, but because leadership has decided not to spend floor time on it before senators leave Washington.
 
@@ -57,7 +57,7 @@ Nothing here changes the medium-term thesis running through this whole series: i
 
 ## "타협안 거부"에서 "표결 보류"까지, 24시간
 
-[어제 글](/finance/crypto/2026/07/27/clarity-act-ethics-deal-rejected/)에서는 백악관의 윤리 조항 타협안이 상원 민주당에 의해 48시간 만에 거부됐다는 소식과 함께, 이것이 "8월 10일 휴회 전 본회의 표결 가능성을 눈에 띄게 낮춘다"고 짚었다. 그때는 여전히 열린 질문이었다. 이제는 아니다. 7월 27일 늦은 시각, CoinDesk는 상원이 "다른 곳에 한정된 역량을 집중하느라" Clarity Act 표결을 당분간 보류한다고 보도했고, 7월 28일 아침 Yahoo Finance의 헤드라인은 단호했다: "미국 상원, 여름 휴회를 앞두고 Clarity Act를 선반 위에 올리다." Blockhead.co는 한발 더 나갔다: "CLARITY Act, 9월까지 보류."
+[어제 글](/crypto/2026/07/27/clarity-act-ethics-deal-rejected/)에서는 백악관의 윤리 조항 타협안이 상원 민주당에 의해 48시간 만에 거부됐다는 소식과 함께, 이것이 "8월 10일 휴회 전 본회의 표결 가능성을 눈에 띄게 낮춘다"고 짚었다. 그때는 여전히 열린 질문이었다. 이제는 아니다. 7월 27일 늦은 시각, CoinDesk는 상원이 "다른 곳에 한정된 역량을 집중하느라" Clarity Act 표결을 당분간 보류한다고 보도했고, 7월 28일 아침 Yahoo Finance의 헤드라인은 단호했다: "미국 상원, 여름 휴회를 앞두고 Clarity Act를 선반 위에 올리다." Blockhead.co는 한발 더 나갔다: "CLARITY Act, 9월까지 보류."
 
 이번 소식은 이 시리즈의 지난 두 글과는 성격이 다르다. 5월 글은 7월 4일을 목표로 제시했고, 7월 26일 글은 이를 8월 10일로 재설정했으며, 7월 27일 글은 그 간극을 메우려던 구체적인 윤리 조항 타협안이 실패하는 과정을 다뤘다. 오늘 소식은 상원 지도부 스스로가 휴회 전 표결이 없을 것이라고 확인한 것이다 — 특정 조항이 실패해서가 아니라, 의원들이 워싱턴을 떠나기 전에 본회의 시간을 여기에 쓰지 않기로 결정했기 때문이다.
 

@@ -15,7 +15,7 @@ excerpt_ko: "아마존은 2026년 capex 가이던스를 $220B로 상향하고 �
 
 ## The Open Question From Yesterday, Answered
 
-[Yesterday's post](/finance/sp500/2026/07/29/ai-capex-q2-earnings-market-punishes-raises/) tracked a clean split across three hyperscaler earnings: Alphabet and Meta both raised capex guidance and got punished (down 5-7% and ~7% respectively), while Microsoft held capex steady and rose. We closed with an explicit test for today: "if Amazon raises guidance and gets punished like Alphabet and Meta, that's a third data point confirming a real shift. If Amazon raises and the stock holds up, this week's pattern may be more about company-specific execution than a market-wide repricing."
+[Yesterday's post](/sp500/2026/07/29/ai-capex-q2-earnings-market-punishes-raises/) tracked a clean split across three hyperscaler earnings: Alphabet and Meta both raised capex guidance and got punished (down 5-7% and ~7% respectively), while Microsoft held capex steady and rose. We closed with an explicit test for today: "if Amazon raises guidance and gets punished like Alphabet and Meta, that's a third data point confirming a real shift. If Amazon raises and the stock holds up, this week's pattern may be more about company-specific execution than a market-wide repricing."
 
 Amazon reported after the close on July 30. It raised guidance. The stock did not get punished — shares jumped roughly 9-10% in after-hours trading (Barron's, TradingKey, Reuters). The clean pattern from 48 hours ago just broke.
 
@@ -58,7 +58,7 @@ Combined 2026 hyperscaler capex guidance keeps climbing past the $725B figure we
 
 ## 어제 남겨둔 질문에 대한 답
 
-[어제 글](/finance/sp500/2026/07/29/ai-capex-q2-earnings-market-punishes-raises/)에서는 세 하이퍼스케일러의 실적이 뚜렷하게 갈렸다고 정리했다. 알파벳과 메타는 둘 다 capex 가이던스를 상향했다가 응징당했고(각각 5~7%, 약 7% 하락), 마이크로소프트는 capex를 동결하고 주가가 올랐다. 그 글은 오늘을 위한 명확한 테스트로 마무리됐다: "아마존이 가이던스를 올리고도 알파벳·메타처럼 응징당한다면, 이는 실제 흐름 전환을 확인하는 세 번째 사례가 된다. 반대로 아마존이 올리고도 주가가 버틴다면, 이번 주 패턴은 시장 전체의 재평가라기보다 개별 기업의 실행 이슈에 가까울 수 있다."
+[어제 글](/sp500/2026/07/29/ai-capex-q2-earnings-market-punishes-raises/)에서는 세 하이퍼스케일러의 실적이 뚜렷하게 갈렸다고 정리했다. 알파벳과 메타는 둘 다 capex 가이던스를 상향했다가 응징당했고(각각 5~7%, 약 7% 하락), 마이크로소프트는 capex를 동결하고 주가가 올랐다. 그 글은 오늘을 위한 명확한 테스트로 마무리됐다: "아마존이 가이던스를 올리고도 알파벳·메타처럼 응징당한다면, 이는 실제 흐름 전환을 확인하는 세 번째 사례가 된다. 반대로 아마존이 올리고도 주가가 버틴다면, 이번 주 패턴은 시장 전체의 재평가라기보다 개별 기업의 실행 이슈에 가까울 수 있다."
 
 아마존은 7월 30일 장 마감 후 실적을 발표했다. 가이던스를 올렸다. 그런데 주가는 응징당하지 않았다 — 시간외 거래에서 약 9~10% 급등했다(Barron's, TradingKey, Reuters). 48시간 전까지 뚜렷했던 패턴이 여기서 깨졌다.
 

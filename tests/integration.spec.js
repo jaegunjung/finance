@@ -179,28 +179,28 @@ async function assertXMinAfterButton(page, buttonText, expectedYears, toleranceD
 // A. 페이지 전체 HTTP 200 / layout:none / 타이틀 검증
 // ═══════════════════════════════════════════════════════════════════════════
 const ALL_PAGES = [
-  "/finance/",
-  "/finance/crypto/",
-  "/finance/crypto/eth/",
-  "/finance/crypto/pepe/",
-  "/finance/stock/",
-  "/finance/stock/envx/",
-  "/finance/stock/aicapex-stocks/",
-  "/finance/stock/aicapex-etf/",
-  "/finance/stock/lly/",
-  "/finance/stock/nvda/",
-  "/finance/stock/aapl/",
-  "/finance/stock/tsla/",
-  "/finance/stock/meta/",
-  "/finance/stock/goog/",
-  "/finance/stock/amzn/",
-  "/finance/stock/dji/",
-  "/finance/stock/qqq/",
-  "/finance/stock/vfiax/",
-  "/finance/rates/",
-  "/finance/macro/",
-  "/finance/about/",
-  "/finance/blog/",
+  "/",
+  "/crypto/",
+  "/crypto/eth/",
+  "/crypto/pepe/",
+  "/stock/",
+  "/stock/envx/",
+  "/stock/aicapex-stocks/",
+  "/stock/aicapex-etf/",
+  "/stock/lly/",
+  "/stock/nvda/",
+  "/stock/aapl/",
+  "/stock/tsla/",
+  "/stock/meta/",
+  "/stock/goog/",
+  "/stock/amzn/",
+  "/stock/dji/",
+  "/stock/qqq/",
+  "/stock/vfiax/",
+  "/rates/",
+  "/macro/",
+  "/about/",
+  "/blog/",
 ];
 
 test.describe("A. 페이지 로드 & 404 검증 (layout:none 버그 포함)", () => {
@@ -238,7 +238,7 @@ test.describe("A. 페이지 로드 & 404 검증 (layout:none 버그 포함)", ()
 
   test("빌드된 HTML 파일에 layout:none 원문 없음 (정적 검사 보조)", async ({ page }) => {
     // Jekyll이 layout:none을 만나면 raw front matter가 그대로 출력되기도 함
-    const res = await page.goto(BASE_URL + "/finance/", { waitUntil: "domcontentloaded" });
+    const res = await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
     expect(res?.status()).toBe(200);
     const src = await page.content();
     expect(src).not.toContain("layout: none");
@@ -251,7 +251,7 @@ test.describe("A. 페이지 로드 & 404 검증 (layout:none 버그 포함)", ()
 // ═══════════════════════════════════════════════════════════════════════════
 test.describe("B-1. Bitcoin 페이지 — 시간 버튼 시작점", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/crypto/");
+    await gotoAndWaitChart(page, "/crypto/");
   });
 
   test("2Y 버튼 → 현재 - 2년 ±30일", async ({ page }) => {
@@ -277,7 +277,7 @@ test.describe("B-1. Bitcoin 페이지 — 시간 버튼 시작점", () => {
 
 test.describe("B-2. Ethereum 페이지 — 시간 버튼 시작점", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/crypto/eth/");
+    await gotoAndWaitChart(page, "/crypto/eth/");
   });
 
   test("2Y 버튼 → 현재 - 2년 ±30일", async ({ page }) => {
@@ -290,7 +290,7 @@ test.describe("B-2. Ethereum 페이지 — 시간 버튼 시작점", () => {
 
 test.describe("B-3. ENVX 페이지 — 시간 버튼 시작점", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/stock/envx/");
+    await gotoAndWaitChart(page, "/stock/envx/");
   });
 
   test("1Y 버튼 → 현재 - 1년 ±30일", async ({ page }) => {
@@ -306,7 +306,7 @@ test.describe("B-3. ENVX 페이지 — 시간 버튼 시작점", () => {
 
 test.describe("B-4. S&P 500 페이지 — 시간 버튼 시작점", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/stock/");
+    await gotoAndWaitChart(page, "/stock/");
   });
 
   test("5Y 버튼 → 현재 - 5년 ±30일", async ({ page }) => {
@@ -322,7 +322,7 @@ test.describe("B-4. S&P 500 페이지 — 시간 버튼 시작점", () => {
 
 test.describe("B-5. AI CapEx Stocks 페이지 — 시간 버튼 시작점", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/stock/aicapex-stocks/");
+    await gotoAndWaitChart(page, "/stock/aicapex-stocks/");
   });
 
   test("1Y 버튼 → 현재 - 1년 ±30일", async ({ page }) => {
@@ -342,7 +342,7 @@ test.describe("B-5. AI CapEx Stocks 페이지 — 시간 버튼 시작점", () =
 
 test.describe("B-6. Rates 페이지 — 시간 버튼 시작점", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/rates/");
+    await gotoAndWaitChart(page, "/rates/");
   });
 
   test("10Y 버튼 → 현재 - 10년 ±120일", async ({ page }) => {
@@ -365,7 +365,7 @@ test.describe("C. 차트 전역 상태 오염 검증 (ENVX → 타 페이지)", 
 
   test("C-1. ENVX 보조선 레이블이 AI CapEx Stocks 페이지에 없음", async ({ page }) => {
     // Step 1: ENVX 페이지 로드 → 레이블 수집
-    await gotoAndWaitChart(page, "/finance/stock/envx/");
+    await gotoAndWaitChart(page, "/stock/envx/");
     const envxLabels = await getChartDatasetLabels(page);
     console.log(`[ENVX] datasets(${envxLabels.length}): ${JSON.stringify(envxLabels)}`);
 
@@ -375,7 +375,7 @@ test.describe("C. 차트 전역 상태 오염 검증 (ENVX → 타 페이지)", 
     const envxSpecific = envxLabels.filter(l => l && !genericLabels.has(l));
 
     // Step 2: AI CapEx Stocks 이동
-    await gotoAndWaitChart(page, "/finance/stock/aicapex-stocks/");
+    await gotoAndWaitChart(page, "/stock/aicapex-stocks/");
     const aicapexLabels = await getChartDatasetLabels(page);
     console.log(`[AI CapEx] datasets(${aicapexLabels.length}): ${JSON.stringify(aicapexLabels)}`);
 
@@ -390,9 +390,9 @@ test.describe("C. 차트 전역 상태 오염 검증 (ENVX → 타 페이지)", 
   });
 
   test("C-2. ENVX → ETH 페이지: ENVX 레이블 잔존 없음", async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/stock/envx/");
+    await gotoAndWaitChart(page, "/stock/envx/");
 
-    await gotoAndWaitChart(page, "/finance/crypto/eth/");
+    await gotoAndWaitChart(page, "/crypto/eth/");
     const ethLabels = await getChartDatasetLabels(page);
     console.log(`[ETH] datasets: ${JSON.stringify(ethLabels)}`);
 
@@ -404,12 +404,12 @@ test.describe("C. 차트 전역 상태 오염 검증 (ENVX → 타 페이지)", 
 
   test("C-3. 여러 종목 순회 — 각 페이지 datasets 누적 없음", async ({ page }) => {
     const sequence = [
-      { path: "/finance/stock/envx/",           name: "ENVX",     maxDS: 10 },
-      { path: "/finance/stock/aicapex-stocks/",  name: "AICapEx",  maxDS: 20 },
-      { path: "/finance/crypto/",               name: "BTC",      maxDS: 15 },
-      { path: "/finance/crypto/eth/",           name: "ETH",      maxDS: 10 },
-      { path: "/finance/stock/",                name: "SP500",    maxDS: 15 },
-      { path: "/finance/rates/",                name: "Rates",    maxDS: 10 },
+      { path: "/stock/envx/",           name: "ENVX",     maxDS: 10 },
+      { path: "/stock/aicapex-stocks/",  name: "AICapEx",  maxDS: 20 },
+      { path: "/crypto/",               name: "BTC",      maxDS: 15 },
+      { path: "/crypto/eth/",           name: "ETH",      maxDS: 10 },
+      { path: "/stock/",                name: "SP500",    maxDS: 15 },
+      { path: "/rates/",                name: "Rates",    maxDS: 10 },
     ];
 
     for (const { path: urlPath, name, maxDS } of sequence) {
@@ -430,7 +430,7 @@ test.describe("C. 차트 전역 상태 오염 검증 (ENVX → 타 페이지)", 
   });
 
   test("C-4. 동일 페이지 버튼 전환 후 datasets 개수 유지", async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/crypto/");
+    await gotoAndWaitChart(page, "/crypto/");
 
     const btn2Y = page.locator('button:text("2Y")').first();
     await btn2Y.click();
@@ -466,7 +466,7 @@ test.describe("D. git log 빈도 기반 동적 검증", () => {
       console.log(`RSI 관련 커밋 ${rsiFixCount}개 — 집중 검증`);
     }
 
-    await gotoAndWaitChart(page, "/finance/crypto/");
+    await gotoAndWaitChart(page, "/crypto/");
     // RSI 값 표시 요소 존재 확인
     const rsiText = await page.locator("text=/RSI\\(14\\)/i").first().isVisible().catch(() => false);
     expect(
@@ -479,7 +479,7 @@ test.describe("D. git log 빈도 기반 동적 검증", () => {
     const maFixCount = commitFreq["ma"] ?? 0;
     console.log(`MA 관련 커밋: ${maFixCount}개`);
 
-    await gotoAndWaitChart(page, "/finance/stock/envx/");
+    await gotoAndWaitChart(page, "/stock/envx/");
     const initialCount = await getChartDatasetCount(page);
 
     // MA-20 버튼 토글
@@ -503,7 +503,7 @@ test.describe("D. git log 빈도 기반 동적 검증", () => {
     console.log(`CSV 관련 커밋: ${csvFixCount}개`);
 
     // networkidle + canvas 대기로 데이터 로드 후 확인 (downloadBtn은 데이터 로드 후 노출)
-    await gotoAndWaitChart(page, "/finance/stock/envx/");
+    await gotoAndWaitChart(page, "/stock/envx/");
     // 데이터 로드 완료를 위해 downloadBtn이 visible 상태가 될 때까지 대기
     await page.locator("#downloadBtn").waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
     const csvLink = page.locator("a:has-text('CSV'), button:has-text('CSV'), [data-action='csv']").first();
@@ -540,7 +540,7 @@ test.describe("D. git log 빈도 기반 동적 검증", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 test.describe("E. 홈페이지 연간 수익률 테이블", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(BASE_URL + "/finance/", {
+    await page.goto(BASE_URL + "/", {
       waitUntil: "networkidle",
       timeout: 30_000,
     });
@@ -588,7 +588,7 @@ test.describe("E. 홈페이지 연간 수익률 테이블", () => {
 test.describe("F. 데이터 로드 & 에러 상태 검증", () => {
 
   test("F-1. Bitcoin 페이지 — 'Loading' 텍스트가 사라지고 차트 표시", async ({ page }) => {
-    await page.goto(BASE_URL + "/finance/crypto/", { waitUntil: "networkidle" });
+    await page.goto(BASE_URL + "/crypto/", { waitUntil: "networkidle" });
 
     // 로딩 텍스트가 사라지거나 canvas가 보여야 함
     await page.waitForFunction(() => {
@@ -603,7 +603,7 @@ test.describe("F. 데이터 로드 & 에러 상태 검증", () => {
   });
 
   test("F-2. ENVX 페이지 — 'Loading' 텍스트가 사라지고 차트 표시", async ({ page }) => {
-    await page.goto(BASE_URL + "/finance/stock/envx/", { waitUntil: "networkidle" });
+    await page.goto(BASE_URL + "/stock/envx/", { waitUntil: "networkidle" });
     await page.waitForFunction(() => {
       return !document.body.innerText.includes("Loading data");
     }, { timeout: 15_000 }).catch(() => {});
@@ -612,7 +612,7 @@ test.describe("F. 데이터 로드 & 에러 상태 검증", () => {
   });
 
   test("F-3. Rates 페이지 — FRED 데이터 로드 성공 (canvas 표시)", async ({ page }) => {
-    await gotoAndWaitChart(page, "/finance/rates/");
+    await gotoAndWaitChart(page, "/rates/");
     const canvas = await page.locator("canvas").first().isVisible().catch(() => false);
     expect(canvas, "Rates 차트 canvas가 보이지 않습니다 — FRED API 로드 실패 가능성").toBe(true);
   });
@@ -626,7 +626,7 @@ test.describe("F. 데이터 로드 & 에러 상태 검증", () => {
       }
     });
 
-    await page.goto(BASE_URL + "/finance/crypto/", { waitUntil: "networkidle" });
+    await page.goto(BASE_URL + "/crypto/", { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
 
     if (errors.length > 0) {
@@ -643,7 +643,7 @@ test.describe("F. 데이터 로드 & 에러 상태 검증", () => {
   });
 
   test("F-5. AI CapEx Stocks 페이지 — MU/WDC/STX 심볼 텍스트 존재", async ({ page }) => {
-    await page.goto(BASE_URL + "/finance/stock/aicapex-stocks/", {
+    await page.goto(BASE_URL + "/stock/aicapex-stocks/", {
       waitUntil: "networkidle",
     });
     await page.waitForTimeout(2000);

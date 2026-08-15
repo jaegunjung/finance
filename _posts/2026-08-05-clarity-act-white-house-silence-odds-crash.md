@@ -23,7 +23,7 @@ excerpt_ko: "8월 1일 글에서 다뤘던 초당적 윤리 조항 대안은 이
 
 ## The Six Days of Silence That Broke the Momentum
 
-[Our August 1 post](/finance/crypto/2026/08/01/clarity-act-tillis-gallego-ethics-proposal/) covered Sens. Thom Tillis (R) and Ruben Gallego (D) sending a genuinely bipartisan ethics counterproposal to the White House on July 30 — the first text with an actual Democratic co-author since the prior White House-drafted fix was rejected. Trump was reportedly reviewing it over the August 1-2 weekend, with Polymarket odds already down to a then-record-low 25%.
+[Our August 1 post](/crypto/2026/08/01/clarity-act-tillis-gallego-ethics-proposal/) covered Sens. Thom Tillis (R) and Ruben Gallego (D) sending a genuinely bipartisan ethics counterproposal to the White House on July 30 — the first text with an actual Democratic co-author since the prior White House-drafted fix was rejected. Trump was reportedly reviewing it over the August 1-2 weekend, with Polymarket odds already down to a then-record-low 25%.
 
 That review has not produced a public answer. As of August 4-5, multiple outlets — The Crypto Times, Coinfomania (citing crypto journalist Eleanor Terrett), CoinGeek, and CryptoRank — are reporting that the White House still has not formally responded to the Tillis-Gallego language, nearly a week after it was sent. The silence has itself become the story: CoinGeek's framing, "White House silence on crypto ethics could doom CLARITY Act," captures where sentiment has moved since our last post treated the proposal as a live path forward.
 
@@ -63,7 +63,7 @@ The shape of this story has now inverted from where our August 1 post left it. T
 
 ## 모멘텀을 꺾은 엿새간의 침묵
 
-[8월 1일 글](/finance/crypto/2026/08/01/clarity-act-tillis-gallego-ethics-proposal/)에서는 톰 틸리스 상원의원(공화)과 루벤 갈레고 상원의원(민주)이 7월 30일 백악관에 진짜 초당적인 윤리 조항 대안을 보냈다고 전했다 — 이전 백악관 주도 안이 거부된 이후 처음 나온 실제 민주당 공동 저자가 있는 문안이었다. 트럼프는 8월 1~2일 주말 동안 이를 검토 중이었고, 폴리마켓 확률은 이미 당시 기준 사상 최저인 25%까지 떨어진 상태였다.
+[8월 1일 글](/crypto/2026/08/01/clarity-act-tillis-gallego-ethics-proposal/)에서는 톰 틸리스 상원의원(공화)과 루벤 갈레고 상원의원(민주)이 7월 30일 백악관에 진짜 초당적인 윤리 조항 대안을 보냈다고 전했다 — 이전 백악관 주도 안이 거부된 이후 처음 나온 실제 민주당 공동 저자가 있는 문안이었다. 트럼프는 8월 1~2일 주말 동안 이를 검토 중이었고, 폴리마켓 확률은 이미 당시 기준 사상 최저인 25%까지 떨어진 상태였다.
 
 그 검토는 아직 공개적인 답으로 이어지지 않았다. 8월 4~5일 기준, The Crypto Times, Coinfomania(크립토 저널리스트 엘리너 테렛 인용), CoinGeek, CryptoRank 등 여러 매체가 백악관이 틸리스-갈레고 문안 발송 이후 거의 일주일이 지나도록 공식 답변을 내놓지 않고 있다고 보도했다. 그 침묵 자체가 이제 뉴스가 됐다 — CoinGeek의 표현대로 "백악관의 크립토 윤리 조항 침묵이 CLARITY Act를 좌초시킬 수 있다"는 것이, 지난 글이 이 제안을 진행 중인 해법으로 다뤘던 것과는 달라진 분위기를 보여준다.
 

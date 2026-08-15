@@ -16,7 +16,7 @@ const fs = require("fs");
 const path = require("path");
 
 const RESULTS_DIR = path.join(__dirname, "..", "qa-results");
-const SITE_URL = "https://jaegunjung.github.io/finance/";
+const SITE_URL = "https://jjanalysis.com/";
 
 function loadResults() {
   if (!fs.existsSync(RESULTS_DIR)) return [];

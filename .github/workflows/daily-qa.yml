@@ -29,7 +29,7 @@ jobs:
       - name: Run freshness checks against production
         run: npx playwright test tests/freshness-check.spec.js
         env:
-          SITE_URL: "https://jaegunjung.github.io/finance"
+          SITE_URL: "https://jjanalysis.com"
 
       - name: Aggregate results, write summary, send alert if needed
         if: always()

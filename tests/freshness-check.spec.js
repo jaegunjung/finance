@@ -3,7 +3,7 @@
 // JJ Financial Analysis — 데일리 데이터 신선도(freshness) 점검
 //
 // integration.spec.js와 달리 이 테스트는 로컬 빌드/서버가 필요 없다 —
-// 실제 배포된 프로덕션 사이트(https://jaegunjung.github.io/finance/)의
+// 실제 배포된 프로덕션 사이트(https://jjanalysis.com/)의
 // 데이터 파일과 페이지를 직접 확인한다. .github/workflows/daily-qa.yml에서
 // 매일 실행되며, 결과는 qa-results/*.json에 개별 기록된 뒤
 // scripts/send-qa-alert.js가 모아서 이메일 알림 + Job Summary를 만든다.
@@ -22,7 +22,7 @@ const { test } = require("@playwright/test");
 const fs = require("fs");
 const path = require("path");
 
-const SITE_URL   = process.env.SITE_URL || "https://jaegunjung.github.io/finance";
+const SITE_URL   = process.env.SITE_URL || "https://jjanalysis.com";
 const RESULTS_DIR = path.join(__dirname, "..", "qa-results");
 fs.mkdirSync(RESULTS_DIR, { recursive: true });
 
@@ -146,6 +146,11 @@ test.describe("C. 거시지표 데이터 freshness", () => {
 test.describe("D. 포트폴리오 정합성 (보유현황 vs 분석코치)", () => {
   test("스킵 — 로그인 세션 없이는 확인 불가", async ({ page }) => {
     await page.goto(`${SITE_URL}/portfolio/`, { waitUntil: "domcontentloaded", timeout: 20_000 });
+    // #portNotLoggedIn / #portMain both start display:none and only one is revealed after
+    // assets/js/auth.js resolves the (async) Supabase session check — reading body text before
+    // that resolves would see neither, and wrongly report the page as "accessible without login".
+    // This CI run has no session, so #portNotLoggedIn is the one expected to appear.
+    await page.locator("#portNotLoggedIn").waitFor({ state: "visible", timeout: 15_000 }).catch(() => {});
     const bodyText = await page.locator("body").innerText().catch(() => "");
     const requiresLogin = /로그인|sign in/i.test(bodyText);
     writeResult("portfolio-consistency", {

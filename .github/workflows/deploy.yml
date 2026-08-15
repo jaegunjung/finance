@@ -3,6 +3,22 @@ name: Deploy Jekyll to GitHub Pages
 on:
   push:
     branches: ["main"]
+  # Bot commits (BTC/ETH/PEPE/macro/stocks/S&P500/news-watch/fetch-symbol) push using the
+  # default GITHUB_TOKEN, and GitHub does not let GITHUB_TOKEN-authored pushes trigger other
+  # push-based workflows — so without this, the site only redeploys after a human pushes from
+  # a local machine. Re-trigger deploy whenever any of those automated workflows finishes, so
+  # daily data/blog updates actually reach the live site.
+  workflow_run:
+    workflows:
+      - "Update BTC Daily Data"
+      - "Update ETH Daily Data"
+      - "Update PEPE Daily Data"
+      - "Update Macro Data (FRED)"
+      - "Update Stock Daily Data"
+      - "Update S&P 500 Data"
+      - "Daily News Watch (Clarity Act / AI CapEx)"
+      - "Fetch New Symbol Data"
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -16,6 +32,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,7 +52,13 @@ jobs:
         run: |
           echo "gdrive_api_key: ${GDRIVE_API_KEY}" > _config_secrets.yml
           echo "gdrive_client_id: ${GDRIVE_CLIENT_ID}" >> _config_secrets.yml
-          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}" --config _config.yml,_config_secrets.yml
+          # Not passing --baseurl here on purpose: steps.pages.outputs.base_path keeps resolving
+          # to "/finance" for this repo even with the jjanalysis.com custom domain configured in
+          # Pages settings, which silently overrode _config.yml's baseurl and broke every asset
+          # path (CSS/JS/images all 404'd on the live site). _config.yml's baseurl: "" is now the
+          # single source of truth — don't reintroduce a --baseurl flag here without re-verifying
+          # base_path actually resolves to "" for this domain.
+          bundle exec jekyll build --config _config.yml,_config_secrets.yml
         env:
           JEKYLL_ENV: production
           GDRIVE_API_KEY: ${{ secrets.GDRIVE_API_KEY }}

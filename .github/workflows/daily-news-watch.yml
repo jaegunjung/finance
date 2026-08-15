@@ -108,6 +108,21 @@ jobs:
             site's tone (data-driven, cites sources, includes an investment-implications angle and a
             disclaimer, same as existing posts).
 
+            The blog has been criticized as too text-heavy — every post so far has been prose-only.
+            Break that pattern:
+            - If the post includes any comparable/structured numbers (a timeline of dates and events,
+              before/after figures, a comparison across companies or bills, vote counts, dollar amounts
+              over time), render that as a markdown table (`| col | col |` with a `|---|---|` header
+              separator) instead of a bullet list. Most posts on this blog's topics naturally have this
+              kind of data — use a table in both the English and Korean sections whenever they do.
+            - If the post is about Bitcoin/crypto price action or the Clarity Act's market impact on
+              crypto, embed the site's existing live BTC chart directly below the intro paragraph (before
+              the first `##` heading), same as several recent posts already do:
+              `<iframe src="{{ '/crypto/btc-mini-chart.html' | relative_url }}" width="100%" height="280px" frameborder="0" style="border-radius:8px; margin-bottom:24px; border:1px solid #30363d; display:block;"></iframe>`
+            - Do not fabricate a chart or image for topics with no natural table/chart fit — a table
+              only helps when the underlying content is actually structured data, not prose forced into
+              cells.
+
             ## Step 5 — Commit and push
             Follow the git workflow rules in this repo's CLAUDE.md exactly:
             - git add the new post file only

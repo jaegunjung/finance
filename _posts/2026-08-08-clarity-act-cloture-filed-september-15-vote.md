@@ -23,7 +23,7 @@ excerpt_ko: "'복귀 후 가장 먼저'라는 모호한 약속을 다룬 글을 
 
 ## A Promise Becomes a Filing
 
-[Yesterday's post](/finance/crypto/2026/08/07/clarity-act-vote-delayed-to-september/) closed on Thune's verbal commitment that Clarity Act would be the "first thing when we come back" in September — a scheduling intention, not a vote count, as we put it at the time. That intention now has paperwork behind it. Per the Senate Press Gallery's official floor log, Thune filed cloture on the motion to proceed to H.R. 3633, the Digital Asset Market Clarity Act, at 4:52 AM ET on Saturday, August 8 — literally hours before the Senate adjourned for its August recess. Journalist Eleanor Terrett subsequently confirmed senators reached agreement setting the cloture vote for **2:15 PM ET on Tuesday, September 15**, the day after the chamber returns from its month-long break on September 14. This is reported consistently across The Block, Reuters, CoinDesk, CryptoSlate, CryptoPotato, TradingView, Yahoo Finance, Decrypt, and CoinGape.
+[Yesterday's post](/crypto/2026/08/07/clarity-act-vote-delayed-to-september/) closed on Thune's verbal commitment that Clarity Act would be the "first thing when we come back" in September — a scheduling intention, not a vote count, as we put it at the time. That intention now has paperwork behind it. Per the Senate Press Gallery's official floor log, Thune filed cloture on the motion to proceed to H.R. 3633, the Digital Asset Market Clarity Act, at 4:52 AM ET on Saturday, August 8 — literally hours before the Senate adjourned for its August recess. Journalist Eleanor Terrett subsequently confirmed senators reached agreement setting the cloture vote for **2:15 PM ET on Tuesday, September 15**, the day after the chamber returns from its month-long break on September 14. This is reported consistently across The Block, Reuters, CoinDesk, CryptoSlate, CryptoPotato, TradingView, Yahoo Finance, Decrypt, and CoinGape.
 
 ## What Cloture Actually Does — and Doesn't — Guarantee
 
@@ -57,7 +57,7 @@ This is the first time since May that this blog can point to an actual date and 
 
 ## 약속이 실제 제출로 바뀌다
 
-[어제 글](/finance/crypto/2026/08/07/clarity-act-vote-delayed-to-september/)은 튠 원내대표가 Clarity Act를 9월 "복귀 후 가장 먼저" 처리하겠다고 말한 구두 약속으로 마무리됐다 — 당시 우리는 이를 표 계산이 아니라 일정에 대한 의지 표명이라고 짚었다. 그 의지 표명이 이제 실제 서류로 뒷받침됐다. 상원 언론 갤러리(Senate Press Gallery)의 공식 본회의 기록에 따르면, 튠은 8월 8일 토요일 새벽 4시 52분(ET)에 디지털자산시장명확화법(H.R. 3633)의 심의 동의 안건에 대해 클로처(토론 종결)를 제출했다 — 상원이 8월 휴회에 들어가기 불과 몇 시간 전이었다. 기자 엘리너 테렛(Eleanor Terrett)은 이후 상원의원들이 **9월 15일 화요일 오후 2시 15분(ET)**으로 클로처 표결 일정에 합의했다고 확인했다 — 상원이 한 달간의 휴회에서 복귀하는 9월 14일 바로 다음 날이다. 이는 The Block, Reuters, CoinDesk, CryptoSlate, CryptoPotato, TradingView, Yahoo Finance, Decrypt, CoinGape에서 일관되게 보도됐다.
+[어제 글](/crypto/2026/08/07/clarity-act-vote-delayed-to-september/)은 튠 원내대표가 Clarity Act를 9월 "복귀 후 가장 먼저" 처리하겠다고 말한 구두 약속으로 마무리됐다 — 당시 우리는 이를 표 계산이 아니라 일정에 대한 의지 표명이라고 짚었다. 그 의지 표명이 이제 실제 서류로 뒷받침됐다. 상원 언론 갤러리(Senate Press Gallery)의 공식 본회의 기록에 따르면, 튠은 8월 8일 토요일 새벽 4시 52분(ET)에 디지털자산시장명확화법(H.R. 3633)의 심의 동의 안건에 대해 클로처(토론 종결)를 제출했다 — 상원이 8월 휴회에 들어가기 불과 몇 시간 전이었다. 기자 엘리너 테렛(Eleanor Terrett)은 이후 상원의원들이 **9월 15일 화요일 오후 2시 15분(ET)**으로 클로처 표결 일정에 합의했다고 확인했다 — 상원이 한 달간의 휴회에서 복귀하는 9월 14일 바로 다음 날이다. 이는 The Block, Reuters, CoinDesk, CryptoSlate, CryptoPotato, TradingView, Yahoo Finance, Decrypt, CoinGape에서 일관되게 보도됐다.
 
 ## 클로처가 실제로 보장하는 것과 보장하지 않는 것
 

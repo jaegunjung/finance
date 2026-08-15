@@ -1,6 +1,9 @@
 # Project Info
 - Local: D:\github\finance
-- Live site: https://jaegunjung.github.io/finance/
+- Live site: https://jjanalysis.com/ (custom domain; jaegunjung.github.io/finance/ 301-redirects here)
+- baseurl은 루트("")다. Jekyll의 `relative_url`/`absolute_url` 필터를 쓰지 않고 절대경로를
+  하드코딩할 때 `/finance/` 프리픽스를 붙이지 말 것 (2026-08 세션에서 baseurl이 "/finance"로
+  남아있어 커스텀 도메인의 CSS/JS/이미지가 전부 404 나던 사이트 전역 버그를 수정함).
 - GitHub Pages로 배포중
 - 주요 파일: index.html, nav.html, main.css
 

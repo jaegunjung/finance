@@ -15,7 +15,7 @@ excerpt_ko: "알파벳은 2026년 capex를 $205B로 상향하며 2004년 이후 
 
 ## Three Earnings Reports, One Diverging Story
 
-[Our July 26 post](/finance/sp500/2026/07/26/ai-capex-725-billion-2026/) put combined 2026 hyperscaler capex guidance at $725B and flagged one thing to watch: Meta's mid-year raise was the only one of the four framed as *cost-driven* rather than *demand-driven*, and we wrote that "if it broadens, [that] would be the more useful leading indicator than the headline dollar figure itself." Three days later, it broadened — and the market's reaction to it changed in a way that post didn't anticipate.
+[Our July 26 post](/sp500/2026/07/26/ai-capex-725-billion-2026/) put combined 2026 hyperscaler capex guidance at $725B and flagged one thing to watch: Meta's mid-year raise was the only one of the four framed as *cost-driven* rather than *demand-driven*, and we wrote that "if it broadens, [that] would be the more useful leading indicator than the headline dollar figure itself." Three days later, it broadened — and the market's reaction to it changed in a way that post didn't anticipate.
 
 This week is the actual Q2/fiscal-Q4 2026 earnings season for the same four hyperscalers. Alphabet reported July 22. Meta and Microsoft both reported today, July 29. Amazon reports tomorrow, July 30. The results split sharply down the middle.
 
@@ -59,7 +59,7 @@ This isn't a signal to exit AI infrastructure exposure — Google Cloud growing 
 
 ## 세 건의 실적 발표, 하나로 갈라진 이야기
 
-[7월 26일 글](/finance/sp500/2026/07/26/ai-capex-725-billion-2026.html)에서는 4대 하이퍼스케일러의 2026년 합산 capex 가이던스를 $725B로 정리하면서, 지켜볼 지점 하나를 짚었다 — 메타의 연중 상향만 유일하게 *수요 주도*가 아닌 *비용 주도*로 설명됐고, "이 흐름이 확산된다면 헤드라인 숫자 자체보다 더 유용한 선행 지표가 될 것"이라고 썼다. 그 글이 올라간 지 사흘 만에 실제로 확산됐다 — 다만 시장의 반응 방식은 그 글이 예상하지 못한 방향으로 바뀌었다.
+[7월 26일 글](/sp500/2026/07/26/ai-capex-725-billion-2026.html)에서는 4대 하이퍼스케일러의 2026년 합산 capex 가이던스를 $725B로 정리하면서, 지켜볼 지점 하나를 짚었다 — 메타의 연중 상향만 유일하게 *수요 주도*가 아닌 *비용 주도*로 설명됐고, "이 흐름이 확산된다면 헤드라인 숫자 자체보다 더 유용한 선행 지표가 될 것"이라고 썼다. 그 글이 올라간 지 사흘 만에 실제로 확산됐다 — 다만 시장의 반응 방식은 그 글이 예상하지 못한 방향으로 바뀌었다.
 
 이번 주는 같은 4개 하이퍼스케일러의 실제 2026년 2분기/회계 4분기 실적 발표 시즌이다. 알파벳은 7월 22일 발표했다. 메타와 마이크로소프트는 오늘(7월 29일) 발표했다. 아마존은 내일(7월 30일) 발표한다. 결과는 뚜렷하게 두 갈래로 나뉘었다.
 
