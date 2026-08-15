@@ -66,6 +66,7 @@
     "RSP",
     "SGOV",
     "SHLD",
+    "SKHY",
     "SMH",
     "SNPS",
     "SOXX",
@@ -89,5 +90,5 @@
     "XOM"
   ],
   "csv_output_dir": "assets/data/stocks",
-  "_stock_cursor": 39
+  "_stock_cursor": 70
 }
