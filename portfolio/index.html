@@ -299,6 +299,9 @@ title: 포트폴리오
             <span style="display:inline-block; width:20px; height:3px; background:#3fb950; border-radius:2px;"></span>내 포트폴리오
           </span>
           <span style="display:flex; align-items:center; gap:6px;">
+            <span style="display:inline-block; width:20px; height:0; border-top:2px dashed #3fb950;"></span>실현 손익
+          </span>
+          <span style="display:flex; align-items:center; gap:6px;">
             <span style="display:inline-block; width:20px; height:3px; background:#58a6ff; border-radius:2px;"></span>SPY (동일 투자)
           </span>
           <span style="display:flex; align-items:center; gap:6px;">
@@ -311,6 +314,8 @@ title: 포트폴리오
         <p style="color:var(--text-muted); font-size:0.73rem; margin-top:8px;">
           같은 날 같은 금액을 SPY / QQQ / SGOV(0~3개월 미국 단기국채 ETF, 현금성 자산)에 투자했다면의 가상 손익과 비교.
           SGOV는 가격 변동이 거의 없고 수익 대부분이 배당으로 나가는 상품이라, 실제 연도별 총수익률(배당 재투자 기준)을 매일 균등 복리로 환산한 가상 지수를 사용합니다.
+          점선(실현 손익)은 매도·배당으로 실제로 확정된 손익만 누적한 값으로, 남은 보유분의 평가액 등락과 무관합니다 —
+          고점 근처에서 매도해 이익을 실현한 뒤 남은 포지션의 평가액이 떨어지면 실선(내 포트폴리오)은 하락해도 점선은 그대로 유지됩니다.
         </p>
       </div>
 
@@ -2018,7 +2023,7 @@ async function portLoadAnalysis() {
       const sgovNow = (manualPrincipal != null && manualPrincipal > 0)
         ? (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null
         : sgovP ? sgovUnits * sgovP - sgovCost : null;
-      timeline.push({ date: ev.date, portGain: portGainAtDate, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
+      timeline.push({ date: ev.date, portGain: portGainAtDate, portRealizedGain, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
     }
 
     // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
@@ -2047,6 +2052,7 @@ async function portLoadAnalysis() {
     timeline.push({
       date: today,
       portGain: portGainToday,
+      portRealizedGain,
       spyGain:  spyGainToday,
       qqqGain:  qqqGainToday,
       sgovGain: sgovGainToday,
@@ -2197,6 +2203,11 @@ async function portLoadAnalysis() {
 
     const chartLabels  = tlSorted.map(p => p.date);
     const portData     = tlSorted.map(p => p.portGain != null ? +p.portGain.toFixed(2) : null);
+    // Realized-only gain (actual cash locked in via sells, DRIP/dividend
+    // income) — doesn't dip when held positions merely lose paper value,
+    // unlike 내 포트폴리오's mark-to-market line. Lets a profit taken near a
+    // high stay visible even after the (unrelated) remaining position drops.
+    const portRealizedData = tlSorted.map(p => p.portRealizedGain != null ? +p.portRealizedGain.toFixed(2) : null);
     const spyData      = tlSorted.map(p => p.spyGain  != null ? +p.spyGain.toFixed(2)  : null);
     const qqqData      = tlSorted.map(p => p.qqqGain  != null ? +p.qqqGain.toFixed(2)  : null);
     const sgovData     = tlSorted.map(p => p.sgovGain != null ? +p.sgovGain.toFixed(2) : null);
@@ -2208,6 +2219,7 @@ async function portLoadAnalysis() {
         labels: chartLabels,
         datasets: [
           { label: '내 포트폴리오', data: portData, borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          { label: '실현 손익',    data: portRealizedData, borderColor: '#3fb950', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'SPY',          data: spyData,  borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'QQQ',          data: qqqData,  borderColor: '#c792ea', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'SGOV',         data: sgovData, borderColor: '#e8c84a', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
