@@ -314,6 +314,7 @@
     let lots = []; // { shares, costPerShare } — insertion order = chronological (FIFO) order
     let realizedGain    = 0;
     let realizedGainYTD = 0;
+    let soldCostBasis   = 0; // cumulative cost basis of shares actually sold (each sale's own lot_method), for realized-% denominators
 
     // ── De-duplicate ─────────────────────────────────────────────────────
     // Re-importing the same CSV (or the "always re-attach split rows on
@@ -435,6 +436,7 @@
 
         const saleProfit = (amt - comm) - costOfSold; // commission reduces net sale proceeds
         realizedGain += saleProfit;
+        soldCostBasis += costOfSold;
         if (t.trade_date.startsWith(thisYear)) realizedGainYTD += saleProfit;
       }
     }
@@ -442,7 +444,7 @@
     const remainingShares = lots.reduce((s, l) => s + l.shares, 0);
     const totalCost = lots.reduce((s, l) => s + l.shares * l.costPerShare, 0);
     const avgCost = remainingShares > 0 ? totalCost / remainingShares : 0;
-    return { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD };
+    return { avgCost, remainingShares, totalCost, realizedGain, realizedGainYTD, soldCostBasis };
   }
 
   // ── MSP CSV Parser ────────────────────────────────────────────────────────

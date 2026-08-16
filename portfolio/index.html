@@ -1230,13 +1230,21 @@ function portRenderHoldings() {
   const totalTodayVal = allOpen.reduce((s,r) => s + (r.todayVal ?? 0), 0);
   const totalTodayPct = totalCostAll > 0 ? totalTodayVal / totalCostAll * 100 : 0;
   const grandTotal    = (totalUnrealGain ?? 0) + (totalRealGain ?? 0);
-  // % must be against all-time bought (open + closed positions), not just
-  // totalCostAll (cost basis of currently-held shares only) — otherwise
-  // realized gains from sold-out positions inflate the % far past what any
-  // individual row shows, since their cost basis has dropped out of the
-  // denominator while their gain is still in the numerator. Matches the
-  // per-row allTimePct methodology (allTimeGain / totalBought).
-  const grandPct      = totalBoughtAll > 0 ? grandTotal / totalBoughtAll * 100 : 0;
+  // Two valid but different denominators, shown side by side rather than
+  // picking one:
+  //   - `principal` (same same-day cash-pairing classification the 분석
+  //     코치 tab's benchmark simulation uses, _computeNetPrincipal) nets
+  //     out recycled capital — an RSU/stock-option account rotating one
+  //     stock's winnings through many tickers won't show an inflated %
+  //     just because the same dollars got counted every time they moved.
+  //     This is the PRIMARY figure.
+  //   - `totalBoughtAll` (gross lifetime buy $, no netting) is what MSP's
+  //     own "All-Time" % uses (confirmed against real account data) — kept
+  //     as a reference line since the user already relies on MSP's numbers
+  //     and wants to cross-check against them, even though it can look
+  //     inflated on a high-turnover account for the reason above.
+  const grandPct      = principal > 0 ? grandTotal / principal * 100 : 0;
+  const grandPctGross = totalBoughtAll > 0 ? grandTotal / totalBoughtAll * 100 : 0;
   // Only surface a 원금-basis figure when this portfolio actually has a 원금
   // override configured (zero-year / manual / per-transaction) — for a
   // plain portfolio this would just repeat the number already shown above.
@@ -1261,14 +1269,14 @@ function portRenderHoldings() {
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
         <td>${totalRealGain !== 0
-          ? `<div class="${cls(totalRealGain)}">${fS(totalRealGain)}</div>${totalBoughtAll > 0 ? `<div class="${cls(totalRealGain)} h-sub">${fP(totalRealGain / totalBoughtAll * 100)}</div>` : ''}`
+          ? `<div class="${cls(totalRealGain)}">${fS(totalRealGain)}</div>${principal > 0 ? `<div class="${cls(totalRealGain)} h-sub">${fP(totalRealGain / principal * 100)}</div>` : ''}${totalBoughtAll > 0 ? `<div class="h-sub" style="opacity:0.65;" title="총매수 대비 (MSP 방식 참고용)">${fP(totalRealGain / totalBoughtAll * 100)} <span style="font-size:0.85em;">(총매수 대비)</span></div>` : ''}`
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
         <td>${totalUnrealGain !== 0
           ? `<div class="${cls(totalUnrealGain)}">${fS(totalUnrealGain)}</div><div class="${cls(totalUnrealGain)} h-sub">${fP(totalCostAll > 0 ? totalUnrealGain / totalCostAll * 100 : 0)}</div>`
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
-        <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>${principalLine}</td>
+        <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>${totalBoughtAll > 0 ? `<div class="h-sub" style="opacity:0.65;" title="총매수 대비 (MSP 방식 참고용)">${fP(grandPctGross)} <span style="font-size:0.85em;">(총매수 대비)</span></div>` : ''}${principalLine}</td>
       </tr>
     </tfoot>
     </table></div></div>`;
