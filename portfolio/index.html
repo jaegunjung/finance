@@ -328,7 +328,6 @@ title: 포트폴리오
         <div style="position:relative; width:100%; max-width:420px; height:340px; margin:0 auto;">
           <canvas id="anlHoldingsPie"></canvas>
         </div>
-        <div id="anlPieLegend" style="display:flex; flex-wrap:wrap; gap:10px 16px; justify-content:center; margin-top:14px; font-size:0.78rem;"></div>
       </div>
 
       <!-- Coaching section -->
@@ -343,6 +342,7 @@ title: 포트폴리오
 </div><!-- /portMain -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 
 <!-- Edit Modal (Item 2) -->
 <div id="editModal" onclick="editModalBgClick(event)">
@@ -415,6 +415,23 @@ title: 포트폴리오
       <button onclick="editSave()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;" id="editSaveBtn">Save</button>
     </div>
     <div id="editStatus" style="display:none; margin-top:10px; padding:7px 12px; border-radius:6px; font-size:0.82rem;"></div>
+  </div>
+</div>
+
+<!-- Group Modal: pick which groups a portfolio belongs to (multi-select) -->
+<div id="groupModal" onclick="groupModalBgClick(event)" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px 26px; min-width:300px; max-width:420px; width:90vw;">
+    <div style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:4px;">그룹 설정</div>
+    <div id="groupModalPortName" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px;"></div>
+    <div id="groupModalList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px; max-height:240px; overflow-y:auto;"></div>
+    <div style="display:flex; gap:6px; margin-bottom:16px;">
+      <input id="groupModalNewInput" type="text" placeholder="새 그룹 이름" style="flex:1; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem;">
+      <button onclick="groupModalAddNew()" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;">추가</button>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button onclick="groupModalClose()" style="padding:7px 18px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
+      <button id="groupModalSaveBtn" onclick="groupModalSave()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;">저장</button>
+    </div>
   </div>
 </div>
 
@@ -514,7 +531,7 @@ let portActiveView = 'holdings'; // 'holdings' | 'transactions' | 'analysis'
 // (group), or null (All). Single source of truth so every tab's data
 // fetch agrees on which portfolios are "selected".
 function portQuerySelector() {
-  if (portActiveGroupName) return portPortfolios.filter(p => p.group_name === portActiveGroupName).map(p => p.id);
+  if (portActiveGroupName) return portPortfolios.filter(p => (p.group_names || []).includes(portActiveGroupName)).map(p => p.id);
   return portActivePortfolioId;
 }
 
@@ -579,7 +596,7 @@ function portRenderTabs() {
   // Groups (e.g. "401k") combine every portfolio tagged with that group —
   // unlike "All", only the ones you've tagged. Shown above individual
   // portfolios so they're easy to spot in a long list.
-  const groupNames = [...new Set(portPortfolios.map(p => p.group_name).filter(Boolean))].sort();
+  const groupNames = [...new Set(portPortfolios.flatMap(p => p.group_names || []))].sort();
   for (const g of groupNames) {
     const opt = document.createElement('option');
     opt.value = 'group:' + g;
@@ -590,7 +607,8 @@ function portRenderTabs() {
   for (const p of portPortfolios) {
     const opt = document.createElement('option');
     opt.value = p.id;
-    opt.textContent = p.group_name ? `${p.name} [${p.group_name}]` : p.name;
+    const tags = (p.group_names || []).join(', ');
+    opt.textContent = tags ? `${p.name} [${tags}]` : p.name;
     sel.appendChild(opt);
   }
 
@@ -679,21 +697,80 @@ async function portDeletePortfolio() {
   }
 }
 
-async function portSetGroup() {
+// ── Group modal: pick which existing groups this portfolio belongs to, or
+// add a new one. A portfolio can belong to several groups at once (e.g. a
+// broad "전체" group and a narrower "401k" group), which lets you build
+// overlapping views like "everything except ENVX" just by leaving that one
+// portfolio out of the "전체" tag.
+let _groupModalSelected = new Set();
+
+function _allKnownGroups() {
+  const set = new Set();
+  for (const p of portPortfolios) for (const g of (p.group_names || [])) set.add(g);
+  return [...set].sort();
+}
+
+function portSetGroup() {
   if (!portActivePortfolioId) return;
   const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
   if (!pf) return;
-  const input = prompt(
-    '이 포트폴리오를 어느 그룹에 포함할까요?\n(같은 그룹명을 여러 포트폴리오에 지정하면, Portfolio 드롭다운에서 그 그룹을 선택해 합쳐서 볼 수 있습니다.)\n\n비워두면 그룹에서 제외됩니다.',
-    pf.group_name || ''
-  );
-  if (input === null) return; // cancelled
+  _groupModalSelected = new Set(pf.group_names || []);
+  document.getElementById('groupModalPortName').textContent = pf.name;
+  document.getElementById('groupModalNewInput').value = '';
+  _renderGroupModalList();
+  document.getElementById('groupModal').style.display = 'flex';
+}
+
+function _renderGroupModalList() {
+  const list = document.getElementById('groupModalList');
+  const groups = _allKnownGroups();
+  if (!groups.length) {
+    list.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem;">아직 만들어진 그룹이 없습니다. 아래에서 새로 만들어보세요.</div>`;
+    return;
+  }
+  list.innerHTML = groups.map(g => `
+    <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--text-primary); cursor:pointer;">
+      <input type="checkbox" ${_groupModalSelected.has(g) ? 'checked' : ''} onchange="_groupModalToggle(${JSON.stringify(g)}, this.checked)">
+      ${g}
+    </label>
+  `).join('');
+}
+
+function _groupModalToggle(g, checked) {
+  if (checked) _groupModalSelected.add(g); else _groupModalSelected.delete(g);
+}
+
+function groupModalAddNew() {
+  const input = document.getElementById('groupModalNewInput');
+  const name = input.value.trim();
+  if (!name) return;
+  _groupModalSelected.add(name);
+  input.value = '';
+  _renderGroupModalList();
+}
+
+function groupModalClose() {
+  document.getElementById('groupModal').style.display = 'none';
+}
+
+function groupModalBgClick(e) {
+  if (e.target === document.getElementById('groupModal')) groupModalClose();
+}
+
+async function groupModalSave() {
+  if (!portActivePortfolioId) return;
+  const btn = document.getElementById('groupModalSaveBtn');
+  btn.disabled = true;
   try {
-    const updated = await window.txns.updatePortfolioSettings(portActivePortfolioId, { group_name: input });
-    pf.group_name = updated.group_name;
+    const updated = await window.txns.updatePortfolioSettings(portActivePortfolioId, { group_names: [..._groupModalSelected] });
+    const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
+    if (pf) pf.group_names = updated.group_names;
+    groupModalClose();
     portRenderTabs();
   } catch(e) {
     alert('그룹 설정 실패: ' + e.message);
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -2534,6 +2611,7 @@ async function portLoadAnalysis() {
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
+          datalabels: { display: false }, // chartjs-plugin-datalabels auto-enables on every chart; this one only wants the pie labels
           tooltip: {
             backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
             titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8,
@@ -2667,13 +2745,13 @@ function _sellFromLots(lots, sellShares, lotMethod) {
   return costOfSold;
 }
 
-// Renders the current-holdings pie chart. Positions under 1% of total
-// value are grouped into "Others" so a long tail of small positions
-// doesn't turn the chart into unreadable slivers.
+// Renders the current-holdings pie chart, with ticker + % labeled directly
+// on each slice (chartjs-plugin-datalabels) instead of a separate legend.
+// Positions under 1% of total value are grouped into "Others" so a long
+// tail of small positions doesn't turn the chart into unreadable slivers.
 const _PIE_COLORS = ['#3fb950', '#58a6ff', '#c792ea', '#e8c84a', '#f78166', '#39c5cf', '#d29922', '#7ee787', '#ff9bce', '#a5d6ff', '#ffa657', '#79c0ff'];
 function _renderHoldingsPie(holdings) {
   const card = document.getElementById('anlPieCard');
-  const legendEl = document.getElementById('anlPieLegend');
   const total = holdings.reduce((s, h) => s + h.value, 0);
   if (!card || total <= 0) {
     if (card) card.style.display = 'none';
@@ -2687,15 +2765,19 @@ function _renderHoldingsPie(holdings) {
   const slices = [...main];
   if (otherTotal > 0) slices.push({ sym: 'Others', value: otherTotal });
 
+  // Canvas colors need an actual value, not a CSS custom-property string —
+  // resolve the theme's card background for the slice border at draw time.
+  const cardBg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#161b22';
+
   const ctx = document.getElementById('anlHoldingsPie').getContext('2d');
   _anlPieChart = new Chart(ctx, {
-    type: 'doughnut',
+    type: 'pie',
     data: {
       labels: slices.map(s => s.sym),
       datasets: [{
         data: slices.map(s => s.value),
         backgroundColor: slices.map((s, i) => s.sym === 'Others' ? '#8b949e' : _PIE_COLORS[i % _PIE_COLORS.length]),
-        borderColor: 'var(--bg-card)',
+        borderColor: cardBg,
         borderWidth: 2,
       }],
     },
@@ -2710,17 +2792,18 @@ function _renderHoldingsPie(holdings) {
             label: item => `${item.label}: $${item.parsed.toLocaleString(undefined, {maximumFractionDigits:0})} (${(item.parsed/total*100).toFixed(1)}%)`,
           },
         },
+        datalabels: {
+          color: '#0d1117',
+          font: { size: 11, weight: '600' },
+          formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${(value/total*100).toFixed(1)}%`,
+          textAlign: 'center',
+          // Slices too thin for a legible label (roughly <3.5% here) just
+          // show nothing rather than overflowing into neighboring slices.
+          display: ctx => ctx.dataset.data[ctx.dataIndex] / total >= 0.035,
+        },
       },
     },
   });
-
-  legendEl.innerHTML = slices.map((s, i) => {
-    const color = s.sym === 'Others' ? '#8b949e' : _PIE_COLORS[i % _PIE_COLORS.length];
-    const pct = (s.value / total * 100).toFixed(1);
-    return `<span style="display:flex; align-items:center; gap:5px; color:var(--text-secondary);">
-      <span style="display:inline-block; width:9px; height:9px; border-radius:2px; background:${color};"></span>${s.sym} ${pct}%
-    </span>`;
-  }).join('');
 }
 
 // ── Parse stock CSV → { 'YYYY-MM-DD': adj_close } ──────────────────

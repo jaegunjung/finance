@@ -64,10 +64,14 @@
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal NUMERIC;
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal_as_of DATE;
  *
- * -- Free-text group tag (e.g. "401k") so the Portfolio dropdown can offer a
- * -- combined "401k (그룹)" view alongside individual portfolios and "All" —
- * -- unlike "All", a group only combines the portfolios you've tagged into it.
- * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS group_name TEXT;
+ * -- Free-text group tags (e.g. "401k") so the Portfolio dropdown can offer
+ * -- combined "401k (그룹)" views alongside individual portfolios and "All" —
+ * -- unlike "All", a group only combines the portfolios tagged into it. A
+ * -- portfolio can carry multiple tags at once (e.g. "전체" and "401k" both),
+ * -- so this is an array, not a single value — lets you build overlapping
+ * -- groupings like "everything except ENVX" by simply not tagging that one
+ * -- portfolio into the "전체" group.
+ * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS group_names TEXT[] DEFAULT '{}';
  *
  * -- Per-transaction principal override (거래내역 tab — mark a specific BUY as
  * -- counting, or not counting, toward invested principal). NULL means "no
@@ -120,11 +124,12 @@
     return data || [];
   }
 
-  async function createPortfolio(name, groupName) {
+  async function createPortfolio(name, groupNames) {
     const { sb, user } = requireAuth();
+    const groups = Array.isArray(groupNames) ? groupNames.filter(Boolean) : (groupNames ? [groupNames].filter(Boolean) : []);
     const { data, error } = await sb
       .from('portfolios')
-      .insert({ user_id: user.id, name: name.trim() || 'Default', group_name: (groupName || '').trim() || null })
+      .insert({ user_id: user.id, name: name.trim() || 'Default', group_names: groups })
       .select()
       .single();
     if (error) throw error;
@@ -140,7 +145,7 @@
   //   zero_principal_from_year?: number | null,
   //   manual_principal?: number | null,
   //   manual_principal_as_of?: string | null,  // 'YYYY-MM-DD'
-  //   group_name?: string | null,  // free-text group tag (e.g. "401k") for the Portfolio dropdown's group filter
+  //   group_names?: string[],  // free-text group tags (e.g. ["401k"]) for the Portfolio dropdown's group filter — a portfolio can carry more than one
   // }
   // Pass null for a field to clear that override.
   async function updatePortfolioSettings(portfolioId, settings) {
@@ -149,7 +154,7 @@
     if ('zero_principal_from_year' in settings) fields.zero_principal_from_year = settings.zero_principal_from_year || null;
     if ('manual_principal' in settings) fields.manual_principal = settings.manual_principal != null ? Number(settings.manual_principal) : null;
     if ('manual_principal_as_of' in settings) fields.manual_principal_as_of = settings.manual_principal_as_of || null;
-    if ('group_name' in settings) fields.group_name = (settings.group_name || '').trim() || null;
+    if ('group_names' in settings) fields.group_names = Array.isArray(settings.group_names) ? settings.group_names.filter(Boolean) : [];
     const { data, error } = await sb
       .from('portfolios')
       .update(fields)
