@@ -116,6 +116,7 @@ title: 포트폴리오
       color:var(--text-primary); padding:6px 12px; font-size:0.85rem; cursor:pointer; min-width:160px;
     "></select>
     <button id="portDeletePortfolioBtn" onclick="portDeletePortfolio()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(248,81,73,0.35); background:none; color:rgba(248,81,73,0.7); cursor:pointer; font-size:0.8rem;" title="이 포트폴리오 삭제">🗑 삭제</button>
+    <button id="portSetGroupBtn" onclick="portSetGroup()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="이 포트폴리오를 그룹에 포함 (예: 401k 계좌 여러 개를 하나로 묶어보기)">🏷 그룹</button>
     <button id="portDedupeBtn" onclick="portDeduplicateTxns()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(255,165,0,0.4); background:none; color:rgba(255,165,0,0.85); cursor:pointer; font-size:0.8rem;" title="중복 거래 삭제">⚡ 중복 제거</button>
     <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
   </div>
@@ -123,6 +124,7 @@ title: 포트폴리오
   <!-- Add portfolio inline form -->
   <div id="portAddPortfolioForm" style="display:none; margin-bottom:16px; gap:8px; align-items:center; flex-wrap:wrap;">
     <input id="portNewPortName" type="text" placeholder="Portfolio name" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:220px;">
+    <input id="portNewPortGroup" type="text" placeholder="그룹 (선택, 예: 401k)" title="같은 그룹명을 여러 포트폴리오에 지정하면 나중에 합쳐서 볼 수 있습니다" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:160px;">
     <button onclick="portCreatePortfolio()" style="padding:6px 16px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem;">Create</button>
     <button onclick="document.getElementById('portAddPortfolioForm').style.display='none';" style="padding:6px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
   </div>
@@ -503,8 +505,18 @@ fetch('{{ "/config/symbols.json" | relative_url }}').then(r => r.json()).then(d 
 
 let portPortfolios = [];
 let portActivePortfolioId = null;
+let portActiveGroupName = null; // group_name string when a 그룹 is selected (mutually exclusive with portActivePortfolioId)
 let portAllTxns = [];
 let portActiveView = 'holdings'; // 'holdings' | 'transactions' | 'analysis'
+
+// Resolves the current Portfolio dropdown selection into what
+// window.txns.getTransactions expects: a single id, an array of ids
+// (group), or null (All). Single source of truth so every tab's data
+// fetch agrees on which portfolios are "selected".
+function portQuerySelector() {
+  if (portActiveGroupName) return portPortfolios.filter(p => p.group_name === portActiveGroupName).map(p => p.id);
+  return portActivePortfolioId;
+}
 
 // ── View tab switch ──
 function portSwitchView(view) {
@@ -564,21 +576,45 @@ function portRenderTabs() {
   allOpt.value = ''; allOpt.textContent = 'All';
   sel.appendChild(allOpt);
 
-  for (const p of portPortfolios) {
+  // Groups (e.g. "401k") combine every portfolio tagged with that group —
+  // unlike "All", only the ones you've tagged. Shown above individual
+  // portfolios so they're easy to spot in a long list.
+  const groupNames = [...new Set(portPortfolios.map(p => p.group_name).filter(Boolean))].sort();
+  for (const g of groupNames) {
     const opt = document.createElement('option');
-    opt.value = p.id; opt.textContent = p.name;
+    opt.value = 'group:' + g;
+    opt.textContent = `📁 ${g} (그룹)`;
     sel.appendChild(opt);
   }
 
-  sel.value = portActivePortfolioId || '';
+  for (const p of portPortfolios) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.group_name ? `${p.name} [${p.group_name}]` : p.name;
+    sel.appendChild(opt);
+  }
+
+  sel.value = portActiveGroupName ? ('group:' + portActiveGroupName) : (portActivePortfolioId || '');
 }
 
 function portDropdownChange() {
   const sel = document.getElementById('portDropdown');
-  portActivePortfolioId = sel.value || null;
+  const val = sel.value || '';
+  if (val.startsWith('group:')) {
+    portActiveGroupName = val.slice(6);
+    portActivePortfolioId = null;
+  } else {
+    portActiveGroupName = null;
+    portActivePortfolioId = val || null;
+  }
+  // Group mode behaves like "All" for single-portfolio-only actions
+  // (delete this portfolio, dedupe this portfolio's own trades, 원금
+  // 설정 for one account) — those stay hidden/disabled in group mode.
   const hasPort = !!portActivePortfolioId;
   document.getElementById('portDeletePortfolioBtn').style.display = hasPort ? '' : 'none';
   document.getElementById('portDedupeBtn').style.display = hasPort ? '' : 'none';
+  const groupBtn = document.getElementById('portSetGroupBtn');
+  if (groupBtn) groupBtn.style.display = hasPort ? '' : 'none';
   portSwitchView(portActiveView);
 }
 
@@ -590,7 +626,7 @@ async function portDeduplicateTxns() {
   btn.disabled = true; btn.textContent = '⏳ 처리 중…';
 
   try {
-    const all = await window.txns.getTransactions(null, portActivePortfolioId);
+    const all = await window.txns.getTransactions(null, portQuerySelector());
     const seen = new Map(); // key → first-seen id
     const toDelete = [];
     for (const t of all) {
@@ -640,6 +676,24 @@ async function portDeletePortfolio() {
   } catch(e) {
     alert('삭제 실패: ' + e.message);
     btn.textContent = '🗑 삭제'; btn.disabled = false;
+  }
+}
+
+async function portSetGroup() {
+  if (!portActivePortfolioId) return;
+  const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
+  if (!pf) return;
+  const input = prompt(
+    '이 포트폴리오를 어느 그룹에 포함할까요?\n(같은 그룹명을 여러 포트폴리오에 지정하면, Portfolio 드롭다운에서 그 그룹을 선택해 합쳐서 볼 수 있습니다.)\n\n비워두면 그룹에서 제외됩니다.',
+    pf.group_name || ''
+  );
+  if (input === null) return; // cancelled
+  try {
+    const updated = await window.txns.updatePortfolioSettings(portActivePortfolioId, { group_name: input });
+    pf.group_name = updated.group_name;
+    portRenderTabs();
+  } catch(e) {
+    alert('그룹 설정 실패: ' + e.message);
   }
 }
 
@@ -857,7 +911,7 @@ async function portLoadHoldings() {
 
   let allTxns = [];
   try {
-    allTxns = await window.txns.getTransactions(null, portActivePortfolioId);
+    allTxns = await window.txns.getTransactions(null, portQuerySelector());
   } catch(e) {
     loadEl.textContent = 'Error loading transactions.';
     return;
@@ -1327,7 +1381,7 @@ async function portLoadTxns() {
 
   let txns = [];
   try {
-    txns = await window.txns.getTransactions(symbolFilter || null, portActivePortfolioId);
+    txns = await window.txns.getTransactions(symbolFilter || null, portQuerySelector());
   } catch(e) {
     loading.style.display = 'none';
     empty.style.display = '';
@@ -1748,13 +1802,15 @@ function portShowAddPortfolio() {
 async function portCreatePortfolio() {
   const name = document.getElementById('portNewPortName').value.trim();
   if (!name) return;
+  const groupName = document.getElementById('portNewPortGroup').value.trim();
   try {
-    const p = await window.txns.createPortfolio(name);
+    const p = await window.txns.createPortfolio(name, groupName);
     portPortfolios.push(p);
     portActivePortfolioId = p.id;
     portRenderTabs();
     portLoadTxns();
     document.getElementById('portNewPortName').value = '';
+    document.getElementById('portNewPortGroup').value = '';
     document.getElementById('portAddPortfolioForm').style.display = 'none';
   } catch(e) {
     alert('Failed to create portfolio: ' + e.message);
@@ -1904,7 +1960,7 @@ async function portLoadAnalysis() {
     _anlActivePrincipalOverride = _principalOverride; // stash for the settings modal
 
     // ── 1. Fetch transactions ───────────────────────────────────────
-    const allTxns = await window.txns.getTransactions(null, portActivePortfolioId);
+    const allTxns = await window.txns.getTransactions(null, portQuerySelector());
     // 'split' must be included here — computePnL (used by 보유현황, via
     // transactions.js) applies stock splits to remaining share counts, but
     // this tab's own event replay didn't, so any split-adjusted symbol

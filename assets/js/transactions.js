@@ -64,6 +64,11 @@
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal NUMERIC;
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal_as_of DATE;
  *
+ * -- Free-text group tag (e.g. "401k") so the Portfolio dropdown can offer a
+ * -- combined "401k (그룹)" view alongside individual portfolios and "All" —
+ * -- unlike "All", a group only combines the portfolios you've tagged into it.
+ * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS group_name TEXT;
+ *
  * -- Per-transaction principal override (거래내역 tab — mark a specific BUY as
  * -- counting, or not counting, toward invested principal). NULL means "no
  * -- override, fall back to the portfolio's zero_principal_from_year rule";
@@ -115,11 +120,11 @@
     return data || [];
   }
 
-  async function createPortfolio(name) {
+  async function createPortfolio(name, groupName) {
     const { sb, user } = requireAuth();
     const { data, error } = await sb
       .from('portfolios')
-      .insert({ user_id: user.id, name: name.trim() || 'Default' })
+      .insert({ user_id: user.id, name: name.trim() || 'Default', group_name: (groupName || '').trim() || null })
       .select()
       .single();
     if (error) throw error;
@@ -135,6 +140,7 @@
   //   zero_principal_from_year?: number | null,
   //   manual_principal?: number | null,
   //   manual_principal_as_of?: string | null,  // 'YYYY-MM-DD'
+  //   group_name?: string | null,  // free-text group tag (e.g. "401k") for the Portfolio dropdown's group filter
   // }
   // Pass null for a field to clear that override.
   async function updatePortfolioSettings(portfolioId, settings) {
@@ -143,6 +149,7 @@
     if ('zero_principal_from_year' in settings) fields.zero_principal_from_year = settings.zero_principal_from_year || null;
     if ('manual_principal' in settings) fields.manual_principal = settings.manual_principal != null ? Number(settings.manual_principal) : null;
     if ('manual_principal_as_of' in settings) fields.manual_principal_as_of = settings.manual_principal_as_of || null;
+    if ('group_name' in settings) fields.group_name = (settings.group_name || '').trim() || null;
     const { data, error } = await sb
       .from('portfolios')
       .update(fields)
@@ -155,6 +162,8 @@
   }
 
   // ── Transaction CRUD ──────────────────────────────────────────────────────
+  // portfolioId: single UUID string, an array of UUIDs (portfolio group —
+  // see 원금 tab's group filter), or null/undefined (all portfolios).
   async function getTransactions(symbol, portfolioId) {
     const { sb, user } = requireAuth();
     let query = sb
@@ -164,7 +173,8 @@
       .order('trade_date', { ascending: true })
       .limit(50000);
     if (symbol) query = query.eq('symbol', symbol.toUpperCase());
-    if (portfolioId) query = query.eq('portfolio_id', portfolioId);
+    if (Array.isArray(portfolioId)) { if (portfolioId.length) query = query.in('portfolio_id', portfolioId); }
+    else if (portfolioId) query = query.eq('portfolio_id', portfolioId);
     const { data, error } = await query;
     if (error) throw error;
     // Flatten portfolio name for convenience
