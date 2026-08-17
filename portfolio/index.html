@@ -2244,6 +2244,11 @@ async function portLoadAnalysis() {
       });
 
     const today = new Date().toISOString().slice(0, 10);
+    // Needed early (before the cash-pool simulation below) to checkpoint
+    // SPY/QQQ/SGOV mark-to-market gain at each year's actual cutoff — see
+    // the design comment above _yearCutoffs / _checkpointYearsUpTo.
+    const curYear = today.slice(0, 4);
+    const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
 
     const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
     // If ANY buy in this portfolio has an explicit 원금 override (set via the
@@ -2351,8 +2356,40 @@ async function portLoadAnalysis() {
     const perEvent = principalCalc.perEvent;
     let spyCashPool = 0, qqqCashPool = 0, sgovCashPool = 0;
 
+    // Per-year mark-to-market checkpoints for the SPY/SGOV columns of the
+    // year table (step 7 below). The `timeline` array pushed inside the
+    // loop below only gets a new entry per EVENT, valued at that event's
+    // own date — fine for the chart (a natural sampling of points), but
+    // wrong for the table: a year whose last trade landed mid-year (say,
+    // March) would freeze that year's SPY/SGOV gain at March's price,
+    // silently missing all appreciation through year-end. The portfolio's
+    // own columns don't have this bug because they come from a wholly
+    // separate cutoff-based replay (`mtmHold` below) — this does the same
+    // for SPY/SGOV: snapshot cost/gain right as each year's cutoff is
+    // crossed, valued at the CUTOFF's price, not the last event's.
+    const _yearCutoffs = allYears.map(yr => yr === curYear ? today : `${yr}-12-31`);
+    let _yckIdx = 0;
+    const yearSpyGain = {}, yearSpyCost = {}, yearSgovGain = {}, yearSgovCost = {};
+    function _checkpointYearsUpTo(dateExclusive) {
+      while (_yckIdx < _yearCutoffs.length && dateExclusive > _yearCutoffs[_yckIdx]) {
+        const cutoff = _yearCutoffs[_yckIdx];
+        const yr = allYears[_yckIdx];
+        const cpSpyP  = _nearestPrice(spyPrices,  cutoff);
+        const cpSgovP = _nearestPrice(sgovPrices, cutoff);
+        yearSpyGain[yr]  = cpSpyP  != null ? spyRealizedGain  + (_lotTotals(spyLots).shares  * cpSpyP  - _lotTotals(spyLots).cost)  : null;
+        yearSgovGain[yr] = cpSgovP != null ? sgovRealizedGain + (_lotTotals(sgovLots).shares * cpSgovP - _lotTotals(sgovLots).cost) : null;
+        yearSpyCost[yr]  = spyCost;
+        yearSgovCost[yr] = sgovCost;
+        _yckIdx++;
+      }
+    }
+
     for (let _evIdx5 = 0; _evIdx5 < events.length; _evIdx5++) {
       const ev = events[_evIdx5];
+      // Checkpoint any year whose cutoff falls strictly before this event —
+      // using state as of all prior events only, since this one hasn't
+      // been applied yet (see _checkpointYearsUpTo above).
+      _checkpointYearsUpTo(ev.date);
       const spyP  = _nearestPrice(spyPrices, ev.date);
       const qqqP  = _nearestPrice(qqqPrices, ev.date);
       const sgovP = _nearestPrice(sgovPrices, ev.date);
@@ -2509,6 +2546,10 @@ async function portLoadAnalysis() {
         : sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null;
       timeline.push({ date: ev.date, portGain: portGainAtDate, portRealizedGain, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
     }
+    // Flush any year checkpoints not yet crossed by an event (typically
+    // just the current year, whose cutoff is "today") using the final
+    // post-loop state — a date sentinel guaranteed past any real date.
+    _checkpointYearsUpTo('9999-12-31');
 
     // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
     let portUnrealized = 0, portValueToday = 0;
@@ -2556,25 +2597,17 @@ async function portLoadAnalysis() {
     // the gain includes appreciation on the whole position (prior years'
     // contributions too), not just what was newly put in that year, so
     // gain and principal need to be on the same (cumulative) basis to mean
-    // anything. S&P 500 (%) reuses the money-weighted "same dollars, same
-    // days" SPY simulation already driving the chart below, snapshotted at
-    // the same cutoff, so Alpha is comparing like with like.
-    function _tlAt(cutoff) {
-      let last = null;
-      for (const pt of timeline) {
-        if (pt.date <= cutoff) last = pt; else break;
-      }
-      return last;
-    }
+    // anything. S&P 500 (%) / SGOV (%) reuse the money-weighted "same
+    // dollars, same days" simulation already driving the chart below, but
+    // valued at each year's own cutoff via yearSpyGain/yearSgovGain (see
+    // _checkpointYearsUpTo above) rather than the chart's event-dated
+    // `timeline`, so Alpha/Beta compare like with like.
 
     // year -> that year's genuinely new principal — reuses the same
     // classification already computed above for the SPY/QQQ/SGOV
     // simulation (principalCalc), rather than calling _computeNetPrincipal
     // a second time, so the two can't drift apart.
     const yearInvested = principalCalc.yearNet;
-
-    const curYear = today.slice(0, 4);
-    const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
 
     // Replay holdings chronologically, snapshotting cumulative mark-to-market
     // total gain (realized + unrealized-at-cutoff) at the close of each year.
@@ -2647,9 +2680,8 @@ async function portLoadAnalysis() {
         spyPct  = (spyBaseAtManualAsOf  && spyNow)  ? (spyNow  / spyBaseAtManualAsOf  - 1) * 100 : null;
         sgovPct = (sgovBaseAtManualAsOf && sgovNow) ? (sgovNow / sgovBaseAtManualAsOf - 1) * 100 : null;
       } else {
-        const tl = _tlAt(cutoff);
-        spyPct  = (tl && tl.spyCost  > 0) ? tl.spyGain  / tl.spyCost  * 100 : null;
-        sgovPct = (tl && tl.sgovCost > 0) ? tl.sgovGain / tl.sgovCost * 100 : null;
+        spyPct  = (yearSpyCost[yr]  > 0 && yearSpyGain[yr]  != null) ? yearSpyGain[yr]  / yearSpyCost[yr]  * 100 : null;
+        sgovPct = (yearSgovCost[yr] > 0 && yearSgovGain[yr] != null) ? yearSgovGain[yr] / yearSgovCost[yr] * 100 : null;
       }
       const alpha = (pct != null && spyPct  != null) ? pct - spyPct  : null;
       const beta  = (pct != null && sgovPct != null) ? pct - sgovPct : null;
