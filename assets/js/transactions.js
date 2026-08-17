@@ -95,6 +95,25 @@
  * ALTER TABLE public.principal_overrides ENABLE ROW LEVEL SECURITY;
  * CREATE POLICY "own" ON public.principal_overrides USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
  *
+ * -- Read-only API key access (for an AI agent/script to read transactions
+ * -- and portfolios without a browser login). Only the SHA-256 hash is
+ * -- stored — the raw key is shown once at creation time and never
+ * -- retrievable again. This table alone doesn't grant access by itself;
+ * -- it's looked up by the api-data Edge Function (supabase/functions/
+ * -- api-data/) using the service-role key, which never reaches the
+ * -- browser. See that function's own comments for the request format.
+ * CREATE TABLE IF NOT EXISTS public.api_keys (
+ *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+ *   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ *   label TEXT NOT NULL DEFAULT 'API Key',
+ *   key_hash TEXT NOT NULL UNIQUE,
+ *   created_at TIMESTAMPTZ DEFAULT NOW(),
+ *   last_used_at TIMESTAMPTZ,
+ *   revoked_at TIMESTAMPTZ
+ * );
+ * ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
+ * CREATE POLICY "own" ON public.api_keys USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
+ *
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -884,6 +903,49 @@ return { imported: (data || []).length, skipped, skippedRows, errors: [] };
     }
   }
 
+  // ── API keys (read-only agent/script access — see SQL doc above) ──────────
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Returns { ...row, rawKey } — rawKey is ONLY available this one time; only
+  // its hash is ever stored, so it can't be shown again after this call.
+  async function createApiKey(label) {
+    const { sb, user } = requireAuth();
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const rawKey = 'jjf_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    const key_hash = await sha256Hex(rawKey);
+    const { data, error } = await sb
+      .from('api_keys')
+      .insert({ user_id: user.id, label: (label || '').trim() || 'API Key', key_hash })
+      .select('id, label, created_at, last_used_at, revoked_at')
+      .single();
+    if (error) throw error;
+    return { ...data, rawKey };
+  }
+
+  async function getApiKeys() {
+    const { sb, user } = requireAuth();
+    const { data, error } = await sb
+      .from('api_keys')
+      .select('id, label, created_at, last_used_at, revoked_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function revokeApiKey(id) {
+    const { sb, user } = requireAuth();
+    const { error } = await sb
+      .from('api_keys')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (error) throw error;
+  }
+
   // ── Expose API ────────────────────────────────────────────────────────────
   window.chartTxns = [];
 
@@ -902,6 +964,9 @@ return { imported: (data || []).length, skipped, skippedRows, errors: [] };
     parseMspCsv,
     importTransactions,
     loadChartTransactions,
+    createApiKey,
+    getApiKeys,
+    revokeApiKey,
   };
 
 })();
