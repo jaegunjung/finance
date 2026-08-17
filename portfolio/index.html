@@ -343,7 +343,6 @@ title: 포트폴리오
 </div><!-- /portMain -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 
 <!-- Edit Modal (Item 2) -->
 <div id="editModal" onclick="editModalBgClick(event)">
@@ -2721,7 +2720,6 @@ async function portLoadAnalysis() {
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
-          datalabels: { display: false }, // chartjs-plugin-datalabels auto-enables on every chart; this one only wants the pie labels
           tooltip: {
             backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
             titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8,
@@ -2856,7 +2854,7 @@ function _sellFromLots(lots, sellShares, lotMethod) {
 }
 
 // Renders the current-holdings pie chart, with ticker + % labeled directly
-// on each slice (chartjs-plugin-datalabels) instead of a separate legend.
+// on each slice (see _pieLabelsPlugin below) instead of a separate legend.
 // Positions under 1% of total value are grouped into "Others" so a long
 // tail of small positions doesn't turn the chart into unreadable slivers.
 const _PIE_COLORS = ['#3fb950', '#58a6ff', '#c792ea', '#e8c84a', '#f78166', '#39c5cf', '#d29922', '#7ee787', '#ff9bce', '#a5d6ff', '#ffa657', '#79c0ff'];
@@ -2879,6 +2877,45 @@ function _renderHoldingsPie(holdings) {
   // resolve the theme's card background for the slice border at draw time.
   const cardBg = getComputedStyle(document.body).getPropertyValue('--bg-card').trim() || '#161b22';
 
+  // Hand-rolled slice-label plugin, scoped to just this chart, instead of
+  // the chartjs-plugin-datalabels CDN library — that library silently drew
+  // nothing under Chart.js 4.4.1 (no console error, tooltip still worked),
+  // so labels only ever appeared via hover. Drawing directly with the
+  // chart's own arc geometry (Chart.js 4's ArcElement gives us startAngle/
+  // endAngle/outerRadius/x/y) avoids that dependency entirely.
+  const _pieLabelsPlugin = {
+    id: '_pieLabels',
+    afterDatasetsDraw(chart) {
+      const meta = chart.getDatasetMeta(0);
+      const data = chart.data.datasets[0].data;
+      const c = chart.ctx;
+      c.save();
+      c.fillStyle = '#0d1117';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      meta.data.forEach((arc, i) => {
+        const value = data[i];
+        const pct = value / total * 100;
+        if (pct < 1) return; // too thin to label at all
+        const big = pct >= 3.5;
+        const angle = (arc.startAngle + arc.endAngle) / 2;
+        const r = arc.outerRadius * 0.65;
+        const x = arc.x + Math.cos(angle) * r;
+        const y = arc.y + Math.sin(angle) * r;
+        const sym = chart.data.labels[i];
+        if (big) {
+          c.font = '600 11px sans-serif';
+          c.fillText(sym, x, y - 7);
+          c.fillText(`${pct.toFixed(1)}%`, x, y + 7);
+        } else {
+          c.font = '600 8px sans-serif';
+          c.fillText(`${sym} ${pct.toFixed(1)}%`, x, y);
+        }
+      });
+      c.restore();
+    },
+  };
+
   const ctx = document.getElementById('anlHoldingsPie').getContext('2d');
   _anlPieChart = new Chart(ctx, {
     type: 'pie',
@@ -2891,6 +2928,7 @@ function _renderHoldingsPie(holdings) {
         borderWidth: 2,
       }],
     },
+    plugins: [_pieLabelsPlugin],
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       plugins: {
@@ -2901,18 +2939,6 @@ function _renderHoldingsPie(holdings) {
           callbacks: {
             label: item => `${item.label}: $${item.parsed.toLocaleString(undefined, {maximumFractionDigits:0})} (${(item.parsed/total*100).toFixed(1)}%)`,
           },
-        },
-        datalabels: {
-          color: '#0d1117',
-          // Small slices get ticker+% in a shrunk font instead of being
-          // hidden outright, so every slice has a label without hovering.
-          font: ctx => ({ size: ctx.dataset.data[ctx.dataIndex] / total >= 0.035 ? 11 : 8, weight: '600' }),
-          formatter: (value, ctx) => {
-            const pct = (value / total * 100).toFixed(1);
-            const sym = ctx.chart.data.labels[ctx.dataIndex];
-            return value / total >= 0.035 ? `${sym}\n${pct}%` : `${sym} ${pct}%`;
-          },
-          textAlign: 'center',
         },
       },
     },
