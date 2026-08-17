@@ -754,12 +754,25 @@ function _renderGroupModalList() {
     list.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem;">아직 만들어진 그룹이 없습니다. 아래에서 새로 만들어보세요.</div>`;
     return;
   }
-  list.innerHTML = groups.map(g => `
-    <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--text-primary); cursor:pointer;">
-      <input type="checkbox" ${_groupModalSelected.has(g) ? 'checked' : ''} onchange="_groupModalToggle(${JSON.stringify(g)}, this.checked)">
-      ${g}
-    </label>
-  `).join('');
+  // Built via DOM APIs + addEventListener (not inline onchange="...") so a
+  // group name is never interpolated into an HTML attribute string — a
+  // group containing a double-quote (or here, JSON.stringify's own quoting
+  // colliding with the attribute's own double quotes) silently broke the
+  // checkbox's change handler, so checking/unchecking never actually
+  // updated _groupModalSelected and Save just re-persisted whatever was
+  // there when the modal opened.
+  list.innerHTML = '';
+  for (const g of groups) {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--text-primary); cursor:pointer;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = _groupModalSelected.has(g);
+    cb.addEventListener('change', () => _groupModalToggle(g, cb.checked));
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(g));
+    list.appendChild(label);
+  }
 }
 
 function _groupModalToggle(g, checked) {
