@@ -84,8 +84,8 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
 
 <!-- ── Monthly Returns Table (current year) ── -->
 <p class="section-title" style="margin-top:28px;">
-  <span class="en-only">Monthly Returns (%) — <span id="monthlyYearLabel"></span></span>
-  <span class="ko-only">월별 수익률 (%) — <span id="monthlyYearLabelKo"></span>년</span>
+  <span class="en-only">Monthly Returns (%) — trailing 12 months (<span id="monthlyYearLabel"></span>)</span>
+  <span class="ko-only">월별 수익률 (%) — 최근 12개월 (<span id="monthlyYearLabelKo"></span>)</span>
 </p>
 <div style="overflow-x:auto; margin-bottom:8px;">
   <table id="monthlyTable" style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:520px;">
@@ -106,8 +106,8 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
 
 <!-- ── Daily Returns Table (current month) ── -->
 <p class="section-title" style="margin-top:28px;">
-  <span class="en-only">Daily Returns (%) — <span id="dailyMonthLabel"></span></span>
-  <span class="ko-only">일별 수익률 (%) — <span id="dailyMonthLabelKo"></span></span>
+  <span class="en-only">Daily Returns (%) — trailing 30 days (<span id="dailyMonthLabel"></span>)</span>
+  <span class="ko-only">일별 수익률 (%) — 최근 30일 (<span id="dailyMonthLabelKo"></span>)</span>
 </p>
 <div style="overflow-x:auto; margin-bottom:8px;">
   <table id="dailyTable" style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:520px;">
@@ -533,20 +533,31 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
     return (currP / prevP - 1) * 100;
   }
 
+  // Rolling 12-month window ending at the current month (not a fixed
+  // calendar year) — shifts forward by one column automatically the next
+  // time this page loads after the month changes, instead of showing
+  // blank future months for the rest of the current year.
+  const MONTH_COLS = []; // [{ year, month, label }], oldest -> newest
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(curYear, curMonth - 1 - i, 1);
+    MONTH_COLS.push({ year: d.getFullYear(), month: d.getMonth() + 1, label: `${MONTH_NAMES[d.getMonth()]} '${String(d.getFullYear()).slice(2)}` });
+  }
+
   let monthlyData = [];
   function renderMonthlyTable() {
-    document.getElementById('monthlyYearLabel').textContent = curYear;
-    document.getElementById('monthlyYearLabelKo').textContent = curYear;
+    const rangeLabel = `${MONTH_COLS[0].label}–${MONTH_COLS[MONTH_COLS.length - 1].label}`;
+    document.getElementById('monthlyYearLabel').textContent = rangeLabel;
+    document.getElementById('monthlyYearLabelKo').textContent = rangeLabel;
     const head = document.getElementById('monthlyHead');
     while (head.children.length > 1) head.removeChild(head.lastChild);
-    MONTH_NAMES.forEach((mn, i) => {
+    MONTH_COLS.forEach(mc => {
       const th = document.createElement('th');
       th.style.cssText = 'padding:8px 8px; color:var(--text-secondary); font-weight:600; text-align:right; white-space:nowrap;';
-      th.textContent = mn;
+      th.textContent = mc.label;
       head.appendChild(th);
     });
 
-    const colVals = MONTH_NAMES.map((_, ci) => monthlyData.map(r => r.returns[ci]).filter(v => v != null));
+    const colVals = MONTH_COLS.map((_, ci) => monthlyData.map(r => r.returns[ci]).filter(v => v != null));
     const tbody = document.getElementById('monthlyBody');
     tbody.innerHTML = '';
     for (const row of monthlyData) {
@@ -566,7 +577,7 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
     }
   }
 
-  // ── Daily table (current month, day 1 through today/month-end) ─────────
+  // ── Daily table (rolling 30 days ending today) ──────────────────────────
   function dayReturn(data, dateStr) {
     if (!data) return null;
     const { dates, prices } = data;
@@ -577,23 +588,27 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
     return (prices[idx] / prevP - 1) * 100;
   }
 
-  let dailyData = [];
-  let dailyDates = [];
-  function renderDailyTable() {
-    const daysInMonth = new Date(curYear, curMonth, 0).getDate();
-    const lastDay = (curYear === now.getFullYear() && curMonth === now.getMonth() + 1) ? now.getDate() : daysInMonth;
-    dailyDates = Array.from({ length: lastDay }, (_, i) => `${curYear}-${String(curMonth).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
+  const DAILY_WINDOW = 30;
+  // Rolling window, not "day 1 of this month through today" — spans a
+  // month boundary most of the time, so labels need MM/DD, not just DD.
+  const dailyDates = Array.from({ length: DAILY_WINDOW }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (DAILY_WINDOW - 1 - i));
+    return d.toISOString().slice(0, 10);
+  });
 
-    const monthLabel = `${curYear}-${String(curMonth).padStart(2,'0')}`;
-    document.getElementById('dailyMonthLabel').textContent = monthLabel;
-    document.getElementById('dailyMonthLabelKo').textContent = monthLabel;
+  let dailyData = [];
+  function renderDailyTable() {
+    const rangeLabel = `${dailyDates[0]} ~ ${dailyDates[dailyDates.length - 1]}`;
+    document.getElementById('dailyMonthLabel').textContent = rangeLabel;
+    document.getElementById('dailyMonthLabelKo').textContent = rangeLabel;
 
     const head = document.getElementById('dailyHead');
     while (head.children.length > 1) head.removeChild(head.lastChild);
     dailyDates.forEach(d => {
       const th = document.createElement('th');
       th.style.cssText = 'padding:8px 6px; color:var(--text-secondary); font-weight:600; text-align:right; white-space:nowrap;';
-      th.textContent = d.slice(8); // day-of-month only, e.g. "05"
+      th.textContent = d.slice(5).replace('-', '/'); // "MM/DD" — spans a month boundary, so day-only would be ambiguous
       head.appendChild(th);
     });
 
@@ -630,16 +645,13 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
     // no extra network requests.
     monthlyData = ALL_STOCKS.map((s, i) => ({
       sym: s.sym, name: s.name,
-      returns: MONTH_NAMES.map((_, mi) => monthReturn(results[i], curYear, mi + 1))
+      returns: MONTH_COLS.map(mc => monthReturn(results[i], mc.year, mc.month))
     }));
     renderMonthlyTable();
 
-    const daysInMonth = new Date(curYear, curMonth, 0).getDate();
-    const lastDay = (curYear === now.getFullYear() && curMonth === now.getMonth() + 1) ? now.getDate() : daysInMonth;
-    const dates = Array.from({ length: lastDay }, (_, i) => `${curYear}-${String(curMonth).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
     dailyData = ALL_STOCKS.map((s, i) => ({
       sym: s.sym, name: s.name,
-      returns: dates.map(d => dayReturn(results[i], d))
+      returns: dailyDates.map(d => dayReturn(results[i], d))
     }));
     renderDailyTable();
   }
