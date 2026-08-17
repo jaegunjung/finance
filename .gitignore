@@ -10,3 +10,4 @@ node_modules/
 qa-results/
 playwright-report/
 test-results/
+supabase/.temp/

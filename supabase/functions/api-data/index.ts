@@ -3,14 +3,15 @@
 //
 // Deploy:
 //   supabase functions deploy api-data --no-verify-jwt
-//   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<service role key from Project Settings > API>
 // (--no-verify-jwt: this function does its own auth via the api_keys table,
 // not Supabase's normal per-request user JWT, since a script/agent calling
 // it has no browser session to get one from.)
-// SUPABASE_URL and SUPABASE_ANON_KEY are already injected automatically by
-// Supabase into every Edge Function's environment — only the service-role
-// key needs to be set explicitly, and it must NEVER be put in the site's
-// own repo/client code (this function is the only place that touches it).
+// SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY are all
+// injected automatically into every Edge Function's environment by
+// Supabase itself — the CLI actively refuses `secrets set` for any name
+// starting with SUPABASE_, so there is no manual secret-setting step here.
+// The service-role key never needs to (and must never) appear in this
+// repo or any client-side code; this function is the only place it's used.
 //
 // Request:
 //   GET https://<project-ref>.functions.supabase.co/api-data?resource=portfolios
