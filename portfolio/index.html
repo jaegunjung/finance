@@ -961,8 +961,19 @@ async function fetchCurrentPrice(symbol) {
 //     withdrawal — money leaving the account, not funding a purchase.
 // Splitting same-day totals proportionally across that day's individual
 // events (rather than requiring exact 1:1 matching) handles the common
-// multi-transaction-per-day case without needing per-row linkage data MSP
-// doesn't reliably export.
+// multi-transaction-per-day case.
+// USD=CASH rows carry their own per-row linkage signal, though: MSP stores
+// a 0/1 flag in the price column (0 = this cash movement is tied to a
+// stock trade, 1 = a genuine deposit/withdrawal — see transactions.js's
+// import comment). A row flagged 0 is excluded from this same-day grouping
+// entirely, rather than relying on same-day matching to catch it — money-
+// market sweep settlement routinely lands a few days off from the trade
+// that triggered it, so the same-day-only heuristic was silently counting
+// a lot of flagged-0 "definitely not new money" cash as fresh principal
+// (confirmed against a real account: ~$495K misclassified this way across
+// its history, nearly its entire displayed 누적 투입 원금). A null flag
+// (no MSP data — e.g. a manually-entered row) still falls through to the
+// same-day heuristic below, unchanged.
 // DRIP (dividend reinvestment) is excluded entirely — it's investment
 // income being reinvested, not new money from the investor, matching
 // computePnL's own treatment (transactions.js: "DRIP adds shares but not
@@ -984,6 +995,7 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
     if (!dayGroups.has(d)) dayGroups.set(d, { buys: [], sells: [], cashIn: [], cashOut: [] });
     const g = dayGroups.get(d);
     const cash = isCash(ev.symbol || ev.sym);
+    if (cash && ev.cashLinkFlag === 0) continue; // MSP: tied to a trade, not new money — skip entirely
     if (BUY_T.has(ev.type)) (cash ? g.cashIn : g.buys).push(i);
     else if (SELL_T.has(ev.type)) (cash ? g.cashOut : g.sells).push(i);
   }
@@ -1075,6 +1087,9 @@ function _computePortfolioPrincipal(allTxns, pf) {
       symbol: (t.symbol || '').toUpperCase(),
       amount: Math.abs(Number(t.amount) || 0),
       commission: Number(t.commission) || 0,
+      // See the matching field in portLoadAnalysis's own event mapping for
+      // why this needs to stay a raw, uncoerced value.
+      cashLinkFlag: (t.price === null || t.price === undefined) ? null : Number(t.price),
       countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -2230,6 +2245,13 @@ async function portLoadAnalysis() {
         lotMethod: t.lot_method || null,
         shares: Math.abs(Number(t.shares) || 0),
         price:  Number(t.price) || 0,
+        // Raw (uncoerced) price, kept separately from `price` above — for a
+        // USD=CASH row, MSP stores a 0/1 flag here (0 = this cash movement
+        // is tied to a stock trade, 1 = a genuine deposit/withdrawal), not
+        // a real price. `Number(t.price) || 0` collapses null (no data) and
+        // 0 (explicit MSP flag) to the same value, so _computeNetPrincipal
+        // needs this raw form to tell "MSP says linked" apart from "unknown".
+        cashLinkFlag: (t.price === null || t.price === undefined) ? null : Number(t.price),
         // Per-transaction override (거래내역 tab). null = no override.
         countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
       }))
