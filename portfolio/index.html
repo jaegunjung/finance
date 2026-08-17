@@ -2904,12 +2904,15 @@ function _renderHoldingsPie(holdings) {
         },
         datalabels: {
           color: '#0d1117',
-          font: { size: 11, weight: '600' },
-          formatter: (value, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}\n${(value/total*100).toFixed(1)}%`,
+          // Small slices get ticker+% in a shrunk font instead of being
+          // hidden outright, so every slice has a label without hovering.
+          font: ctx => ({ size: ctx.dataset.data[ctx.dataIndex] / total >= 0.035 ? 11 : 8, weight: '600' }),
+          formatter: (value, ctx) => {
+            const pct = (value / total * 100).toFixed(1);
+            const sym = ctx.chart.data.labels[ctx.dataIndex];
+            return value / total >= 0.035 ? `${sym}\n${pct}%` : `${sym} ${pct}%`;
+          },
           textAlign: 'center',
-          // Slices too thin for a legible label (roughly <3.5% here) just
-          // show nothing rather than overflowing into neighboring slices.
-          display: ctx => ctx.dataset.data[ctx.dataIndex] / total >= 0.035,
         },
       },
     },
