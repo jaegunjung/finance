@@ -965,15 +965,19 @@ async function fetchCurrentPrice(symbol) {
 // USD=CASH rows carry their own per-row linkage signal, though: MSP stores
 // a 0/1 flag in the price column (0 = this cash movement is tied to a
 // stock trade, 1 = a genuine deposit/withdrawal — see transactions.js's
-// import comment). A row flagged 0 is excluded from this same-day grouping
-// entirely, rather than relying on same-day matching to catch it — money-
-// market sweep settlement routinely lands a few days off from the trade
-// that triggered it, so the same-day-only heuristic was silently counting
-// a lot of flagged-0 "definitely not new money" cash as fresh principal
-// (confirmed against a real account: ~$495K misclassified this way across
-// its history, nearly its entire displayed 누적 투입 원금). A null flag
-// (no MSP data — e.g. a manually-entered row) still falls through to the
-// same-day heuristic below, unchanged.
+// import comment). A row flagged 0 still fully participates in the same-day
+// totals above (so it can still cancel out a same-day stock buy/sell — a
+// sell today can fund a buy days later, but MSP records each trade's own
+// cash leg on that trade's own date, so the two legs of any ONE trade are
+// still same-day even when the "wait, then reinvest" gap between two
+// DIFFERENT trades isn't); it just never itself receives any of a day's
+// leftover unpaired amount as principal/withdrawal, even when it happens to
+// be exactly the row left over after pairing (a first attempt at this fix
+// excluded flagged-0 rows from the day totals entirely, which broke pairing
+// for the common case of a stock buy funded by a same-day flagged-0
+// cash-out and misclassified ~$421K of legitimately-paired buys as new
+// principal — confirmed against a real account). A null flag (no MSP data
+// — e.g. a manually-entered row) is treated as eligible, same as flag 1.
 // DRIP (dividend reinvestment) is excluded entirely — it's investment
 // income being reinvested, not new money from the investor, matching
 // computePnL's own treatment (transactions.js: "DRIP adds shares but not
@@ -995,7 +999,15 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
     if (!dayGroups.has(d)) dayGroups.set(d, { buys: [], sells: [], cashIn: [], cashOut: [] });
     const g = dayGroups.get(d);
     const cash = isCash(ev.symbol || ev.sym);
-    if (cash && ev.cashLinkFlag === 0) continue; // MSP: tied to a trade, not new money — skip entirely
+    // Flagged-0 rows still fully participate in day-total pairing below
+    // (so they can properly offset a same-day stock buy/sell) — only their
+    // OWN attributed principal/withdrawal share is forced to 0 further
+    // down. Excluding them from the totals outright was tried first and
+    // caused a regression: a stock buy funded by a same-day flagged-0
+    // cash-out (the ordinary, common case) lost its matching cashOutTotal
+    // and got misclassified as new principal instead of paired — verified
+    // against a real account: ~$421K of legitimately-paired buys flipped
+    // to "principal" this way before this fix.
     if (BUY_T.has(ev.type)) (cash ? g.cashIn : g.buys).push(i);
     else if (SELL_T.has(ev.type)) (cash ? g.cashOut : g.sells).push(i);
   }
@@ -1021,18 +1033,33 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
       pairedBuyAmt[i] = pairedBuyTotal * frac;
     }
 
+    // The day's unpaired "leftover" (depositTotal/withdrawTotal) only ever
+    // gets attributed to price=1/null rows — a flagged-0 row (MSP: tied to
+    // a trade) never itself counts as principal or a withdrawal, even if
+    // it happens to be the specific row left over after pairing. Any
+    // leftover that only flagged-0 rows could explain is simply dropped
+    // rather than misattributed to them.
     const pairedCashInTotal = Math.min(cashInTotal, sellTotal);
     const depositTotal      = cashInTotal - pairedCashInTotal;
+    const eligibleCashIn    = g.cashIn.filter(i => sortedEvents[i].cashLinkFlag !== 0);
+    const eligibleInTotal   = eligibleCashIn.reduce((s, i) => s + sortedEvents[i].amount, 0);
+    const distributableDeposit = Math.min(depositTotal, eligibleInTotal);
+    for (const i of eligibleCashIn) {
+      const frac = eligibleInTotal > 0 ? sortedEvents[i].amount / eligibleInTotal : 0;
+      principalAmt[i] = distributableDeposit * frac;
+    }
     for (const i of g.cashIn) {
       const frac = cashInTotal > 0 ? sortedEvents[i].amount / cashInTotal : 0;
-      principalAmt[i]    = depositTotal * frac;
       pairedCashInAmt[i] = pairedCashInTotal * frac;
     }
 
-    const withdrawTotal = Math.max(0, cashOutTotal - buyTotal);
-    for (const i of g.cashOut) {
-      const frac = cashOutTotal > 0 ? sortedEvents[i].amount / cashOutTotal : 0;
-      withdrawAmt[i] = withdrawTotal * frac;
+    const withdrawTotal   = Math.max(0, cashOutTotal - buyTotal);
+    const eligibleCashOut  = g.cashOut.filter(i => sortedEvents[i].cashLinkFlag !== 0);
+    const eligibleOutTotal = eligibleCashOut.reduce((s, i) => s + sortedEvents[i].amount, 0);
+    const distributableWithdraw = Math.min(withdrawTotal, eligibleOutTotal);
+    for (const i of eligibleCashOut) {
+      const frac = eligibleOutTotal > 0 ? sortedEvents[i].amount / eligibleOutTotal : 0;
+      withdrawAmt[i] = distributableWithdraw * frac;
     }
   }
 
