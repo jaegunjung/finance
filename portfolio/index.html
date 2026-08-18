@@ -2303,7 +2303,7 @@ async function portLoadAnalysis() {
     // after 3-symbol price fetch below since it needs spyPrices etc.
     const manualAsOfDate = _principalOverride?.manual_principal_as_of || (events[0]?.date ?? null);
 
-    // ── 5. Cash-pool SPY/QQQ/SGOV simulation (see the design comment below) ──
+    // ── 5. Buy-and-hold SPY/QQQ/SGOV simulation (see the design comment below) ──
     let spyLots = [], spyRealizedGain = 0, spyCost = 0;
     let qqqLots = [], qqqRealizedGain = 0, qqqCost = 0;
     let sgovLots = [], sgovRealizedGain = 0, sgovCost = 0;
@@ -2336,47 +2336,42 @@ async function portLoadAnalysis() {
     const qqqBaseAtManualAsOf  = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(qqqPrices,  manualAsOfDate) : null;
     const sgovBaseAtManualAsOf = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(sgovPrices, manualAsOfDate) : null;
 
-    // SPY/QQQ/SGOV mirror the real portfolio's own buy/sell timing, using
-    // the same lot accounting as computePnL (_sellFromLots/_lotTotals).
-    // Each one keeps its own "cash pool" (SPY-equivalent dollars, one per
-    // benchmark since each performs differently) —
-    // fed by:
-    //   - the SPY-equivalent PROCEEDS of a real sell (sellRatio-based
-    //     mirror sell, below) — not the real sale's dollar amount, so a
-    //     stock that vastly outperformed the benchmark doesn't hand the
-    //     simulation windfall cash the benchmark itself never generated
-    //     (e.g. a 100x penny-stock win shouldn't let the simulation act
-    //     like it also had 100x-inflated capital to redeploy);
-    //   - genuine cash deposits (_computeNetPrincipal's "principal"
-    //     cash-in classification), at face value — a deposited dollar
-    //     buys a dollar of the benchmark regardless of what it eventually
-    //     funds in the real account;
-    // and drained by:
-    //   - "paired" buys (real trades with a matching same-day cash
-    //     outflow) — draws min(pool, buy amount), so a purchase funded
-    //     mostly by that windfall (far larger than what the pool actually
-    //     holds) only invests what SPY-equivalent capital exists, not the
-    //     real dollar amount;
-    //   - withdrawals (cash leaving with no matching same-day purchase) —
-    //     shrinks the pool by the same % of it that the withdrawal
-    //     represents of the real cash balance, mirroring the sellRatio
-    //     mechanic against cash instead of total portfolio value.
-    // "Unpaired" buys (RSU/stock grants — shares appear with no cash
-    // leaving) bypass the pool entirely and invest their full face value
-    // immediately, same as a deposit does once it's actually spent.
-    // See _computeNetPrincipal for the same-day pairing classification
-    // this all depends on. (Earlier iterations: a "never sell, buy-and-
-    // hold only net-new-money" design that kept climbing forever even
-    // after the real portfolio fully liquidated; then a "sell-mirrors-
-    // sell, but gate every buy through a net-new-money check" design that
-    // turned out not to need the gate at all, since realized gain locks
-    // in exactly once regardless of what happens to the proceeds — until
-    // this cash-pool version, which was needed once it became clear a
-    // stock's own outsized gain (not SPY's) was funding "new" SPY buys.)
+    // SPY/QQQ/SGOV each answer "if my net-new principal had gone into this
+    // benchmark instead, and just stayed there, what would it be worth?" —
+    // a true buy-and-hold comparison, using the same lot accounting as
+    // computePnL (_sellFromLots/_lotTotals):
+    //   - every dollar of genuinely new principal (_computeNetPrincipal's
+    //     "principalAmt" — a cash deposit, or an RSU/grant-like buy with no
+    //     matching cash outflow) buys that much of the benchmark, at face
+    //     value, on that date, and is just held;
+    //   - internal rebalancing — selling one real holding to buy another,
+    //     or a real buy funded by cash already in the account
+    //     ("pairedBuyAmt"/"pairedCashInAmt") — never touches the benchmark
+    //     position at all, since that money was already counted as
+    //     "invested" (hypothetically, in the benchmark) the moment it first
+    //     arrived; moving it between real holdings doesn't change that;
+    //   - only a genuine withdrawal (cash actually leaving the account,
+    //     not funding a same-day purchase — "withdrawAmt") sells enough of
+    //     the benchmark position to raise that same dollar amount, since
+    //     that money would have left the hypothetical benchmark position
+    //     too.
+    // (Earlier iterations mirrored the real portfolio's own trade timing —
+    // liquidating a proportional share of the whole simulated position on
+    // every real sell, regardless of whether it was a withdrawal or just a
+    // stock swap. For an account that trades often, that meant the
+    // simulated benchmark spent most of its history sitting in cash between
+    // trades, capturing only short bursts of the benchmark's actual moves
+    // instead of a continuous hold — verified against a real, actively-
+    // traded account: SGOV showed a ~7-year cumulative return near 1%
+    // despite ~3.5-5%/yr actual yield, because its simulated position had
+    // been "sold" down to under 5% of cumulative cost at any given time.
+    // Switched to buy-and-hold, which answers the more commonly intended
+    // question — "what if I'd just parked this money in the benchmark" —
+    // rather than "what if I'd traded the benchmark exactly as often as I
+    // traded my actual holdings".)
     const _CASH_SYMS = new Set(['USD=CASH', 'USD']);
     const principalCalc = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromYear });
     const perEvent = principalCalc.perEvent;
-    let spyCashPool = 0, qqqCashPool = 0, sgovCashPool = 0;
 
     // Per-year mark-to-market checkpoints for the SPY/SGOV columns of the
     // year table (step 7 below). The `timeline` array pushed inside the
@@ -2432,68 +2427,29 @@ async function portLoadAnalysis() {
         portHoldings[ev.sym] = h;
 
         if (ev.type === 'drip') {
-          // Dividend reinvestment — genuine investment income, not
-          // recycled sale proceeds or a cash-pool draw. Invests
-          // immediately at face value, matching computePnL's own DRIP
-          // treatment (transactions.js: "adds shares but not cost basis").
+          // Dividend reinvestment — genuine investment income, not new
+          // principal. Invests immediately at face value, matching
+          // computePnL's own DRIP treatment (transactions.js: "adds shares
+          // but not cost basis").
           if (spyP)  spyLots.push({ shares: ev.amount / spyP,   costPerShare: spyP  });
           if (qqqP)  qqqLots.push({ shares: ev.amount / qqqP,   costPerShare: qqqP  });
           if (sgovP) sgovLots.push({ shares: ev.amount / sgovP, costPerShare: sgovP });
-        } else if (_CASH_SYMS.has(ev.sym)) {
-          // Cash arriving: the "principal" (unpaired) portion is a
-          // genuine deposit — feeds each benchmark's pool at face value,
-          // to be actually invested whenever a later real purchase draws
-          // it down. The "paired" portion is just trade proceeds already
-          // captured via the sell that generated it (SELL branch below);
-          // doing nothing for it here avoids crediting the same real
-          // trade twice.
+        } else {
+          // Buy-and-hold: only the genuinely-new-principal portion
+          // (principalAmt — a cash deposit, or an RSU/grant-like buy with
+          // no matching cash outflow) ever invests in the benchmark. The
+          // "paired" portion (a real buy funded by cash already in the
+          // account) is internal rebalancing and doesn't touch the
+          // benchmark position at all — see the design comment above.
           const pe = perEvent[_evIdx5];
           if (pe.principalAmt > 0) {
-            spyCashPool += pe.principalAmt; qqqCashPool += pe.principalAmt; sgovCashPool += pe.principalAmt;
+            if (spyP)  spyLots.push({ shares: pe.principalAmt / spyP,  costPerShare: spyP  });
+            if (qqqP)  qqqLots.push({ shares: pe.principalAmt / qqqP,  costPerShare: qqqP  });
+            if (sgovP) sgovLots.push({ shares: pe.principalAmt / sgovP, costPerShare: sgovP });
             spyCost += pe.principalAmt; qqqCost += pe.principalAmt; sgovCost += pe.principalAmt;
           }
-        } else {
-          // Real asset purchase: the "principal" (unpaired, RSU/grant-
-          // like) portion invests immediately at face value; the
-          // "paired" portion draws from each benchmark's own pool,
-          // capped at what's actually there — a purchase funded mostly
-          // by a stock's own outsized gain (far larger than what the
-          // pool holds) only invests what SPY-equivalent capital exists,
-          // not the real dollar amount (measured against real data: this
-          // is what let a 100x penny-stock win inflate the benchmark's
-          // simulated gain by tens of thousands of dollars before this
-          // fix — see the long design comment above principalCalc).
-          const pe = perEvent[_evIdx5];
-          const spyPaired  = Math.min(spyCashPool,  pe.pairedBuyAmt);
-          const qqqPaired  = Math.min(qqqCashPool,  pe.pairedBuyAmt);
-          const sgovPaired = Math.min(sgovCashPool, pe.pairedBuyAmt);
-          spyCashPool -= spyPaired; qqqCashPool -= qqqPaired; sgovCashPool -= sgovPaired;
-          const spyBuyAmt  = pe.principalAmt + spyPaired;
-          const qqqBuyAmt  = pe.principalAmt + qqqPaired;
-          const sgovBuyAmt = pe.principalAmt + sgovPaired;
-          if (spyP  && spyBuyAmt  > 0) spyLots.push({ shares: spyBuyAmt  / spyP,  costPerShare: spyP  });
-          if (qqqP  && qqqBuyAmt  > 0) qqqLots.push({ shares: qqqBuyAmt  / qqqP,  costPerShare: qqqP  });
-          if (sgovP && sgovBuyAmt > 0) sgovLots.push({ shares: sgovBuyAmt / sgovP, costPerShare: sgovP });
-          if (pe.principalAmt > 0) { spyCost += pe.principalAmt; qqqCost += pe.principalAmt; sgovCost += pe.principalAmt; }
         }
       } else if (SELL_T.has(ev.type) && ev.shares > 0) {
-        // This sale's share of total real-portfolio value, AND (for a cash
-        // withdrawal) of the real cash balance — both computed BEFORE
-        // mutating this symbol's lots below, so the SPY/QQQ/SGOV mirror
-        // uses a consistent "before" snapshot. sellRatio matches "if all my
-        // money had gone into SPY instead" (whole portfolio, not just this
-        // one symbol's nonexistent SPY sub-position); the cash-balance
-        // ratio is the same idea applied to a withdrawal instead of a sale.
-        let totalValueBeforeSale = 0;
-        for (const [hsym, hh] of Object.entries(portHoldings)) {
-          const { shares: hhSh } = _lotTotals(hh.lots);
-          if (hhSh <= 0) continue;
-          const hp = _priceOnOrBefore(hsym, ev.date);
-          if (hp != null) totalValueBeforeSale += hp * hhSh;
-        }
-        const sellRatio = totalValueBeforeSale > 0 ? Math.min(ev.amount / totalValueBeforeSale, 1) : 0;
-        const cashBefore = _lotTotals((portHoldings['USD=CASH'] || { lots: [] }).lots).shares;
-
         // Consumes lots per this sell's own lot_method (FIFO/LIFO/High
         // Cost/Low Cost) — matches computePnL exactly, so this chart's
         // realized gain agrees with 보유현황's and the year table's.
@@ -2501,33 +2457,17 @@ async function portLoadAnalysis() {
         portRealizedGain += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds
         portHoldings[ev.sym] = h;
 
+        // Buy-and-hold: only a genuine withdrawal (withdrawAmt — cash
+        // actually leaving the account, not funding a same-day purchase)
+        // sells any of the benchmark position, raising exactly that many
+        // dollars at today's price — selling one real holding to buy
+        // another doesn't touch it, since that money would have stayed
+        // parked in the benchmark the whole time under buy-and-hold.
         const pe = perEvent[_evIdx5];
-        if (_CASH_SYMS.has(ev.sym)) {
-          // Cash leaving: the "withdraw" (unpaired) portion is a genuine
-          // withdrawal — shrinks each benchmark's pool by the same % of
-          // it that this withdrawal represents of the real cash balance
-          // just before it (same mechanic as sellRatio above, against
-          // cash instead of total portfolio value). The "paired" portion
-          // just funded a same-day real purchase, already handled by
-          // that purchase's own pool draw above — doing nothing for it
-          // here avoids double-reducing the pool.
-          if (pe.withdrawAmt > 0 && cashBefore > 0) {
-            const wRatio = Math.min(pe.withdrawAmt / cashBefore, 1);
-            spyCashPool  -= spyCashPool  * wRatio;
-            qqqCashPool  -= qqqCashPool  * wRatio;
-            sgovCashPool -= sgovCashPool * wRatio;
-          }
-        } else if (sellRatio > 0) {
-          // Mirror the sale into SPY/QQQ/SGOV: liquidate sellRatio of each
-          // simulation's current shares, locking in realized gain exactly
-          // like a real sale, and add the (SPY-scale, not real-dollar-
-          // scale) proceeds to that benchmark's own pool — see the design
-          // comment above principalCalc for why this is a real dollar
-          // amount that can be far smaller than what the real sale
-          // generated, by design.
-          if (spyP)  { const sh = _lotTotals(spyLots).shares  * sellRatio; if (sh > 0) { const c = _sellFromLots(spyLots,  sh, null); const proceeds = sh * spyP;  spyRealizedGain  += proceeds - c;  spyCashPool  += proceeds; } }
-          if (qqqP)  { const sh = _lotTotals(qqqLots).shares  * sellRatio; if (sh > 0) { const c = _sellFromLots(qqqLots,  sh, null); const proceeds = sh * qqqP;  qqqRealizedGain  += proceeds - c;  qqqCashPool  += proceeds; } }
-          if (sgovP) { const sh = _lotTotals(sgovLots).shares * sellRatio; if (sh > 0) { const c = _sellFromLots(sgovLots, sh, null); const proceeds = sh * sgovP; sgovRealizedGain += proceeds - c; sgovCashPool += proceeds; } }
+        if (pe.withdrawAmt > 0) {
+          if (spyP)  { const sh = Math.min(pe.withdrawAmt / spyP,  _lotTotals(spyLots).shares);  if (sh > 0) { const c = _sellFromLots(spyLots,  sh, null); spyRealizedGain  += sh * spyP  - c; } }
+          if (qqqP)  { const sh = Math.min(pe.withdrawAmt / qqqP,  _lotTotals(qqqLots).shares);  if (sh > 0) { const c = _sellFromLots(qqqLots,  sh, null); qqqRealizedGain  += sh * qqqP  - c; } }
+          if (sgovP) { const sh = Math.min(pe.withdrawAmt / sgovP, _lotTotals(sgovLots).shares); if (sh > 0) { const c = _sellFromLots(sgovLots, sh, null); sgovRealizedGain += sh * sgovP - c; } }
         }
       }
 
