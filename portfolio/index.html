@@ -2449,9 +2449,14 @@ async function portLoadAnalysis() {
         // mirrors computePnL's treatment (transactions.js) exactly, so this
         // chart's portfolio line and 보유현황's cost/gain figures agree.
         // Commission is part of cost, also matching computePnL.
-        const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
-        h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
-        portHoldings[ev.sym] = h;
+        // USD=CASH never gets a lot pushed here — see the SELL branch's
+        // comment below for why treating cash as a lotted security is
+        // wrong, matching portLoadHoldings' own CASH_SYMS_SET exclusion.
+        if (!_CASH_SYMS.has(ev.sym)) {
+          const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
+          h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
+          portHoldings[ev.sym] = h;
+        }
 
         if (ev.type === 'drip') {
           // Dividend reinvestment — genuine investment income, not new
@@ -2480,9 +2485,23 @@ async function portLoadAnalysis() {
         // Consumes lots per this sell's own lot_method (FIFO/LIFO/High
         // Cost/Low Cost) — matches computePnL exactly, so this chart's
         // realized gain agrees with 보유현황's and the year table's.
-        const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
-        portRealizedGain += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds
-        portHoldings[ev.sym] = h;
+        // USD=CASH is skipped entirely: unlike a real security, a cash
+        // "sell" isn't a taxable event with its own cost basis — it's
+        // just money leaving. Running it through the same lot machinery
+        // (as this loop used to) computes a bogus "cost of sold cash"
+        // whenever the tracked cash lots run short of what's being spent
+        // (extremely common for an account that constantly cycles cash
+        // through many same-day buy/sell legs) and credits the shortfall
+        // as pure "realized gain" — verified against a real, heavily
+        // cash-cycling crypto account: this alone fabricated $54,684.68 of
+        // gain that doesn't exist in 보유현황's own totals (which already
+        // has this exact exclusion — see portLoadHoldings' CASH_SYMS_SET,
+        // "FIFO clamping distorts cash balances").
+        if (!_CASH_SYMS.has(ev.sym)) {
+          const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
+          portRealizedGain += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds
+          portHoldings[ev.sym] = h;
+        }
 
         // Buy-and-hold: only a genuine withdrawal (withdrawAmt — cash
         // actually leaving the account, not funding a same-day purchase)
@@ -2613,13 +2632,21 @@ async function portLoadAnalysis() {
       while (evIdx < events.length && events[evIdx].date <= cutoff) {
         const ev = events[evIdx];
         const h  = mtmHold[ev.sym] || { lots: [] };
+        // USD=CASH is skipped entirely, same as portLoadHoldings'
+        // CASH_SYMS_SET exclusion ("FIFO clamping distorts cash
+        // balances") and the matching fix in the chart's own replay
+        // above — cash isn't a lotted security, and running it through
+        // _sellFromLots fabricates "realized gain" out of thin air
+        // whenever tracked cash lots run short of what's being spent
+        // (routine for an account that cycles cash through many same-day
+        // buy/sell legs).
         if (ev.type === 'split') {
-          _applySplit(h, ev);
-        } else if (BUY_T.has(ev.type) && ev.shares > 0) {
+          if (!_CASH_SYMS.has(ev.sym)) _applySplit(h, ev);
+        } else if (BUY_T.has(ev.type) && ev.shares > 0 && !_CASH_SYMS.has(ev.sym)) {
           // DRIP adds shares but not cost basis, matching computePnL.
           const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
           h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
-        } else if (SELL_T.has(ev.type) && ev.shares > 0) {
+        } else if (SELL_T.has(ev.type) && ev.shares > 0 && !_CASH_SYMS.has(ev.sym)) {
           const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
           mtmRealized += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds, matching computePnL
         }
