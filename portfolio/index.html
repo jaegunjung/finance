@@ -2428,12 +2428,73 @@ async function portLoadAnalysis() {
       }
     }
 
+    // Mark-to-market snapshot at an arbitrary date, using whatever
+    // portHoldings/spyLots/qqqLots/sgovLots/portRealizedGain/*RealizedGain
+    // state is CURRENT at the time this is called (a plain function, not a
+    // pure one — reads the enclosing closure's live state). Shared by the
+    // per-event snapshot, the daily gap-fill snapshots below, and the
+    // "today" snapshot, so there's one formula instead of three copies.
+    const holdingsForPie = []; // [{ sym, value }] — current holdings pie chart (cash excluded), filled only when isToday
+    function _snapshotAt(date, isToday) {
+      let portUnreal = 0, portValue = 0;
+      for (const [sym, h] of Object.entries(portHoldings)) {
+        const { shares, cost } = _lotTotals(h.lots);
+        if (shares <= 0) continue;
+        const p = isToday ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, date)) : _priceOnOrBefore(sym, date);
+        if (p != null) {
+          portUnreal += p * shares - cost;
+          portValue  += p * shares;
+          if (isToday && !_CASH_SYMS.has(sym)) holdingsForPie.push({ sym, value: p * shares });
+        }
+      }
+      const portGain = (manualPrincipal != null && manualPrincipal > 0)
+        ? portValue - manualPrincipal
+        : portRealizedGain + portUnreal;
+      const spyP  = _nearestPrice(spyPrices,  date);
+      const qqqP  = _nearestPrice(qqqPrices,  date);
+      const sgovP = _nearestPrice(sgovPrices, date);
+      const spyGain  = (manualPrincipal != null && manualPrincipal > 0)
+        ? (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null
+        : spyP  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyP  - _lotTotals(spyLots).cost)  : null;
+      const qqqGain  = (manualPrincipal != null && manualPrincipal > 0)
+        ? (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null
+        : qqqP  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqP  - _lotTotals(qqqLots).cost)  : null;
+      const sgovGain = (manualPrincipal != null && manualPrincipal > 0)
+        ? (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null
+        : sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null;
+      return { date, portGain, portRealizedGain, spyGain, qqqGain, sgovGain, spyCost, qqqCost, sgovCost };
+    }
+    function _dateAddDays(dateStr, n) {
+      const d = new Date(dateStr + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+    // Fills in one chart point per day between the last plotted date and
+    // `untilExclusive` — holdings don't change between real events, only
+    // prices do, so during a multi-month quiet stretch this replays actual
+    // day-to-day price movement (from the already-fetched CSV histories)
+    // instead of Chart.js drawing one straight line across the whole gap.
+    // Verified against a real account: a ~7-month gap with no trades had
+    // been rendered as a single straight segment before this.
+    let _lastChartDate = null;
+    function _fillChartGapUpTo(untilExclusive) {
+      if (!_lastChartDate) return;
+      let d = _dateAddDays(_lastChartDate, 1);
+      while (d < untilExclusive) {
+        timeline.push(_snapshotAt(d, false));
+        d = _dateAddDays(d, 1);
+      }
+    }
+
     for (let _evIdx5 = 0; _evIdx5 < events.length; _evIdx5++) {
       const ev = events[_evIdx5];
       // Checkpoint any year whose cutoff falls strictly before this event —
       // using state as of all prior events only, since this one hasn't
       // been applied yet (see _checkpointYearsUpTo above).
       _checkpointYearsUpTo(ev.date);
+      // Fill any quiet days since the last plotted point, using state as
+      // of all prior events only — same reasoning as the checkpoint above.
+      _fillChartGapUpTo(ev.date);
       const spyP  = _nearestPrice(spyPrices, ev.date);
       const qqqP  = _nearestPrice(qqqPrices, ev.date);
       const sgovP = _nearestPrice(sgovPrices, ev.date);
@@ -2522,37 +2583,8 @@ async function portLoadAnalysis() {
       // realized-only, which used to leave this line flat near $0 for
       // years/stretches with contributions but no sells, only to jump
       // at the very end when "today"'s unrealized got added in one shot.
-      let portUnrealAtDate = 0, portValueAtDate = 0;
-      for (const [hsym, hh] of Object.entries(portHoldings)) {
-        const { shares: hhShares, cost: hhCost } = _lotTotals(hh.lots);
-        if (hhShares <= 0) continue;
-        const hp = _priceOnOrBefore(hsym, ev.date);
-        if (hp != null) { portUnrealAtDate += hp * hhShares - hhCost; portValueAtDate += hp * hhShares; }
-      }
-      // For a manual-원금 (rollover) account, plot market value minus the
-      // fixed principal instead of cost-basis P&L — same reasoning as the
-      // year table below (rollover "buys" carry the position's market
-      // value AT ROLLOVER TIME as cost basis, not its true original
-      // purchase price, so cost-basis P&L understates gain relative to the
-      // real principal). Matches 보유현황's own "원금 …" comparison line.
-      const portGainAtDate = (manualPrincipal != null && manualPrincipal > 0)
-        ? portValueAtDate - manualPrincipal
-        : portRealizedGain + portUnrealAtDate;
-      // Same buy-and-hold-from-manualPrincipal switch as portGainAtDate
-      // above, for the SPY/QQQ/SGOV lines — for a manual-원금 account even
-      // this buy-and-hold-from-net-new-money simulation isn't right, since
-      // 원금 there is a single fixed lump sum, not a running series of
-      // net-new contributions.
-      const spyNow  = (manualPrincipal != null && manualPrincipal > 0)
-        ? (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null
-        : spyP  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyP  - _lotTotals(spyLots).cost)  : null;
-      const qqqNow  = (manualPrincipal != null && manualPrincipal > 0)
-        ? (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null
-        : qqqP  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqP  - _lotTotals(qqqLots).cost)  : null;
-      const sgovNow = (manualPrincipal != null && manualPrincipal > 0)
-        ? (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null
-        : sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null;
-      timeline.push({ date: ev.date, portGain: portGainAtDate, portRealizedGain, spyGain: spyNow, qqqGain: qqqNow, sgovGain: sgovNow, spyCost, qqqCost, sgovCost });
+      timeline.push(_snapshotAt(ev.date, false));
+      _lastChartDate = ev.date;
     }
     // Flush any year checkpoints not yet crossed by an event (typically
     // just the current year, whose cutoff is "today") using the final
@@ -2560,42 +2592,12 @@ async function portLoadAnalysis() {
     _checkpointYearsUpTo('9999-12-31');
 
     // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
-    let portUnrealized = 0, portValueToday = 0;
-    const holdingsForPie = []; // [{ sym, value }] — current holdings pie chart (cash excluded)
-    for (const [sym, h] of Object.entries(portHoldings)) {
-      const { shares: hShares, cost: hCost } = _lotTotals(h.lots);
-      if (hShares <= 0) continue;
-      const cp = currentPriceMap[sym];
-      if (cp) {
-        portUnrealized += cp * hShares - hCost;
-        portValueToday += cp * hShares;
-        if (!_CASH_SYMS.has(sym)) holdingsForPie.push({ sym, value: cp * hShares });
-      }
-    }
-    const portGainToday = (manualPrincipal != null && manualPrincipal > 0)
-      ? portValueToday - manualPrincipal
-      : portRealizedGain + portUnrealized;
+    // Fills any quiet days since the last event first (see _fillChartGapUpTo).
+    _fillChartGapUpTo(today);
+    const todaySnap = _snapshotAt(today, true);
+    timeline.push(todaySnap);
+    const spyGainToday = todaySnap.spyGain;
     const spyToday  = _nearestPrice(spyPrices, today);
-    const qqqToday  = _nearestPrice(qqqPrices, today);
-    const sgovToday = _nearestPrice(sgovPrices, today);
-    const spyGainToday  = (manualPrincipal != null && manualPrincipal > 0)
-      ? (spyBaseAtManualAsOf  && spyToday)  ? manualPrincipal * (spyToday  / spyBaseAtManualAsOf  - 1) : null
-      : spyToday  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyToday  - _lotTotals(spyLots).cost)  : null;
-    const qqqGainToday  = (manualPrincipal != null && manualPrincipal > 0)
-      ? (qqqBaseAtManualAsOf  && qqqToday)  ? manualPrincipal * (qqqToday  / qqqBaseAtManualAsOf  - 1) : null
-      : qqqToday  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqToday  - _lotTotals(qqqLots).cost)  : null;
-    const sgovGainToday = (manualPrincipal != null && manualPrincipal > 0)
-      ? (sgovBaseAtManualAsOf && sgovToday) ? manualPrincipal * (sgovToday / sgovBaseAtManualAsOf - 1) : null
-      : sgovToday ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovToday - _lotTotals(sgovLots).cost) : null;
-    timeline.push({
-      date: today,
-      portGain: portGainToday,
-      portRealizedGain,
-      spyGain:  spyGainToday,
-      qqqGain:  qqqGainToday,
-      sgovGain: sgovGainToday,
-      spyCost, qqqCost, sgovCost,
-    });
 
     // ── 7. Year-by-year table (cumulative-to-date, mark-to-market) ────
     // Each row shows CUMULATIVE invested principal and CUMULATIVE gain as
