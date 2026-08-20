@@ -18,8 +18,19 @@ SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
 CONFIG_PATH = Path('config/symbols.json')
 STOCK_DIR   = Path('stock')
 
-# 크립토·현금 — 주식 데이터 수집 제외
-EXCLUDE = {'BTC', 'ETH', 'PEPE', 'USD', 'USDT', 'USDC'}
+# 크립토·현금 — 주식 데이터 수집 제외 (Alpha Vantage 미지원, update_crypto_stocks.py가
+# 별도 CoinGecko 경로로 처리). 실제 DB 심볼은 'BTC-USD'/'PEPE24478-USD'/'USD=CASH'
+# 형태인데(코드베이스 전체 컨벤션 — CLAUDE.md의 "Crypto (`*-USD` 티커)" 참조), 이 목록은
+# 원래 'BTC'/'ETH'/'PEPE'/'USD' 같은 접미사 없는 형태로 적혀 있어서 세트 차집합이
+# 하나도 안 걸러지고 있었다 — 그래서 매번 워크플로우가 돌 때마다 symbols.json에서
+# 수동으로 제거한 크립토 티커들이 다시 추가돼, update_stocks.py의 Alpha Vantage
+# 일일 요청 한도(25회/일)를 매번 갉아먹고 있었다. '*-USD' 접미사로 판별하도록 수정 —
+# 새 코인이 추가돼도 하드코딩 목록을 또 놓칠 일이 없다.
+EXCLUDE_EXACT = {'USD', 'USD=CASH', 'USDT', 'USDC'}
+
+
+def _is_stock_symbol(sym: str) -> bool:
+    return sym not in EXCLUDE_EXACT and not sym.endswith('-USD')
 
 PAGE_TEMPLATE = """\
 ---
@@ -55,7 +66,8 @@ def fetch_portfolio_symbols() -> set[str]:
     )
     resp.raise_for_status()
     rows = resp.json()
-    return {r['symbol'].upper() for r in rows if r.get('symbol')} - EXCLUDE
+    all_symbols = {r['symbol'].upper() for r in rows if r.get('symbol')}
+    return {s for s in all_symbols if _is_stock_symbol(s)}
 
 
 def update_symbols_json(new_symbols: set[str]) -> list[str]:
