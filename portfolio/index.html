@@ -2739,22 +2739,33 @@ async function portLoadAnalysis() {
     for (const pt of timeline) tlMap[pt.date] = pt;
     const tlSorted = Object.values(tlMap).sort((a, b) => a.date.localeCompare(b.date));
 
-    const chartLabels  = tlSorted.map(p => p.date);
-    const portData     = tlSorted.map(p => p.portGain != null ? +p.portGain.toFixed(2) : null);
+    // {x, y} point objects with x = millisecond timestamp, not a shared
+    // `labels` array — a plain `labels`+`data` pairing makes Chart.js
+    // default the x-axis to an evenly-spaced category scale, positioning
+    // every data point the same visual distance apart regardless of how
+    // much real time passed between them. Since a point only exists per
+    // TRANSACTION EVENT (not per calendar day), a multi-month stretch
+    // with no trades would then render exactly as wide as a single day
+    // with several trades — confirmed against a real account's chart,
+    // which showed a ~7-month gap (2024-08 to 2025-02) compressed to the
+    // same width as one day. `type: 'linear'` on the x-axis below (real
+    // numeric timestamps) fixes this without needing a Chart.js date
+    // adapter library.
+    const toPt = (p, key) => p[key] != null ? { x: new Date(p.date).getTime(), y: +p[key].toFixed(2) } : { x: new Date(p.date).getTime(), y: null };
+    const portData     = tlSorted.map(p => toPt(p, 'portGain'));
     // Realized-only gain (actual cash locked in via sells, DRIP/dividend
     // income) — doesn't dip when held positions merely lose paper value,
     // unlike 내 포트폴리오's mark-to-market line. Lets a profit taken near a
     // high stay visible even after the (unrelated) remaining position drops.
-    const portRealizedData = tlSorted.map(p => p.portRealizedGain != null ? +p.portRealizedGain.toFixed(2) : null);
-    const spyData      = tlSorted.map(p => p.spyGain  != null ? +p.spyGain.toFixed(2)  : null);
-    const qqqData      = tlSorted.map(p => p.qqqGain  != null ? +p.qqqGain.toFixed(2)  : null);
-    const sgovData     = tlSorted.map(p => p.sgovGain != null ? +p.sgovGain.toFixed(2) : null);
+    const portRealizedData = tlSorted.map(p => toPt(p, 'portRealizedGain'));
+    const spyData      = tlSorted.map(p => toPt(p, 'spyGain'));
+    const qqqData      = tlSorted.map(p => toPt(p, 'qqqGain'));
+    const sgovData     = tlSorted.map(p => toPt(p, 'sgovGain'));
 
     const ctx = document.getElementById('anlGainChart').getContext('2d');
     _anlChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: chartLabels,
         datasets: [
           { label: '내 포트폴리오', data: portData, borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: '실현 손익',    data: portRealizedData, borderColor: '#3fb950', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
@@ -2772,7 +2783,7 @@ async function portLoadAnalysis() {
             backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
             titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8,
             callbacks: {
-              title: items => items[0].label,
+              title: items => items.length ? new Date(items[0].parsed.x).toISOString().slice(0, 10) : '',
               label: item => {
                 const v = item.parsed.y;
                 if (v == null) return null;
@@ -2783,9 +2794,10 @@ async function portLoadAnalysis() {
         },
         scales: {
           x: {
+            type: 'linear',
             grid: { color: 'rgba(48,54,61,0.8)' },
             ticks: { color: '#8b949e', font: { size: 10 }, maxTicksLimit: 8,
-              callback(val, i) { return chartLabels[i]?.slice(0, 7); }
+              callback(val) { return new Date(val).toISOString().slice(0, 7); }
             },
           },
           y: {
