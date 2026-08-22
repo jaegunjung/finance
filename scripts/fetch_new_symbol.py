@@ -90,13 +90,7 @@ def write_csv(symbol: str, rows: list[dict], append: bool = False) -> int:
     return len(rows)
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python scripts/fetch_new_symbol.py SYMBOL [START_DATE]")
-        sys.exit(1)
-
-    symbol   = sys.argv[1].upper()
-    start    = sys.argv[2] if len(sys.argv) > 2 else None
+def fetch_one(symbol: str, start: str | None) -> None:
     last_date = read_last_date(symbol)
     effective_start = start or last_date
 
@@ -110,7 +104,7 @@ def main():
     if not rows:
         print(f"\n⚠️  Symbol `{symbol}` could not be found (possibly delisted or invalid ticker).", flush=True)
         print("   Skipping — no data written.", flush=True)
-        sys.exit(0)
+        return
 
     # Filter rows already in CSV
     existing_end = read_last_date(symbol)
@@ -118,7 +112,7 @@ def main():
 
     if not new_rows:
         print(f"\n✅ {symbol} is already up to date ({existing_end}).", flush=True)
-        sys.exit(0)
+        return
 
     written = write_csv(symbol, new_rows, append=(existing_end != DEFAULT_START))
 
@@ -140,6 +134,26 @@ def main():
             cfg["stocks"] = stocks
             config_path.write_text(json.dumps(cfg, indent=2) + "\n")
             print(f"📋 {symbol} added to config/symbols.json", flush=True)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python scripts/fetch_new_symbol.py SYMBOL[,SYMBOL,...] [START_DATE]")
+        sys.exit(1)
+
+    # Accepts one ticker or several, comma- and/or whitespace-separated
+    # (e.g. "MSFT, UBER, BABA") — the GitHub Actions input is a single free
+    # -text field, and typing several tickers into it (expecting a batch)
+    # is the natural first thing to try there.
+    raw_symbols = [s.strip().upper() for s in sys.argv[1].replace(',', ' ').split()]
+    symbols = [s for s in raw_symbols if s]
+    if not symbols:
+        print("No valid symbols given.")
+        sys.exit(1)
+    start = sys.argv[2] if len(sys.argv) > 2 else None
+
+    for symbol in symbols:
+        fetch_one(symbol, start)
 
 
 if __name__ == "__main__":
