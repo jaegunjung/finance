@@ -477,7 +477,11 @@ function dateToIdx(dateStr) {
   const [y, m] = dateStr.split('-').map(Number);
   return (y - 1927) * 12 + (m - 1);
 }
-const FORECAST_XMAX = dateToIdx('2029-03'); // ~1226, enough to show Dec 2028
+// Reassigned once real data loads to account for forecastMonthsDelta (see
+// the data-load handler below) -- otherwise the fan's shifted endpoint can
+// run past this fixed edge and get clipped, the same way a fixed date range
+// clips as "today" keeps advancing further from the report's origin date.
+let FORECAST_XMAX = dateToIdx('2029-03'); // ~1226, enough to show Dec 2028
 
 function isForecastVisible() { return showForecast && !showReal; }
 
@@ -599,14 +603,26 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
     // starts exactly where the solid line ends. isAnchor marks it as real data
     // (not an estimate) so the tooltip shows the actual price without "(est.)".
     // Captured BEFORE the overwrite below -- the draw function needs the
-    // report's original origin price to rescale the rest of each scenario
-    // line consistently (see forecastScale in the SVG draw code).
+    // report's original origin price/date to rescale the rest of each
+    // scenario line consistently (see forecastScale/forecastMonthsDelta in
+    // the SVG draw code). Both the price AND the date get overridden below,
+    // so both need preserving -- shifting only price while leaving each
+    // line's later waypoint dates fixed still let the center line punch
+    // through bull in its first (now time-compressed) segment.
     window.FORECAST_ORIGIN_PRICE = FORECAST_POINTS[0].price;
+    window.FORECAST_ORIGIN_DATE  = FORECAST_POINTS[0].date;
     const lastActual = prices[prices.length - 1];
     const lastDate   = dates[dates.length - 1];
     FORECAST_POINTS[0] = { date: lastDate, price: lastActual, isAnchor: true };
     FORECAST_BULL[0]   = { date: lastDate, price: lastActual };
     FORECAST_BEAR[0]   = { date: lastDate, price: lastActual };
+    // Extend the x-axis max by the same date shift applied to the forecast
+    // lines (see forecastMonthsDelta in the SVG draw code) plus a small
+    // buffer, so the shifted endpoint (originally Dec 2028) doesn't end up
+    // flush against — or past — the edge of the visible range.
+    const forecastEndDate = FORECAST_BULL[FORECAST_BULL.length - 1].date;
+    const monthsDelta = dateToIdx(lastDate) - dateToIdx(window.FORECAST_ORIGIN_DATE);
+    FORECAST_XMAX = Math.max(FORECAST_XMAX, dateToIdx(forecastEndDate) + monthsDelta + 3);
     try {
       initChart();
       initRsiChart();
@@ -1148,13 +1164,15 @@ function detectMarker(mx, my) {
 function detectForecastPoint(mx, my) {
   if (!isForecastVisible() || !chart) return null;
   const xS = chart.scales.x, yS = chart.scales.y, ca = chart.chartArea;
-  // Match the same rescale the draw code applies (see forecastScale in the
-  // SVG overlay function) so hit-detection and the tooltip's displayed price
-  // agree with where the dot is actually drawn.
+  // Match the same price rescale AND date shift the draw code applies (see
+  // forecastScale/forecastMonthsDelta in the SVG overlay function) so hit
+  // -detection and the tooltip's displayed price agree with where the dot
+  // is actually drawn.
   const scale = prices[prices.length - 1] / window.FORECAST_ORIGIN_PRICE;
+  const monthsDelta = dateToIdx(dates[dates.length - 1]) - dateToIdx(window.FORECAST_ORIGIN_DATE);
   for (const p of FORECAST_POINTS) {
     const displayPrice = p.isAnchor ? p.price : p.price * scale;
-    const px = xS.getPixelForValue(dateToIdx(p.date));
+    const px = xS.getPixelForValue(p.isAnchor ? dateToIdx(p.date) : dateToIdx(p.date) + monthsDelta);
     const py = yS.getPixelForValue(displayPrice);
     if (px < ca.left - 5 || px > ca.right + 5) continue;
     if (Math.abs(mx - px) < 10 && Math.abs(my - py) < 10) return { ...p, price: displayPrice, isForecast: true };
@@ -1540,44 +1558,52 @@ function updateOverlay(ch) {
     const anchorY = yS.getPixelForValue(prices[lastIdx]);
 
     // FORECAST_BULL/BEAR/POINTS all share a hardcoded first waypoint (the
-    // S&P level when the Shinhan report was written) and are drawn starting
-    // from that SAME shared origin, so the three lines never cross by
-    // construction. But the actual price has since moved on, so the fan is
-    // re-anchored above to today's real price/date for visual continuity —
-    // without also rescaling the rest of each line, that leaves the fan's
-    // later waypoints anchored to the OLD origin, letting the center line
-    // drift outside the bull/bear band once the real price diverges enough
-    // from where the report started. Scaling every later waypoint by the
-    // same ratio (today's real price ÷ the report's original origin price)
-    // preserves each scenario's relative trajectory from the report while
-    // keeping center/bull/bear internally consistent with each other.
+    // S&P date/level when the Shinhan report was written) and are drawn
+    // starting from that SAME shared origin, so the three lines never cross
+    // by construction. But the fan is re-anchored above to today's real
+    // price/date for visual continuity — moving only the origin's pixel
+    // position, not the rest of each line, leaves each scenario's later
+    // waypoints pinned to the report's original absolute price AND date.
+    // That breaks the shared-origin invariant two ways at once: the price
+    // has drifted (today vs. the report's origin price) AND the time axis
+    // has compressed unevenly (each line's first segment shortens by a
+    // different fraction of its own original duration, since the anchor
+    // date moved forward by a fixed amount but each line's next waypoint
+    // sits a different distance out) — so scaling price alone still let the
+    // center line's now-steeper early climb punch through bull. Applying
+    // the SAME price ratio AND the same date shift to every later waypoint
+    // reproduces the report's original relative shape exactly, just
+    // translated to start from today — guaranteeing center stays between
+    // bull and bear the same way the original (unshifted) arrays did.
     const forecastScale = prices[lastIdx] / window.FORECAST_ORIGIN_PRICE;
+    const forecastMonthsDelta = dateToIdx(dates[lastIdx]) - dateToIdx(window.FORECAST_ORIGIN_DATE);
     const scaledPrice = p => p.price * forecastScale;
+    const fxPxShifted = ds => xS.getPixelForValue(dateToIdx(ds) + forecastMonthsDelta);
 
     // Uncertainty band polygon — anchor start/end, skip index-0 of each array
-    const bullPts  = FORECAST_BULL.slice(1).map(p => `${fxPx(p.date)},${fyPx(scaledPrice(p))}`).join(' ');
-    const bearRevPts = [...FORECAST_BEAR.slice(1)].reverse().map(p => `${fxPx(p.date)},${fyPx(scaledPrice(p))}`).join(' ');
+    const bullPts  = FORECAST_BULL.slice(1).map(p => `${fxPxShifted(p.date)},${fyPx(scaledPrice(p))}`).join(' ');
+    const bearRevPts = [...FORECAST_BEAR.slice(1)].reverse().map(p => `${fxPxShifted(p.date)},${fyPx(scaledPrice(p))}`).join(' ');
     html += `<polygon points="${anchorX},${anchorY} ${bullPts} ${bearRevPts} ${anchorX},${anchorY}" fill="rgba(255,165,0,0.08)"/>`;
 
     // Bull scenario line — M at anchor, L to forecast nodes
     let bullD = `M${anchorX},${anchorY}`;
-    FORECAST_BULL.slice(1).forEach(p => { bullD += `L${fxPx(p.date)},${fyPx(scaledPrice(p))}`; });
+    FORECAST_BULL.slice(1).forEach(p => { bullD += `L${fxPxShifted(p.date)},${fyPx(scaledPrice(p))}`; });
     html += `<path d="${bullD}" fill="none" stroke="rgba(255,100,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
 
     // Bear scenario line — M at anchor, L to forecast nodes
     let bearD = `M${anchorX},${anchorY}`;
-    FORECAST_BEAR.slice(1).forEach(p => { bearD += `L${fxPx(p.date)},${fyPx(scaledPrice(p))}`; });
+    FORECAST_BEAR.slice(1).forEach(p => { bearD += `L${fxPxShifted(p.date)},${fyPx(scaledPrice(p))}`; });
     html += `<path d="${bearD}" fill="none" stroke="rgba(100,180,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
 
     // Central forecast line — M at anchor guarantees seamless connection
     let fcastD = `M${anchorX},${anchorY}`;
-    FORECAST_POINTS.slice(1).forEach(p => { fcastD += `L${fxPx(p.date)},${fyPx(scaledPrice(p))}`; });
+    FORECAST_POINTS.slice(1).forEach(p => { fcastD += `L${fxPxShifted(p.date)},${fyPx(scaledPrice(p))}`; });
     html += `<path d="${fcastD}" fill="none" stroke="rgba(255,165,0,0.85)" stroke-width="2" stroke-dasharray="8,4"/>`;
 
     // Forecast dots: first at anchor pixel, rest at their date positions
     html += `<circle cx="${anchorX}" cy="${anchorY}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;
     FORECAST_POINTS.slice(1).forEach(p => {
-      const px2 = fxPx(p.date), py2 = fyPx(scaledPrice(p));
+      const px2 = fxPxShifted(p.date), py2 = fyPx(scaledPrice(p));
       html += `<circle cx="${px2}" cy="${py2}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;
     });
   }
