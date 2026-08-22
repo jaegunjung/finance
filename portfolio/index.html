@@ -987,7 +987,7 @@ async function fetchCurrentPrice(symbol) {
 // year table's 누적 투입원금 column — one shared computation, not two
 // independent reimplementations, per this file's own dual-implementation
 // lesson (see CLAUDE.md).
-function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear }) {
+function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear, zeroFromYearByPortfolio }) {
   const BUY_T  = new Set(['buy', 'buy_to_cover']); // excludes drip
   const SELL_T = new Set(['sell', 'sell_short']);
   const isCash = sym => sym === 'USD=CASH' || sym === 'USD';
@@ -1074,6 +1074,14 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
     if (BUY_T.has(ev.type)) {
       if (hasExplicitOverrides) {
         amt = ev.countAsPrincipal === true ? (ev.amount + (Number(ev.commission) || 0)) : 0;
+      } else if (zeroFromYearByPortfolio) {
+        // Group view: apply each constituent portfolio's own
+        // zero_principal_from_year only to that portfolio's own events,
+        // not the whole merged group (see the 그룹 mode branch in
+        // portLoadAnalysis for why this can't just reuse the flat
+        // zeroFromYear path below).
+        const y = zeroFromYearByPortfolio[ev.portfolioId];
+        if (y && Number((ev.date || '').slice(0, 4)) >= y) amt = 0;
       } else if (zeroFromYear && Number((ev.date || '').slice(0, 4)) >= zeroFromYear) {
         amt = 0;
       }
@@ -2175,6 +2183,13 @@ async function portLoadAnalysis() {
     // rolled into a Traditional IRA, where rollover-in "buys" aren't new
     // principal contributed by the user).
     let _principalOverride = null; // { zero_principal_from_year, manual_principal, manual_principal_as_of }
+    // Group mode: manual_principal (a single point-in-time total) has no
+    // sound way to combine across several portfolios with potentially
+    // different as-of dates, so it's still not applied there — but
+    // zero_principal_from_year is a per-event YEAR filter, not a total, so
+    // it CAN be applied per-portfolio within the merged group event stream
+    // (see zeroFromYearByPortfolio below and in _computeNetPrincipal).
+    let _zeroFromYearByPortfolio = null;
     if (portActivePortfolioId) {
       const activePf = portPortfolios.find(p => p.id === portActivePortfolioId);
       if (activePf) {
@@ -2183,6 +2198,13 @@ async function portLoadAnalysis() {
           manual_principal: activePf.manual_principal != null ? Number(activePf.manual_principal) : null,
           manual_principal_as_of: activePf.manual_principal_as_of || null,
         };
+      }
+    } else if (portActiveGroupName) {
+      const groupPfs = portPortfolios.filter(p => (p.group_names || []).includes(portActiveGroupName));
+      const withZeroYear = groupPfs.filter(p => p.zero_principal_from_year);
+      if (withZeroYear.length) {
+        _zeroFromYearByPortfolio = {};
+        for (const p of withZeroYear) _zeroFromYearByPortfolio[p.id] = Number(p.zero_principal_from_year);
       }
     }
     _anlActivePrincipalOverride = _principalOverride; // stash for the settings modal
@@ -2267,6 +2289,7 @@ async function portLoadAnalysis() {
         date:   t.trade_date,
         sym:    t.symbol,
         type:   t.type,
+        portfolioId: t.portfolio_id || null,
         amount: Math.abs(Number(t.amount) || 0),
         commission: Number(t.commission) || 0,
         lotMethod: t.lot_method || null,
@@ -2397,7 +2420,7 @@ async function portLoadAnalysis() {
     // rather than "what if I'd traded the benchmark exactly as often as I
     // traded my actual holdings".)
     const _CASH_SYMS = new Set(['USD=CASH', 'USD']);
-    const principalCalc = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromYear });
+    const principalCalc = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromYear, zeroFromYearByPortfolio: _zeroFromYearByPortfolio });
     const perEvent = principalCalc.perEvent;
 
     // Per-year mark-to-market checkpoints for the SPY/SGOV columns of the
