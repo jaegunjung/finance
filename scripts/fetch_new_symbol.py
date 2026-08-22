@@ -38,13 +38,12 @@ def csv_path(symbol: str) -> Path:
     return OUTPUT_DIR / (safe + ".csv")
 
 
-def read_last_date(symbol: str) -> str:
+def read_existing_rows(symbol: str) -> dict[str, dict]:
     p = csv_path(symbol)
     if not p.exists():
-        return DEFAULT_START
+        return {}
     with open(p, newline="") as f:
-        rows = list(csv.DictReader(f))
-    return rows[-1]["date"].strip() if rows else DEFAULT_START
+        return {r["date"].strip(): r for r in csv.DictReader(f) if r.get("date")}
 
 
 def yf_ticker(symbol: str) -> str:
@@ -58,7 +57,21 @@ def yf_ticker(symbol: str) -> str:
 def fetch_yfinance(symbol: str, start: str) -> list[dict]:
     ticker = yf_ticker(symbol)
     print(f"  Fetching {ticker} from Yahoo Finance (start={start})…", flush=True)
-    df = yf.Ticker(ticker).history(start=start, end=str(date.today()), auto_adjust=True)
+    # auto_adjust=False: this site's other price data (update_stocks.py via
+    # Alpha Vantage) is raw/un-adjusted, with splits handled explicitly via
+    # a 'split' transaction event per portfolio (_applySplit in
+    # portfolio/index.html) rather than a globally-rescaled price series.
+    # auto_adjust=True retroactively multiplies EVERY pre-split historical
+    # price by the split ratio to stay continuous with today's terms --
+    # correct for a simple continuous chart, but wrong here: it corrupted
+    # SPCE's 2020 prices by ~20x (its real 2024 reverse split), because a
+    # position fully closed years before that split has no open lot for
+    # _applySplit to adjust, so the retroactively-inflated price directly
+    # became that position's (fake) market value for its whole holding
+    # window. Keeping raw prices here matches the rest of the site and
+    # keeps this script's other consumer (update_stocks.py's daily
+    # incremental updates) internally consistent too.
+    df = yf.Ticker(ticker).history(start=start, end=str(date.today()), auto_adjust=False)
     if df.empty:
         return []
     rows = []
@@ -66,33 +79,52 @@ def fetch_yfinance(symbol: str, start: str) -> list[dict]:
         d = idx.date() if hasattr(idx, "date") else datetime.strptime(str(idx)[:10], "%Y-%m-%d").date()
         rows.append({
             "date":                str(d),
-            "open_price_usd":      round(float(row["Open"]),   4),
-            "close_price_usd":     round(float(row["Close"]),  4),
-            "adj_close_price_usd": round(float(row["Close"]),  4),
+            "open_price_usd":      round(float(row["Open"]),  4),
+            "close_price_usd":     round(float(row["Close"]), 4),
+            "adj_close_price_usd": round(float(row["Close"]), 4),
             "total_volume_usd":    int(row.get("Volume", 0)),
         })
     return rows
 
 
-def write_csv(symbol: str, rows: list[dict], append: bool = False) -> int:
-    if not rows:
+def write_csv_merged(symbol: str, new_rows: list[dict]) -> int:
+    """Merge new_rows into whatever's already on disk (by date; new data
+    wins on overlap) and rewrite the whole file, sorted. A plain append
+    can only extend a file forward from its current last date -- it can't
+    backfill a GAP in an existing file (e.g. one that was only ever
+    fetched with a short recent window), so this always does a full
+    read-merge-write instead. Returns how many dates are new vs. what was
+    already on disk.
+    """
+    if not new_rows:
         return 0
-    rows.sort(key=lambda r: r["date"])
+    existing = read_existing_rows(symbol)
+    before = len(existing)
+    for r in new_rows:
+        existing[r["date"]] = r
+    merged = sorted(existing.values(), key=lambda r: r["date"])
     p = csv_path(symbol)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    mode = "a" if append and p.exists() else "w"
-    write_header = not (append and p.exists())
-    with open(p, mode, newline="") as f:
+    with open(p, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        if write_header:
-            writer.writeheader()
-        writer.writerows(rows)
-    return len(rows)
+        writer.writeheader()
+        writer.writerows(merged)
+    return len(merged) - before
 
 
 def fetch_one(symbol: str, start: str | None) -> None:
-    last_date = read_last_date(symbol)
-    effective_start = start or last_date
+    # Always fetches the full available history by default (not just
+    # forward from whatever's already on disk) — this script's whole
+    # purpose is backfilling/fixing a symbol, not incremental daily
+    # updates (that's update_stocks.py's job). An existing file might
+    # only cover a short recent window (e.g. its first-ever fetch never
+    # got the full-history flag, or was compact-only) with no data at all
+    # for whenever this account actually held the symbol; only ever
+    # extending forward from the current last date could never backfill
+    # that gap. write_csv_merged folds the freshly fetched range into
+    # whatever's on disk (by date, new data wins), so this is safe to
+    # re-run on an already-populated symbol too.
+    effective_start = start or DEFAULT_START
 
     print(f"\n{'─'*50}", flush=True)
     print(f"  Symbol : {symbol}", flush=True)
@@ -106,18 +138,14 @@ def fetch_one(symbol: str, start: str | None) -> None:
         print("   Skipping — no data written.", flush=True)
         return
 
-    # Filter rows already in CSV
-    existing_end = read_last_date(symbol)
-    new_rows = [r for r in rows if r["date"] > existing_end] if existing_end != DEFAULT_START else rows
+    added = write_csv_merged(symbol, rows)
 
-    if not new_rows:
-        print(f"\n✅ {symbol} is already up to date ({existing_end}).", flush=True)
+    if added == 0:
+        print(f"\n✅ {symbol} is already up to date.", flush=True)
         return
 
-    written = write_csv(symbol, new_rows, append=(existing_end != DEFAULT_START))
-
     print(f"\n✅ `{symbol}` 데이터를 다운로드했습니다.", flush=True)
-    print(f"📅 기간: {new_rows[0]['date']} ~ {new_rows[-1]['date']} ({written}일치)", flush=True)
+    print(f"📅 기간: {rows[0]['date']} ~ {rows[-1]['date']} (신규 {added}일치)", flush=True)
     print(f"📦 출처: Yahoo Finance (yfinance)", flush=True)
     print(f"💾 저장: {csv_path(symbol)}", flush=True)
     print(f"\n이제 해당 종목의 보유 현황 및 손익이 반영됩니다.", flush=True)
