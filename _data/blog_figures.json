@@ -1,0 +1,57 @@
+{
+  "_comment": "Curated allowlist of public-domain figure photos the blog automation (.github/workflows/daily-news-watch.yml) may embed in a post. Every entry was manually verified (source page checked, license tag confirmed, URL test-downloaded) by a human/Claude session on 2026-08-22 -- do not add entries automatically or from an unattended job; only add new ones through an interactive session that repeats the same verification.",
+  "figures": [
+    {
+      "slug": "bessent",
+      "name_en": "Scott Bessent",
+      "name_ko": "스콧 베센트",
+      "title_en": "U.S. Treasury Secretary",
+      "title_ko": "미국 재무장관",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/8/86/Official_portrait_of_Treasury_Secretary_Scott_Bessent_%28cropped%29.jpg",
+      "filename": "bessent-official-portrait.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Official_portrait_of_Treasury_Secretary_Scott_Bessent_(cropped).jpg",
+      "license": "PD-USGov-Treasury (public domain, work of the U.S. Department of the Treasury)",
+      "caption_en": "Official Treasury Department photo (public domain)",
+      "caption_ko": "미국 재무부 공식 사진 (퍼블릭 도메인)"
+    },
+    {
+      "slug": "powell",
+      "name_en": "Jerome Powell",
+      "name_ko": "제롬 파월",
+      "title_en": "Chair, Federal Reserve",
+      "title_ko": "연방준비제도 의장",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f0/Jerome_H._Powell%2C_Federal_Reserve_Chair_%28cropped%29.jpg",
+      "filename": "powell-official-portrait.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Jerome_H._Powell,_Federal_Reserve_Chair_(cropped).jpg",
+      "license": "PD US Federal Reserve (public domain, work of the Board of Governors of the Federal Reserve System)",
+      "caption_en": "Official Federal Reserve photo (public domain)",
+      "caption_ko": "연방준비제도 공식 사진 (퍼블릭 도메인)"
+    },
+    {
+      "slug": "trump",
+      "name_en": "Donald Trump",
+      "name_ko": "도널드 트럼프",
+      "title_en": "President of the United States",
+      "title_ko": "미국 대통령",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/f/f7/Donald_Trump_official_portrait%2C_2025_%28headshot%29.jpg",
+      "filename": "trump-official-portrait-2025.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Donald_Trump_official_portrait,_2025_(headshot).jpg",
+      "license": "Public domain (released by photographer Daniel Torok; work of the Executive Office of the President)",
+      "caption_en": "Official White House photo (public domain)",
+      "caption_ko": "백악관 공식 사진 (퍼블릭 도메인)"
+    },
+    {
+      "slug": "atkins",
+      "name_en": "Paul Atkins",
+      "name_ko": "폴 앳킨스",
+      "title_en": "Chair, U.S. Securities and Exchange Commission",
+      "title_ko": "미국 증권거래위원회(SEC) 위원장",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/5/52/SEC_Commissioner_Paul_Atkins.jpg",
+      "filename": "atkins-official-portrait.jpg",
+      "source_page": "https://commons.wikimedia.org/wiki/File:SEC_Commissioner_Paul_Atkins.jpg",
+      "license": "Public domain (17 U.S.C. §105, work of a U.S. federal government employee)",
+      "caption_en": "Official SEC photo (public domain)",
+      "caption_ko": "SEC 공식 사진 (퍼블릭 도메인)"
+    }
+  ]
+}

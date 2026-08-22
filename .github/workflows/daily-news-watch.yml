@@ -122,10 +122,39 @@ jobs:
             - Do not fabricate a chart or image for topics with no natural table/chart fit — a table
               only helps when the underlying content is actually structured data, not prose forced into
               cells.
+            - Optionally, if the post prominently centers on one specific person listed in
+              `_data/blog_figures.json` (e.g. a Treasury buyback story naming Bessent, a Fed-policy story
+              centered on Powell, an SEC-rulemaking story centered on Atkins), you MAY embed that person's
+              photo once, near the top of the post, to break up the wall of text — this is optional and
+              most posts don't need it; don't force one in when no listed figure is actually the subject.
+              **This is the ONLY source of images you are allowed to use.** Do not fetch, link to, or
+              embed any other image, photo, meme, or graphic from anywhere else on the internet, and do
+              not guess a URL for a person not already in that file — most news photos are copyrighted
+              (wire-service/press photos), and using them without a license is a real legal risk this
+              blog cannot take in an unattended job. If the relevant figure isn't in `_data/blog_figures.json`,
+              just skip the image; a human can vet and add new entries later.
+              To use one: read `_data/blog_figures.json`, pick the matching entry, then:
+              1. `curl -sL -A "Mozilla/5.0" -o assets/images/blog/<filename> "<image_url>"` (create the
+                 `assets/images/blog/` directory if it doesn't exist yet).
+              2. Verify the download actually succeeded and is an image, not an HTML error/redirect page:
+                 `file assets/images/blog/<filename>` must report an image type (e.g. "JPEG image data").
+                 If it doesn't, delete the bad file and skip the image for this post — do not guess an
+                 alternate URL.
+              3. Embed it once, right after the intro paragraph (or wherever it reads naturally) in the
+                 English section, using the entry's `caption_en`, and again in the Korean section using
+                 `caption_ko`:
+                 ```html
+                 <div style="margin:20px 0;">
+                   <img src="{{ '/assets/images/blog/<filename>' | relative_url }}" alt="<name_en>" style="width:100%; max-width:420px; border-radius:8px; display:block; margin:0 auto;">
+                   <div style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:6px;">&lt;caption_en or caption_ko&gt;</div>
+                 </div>
+                 ```
+              4. `git add` the new image file alongside the post file in Step 5 below.
 
             ## Step 5 — Commit and push
             Follow the git workflow rules in this repo's CLAUDE.md exactly:
-            - git add the new post file only
+            - git add the new post file, and the new image file under assets/images/blog/ if you added
+              one in Step 4 — nothing else
             - git commit -m "post: [topic] 뉴스 업데이트 [auto-news-watch]" (replace [topic] with a short
               description, e.g. "Clarity Act 상원 통과" or "AI CapEx 가이던스 상향")
             - git fetch origin, then if origin/main has new commits, git pull --rebase origin main
