@@ -954,7 +954,14 @@ function updateBtcOverlay(ch) {
     const peakPy = yS.getPixelForValue(peakPrice);
     if (peakPx >= ca.left && peakPx <= ca.right && peakPy >= ca.top && peakPy <= ca.bottom) {
       htmlClipped += `<polygon points="${peakPx},${peakPy-10} ${peakPx-6},${peakPy+4} ${peakPx+6},${peakPy+4}" fill="#ff9900" opacity="0.85" style="cursor:pointer"/>`;
-      htmlClipped += `<text x="${peakPx}" y="${peakPy-13}" fill="#ff9900" font-size="9" text-anchor="middle" opacity="0.75">5th Peak (est.)</text>`;
+      // This marker sits at the far-right edge of the "All" view by construction (it's the
+      // furthest-future point on the chart), so a center-anchored label routinely overflows
+      // past the plot area and gets clipped by the SVG's overflow:hidden -- right-anchor it
+      // near the edge instead so the full label stays inside ca.right.
+      const nearRightEdge = peakPx > ca.right - 60;
+      const labelX = nearRightEdge ? Math.min(peakPx + 6, ca.right - 2) : peakPx;
+      const labelAnchor = nearRightEdge ? 'end' : 'middle';
+      htmlClipped += `<text x="${labelX}" y="${peakPy-13}" fill="#ff9900" font-size="9" text-anchor="${labelAnchor}" opacity="0.75">5th Peak (est.)</text>`;
       // Store for click detection
       const pLow  = Math.round(plPrice(futureDays(peakDays), 1.5) / 1000);
       const pHigh = Math.round(plPrice(futureDays(peakDays), 3.0) / 1000);
