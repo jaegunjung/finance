@@ -598,6 +598,10 @@ fetch('{{ "/assets/data/sp500_monthly.csv" | relative_url }}')
     // Anchor forecast arrays to the last actual data point so the dashed line
     // starts exactly where the solid line ends. isAnchor marks it as real data
     // (not an estimate) so the tooltip shows the actual price without "(est.)".
+    // Captured BEFORE the overwrite below -- the draw function needs the
+    // report's original origin price to rescale the rest of each scenario
+    // line consistently (see forecastScale in the SVG draw code).
+    window.FORECAST_ORIGIN_PRICE = FORECAST_POINTS[0].price;
     const lastActual = prices[prices.length - 1];
     const lastDate   = dates[dates.length - 1];
     FORECAST_POINTS[0] = { date: lastDate, price: lastActual, isAnchor: true };
@@ -664,7 +668,11 @@ function updateForecastToggleLabel() {
 function updateForecastAxisRange() {
   if (!chart) return;
   const visible = isForecastVisible();
-  const maxForecastVal = Math.max(...FORECAST_BULL.map(p => p.price));
+  // Match the forecastScale applied when drawing the fan (see the SVG
+  // overlay draw code) so the y-axis headroom accounts for the rescaled
+  // bull line, not the original report's now-stale absolute price.
+  const scale = prices.length ? prices[prices.length - 1] / window.FORECAST_ORIGIN_PRICE : 1;
+  const maxForecastVal = Math.max(...FORECAST_BULL.map(p => p.price)) * scale;
   const xMax = visible ? FORECAST_XMAX : dates.length - 1;
   chart.options.scales.x.max = xMax;
   chart.options.scales.y.max = visible ? Math.max(15000, maxForecastVal * 1.15) : undefined;
@@ -1140,11 +1148,16 @@ function detectMarker(mx, my) {
 function detectForecastPoint(mx, my) {
   if (!isForecastVisible() || !chart) return null;
   const xS = chart.scales.x, yS = chart.scales.y, ca = chart.chartArea;
+  // Match the same rescale the draw code applies (see forecastScale in the
+  // SVG overlay function) so hit-detection and the tooltip's displayed price
+  // agree with where the dot is actually drawn.
+  const scale = prices[prices.length - 1] / window.FORECAST_ORIGIN_PRICE;
   for (const p of FORECAST_POINTS) {
+    const displayPrice = p.isAnchor ? p.price : p.price * scale;
     const px = xS.getPixelForValue(dateToIdx(p.date));
-    const py = yS.getPixelForValue(p.price);
+    const py = yS.getPixelForValue(displayPrice);
     if (px < ca.left - 5 || px > ca.right + 5) continue;
-    if (Math.abs(mx - px) < 10 && Math.abs(my - py) < 10) return { ...p, isForecast: true };
+    if (Math.abs(mx - px) < 10 && Math.abs(my - py) < 10) return { ...p, price: displayPrice, isForecast: true };
   }
   return null;
 }
@@ -1526,30 +1539,45 @@ function updateOverlay(ch) {
     const anchorX = xS.getPixelForValue(lastIdx);
     const anchorY = yS.getPixelForValue(prices[lastIdx]);
 
+    // FORECAST_BULL/BEAR/POINTS all share a hardcoded first waypoint (the
+    // S&P level when the Shinhan report was written) and are drawn starting
+    // from that SAME shared origin, so the three lines never cross by
+    // construction. But the actual price has since moved on, so the fan is
+    // re-anchored above to today's real price/date for visual continuity —
+    // without also rescaling the rest of each line, that leaves the fan's
+    // later waypoints anchored to the OLD origin, letting the center line
+    // drift outside the bull/bear band once the real price diverges enough
+    // from where the report started. Scaling every later waypoint by the
+    // same ratio (today's real price ÷ the report's original origin price)
+    // preserves each scenario's relative trajectory from the report while
+    // keeping center/bull/bear internally consistent with each other.
+    const forecastScale = prices[lastIdx] / window.FORECAST_ORIGIN_PRICE;
+    const scaledPrice = p => p.price * forecastScale;
+
     // Uncertainty band polygon — anchor start/end, skip index-0 of each array
-    const bullPts  = FORECAST_BULL.slice(1).map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
-    const bearRevPts = [...FORECAST_BEAR.slice(1)].reverse().map(p => `${fxPx(p.date)},${fyPx(p.price)}`).join(' ');
+    const bullPts  = FORECAST_BULL.slice(1).map(p => `${fxPx(p.date)},${fyPx(scaledPrice(p))}`).join(' ');
+    const bearRevPts = [...FORECAST_BEAR.slice(1)].reverse().map(p => `${fxPx(p.date)},${fyPx(scaledPrice(p))}`).join(' ');
     html += `<polygon points="${anchorX},${anchorY} ${bullPts} ${bearRevPts} ${anchorX},${anchorY}" fill="rgba(255,165,0,0.08)"/>`;
 
     // Bull scenario line — M at anchor, L to forecast nodes
     let bullD = `M${anchorX},${anchorY}`;
-    FORECAST_BULL.slice(1).forEach(p => { bullD += `L${fxPx(p.date)},${fyPx(p.price)}`; });
+    FORECAST_BULL.slice(1).forEach(p => { bullD += `L${fxPx(p.date)},${fyPx(scaledPrice(p))}`; });
     html += `<path d="${bullD}" fill="none" stroke="rgba(255,100,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
 
     // Bear scenario line — M at anchor, L to forecast nodes
     let bearD = `M${anchorX},${anchorY}`;
-    FORECAST_BEAR.slice(1).forEach(p => { bearD += `L${fxPx(p.date)},${fyPx(p.price)}`; });
+    FORECAST_BEAR.slice(1).forEach(p => { bearD += `L${fxPx(p.date)},${fyPx(scaledPrice(p))}`; });
     html += `<path d="${bearD}" fill="none" stroke="rgba(100,180,100,0.55)" stroke-width="1.5" stroke-dasharray="4,4"/>`;
 
     // Central forecast line — M at anchor guarantees seamless connection
     let fcastD = `M${anchorX},${anchorY}`;
-    FORECAST_POINTS.slice(1).forEach(p => { fcastD += `L${fxPx(p.date)},${fyPx(p.price)}`; });
+    FORECAST_POINTS.slice(1).forEach(p => { fcastD += `L${fxPx(p.date)},${fyPx(scaledPrice(p))}`; });
     html += `<path d="${fcastD}" fill="none" stroke="rgba(255,165,0,0.85)" stroke-width="2" stroke-dasharray="8,4"/>`;
 
     // Forecast dots: first at anchor pixel, rest at their date positions
     html += `<circle cx="${anchorX}" cy="${anchorY}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;
     FORECAST_POINTS.slice(1).forEach(p => {
-      const px2 = fxPx(p.date), py2 = fyPx(p.price);
+      const px2 = fxPx(p.date), py2 = fyPx(scaledPrice(p));
       html += `<circle cx="${px2}" cy="${py2}" r="3.5" fill="rgba(255,165,0,0.9)" stroke="rgba(30,33,40,0.8)" stroke-width="1"/>`;
     });
   }
