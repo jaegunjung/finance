@@ -14,9 +14,15 @@ env:
 jobs:
   update-btc:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -41,3 +47,108 @@ jobs:
             git pull --rebase origin main
             git push
           fi
+
+      - name: Check for an undocumented rainbow-chart peak/trough
+        id: check_gap
+        run: python scripts/check_btc_marker_gap.py
+
+      - name: Research and write the missing chart marker with Claude Code
+        if: steps.check_gap.outputs.gap_found == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --allowedTools "Bash"
+          prompt: |
+            You are running a scheduled, unattended job for the finance site at D:\github\finance
+            (this repo). A mechanical, deterministic check (scripts/check_btc_marker_gap.py) just found
+            that crypto/index.html's curated Bitcoin peak/trough story markers (the BTC_PEAKS and
+            BTC_TROUGHS arrays, rendered as clickable annotations on the rainbow chart) have fallen
+            behind the actual price data in crypto/data/btc_daily.csv -- a real local peak or trough
+            happened that has no marker yet. Your job is to research why it happened and add exactly one
+            correctly-formatted entry.
+
+            The detected gap (JSON): ${{ steps.check_gap.outputs.gap_json }}
+
+            This tells you:
+            - `type`: "peak" or "trough" -- which array to add to (BTC_PEAKS or BTC_TROUGHS)
+            - `date`: the month (YYYY-MM) the extremum fell in
+            - `price`: the extremum price (already computed from the real daily data -- use this exact
+              number, don't recompute or guess a different one)
+            - `reference_marker`: the existing marker immediately before this one chronologically, for
+              context (e.g. if this is a new trough, the reference is the peak that preceded it)
+            - `supersedes`: if non-null, an EXISTING marker (by exact date) that this new one makes
+              redundant (e.g. a shallower trough that's no longer the real cycle-level low because a
+              deeper one just appeared with no peak in between) -- remove that one specific entry (and
+              its BTC_MARKER_IMGS entry if it has one) as part of the same edit. If null, don't remove
+              anything -- just add the new entry.
+
+            ## Step 1 — Study the existing format exactly
+            Read crypto/index.html's BTC_PEAKS and BTC_TROUGHS arrays in full. Each entry is a single JS
+            object literal: `{date:'YYYY-MM',price:NNNN,en:'Title',ko:'제목', enDesc:'...', koDesc:'...'}`
+            followed by a comma, matching the surrounding entries' exact structure (single-quoted strings,
+            escaped apostrophes as \', no trailing information beyond what the format already has). Read
+            3-4 of the most recent existing entries in full to match their tone, length (roughly 120-180
+            words per description), and level of specificity (named catalysts, dates, dollar figures,
+            percentages -- not vague filler).
+
+            ## Step 2 — Research what actually happened
+            WebSearch and WebFetch are NOT available in this environment. Use the Bash tool with curl
+            against Google News' public RSS search feed instead:
+
+              curl -s "https://news.google.com/rss/search?q=<url-encoded query>&hl=en-US&gl=US&ceid=US:en"
+
+            Search for Bitcoin price news around the detected date (try queries like "bitcoin price
+            <month> <year>", "bitcoin crash <month> <year>", "bitcoin rally <month> <year>", and any
+            specific event names you find referenced). Corroborate across multiple headlines before
+            treating a claimed cause as real. If you cannot find clear, corroborated reporting on a
+            specific cause, write a more general but still honest description (e.g. citing the broader
+            macro backdrop from nearby existing entries) rather than inventing a specific event that
+            didn't happen — accuracy matters more than a punchy story.
+
+            ## Step 3 — Write the entry
+            Add one new object to the correct array (BTC_PEAKS for type "peak", BTC_TROUGHS for type
+            "trough"), in chronological position (arrays are ordered by date), using the exact `date` and
+            `price` from the gap JSON above. Write both `en`/`ko` (short title) and `enDesc`/`koDesc`
+            (full narrative, matching sibling entries' length and rigor) grounded in what you found in
+            Step 2 — cite real dates, figures, and named events, not generic language.
+
+            If `supersedes` was non-null, delete that one existing entry (matched by its exact `date`)
+            from the same array — don't touch any other entry.
+
+            ## Step 4 — Optionally add a marker image
+            BTC_MARKER_IMGS maps a marker's `date` to `[wikimedia_filename, caption]`, fetched live from
+            Wikimedia Commons (`Special:FilePath/<filename>`) — it's optional and the page already
+            handles a missing entry gracefully, so skip this step entirely if you're not confident.
+            Strongly prefer reusing a filename ALREADY referenced elsewhere in BTC_MARKER_IMGS if it's
+            thematically relevant (e.g. the Federal Reserve building for a rate-related move, an existing
+            company/institution logo already used on this page) — that's zero incremental risk since it's
+            already been used. Only reference a NEW Wikimedia filename if it is clearly the same kind of
+            asset already used on this page (a named institution's building, a company's official
+            logo/wordmark, a national flag, a government official's official portrait) AND you are
+            confident of its public-domain or CC license from context — do not guess a filename. If
+            `supersedes` had an image entry, remove it along with the entry in Step 3.
+
+            ## Step 5 — Verify before committing
+            Run this exact syntax check (matches CLAUDE.md's protocol for this file):
+              node -e "
+                const fs = require('fs');
+                const src = fs.readFileSync('crypto/index.html','utf8');
+                const scripts = [...src.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+                let out = scripts.join('\n');
+                out = out.replace(/\{\{[^}]*\}\}/g, '\"X\"');
+                fs.writeFileSync('/tmp/check.js', out);
+              "
+              node --check /tmp/check.js
+            It must print no errors. Then re-run `python scripts/check_btc_marker_gap.py` — it should now
+            report "No marker gap detected." If either check fails, fix your edit (or revert it) rather
+            than committing broken output.
+
+            ## Step 6 — Commit and push
+            Follow CLAUDE.md's git workflow: `git add crypto/index.html` only, commit with a message like
+            "Add <Month Year> <peak/trough> marker to BTC rainbow chart [auto-marker-watch]", then
+            `git fetch origin`, `git pull --rebase origin main` if needed, `git push`, and verify with
+            `git log origin/main -1` that the commit actually landed (retry with
+            `git push origin HEAD:main` if the normal push fails due to detached HEAD).
+
+            Do not touch any file other than crypto/index.html.
