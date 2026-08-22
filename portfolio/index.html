@@ -2470,19 +2470,30 @@ async function portLoadAnalysis() {
           if (isToday && !_CASH_SYMS.has(sym)) holdingsForPie.push({ sym, value: p * shares });
         }
       }
-      const portGain = (manualPrincipal != null && manualPrincipal > 0)
+      // manualPrincipal is a snapshot pinned AT manualAsOfDate ("as of this
+      // date, the account held about $X") — applying portValue-minus-
+      // manualPrincipal to dates BEFORE that snapshot subtracts a total the
+      // account hadn't reached yet from a portValue that's still small this
+      // early in the replay, producing a large, artificial negative "loss"
+      // for the entire pre-snapshot period (confirmed: a 401k rollover
+      // account with manual_principal=$148,000 as of 2020-12-31 showed the
+      // chart opening around -$150K in early-to-mid 2020, purely from this).
+      // Before the snapshot date, fall back to the normal cost-basis P&L —
+      // the manual override only makes sense from the date it describes.
+      const useManualPrincipal = manualPrincipal != null && manualPrincipal > 0 && date >= manualAsOfDate;
+      const portGain = useManualPrincipal
         ? portValue - manualPrincipal
         : portRealizedGain + portUnreal;
       const spyP  = _nearestPrice(spyPrices,  date);
       const qqqP  = _nearestPrice(qqqPrices,  date);
       const sgovP = _nearestPrice(sgovPrices, date);
-      const spyGain  = (manualPrincipal != null && manualPrincipal > 0)
+      const spyGain  = useManualPrincipal
         ? (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null
         : spyP  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyP  - _lotTotals(spyLots).cost)  : null;
-      const qqqGain  = (manualPrincipal != null && manualPrincipal > 0)
+      const qqqGain  = useManualPrincipal
         ? (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null
         : qqqP  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqP  - _lotTotals(qqqLots).cost)  : null;
-      const sgovGain = (manualPrincipal != null && manualPrincipal > 0)
+      const sgovGain = useManualPrincipal
         ? (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null
         : sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null;
       return { date, portGain, portRealizedGain, spyGain, qqqGain, sgovGain, spyCost, qqqCost, sgovCost };
@@ -2697,7 +2708,16 @@ async function portLoadAnalysis() {
       // year-by-year series — show and calculate against it directly on
       // every row instead of the derived (possibly zero, e.g. if every
       // buy is excluded via 연도별 $0 처리) running total.
-      const displayInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
+      const isCur = yr === curYear;
+      const cutoff = isCur ? today : `${yr}-12-31`;
+      // Same reasoning as useManualPrincipal in the chart snapshot function
+      // above: the manual override describes the account's state AS OF
+      // manualAsOfDate, so a year row whose cutoff falls BEFORE that date
+      // (e.g. manualAsOfDate mid-2021 but this is the 2020 row) must still
+      // use regular cost-basis accounting — only rows at or after the
+      // snapshot date should compare against the fixed principal.
+      const useManualPrincipalRow = manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate && cutoff >= manualAsOfDate;
+      const displayInvested = useManualPrincipalRow ? manualPrincipal : cumInvested;
       // For a manual-원금 (rollover) account, use market VALUE minus the
       // fixed principal — not cost-basis P&L (mtmRealized + unreal).
       // Rollover-recorded "buys" get their cost basis set to each
@@ -2706,16 +2726,13 @@ async function portLoadAnalysis() {
       // real (much lower, pre-rollover) principal baseline — exactly the
       // reasoning already documented on 보유현황's own "원금 …" comparison
       // line, which this mirrors so the two tabs agree.
-      const cumGain = (manualPrincipal != null && manualPrincipal > 0)
+      const cumGain = useManualPrincipalRow
         ? yearMtmValue[yr] - manualPrincipal
         : yearCumGain[yr];
       const pct = displayInvested > 0 ? cumGain / displayInvested * 100 : null;
 
-      const isCur = yr === curYear;
-      const cutoff = isCur ? today : `${yr}-12-31`;
-
       let spyPct, sgovPct;
-      if (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) {
+      if (useManualPrincipalRow) {
         const spyNow  = _nearestPrice(spyPrices, cutoff);
         const sgovNow = _nearestPrice(sgovPrices, cutoff);
         spyPct  = (spyBaseAtManualAsOf  && spyNow)  ? (spyNow  / spyBaseAtManualAsOf  - 1) * 100 : null;
@@ -2744,11 +2761,12 @@ async function portLoadAnalysis() {
     // year row already shows these exact cumulative-to-date figures — a
     // dedicated total row would just repeat it verbatim.
     const lastYr = allYears.length ? allYears[allYears.length - 1] : null;
+    const useManualPrincipalTotal = manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate && today >= manualAsOfDate;
     const totalGain = lastYr == null ? 0
-      : (manualPrincipal != null && manualPrincipal > 0) ? yearMtmValue[lastYr] - manualPrincipal : yearCumGain[lastYr];
-    const totalInvested = (manualPrincipal != null && manualPrincipal > 0) ? manualPrincipal : cumInvested;
+      : useManualPrincipalTotal ? yearMtmValue[lastYr] - manualPrincipal : yearCumGain[lastYr];
+    const totalInvested = useManualPrincipalTotal ? manualPrincipal : cumInvested;
     const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
-    const spyTotal = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate)
+    const spyTotal = useManualPrincipalTotal
       ? (spyBaseAtManualAsOf && spyToday) ? (spyToday / spyBaseAtManualAsOf - 1) * 100 : null
       : (spyCost > 0 ? spyGainToday / spyCost * 100 : null);
     document.getElementById('anlYearTableBody').innerHTML = tbody;
