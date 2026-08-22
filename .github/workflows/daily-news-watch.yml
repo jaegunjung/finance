@@ -151,10 +151,28 @@ jobs:
                  ```
               4. `git add` the new image file alongside the post file in Step 5 below.
 
+            ## Step 4b — If the post is about the Clarity Act, refresh the status card's data file
+            crypto/index.html has a small "Clarity Act" status card that reads its status label,
+            description, and "latest update" link from `_data/clarity_act_status.json` (via Jekyll
+            `site.data.clarity_act_status.*`) instead of hardcoded HTML — this exists specifically so an
+            unattended job like this one can keep it current without editing page HTML directly.
+
+            If (and only if) the post you just wrote in Step 4 is about the Clarity Act, update
+            `_data/clarity_act_status.json` to match: rewrite `status_label_en` / `status_label_ko` (the
+            short badge line, e.g. "In Progress · Sept 15, 2026 Cloture Vote"), `description_en` /
+            `description_ko` (one sentence with the latest concrete status — vote date, odds, or outcome),
+            `latest_post_url` (the new post's URL, matching the site's permalink pattern
+            `/<categories>/<yyyy>/<mm>/<dd>/<slug>/`), `latest_post_label_en` / `latest_post_label_ko`
+            (e.g. "Latest Clarity Act update (<date>)"), and `last_updated` (today's date). Keep the
+            existing JSON structure and the `_comment` field exactly as they are — only change the value
+            fields. If the bill's status hasn't materially changed from what's already in the file (e.g.
+            you're writing about something else that just mentions Clarity Act in passing), leave this
+            file untouched.
+
             ## Step 5 — Commit and push
             Follow the git workflow rules in this repo's CLAUDE.md exactly:
-            - git add the new post file, and the new image file under assets/images/blog/ if you added
-              one in Step 4 — nothing else
+            - git add the new post file, the new image file under assets/images/blog/ if you added one in
+              Step 4, and `_data/clarity_act_status.json` if you updated it in Step 4b — nothing else
             - git commit -m "post: [topic] 뉴스 업데이트 [auto-news-watch]" (replace [topic] with a short
               description, e.g. "Clarity Act 상원 통과" or "AI CapEx 가이던스 상향")
             - git fetch origin, then if origin/main has new commits, git pull --rebase origin main

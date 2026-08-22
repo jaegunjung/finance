@@ -1,0 +1,11 @@
+{
+  "_comment": "Powers the Clarity Act status card on crypto/index.html (rendered via Jekyll site.data.clarity_act_status.*). Kept as data instead of hardcoded HTML so daily-news-watch.yml can safely refresh it whenever it publishes a new Clarity Act post -- editing these fields carries far less risk than an unattended job hand-editing the page's HTML directly.",
+  "status_label_en": "In Progress · Sept 15, 2026 Cloture Vote",
+  "status_label_ko": "진행 중 · 2026.9.15 클로처 표결",
+  "description_en": "Defines Bitcoin and Ether as commodities under CFTC. Resolves SEC/CFTC jurisdiction. Passed Senate Banking Committee May 14, 2026. Cloture vote set for Sept 15 (60 votes needed) — Polymarket implied odds ~19%, Galaxy Digital estimate 10%, as of Aug 15, 2026.",
+  "description_ko": "BTC·ETH를 CFTC 관할 상품으로 분류. SEC/CFTC 관할권 법적 확정. 2026.5.14 상원 은행위 마크업 통과. 9월 15일 클로처 표결 예정(60표 필요) — 폴리마켓 내재확률 약 19%, 갤럭시디지털 전망치 10% (2026.8.15 기준).",
+  "latest_post_url": "/crypto/2026/08/15/clarity-act-sec-cftc-white-house-summit/",
+  "latest_post_label_en": "Latest Clarity Act update (Aug 15, 2026)",
+  "latest_post_label_ko": "Clarity Act 최신 업데이트 (2026.8.15)",
+  "last_updated": "2026-08-22"
+}
