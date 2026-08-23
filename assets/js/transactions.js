@@ -50,17 +50,27 @@
  * ALTER TABLE public.transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('buy','sell','buy_to_cover','sell_short','drip','dividend','interest','split','cash_deposit','cash_withdrawal'));
  *
  * -- Per-portfolio principal-basis overrides (for accounts like a 401k that
- * -- was later rolled into a Traditional IRA, where the raw buy/sell history
- * -- no longer reflects what was actually "invested" by the user):
- * --   zero_principal_from_year: treat all buy amounts from this year onward
- * --     as $0 invested (rollover-in shares aren't new principal).
+ * -- was later rolled into a Traditional IRA, or one where regular
+ * -- contributions stopped on a specific date — e.g. leaving the employer —
+ * -- where the raw buy/sell history no longer reflects what was actually
+ * -- "invested" by the user from that point on):
+ * --   zero_principal_from_date: treat all buy amounts on/after this exact
+ * --     date as $0 invested (rollover-in shares, or trades made after
+ * --     contributions stopped, aren't new principal) -- also freezes the
+ * --     SPY/QQQ/SGOV benchmark simulation's own investment amount at the
+ * --     same date, so the % comparison stays apples-to-apples (real gains
+ * --     from actively managing the account after that date should still
+ * --     count as real gain on both sides, just not as *new principal*).
+ * --     Supersedes the older, coarser zero_principal_from_year (still read
+ * --     for any portfolio that hasn't been migrated to a date yet).
  * --   manual_principal: if set, overrides the *all-time total* invested
  * --     figure used by the Coach tab entirely, for cases where the true
  * --     principal can't be derived from transaction history at all and
  * --     the user enters it by hand (e.g. "as of 1/15/2024 this was ~$170K").
  * --   manual_principal_as_of: the date the manual_principal figure is as of
  * --     (informational, shown next to the override in the UI).
- * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS zero_principal_from_year INTEGER;
+ * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS zero_principal_from_year INTEGER; -- deprecated, kept for old data; see zero_principal_from_date
+ * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS zero_principal_from_date DATE;
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal NUMERIC;
  * ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS manual_principal_as_of DATE;
  *
@@ -161,7 +171,7 @@
   // Traditional IRA — rollover-in "buys" aren't new money).
   //
   // settings: {
-  //   zero_principal_from_year?: number | null,
+  //   zero_principal_from_date?: string | null,  // 'YYYY-MM-DD' — supersedes zero_principal_from_year
   //   manual_principal?: number | null,
   //   manual_principal_as_of?: string | null,  // 'YYYY-MM-DD'
   //   group_names?: string[],  // free-text group tags (e.g. ["401k"]) for the Portfolio dropdown's group filter — a portfolio can carry more than one
@@ -170,7 +180,10 @@
   async function updatePortfolioSettings(portfolioId, settings) {
     const { sb, user } = requireAuth();
     const fields = {};
-    if ('zero_principal_from_year' in settings) fields.zero_principal_from_year = settings.zero_principal_from_year || null;
+    if ('zero_principal_from_date' in settings) {
+      fields.zero_principal_from_date = settings.zero_principal_from_date || null;
+      fields.zero_principal_from_year = null; // clear the deprecated column once a date is set, so they can't disagree
+    }
     if ('manual_principal' in settings) fields.manual_principal = settings.manual_principal != null ? Number(settings.manual_principal) : null;
     if ('manual_principal_as_of' in settings) fields.manual_principal_as_of = settings.manual_principal_as_of || null;
     if ('group_names' in settings) fields.group_names = Array.isArray(settings.group_names) ? settings.group_names.filter(Boolean) : [];

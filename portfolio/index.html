@@ -491,16 +491,17 @@ title: 포트폴리오
 
     <div style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border);">
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
-        <input type="checkbox" id="pmZeroFromYearEnabled" onchange="pmToggleZeroFromYear()" style="cursor:pointer; accent-color:var(--accent-blue);">
-        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;">특정 연도 이후 투입 원금을 $0으로 처리</span>
+        <input type="checkbox" id="pmZeroFromDateEnabled" onchange="pmToggleZeroFromDate()" style="cursor:pointer; accent-color:var(--accent-blue);">
+        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;">특정 날짜 이후 투입 원금을 $0으로 처리</span>
       </label>
       <p style="color:var(--text-muted); font-size:0.76rem; line-height:1.5; margin:0 0 8px 26px;">
-        예: 2020년에 401k에서 이 Traditional IRA로 이체한 경우, 2020년 이후 기록된 매수는 새 원금이 아니라
-        이전 계좌 자금이 옮겨온 것이므로 원금 계산에서 제외합니다.
+        예: 401k에서 이 Traditional IRA로 이체했거나, 퇴사 등으로 정기 납입이 끊긴 경우 — 그 날짜 이후 기록된 매수는
+        새 원금이 아니므로 원금 계산에서 제외합니다. SPY/QQQ/SGOV 비교 시뮬레이션도 같은 날짜부터 신규 투자를
+        멈춰서 두 쪽 다 같은 기준으로 비교됩니다 — 이후 실제로 운용해서 낸 손익은 양쪽 모두에 그대로 반영됩니다.
       </p>
-      <div id="pmZeroFromYearRow" style="display:none; margin-left:26px;">
-        <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">연도부터 $0 처리</label>
-        <input type="number" id="pmZeroFromYear" class="modal-input" placeholder="예: 2020" min="1900" max="2100" step="1" style="max-width:120px;">
+      <div id="pmZeroFromDateRow" style="display:none; margin-left:26px;">
+        <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">날짜부터 $0 처리</label>
+        <input type="date" id="pmZeroFromDate" class="modal-input" style="max-width:160px;">
       </div>
     </div>
 
@@ -987,7 +988,7 @@ async function fetchCurrentPrice(symbol) {
 // year table's 누적 투입원금 column — one shared computation, not two
 // independent reimplementations, per this file's own dual-implementation
 // lesson (see CLAUDE.md).
-function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear, zeroFromYearByPortfolio }) {
+function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromDate, zeroFromDateByPortfolio }) {
   const BUY_T  = new Set(['buy', 'buy_to_cover']); // excludes drip
   const SELL_T = new Set(['sell', 'sell_short']);
   const isCash = sym => sym === 'USD=CASH' || sym === 'USD';
@@ -1083,6 +1084,21 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
   // 거래내역 탭의 개별 매수 "원금" 토글 / 연도별 $0 처리는 여기(투입원금 합계)에만
   // 적용된다 — SPY/QQQ/SGOV 시뮬레이션의 pool 배분(pairedBuyAmt 등)은 실제 현금
   // 이동 여부라는 사실(fact) 기반이라 이 수동 override로 안 바뀐다.
+  // Writes the possibly-zeroed amount back into principalAmt[i] itself (not
+  // just into the totalNet/yearNet accumulators below) so that
+  // perEvent[i].principalAmt — what _anlComputeOnePortfolio's SPY/QQQ/SGOV
+  // buy-and-hold simulation actually checks (`if (pe.principalAmt > 0)`) —
+  // reflects the SAME zeroing as the portfolio's own displayed principal
+  // total. Previously it didn't: this loop only updated the local `amt`
+  // used for totalNet/yearNet, leaving the returned principalAmt[i]
+  // (and therefore the SPY simulation) completely unaffected by
+  // zeroFromDate/zeroFromDateByPortfolio — confirmed live: toggling a
+  // portfolio's 원금 설정 on/off never changed its "S&P 500 (%)" column at
+  // all, because that column's inputs were never actually gated by it.
+  // The user confirmed this asymmetry is correct to remove — post-cutoff
+  // trading is real active management and should count as real gain on
+  // both the portfolio and the benchmark sides, it just shouldn't count as
+  // *new principal* flowing into either one.
   let totalNet = 0;
   const yearNet = {};
   for (let i = 0; i < n; i++) {
@@ -1091,18 +1107,19 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
     if (BUY_T.has(ev.type)) {
       if (hasExplicitOverrides) {
         amt = ev.countAsPrincipal === true ? (ev.amount + (Number(ev.commission) || 0)) : 0;
-      } else if (zeroFromYearByPortfolio) {
+      } else if (zeroFromDateByPortfolio) {
         // Group view: apply each constituent portfolio's own
-        // zero_principal_from_year only to that portfolio's own events,
+        // zero_principal_from_date only to that portfolio's own events,
         // not the whole merged group (see the 그룹 mode branch in
         // portLoadAnalysis for why this can't just reuse the flat
-        // zeroFromYear path below).
-        const y = zeroFromYearByPortfolio[ev.portfolioId];
-        if (y && Number((ev.date || '').slice(0, 4)) >= y) amt = 0;
-      } else if (zeroFromYear && Number((ev.date || '').slice(0, 4)) >= zeroFromYear) {
+        // zeroFromDate path below).
+        const d = zeroFromDateByPortfolio[ev.portfolioId];
+        if (d && ev.date >= d) amt = 0;
+      } else if (zeroFromDate && ev.date >= zeroFromDate) {
         amt = 0;
       }
     }
+    principalAmt[i] = amt;
     if (amt > 0) {
       const yr = (ev.date || '').slice(0, 4);
       totalNet += amt;
@@ -1119,16 +1136,28 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
   };
 }
 
+// zero_principal_from_date supersedes the older, coarser
+// zero_principal_from_year (a bare year forces the cutoff to Jan 1, which
+// is wrong for e.g. "the day I left my employer" mid-year) — falls back to
+// Jan 1 of that year for any portfolio that hasn't been migrated to an
+// explicit date yet via the 원금 설정 modal.
+function _zeroPrincipalCutoffDate(pf) {
+  if (!pf) return null;
+  if (pf.zero_principal_from_date) return pf.zero_principal_from_date;
+  if (pf.zero_principal_from_year) return `${pf.zero_principal_from_year}-01-01`;
+  return null;
+}
+
 // Mirrors the priority rules used in portLoadAnalysis: an explicit
 // per-transaction 원금 override (거래내역 tab), if any exist for this
-// portfolio, fully replaces the zero_principal_from_year / manual_principal
+// portfolio, fully replaces the zero_principal_from_date / manual_principal
 // account-level settings (opt-in: only true-flagged buys count). Otherwise
 // falls back to those settings (net of reinvested sells), or a manually
 // entered total if neither is set.
 function _computePortfolioPrincipal(allTxns, pf) {
   const BUY_T  = new Set(['buy', 'drip', 'buy_to_cover']);
   const SELL_T = new Set(['sell', 'sell_short']);
-  const zeroFromYear = pf?.zero_principal_from_year || null;
+  const zeroFromDate = _zeroPrincipalCutoffDate(pf);
   const manualPrincipal = pf?.manual_principal != null ? Number(pf.manual_principal) : null;
   const relevant = allTxns.filter(t => BUY_T.has(t.type) || SELL_T.has(t.type));
   const hasExplicit = relevant.some(t => BUY_T.has(t.type) && (t.count_as_principal === true || t.count_as_principal === false));
@@ -1145,11 +1174,11 @@ function _computePortfolioPrincipal(allTxns, pf) {
       countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const { totalNet: derived } = _computeNetPrincipal(sortedEvents, { hasExplicitOverrides: hasExplicit, zeroFromYear });
+  const { totalNet: derived } = _computeNetPrincipal(sortedEvents, { hasExplicitOverrides: hasExplicit, zeroFromDate });
   const principal = hasExplicit || !(manualPrincipal != null && manualPrincipal > 0)
     ? derived
     : manualPrincipal;
-  const hasOverride = hasExplicit || !!zeroFromYear || (manualPrincipal != null && manualPrincipal > 0);
+  const hasOverride = hasExplicit || !!zeroFromDate || (manualPrincipal != null && manualPrincipal > 0);
   return { principal, hasOverride };
 }
 
@@ -2294,13 +2323,13 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
   const curYear = today.slice(0, 4);
   const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
 
-  const zeroFromYear = override?.zero_principal_from_year || null;
+  const zeroFromDate = override?.zero_principal_from_date || null;
   // If ANY buy in this portfolio has an explicit 원금 override (set via the
   // 거래내역 tab), switch the whole portfolio into "explicit mode": only
   // buys explicitly marked 원금(true) count, and the account-level
-  // zero_principal_from_year / manual_principal settings are ignored
+  // zero_principal_from_date / manual_principal settings are ignored
   // entirely (the user is telling us they want precise, transaction-level
-  // control instead of the coarse year-cutoff / manual-total overrides).
+  // control instead of the coarse date-cutoff / manual-total overrides).
   const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
 
   // A manual 원금 (e.g. "as of 1/15/2024 this account held about $170K",
@@ -2374,7 +2403,7 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
   //     that money would have left the hypothetical benchmark position
   //     too.
   const _CASH_SYMS = new Set(['USD=CASH', 'USD']);
-  const principalCalc = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromYear });
+  const principalCalc = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromDate });
   const perEvent = principalCalc.perEvent;
 
   // Per-year mark-to-market checkpoints for the SPY/SGOV columns of the
@@ -2723,12 +2752,12 @@ async function portLoadAnalysis() {
       portfolioIds = portPortfolios.map(p => p.id);
     }
 
-    let _principalOverride = null; // { zero_principal_from_year, manual_principal, manual_principal_as_of } — single-portfolio mode only, for the settings modal
+    let _principalOverride = null; // { zero_principal_from_date, manual_principal, manual_principal_as_of } — single-portfolio mode only, for the settings modal
     if (portActivePortfolioId) {
       const activePf = portPortfolios.find(p => p.id === portActivePortfolioId);
       if (activePf) {
         _principalOverride = {
-          zero_principal_from_year: activePf.zero_principal_from_year || null,
+          zero_principal_from_date: _zeroPrincipalCutoffDate(activePf),
           manual_principal: activePf.manual_principal != null ? Number(activePf.manual_principal) : null,
           manual_principal_as_of: activePf.manual_principal_as_of || null,
         };
@@ -2741,7 +2770,7 @@ async function portLoadAnalysis() {
     const results = (await Promise.all(portfolioIds.map(id => {
       const pf = portPortfolios.find(p => p.id === id);
       const override = pf ? {
-        zero_principal_from_year: pf.zero_principal_from_year || null,
+        zero_principal_from_date: _zeroPrincipalCutoffDate(pf),
         manual_principal: pf.manual_principal != null ? Number(pf.manual_principal) : null,
         manual_principal_as_of: pf.manual_principal_as_of || null,
       } : null;
@@ -3180,13 +3209,13 @@ function anlOpenPrincipalModal() {
   const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
   document.getElementById('principalModalAccountName').textContent = pf?.name || '';
 
-  const zeroYear = _anlActivePrincipalOverride?.zero_principal_from_year || null;
+  const zeroDate = _anlActivePrincipalOverride?.zero_principal_from_date || null;
   const manualAmt = _anlActivePrincipalOverride?.manual_principal || null;
   const manualAsOf = _anlActivePrincipalOverride?.manual_principal_as_of || '';
 
-  document.getElementById('pmZeroFromYearEnabled').checked = !!zeroYear;
-  document.getElementById('pmZeroFromYear').value = zeroYear || '';
-  pmToggleZeroFromYear();
+  document.getElementById('pmZeroFromDateEnabled').checked = !!zeroDate;
+  document.getElementById('pmZeroFromDate').value = zeroDate || '';
+  pmToggleZeroFromDate();
 
   document.getElementById('pmManualEnabled').checked = !!manualAmt;
   document.getElementById('pmManualAmount').value = manualAmt || '';
@@ -3213,9 +3242,9 @@ function anlPrincipalModalBgClick(e) {
   if (e.target === document.getElementById('principalModal')) anlClosePrincipalModal();
 }
 
-function pmToggleZeroFromYear() {
-  const on = document.getElementById('pmZeroFromYearEnabled').checked;
-  document.getElementById('pmZeroFromYearRow').style.display = on ? '' : 'none';
+function pmToggleZeroFromDate() {
+  const on = document.getElementById('pmZeroFromDateEnabled').checked;
+  document.getElementById('pmZeroFromDateRow').style.display = on ? '' : 'none';
 }
 
 function pmToggleManual() {
@@ -3229,16 +3258,16 @@ async function anlSavePrincipalSettings() {
   const statusEl = document.getElementById('pmStatus');
   btn.disabled = true; btn.textContent = '저장 중…';
 
-  const zeroEnabled = document.getElementById('pmZeroFromYearEnabled').checked;
-  const zeroYearVal = parseInt(document.getElementById('pmZeroFromYear').value, 10);
+  const zeroEnabled = document.getElementById('pmZeroFromDateEnabled').checked;
+  const zeroDateVal = document.getElementById('pmZeroFromDate').value || null;
   const manualEnabled = document.getElementById('pmManualEnabled').checked;
   const manualAmtVal = parseFloat(document.getElementById('pmManualAmount').value);
   const manualAsOfVal = document.getElementById('pmManualAsOf').value || null;
 
-  if (zeroEnabled && (isNaN(zeroYearVal) || zeroYearVal < 1900)) {
+  if (zeroEnabled && !zeroDateVal) {
     statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
     statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
-    statusEl.textContent = '연도를 올바르게 입력하세요.';
+    statusEl.textContent = '날짜를 입력하세요.';
     btn.disabled = false; btn.textContent = '저장'; return;
   }
   if (manualEnabled && (isNaN(manualAmtVal) || manualAmtVal <= 0)) {
@@ -3250,7 +3279,7 @@ async function anlSavePrincipalSettings() {
 
   try {
     const updated = await window.txns.updatePortfolioSettings(portActivePortfolioId, {
-      zero_principal_from_year: zeroEnabled ? zeroYearVal : null,
+      zero_principal_from_date: zeroEnabled ? zeroDateVal : null,
       manual_principal: manualEnabled ? manualAmtVal : null,
       manual_principal_as_of: manualEnabled ? manualAsOfVal : null,
     });
