@@ -2,10 +2,10 @@
   "_comment": "Powers the Clarity Act status card on crypto/index.html (rendered via Jekyll site.data.clarity_act_status.*). Kept as data instead of hardcoded HTML so daily-news-watch.yml can safely refresh it whenever it publishes a new Clarity Act post -- editing these fields carries far less risk than an unattended job hand-editing the page's HTML directly.",
   "status_label_en": "In Progress · Sept 15, 2026 Cloture Vote",
   "status_label_ko": "진행 중 · 2026.9.15 클로처 표결",
-  "description_en": "Defines Bitcoin and Ether as commodities under CFTC. Resolves SEC/CFTC jurisdiction. Passed Senate Banking Committee May 14, 2026. Cloture vote set for Sept 15 (60 votes needed) — Polymarket implied odds ~19%, Galaxy Digital estimate 10%, as of Aug 15, 2026.",
-  "description_ko": "BTC·ETH를 CFTC 관할 상품으로 분류. SEC/CFTC 관할권 법적 확정. 2026.5.14 상원 은행위 마크업 통과. 9월 15일 클로처 표결 예정(60표 필요) — 폴리마켓 내재확률 약 19%, 갤럭시디지털 전망치 10% (2026.8.15 기준).",
-  "latest_post_url": "/crypto/2026/08/15/clarity-act-sec-cftc-white-house-summit/",
-  "latest_post_label_en": "Latest Clarity Act update (Aug 15, 2026)",
-  "latest_post_label_ko": "Clarity Act 최신 업데이트 (2026.8.15)",
-  "last_updated": "2026-08-22"
+  "description_en": "Defines Bitcoin and Ether as commodities under CFTC. Resolves SEC/CFTC jurisdiction. Passed Senate Banking Committee May 14, 2026. Cloture vote set for Sept 15 (60 votes needed) — Polymarket implied odds ~19%, Galaxy Digital estimate 10%, as of Aug 15, 2026. A Trump-linked bank charter approval (World Liberty Trust Co., Aug 14) triggered an anti-corruption bill co-signed by the bill's own bipartisan negotiators, reopening the ethics dispute days before the vote.",
+  "description_ko": "BTC·ETH를 CFTC 관할 상품으로 분류. SEC/CFTC 관할권 법적 확정. 2026.5.14 상원 은행위 마크업 통과. 9월 15일 클로처 표결 예정(60표 필요) — 폴리마켓 내재확률 약 19%, 갤럭시디지털 전망치 10% (2026.8.15 기준). 트럼프 관련 은행 인가(World Liberty Trust Co., 8/14) 승인이 반부패 법안 발의로 이어졌고, 법안 협상 당사자들까지 여기 서명하며 표결을 앞두고 윤리 분쟁이 재점화됐다.",
+  "latest_post_url": "/crypto/2026/08/23/clarity-act-world-liberty-ethics-fight/",
+  "latest_post_label_en": "Latest Clarity Act update (Aug 23, 2026)",
+  "latest_post_label_ko": "Clarity Act 최신 업데이트 (2026.8.23)",
+  "last_updated": "2026-08-23"
 }
