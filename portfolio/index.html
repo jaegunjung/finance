@@ -2597,8 +2597,26 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
     : (spyCost > 0 ? spyGainToday : null);
   const spyTotalCostD = useManualPrincipalTotal ? (spyTotalGainD != null ? manualPrincipal : null) : (spyCost > 0 ? spyCost : null);
 
+  // Multiple events on the same calendar date each push their own snapshot
+  // (timeline.push(_snapshotAt(ev.date, false)) inside the event loop
+  // above), so a day with 2-3 trades ends up with 2-3 entries for that one
+  // date. The original single-portfolio code always deduplicated by date
+  // (keep the last snapshot per date) right before charting -- lost when
+  // this got extracted into a per-portfolio function whose result now also
+  // feeds _anlMergeTimelines, which sums each date's contributing values:
+  // without dedup here, a multi-trade day's value got added into that
+  // date's sum once per event instead of once, producing a sharp spike on
+  // exactly the days with multiple trades (and only those days) -- exactly
+  // the "삐죽삐죽 스파이크" pattern reported. Deduplicating each portfolio's
+  // own timeline before it's ever merged keeps this both correct and
+  // simple (the merge step doesn't need to know about the trades-per-day
+  // structure at all).
+  const tlByDate = {};
+  for (const pt of timeline) tlByDate[pt.date] = pt;
+  const dedupedTimeline = Object.values(tlByDate).sort((a, b) => a.date.localeCompare(b.date));
+
   return {
-    timeline, allYears, yearRows,
+    timeline: dedupedTimeline, allYears, yearRows,
     totalInvestedThis, totalGainThis, spyTotalGainD, spyTotalCostD,
     holdingsForPie, events, currentPriceMap, spyToday,
     hasExplicitPrincipalOverrides,
