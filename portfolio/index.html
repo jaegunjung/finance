@@ -489,7 +489,7 @@ title: 포트폴리오
       ⚠️ 이 계좌는 현재 개별 거래 원금 지정을 사용 중입니다. 아래 설정은 지금 적용되지 않습니다.
     </p>
 
-    <div style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border);">
+    <div id="pmZeroFromDateSection" style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border); transition:opacity 0.15s;">
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
         <input type="checkbox" id="pmZeroFromDateEnabled" onchange="pmToggleZeroFromDate()" style="cursor:pointer; accent-color:var(--accent-blue);">
         <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;">특정 날짜 이후 투입 원금을 $0으로 처리</span>
@@ -498,6 +498,9 @@ title: 포트폴리오
         예: 401k에서 이 Traditional IRA로 이체했거나, 퇴사 등으로 정기 납입이 끊긴 경우 — 그 날짜 이후 기록된 매수는
         새 원금이 아니므로 원금 계산에서 제외합니다. SPY/QQQ/SGOV 비교 시뮬레이션도 같은 날짜부터 신규 투자를
         멈춰서 두 쪽 다 같은 기준으로 비교됩니다 — 이후 실제로 운용해서 낸 손익은 양쪽 모두에 그대로 반영됩니다.
+      </p>
+      <p id="pmZeroFromDateInactiveNotice" style="display:none; color:var(--accent-orange, #d29922); font-size:0.74rem; line-height:1.5; margin:0 0 8px 26px;">
+        ⚠️ 아래 "전체 투입 원금 직접 입력"이 켜져 있으면 이 설정은 무시됩니다 — 수동 입력이 우선 적용됩니다.
       </p>
       <div id="pmZeroFromDateRow" style="display:none; margin-left:26px;">
         <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">날짜부터 $0 처리</label>
@@ -3250,6 +3253,19 @@ function pmToggleZeroFromDate() {
 function pmToggleManual() {
   const on = document.getElementById('pmManualEnabled').checked;
   document.getElementById('pmManualRow').style.display = on ? 'flex' : 'none';
+  // 원금 수동 입력(manual_principal)이 켜지면 모든 계산이 기준일 고정 원금
+  // 방식으로 완전히 대체되고, "날짜부터 $0 처리" 쪽 결과는 어디에서도 읽히지
+  // 않는다 (portLoadAnalysis의 isManualPrincipalAcct 분기 참고) — 켜져 있는데
+  // 아무 효과가 없는 것처럼 보여 혼란을 줬던 부분이라, 수동 입력이 켜지면 이
+  // 섹션을 비활성화하고 왜 그런지 설명을 보여준다. 데이터 자체는 지우지 않음
+  // (수동 입력을 다시 끄면 이전 날짜 설정이 그대로 남아있음).
+  const zeroSection = document.getElementById('pmZeroFromDateSection');
+  const zeroCheckbox = document.getElementById('pmZeroFromDateEnabled');
+  const zeroDateInput = document.getElementById('pmZeroFromDate');
+  zeroSection.style.opacity = on ? '0.45' : '1';
+  zeroCheckbox.disabled = on;
+  zeroDateInput.disabled = on;
+  document.getElementById('pmZeroFromDateInactiveNotice').style.display = on ? '' : 'none';
 }
 
 async function anlSavePrincipalSettings() {
