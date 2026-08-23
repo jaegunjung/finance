@@ -326,8 +326,12 @@ title: 포트폴리오
       <!-- Current holdings pie chart -->
       <div class="card" style="margin-bottom:20px;" id="anlPieCard">
         <div class="port-section-label" style="margin-bottom:12px;">현재 보유 비중</div>
-        <div style="position:relative; width:100%; max-width:420px; height:340px; margin:0 auto;">
-          <canvas id="anlHoldingsPie"></canvas>
+        <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+          <div style="position:relative; width:100%; max-width:420px; height:340px; flex-shrink:0;">
+            <canvas id="anlHoldingsPie"></canvas>
+          </div>
+          <!-- Populated only in 그룹/전체 mode (>1 portfolio) — one small pie per constituent portfolio -->
+          <div id="anlPieByPortfolio" style="display:none; flex:1; min-width:280px; flex-wrap:wrap; gap:16px; align-content:flex-start;"></div>
         </div>
       </div>
 
@@ -2212,6 +2216,7 @@ async function editSave() {
 // ══════════════════════════════════════════════════════════════════
 let _anlChart = null;
 let _anlPieChart = null;
+let _anlPieChartsByPortfolio = []; // 그룹/전체 mode: one small pie per constituent portfolio
 let _anlLoaded = false; // reset when portfolio changes
 let _anlActivePrincipalOverride = null; // current portfolio's principal-basis override, if any
 let _anlHasExplicitPrincipalOverrides = false; // true if any BUY has a 거래내역-tab 원금 override set
@@ -2736,6 +2741,8 @@ async function portLoadAnalysis() {
   contentEl.style.display = 'none';
   if (_anlChart) { _anlChart.destroy(); _anlChart = null; }
   if (_anlPieChart) { _anlPieChart.destroy(); _anlPieChart = null; }
+  for (const c of _anlPieChartsByPortfolio) c.destroy();
+  _anlPieChartsByPortfolio = [];
 
   try {
     // ── 0. Resolve which portfolio(s) to analyze, and each one's own
@@ -2770,15 +2777,17 @@ async function portLoadAnalysis() {
 
     const { spyPrices, qqqPrices, sgovPrices } = await _anlFetchBenchmarkPrices();
 
-    const results = (await Promise.all(portfolioIds.map(id => {
+    const resultsWithNames = (await Promise.all(portfolioIds.map(async id => {
       const pf = portPortfolios.find(p => p.id === id);
       const override = pf ? {
         zero_principal_from_date: _zeroPrincipalCutoffDate(pf),
         manual_principal: pf.manual_principal != null ? Number(pf.manual_principal) : null,
         manual_principal_as_of: pf.manual_principal_as_of || null,
       } : null;
-      return _anlComputeOnePortfolio(id, override, spyPrices, qqqPrices, sgovPrices);
+      const result = await _anlComputeOnePortfolio(id, override, spyPrices, qqqPrices, sgovPrices);
+      return result ? { name: pf?.name || '', result } : null;
     }))).filter(r => r !== null);
+    const results = resultsWithNames.map(r => r.result);
 
     if (!results.length) {
       loadEl.textContent = '거래 내역이 없습니다.';
@@ -2861,6 +2870,15 @@ async function portLoadAnalysis() {
     const qqqData      = tlSorted.map(p => toPt(p, 'qqqGain'));
     const sgovData     = tlSorted.map(p => toPt(p, 'sgovGain'));
 
+    // ── 401k-related accounts: bracket "내 포트폴리오" against a few nearby
+    // SGOV/S&P 500 blend ratios (10% steps) ─────────────────────────────
+    // portfolioIds already resolves to the exact set of portfolios behind
+    // this view in all three modes (single / 그룹 / 전체), so checking
+    // whether any of them carry the "401k" group tag covers all three at
+    // once — no need to special-case portActivePortfolioId/portActiveGroupName here.
+    const is401kView = portfolioIds.some(id => (portPortfolios.find(p => p.id === id)?.group_names || []).includes('401k'));
+    const blendDatasets = is401kView ? _anlBuildSgovSpyBlendDatasets(tlSorted) : [];
+
     const ctx = document.getElementById('anlGainChart').getContext('2d');
     _anlChart = new Chart(ctx, {
       type: 'line',
@@ -2868,6 +2886,7 @@ async function portLoadAnalysis() {
         datasets: [
           { label: '내 포트폴리오', data: portData, borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: '실현 손익',    data: portRealizedData, borderColor: '#3fb950', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          ...blendDatasets,
           { label: 'SPY',          data: spyData,  borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'QQQ',          data: qqqData,  borderColor: '#c792ea', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'SGOV',         data: sgovData, borderColor: '#e8c84a', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
@@ -2910,7 +2929,10 @@ async function portLoadAnalysis() {
       },
     });
 
-    _renderHoldingsPie(holdingsForPie);
+    const byPortfolioPies = resultsWithNames.length > 1
+      ? resultsWithNames.map(r => ({ name: r.name, holdings: r.result.holdingsForPie }))
+      : null;
+    _renderHoldingsPie(holdingsForPie, byPortfolioPies);
 
     // ── Per-symbol return vs. S&P 500 ─────────────────────────────────
     // Compares each held symbol's own price return (its first buy date to
@@ -3041,15 +3063,79 @@ function _sellFromLots(lots, sellShares, lotMethod) {
 // on each slice (see _pieLabelsPlugin below) instead of a separate legend.
 // Positions under 1% of total value are grouped into "Others" so a long
 // tail of small positions doesn't turn the chart into unreadable slivers.
-const _PIE_COLORS = ['#3fb950', '#58a6ff', '#c792ea', '#e8c84a', '#f78166', '#39c5cf', '#d29922', '#7ee787', '#ff9bce', '#a5d6ff', '#ffa657', '#79c0ff'];
-function _renderHoldingsPie(holdings) {
-  const card = document.getElementById('anlPieCard');
-  const total = holdings.reduce((s, h) => s + h.value, 0);
-  if (!card || total <= 0) {
-    if (card) card.style.display = 'none';
-    return;
+// ── SGOV/S&P 500 blend brackets (401k-related accounts only) ────────────
+// Finds which SGOV/SPY mix ratio the portfolio's ACTUAL gain currently sits
+// closest to (as of the latest date with real data on both benchmark
+// lines), then returns the nearby 10%-step SGOV weights to draw as bracket
+// lines: 3 values if the portfolio sits almost exactly on a 10%-step ratio,
+// 4 if it's between two steps (the step above and below, plus one further
+// step out on each side) — e.g. sitting between "SGOV 60/SPY 40" and
+// "SGOV 50/SPY 50" shows 70/60/50/40. Clamped to [0,100] SGOV weight (SPY
+// share never exceeds 100%); returns [] if the portfolio is already
+// beating pure 100% SPY, since no SGOV blend would bracket it from above.
+function _anlSgovSpyBracketPcts(tlSorted) {
+  let latest = null;
+  for (let i = tlSorted.length - 1; i >= 0; i--) {
+    const p = tlSorted[i];
+    if (p.portGain != null && p.spyGain != null && p.sgovGain != null) { latest = p; break; }
   }
-  card.style.display = '';
+  if (!latest || latest.spyGain === latest.sgovGain) return [];
+  // portGain ≈ w*sgovGain + (1-w)*spyGain  =>  w = (portGain-spyGain)/(sgovGain-spyGain)
+  let w = (latest.portGain - latest.spyGain) / (latest.sgovGain - latest.spyGain);
+  if (w < 0) return []; // beats pure S&P 500 — nothing to bracket it with
+  if (w > 1) w = 1;     // worse than pure SGOV — floor at 100% SGOV
+  const pct = w * 100;
+  const nearest10 = Math.round(pct / 10) * 10;
+  const EPS = 0.5;
+  let pcts;
+  if (Math.abs(pct - nearest10) < EPS) {
+    pcts = [nearest10 + 10, nearest10, nearest10 - 10];
+  } else {
+    const lower = Math.floor(pct / 10) * 10;
+    const upper = lower + 10;
+    pcts = [upper + 10, upper, lower, lower - 10];
+  }
+  return [...new Set(pcts.filter(v => v >= 0 && v <= 100))].sort((a, b) => b - a);
+}
+
+// Builds one Chart.js line dataset per bracket SGOV%, blending the already-
+// computed spyGain/sgovGain series pointwise (both are $ gain on the SAME
+// underlying principal base, so a straight weighted sum is valid): a null
+// on either side for a given date makes the blend null there too, matching
+// how the real SPY/SGOV lines already go null before a manual-원금 snapshot.
+const _SGOV_SPY_BLEND_COLOR = [217, 153, 34]; // accent-orange RGB — distinct from the existing green/blue/purple/yellow lines
+function _anlBuildSgovSpyBlendDatasets(tlSorted) {
+  const pcts = _anlSgovSpyBracketPcts(tlSorted);
+  return pcts.map((sgovPct, i) => {
+    const w = sgovPct / 100;
+    const data = tlSorted.map(p => {
+      const x = new Date(p.date).getTime();
+      if (p.spyGain == null || p.sgovGain == null) return { x, y: null };
+      return { x, y: +(w * p.sgovGain + (1 - w) * p.spyGain).toFixed(2) };
+    });
+    // Fades out toward the edges of the bracket set so the ratio closest to
+    // the portfolio's actual mix (always nearer the middle of the list) reads
+    // as the most prominent line.
+    const opacity = 0.35 + 0.35 * (1 - Math.abs(i - (pcts.length - 1) / 2) / (pcts.length / 2));
+    const [r, g, b] = _SGOV_SPY_BLEND_COLOR;
+    return {
+      label: `SGOV ${sgovPct}% / S&P500 ${100 - sgovPct}%`,
+      data, borderColor: `rgba(${r},${g},${b},${opacity.toFixed(2)})`,
+      borderWidth: 1, borderDash: [3, 3], pointRadius: 0, tension: 0.2, fill: false, spanGaps: true,
+    };
+  });
+}
+
+const _PIE_COLORS = ['#3fb950', '#58a6ff', '#c792ea', '#e8c84a', '#f78166', '#39c5cf', '#d29922', '#7ee787', '#ff9bce', '#a5d6ff', '#ffa657', '#79c0ff'];
+
+// Draws one pie chart into the given canvas element. Shared by the main
+// combined pie and each per-portfolio pie in 그룹/전체 mode (see
+// _renderHoldingsPie below) so they stay visually identical — same slice
+// grouping/coloring/label logic, just smaller and with lighter labels when
+// `compact` is set (a 180px pie has no room for the two-line big-slice label).
+function _renderOnePie(canvas, holdings, compact) {
+  const total = holdings.reduce((s, h) => s + h.value, 0);
+  if (total <= 0) return null;
 
   const sorted = [...holdings].sort((a, b) => b.value - a.value);
   const main = sorted.filter(h => h.value / total >= 0.01);
@@ -3080,8 +3166,8 @@ function _renderHoldingsPie(holdings) {
       meta.data.forEach((arc, i) => {
         const value = data[i];
         const pct = value / total * 100;
-        if (pct < 1) return; // too thin to label at all
-        const big = pct >= 3.5;
+        if (pct < (compact ? 4 : 1)) return; // too thin to label at all
+        const big = !compact && pct >= 3.5;
         const angle = (arc.startAngle + arc.endAngle) / 2;
         const r = arc.outerRadius * 0.65;
         const x = arc.x + Math.cos(angle) * r;
@@ -3092,16 +3178,15 @@ function _renderHoldingsPie(holdings) {
           c.fillText(sym, x, y - 7);
           c.fillText(`${pct.toFixed(1)}%`, x, y + 7);
         } else {
-          c.font = '600 8px sans-serif';
-          c.fillText(`${sym} ${pct.toFixed(1)}%`, x, y);
+          c.font = compact ? '600 7px sans-serif' : '600 8px sans-serif';
+          c.fillText(compact ? sym : `${sym} ${pct.toFixed(1)}%`, x, y);
         }
       });
       c.restore();
     },
   };
 
-  const ctx = document.getElementById('anlHoldingsPie').getContext('2d');
-  _anlPieChart = new Chart(ctx, {
+  return new Chart(canvas.getContext('2d'), {
     type: 'pie',
     data: {
       labels: slices.map(s => s.sym),
@@ -3109,7 +3194,7 @@ function _renderHoldingsPie(holdings) {
         data: slices.map(s => s.value),
         backgroundColor: slices.map((s, i) => s.sym === 'Others' ? '#8b949e' : _PIE_COLORS[i % _PIE_COLORS.length]),
         borderColor: cardBg,
-        borderWidth: 2,
+        borderWidth: compact ? 1.5 : 2,
       }],
     },
     plugins: [_pieLabelsPlugin],
@@ -3127,6 +3212,48 @@ function _renderHoldingsPie(holdings) {
       },
     },
   });
+}
+
+// holdings: combined pie (all portfolios in the current selection summed).
+// byPortfolio: optional [{ name, holdings }] — when the current selection
+// covers more than one portfolio (그룹/전체), also renders one small pie
+// per constituent portfolio to the right of the combined one.
+function _renderHoldingsPie(holdings, byPortfolio) {
+  const card = document.getElementById('anlPieCard');
+  const total = holdings.reduce((s, h) => s + h.value, 0);
+  if (!card || total <= 0) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  _anlPieChart = _renderOnePie(document.getElementById('anlHoldingsPie'), holdings, false);
+
+  const byPfContainer = document.getElementById('anlPieByPortfolio');
+  byPfContainer.innerHTML = '';
+  if (byPortfolio && byPortfolio.length > 1) {
+    byPfContainer.style.display = 'flex';
+    for (const pf of byPortfolio) {
+      const pfTotal = pf.holdings.reduce((s, h) => s + h.value, 0);
+      if (pfTotal <= 0) continue;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'width:170px; text-align:center;';
+      const label = document.createElement('div');
+      label.style.cssText = 'font-size:0.74rem; color:var(--text-secondary); margin-bottom:6px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+      label.textContent = pf.name;
+      label.title = pf.name;
+      const canvasWrap = document.createElement('div');
+      canvasWrap.style.cssText = 'position:relative; width:170px; height:170px;';
+      const canvas = document.createElement('canvas');
+      canvasWrap.appendChild(canvas);
+      wrap.appendChild(label);
+      wrap.appendChild(canvasWrap);
+      byPfContainer.appendChild(wrap);
+      const chart = _renderOnePie(canvas, pf.holdings, true);
+      if (chart) _anlPieChartsByPortfolio.push(chart);
+    }
+  } else {
+    byPfContainer.style.display = 'none';
+  }
 }
 
 // ── Parse stock CSV → { 'YYYY-MM-DD': adj_close } ──────────────────
