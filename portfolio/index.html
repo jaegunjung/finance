@@ -1024,15 +1024,6 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
     const cashInTotal  = g.cashIn.reduce((s, i)  => s + sortedEvents[i].amount, 0);
     const cashOutTotal = g.cashOut.reduce((s, i) => s + sortedEvents[i].amount, 0);
 
-    const pairedBuyTotal    = Math.min(buyTotal, cashOutTotal);
-    const principalBuyTotal = buyTotal - pairedBuyTotal;
-    for (const i of g.buys) {
-      const amt  = sortedEvents[i].amount + (Number(sortedEvents[i].commission) || 0);
-      const frac = buyTotal > 0 ? amt / buyTotal : 0;
-      principalAmt[i] = principalBuyTotal * frac;
-      pairedBuyAmt[i] = pairedBuyTotal * frac;
-    }
-
     // The day's unpaired "leftover" (depositTotal/withdrawTotal) only ever
     // gets attributed to price=1/null rows — a flagged-0 row (MSP: tied to
     // a trade) never itself counts as principal or a withdrawal, even if
@@ -1041,6 +1032,32 @@ function _computeNetPrincipal(sortedEvents, { hasExplicitOverrides, zeroFromYear
     // rather than misattributed to them.
     const pairedCashInTotal = Math.min(cashInTotal, sellTotal);
     const depositTotal      = cashInTotal - pairedCashInTotal;
+
+    const pairedBuyFromCashTotal = Math.min(buyTotal, cashOutTotal);
+    // A same-day swap of one security for another — sell fund A, buy fund
+    // B, same day, no USD=CASH row on either side at all — previously fell
+    // through both pairings entirely: buyTotal only paired against
+    // cashOutTotal (an actual cash balance being spent) and sellTotal only
+    // paired against cashInTotal (proceeds explicitly redeposited as
+    // cash), so a pure security-to-security exchange left the buy 100%
+    // unpaired and counted as brand-new principal — which then also made
+    // the SPY/QQQ simulation "invest" that same amount as if it were
+    // fresh money. Verified against a real account: a same-day $4,235
+    // FXAIX→OGGYX exchange (no cash rows) counted the OGGYX buy entirely
+    // as new principal, inflating both the 원금 total and the SPY/QQQ
+    // benchmark it's fed into. Pair whatever buy total cashOut couldn't
+    // explain against whatever sell proceeds cashIn didn't already claim.
+    const residualBuyAfterCash  = buyTotal  - pairedBuyFromCashTotal;
+    const residualSellAfterCash = sellTotal - pairedCashInTotal;
+    const pairedBuyFromSellTotal = Math.min(residualBuyAfterCash, Math.max(0, residualSellAfterCash));
+    const pairedBuyTotal    = pairedBuyFromCashTotal + pairedBuyFromSellTotal;
+    const principalBuyTotal = buyTotal - pairedBuyTotal;
+    for (const i of g.buys) {
+      const amt  = sortedEvents[i].amount + (Number(sortedEvents[i].commission) || 0);
+      const frac = buyTotal > 0 ? amt / buyTotal : 0;
+      principalAmt[i] = principalBuyTotal * frac;
+      pairedBuyAmt[i] = pairedBuyTotal * frac;
+    }
     const eligibleCashIn    = g.cashIn.filter(i => sortedEvents[i].cashLinkFlag !== 0);
     const eligibleInTotal   = eligibleCashIn.reduce((s, i) => s + sortedEvents[i].amount, 0);
     const distributableDeposit = Math.min(depositTotal, eligibleInTotal);
