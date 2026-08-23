@@ -2471,31 +2471,39 @@ async function portLoadAnalysis() {
         }
       }
       // manualPrincipal is a snapshot pinned AT manualAsOfDate ("as of this
-      // date, the account held about $X") — applying portValue-minus-
-      // manualPrincipal to dates BEFORE that snapshot subtracts a total the
-      // account hadn't reached yet from a portValue that's still small this
-      // early in the replay, producing a large, artificial negative "loss"
-      // for the entire pre-snapshot period (confirmed: a 401k rollover
-      // account with manual_principal=$148,000 as of 2020-12-31 showed the
-      // chart opening around -$150K in early-to-mid 2020, purely from this).
-      // Before the snapshot date, fall back to the normal cost-basis P&L —
-      // the manual override only makes sense from the date it describes.
-      const useManualPrincipal = manualPrincipal != null && manualPrincipal > 0 && date >= manualAsOfDate;
-      const portGain = useManualPrincipal
-        ? portValue - manualPrincipal
-        : portRealizedGain + portUnreal;
+      // date, the account held about $X") — the whole point of the override
+      // is that pre-snapshot transaction history doesn't reliably represent
+      // real new-money contributions (e.g. a 401k rollover), so it isn't a
+      // meaningful baseline to compare against SPY/QQQ either. An earlier
+      // fix made the pre-snapshot period fall back to cost-basis P&L instead
+      // of wrongly subtracting the full pinned total from a still-small
+      // portValue — but that introduced a NEW artifact: cost-basis P&L
+      // measures gain since the account's actual first transaction, while
+      // the post-snapshot ratio calc measures gain since manualAsOfDate
+      // (=0 by construction right at that date), so splicing the two
+      // together produced a sudden jump/drop in the SPY/QQQ lines exactly
+      // at manualAsOfDate (confirmed: "401k all new", manualAsOfDate
+      // 2020-12-31, showed SPY/QQQ suddenly dropping right at 2021-01-01).
+      // Neither accounting method is meaningful before the snapshot for
+      // this kind of account, so simply don't plot a value there at all —
+      // the chart starts cleanly at manualAsOfDate with everything at $0.
+      const isManualPrincipalAcct = manualPrincipal != null && manualPrincipal > 0;
+      const beforeManualAsOf = isManualPrincipalAcct && date < manualAsOfDate;
+      const portGain = !isManualPrincipalAcct
+        ? portRealizedGain + portUnreal
+        : beforeManualAsOf ? null : portValue - manualPrincipal;
       const spyP  = _nearestPrice(spyPrices,  date);
       const qqqP  = _nearestPrice(qqqPrices,  date);
       const sgovP = _nearestPrice(sgovPrices, date);
-      const spyGain  = useManualPrincipal
-        ? (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null
-        : spyP  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyP  - _lotTotals(spyLots).cost)  : null;
-      const qqqGain  = useManualPrincipal
-        ? (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null
-        : qqqP  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqP  - _lotTotals(qqqLots).cost)  : null;
-      const sgovGain = useManualPrincipal
-        ? (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null
-        : sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null;
+      const spyGain  = !isManualPrincipalAcct
+        ? spyP  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyP  - _lotTotals(spyLots).cost)  : null
+        : beforeManualAsOf ? null : (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null;
+      const qqqGain  = !isManualPrincipalAcct
+        ? qqqP  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqP  - _lotTotals(qqqLots).cost)  : null
+        : beforeManualAsOf ? null : (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null;
+      const sgovGain = !isManualPrincipalAcct
+        ? sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null
+        : beforeManualAsOf ? null : (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null;
       return { date, portGain, portRealizedGain, spyGain, qqqGain, sgovGain, spyCost, qqqCost, sgovCost };
     }
     function _dateAddDays(dateStr, n) {
@@ -2710,14 +2718,17 @@ async function portLoadAnalysis() {
       // buy is excluded via 연도별 $0 처리) running total.
       const isCur = yr === curYear;
       const cutoff = isCur ? today : `${yr}-12-31`;
-      // Same reasoning as useManualPrincipal in the chart snapshot function
-      // above: the manual override describes the account's state AS OF
-      // manualAsOfDate, so a year row whose cutoff falls BEFORE that date
-      // (e.g. manualAsOfDate mid-2021 but this is the 2020 row) must still
-      // use regular cost-basis accounting — only rows at or after the
-      // snapshot date should compare against the fixed principal.
-      const useManualPrincipalRow = manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate && cutoff >= manualAsOfDate;
-      const displayInvested = useManualPrincipalRow ? manualPrincipal : cumInvested;
+      // Same reasoning as the chart snapshot function above: pre-snapshot
+      // cost-basis accounting isn't a meaningful baseline for a manual-원금
+      // account either (mixing it with the post-snapshot ratio calc is what
+      // caused the SPY/QQQ chart lines to jump right at manualAsOfDate), so
+      // a year row whose cutoff falls before manualAsOfDate shows "—"
+      // instead of a cost-basis-derived figure — only rows at or after the
+      // snapshot date compare against the fixed principal.
+      const isManualPrincipalAcct = manualPrincipal != null && manualPrincipal > 0 && !!manualAsOfDate;
+      const rowBeforeManualAsOf = isManualPrincipalAcct && cutoff < manualAsOfDate;
+      const useManualPrincipalRow = isManualPrincipalAcct && !rowBeforeManualAsOf;
+      const displayInvested = useManualPrincipalRow ? manualPrincipal : rowBeforeManualAsOf ? null : cumInvested;
       // For a manual-원금 (rollover) account, use market VALUE minus the
       // fixed principal — not cost-basis P&L (mtmRealized + unreal).
       // Rollover-recorded "buys" get their cost basis set to each
@@ -2728,11 +2739,13 @@ async function portLoadAnalysis() {
       // line, which this mirrors so the two tabs agree.
       const cumGain = useManualPrincipalRow
         ? yearMtmValue[yr] - manualPrincipal
-        : yearCumGain[yr];
-      const pct = displayInvested > 0 ? cumGain / displayInvested * 100 : null;
+        : rowBeforeManualAsOf ? null : yearCumGain[yr];
+      const pct = (displayInvested != null && displayInvested > 0) ? cumGain / displayInvested * 100 : null;
 
       let spyPct, sgovPct;
-      if (useManualPrincipalRow) {
+      if (rowBeforeManualAsOf) {
+        spyPct = null; sgovPct = null;
+      } else if (useManualPrincipalRow) {
         const spyNow  = _nearestPrice(spyPrices, cutoff);
         const sgovNow = _nearestPrice(sgovPrices, cutoff);
         spyPct  = (spyBaseAtManualAsOf  && spyNow)  ? (spyNow  / spyBaseAtManualAsOf  - 1) * 100 : null;
@@ -2748,7 +2761,7 @@ async function portLoadAnalysis() {
         <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD</span>' : ''}</td>
         <td style="text-align:right; color:var(--text-muted);">${displayInvested > 0 ? '$' + displayInvested.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right; color:var(--text-muted);">${yearMtmValue[yr] > 0 ? '$' + yearMtmValue[yr].toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
-        <td style="text-align:right;" class="${cumGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${cumGain !== 0 ? (cumGain >= 0 ? '+' : '') + '$' + Math.abs(cumGain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right;" class="${cumGain == null ? '' : cumGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${cumGain != null && cumGain !== 0 ? (cumGain >= 0 ? '+' : '') + '$' + Math.abs(cumGain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right;" class="${pct == null ? '' : pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right; color:var(--text-muted);">${spyPct != null ? (spyPct >= 0 ? '+' : '') + spyPct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right;" class="${alpha == null ? '' : alpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${alpha != null ? (alpha >= 0 ? '+' : '') + alpha.toFixed(1) + '%' : '—'}</td>
