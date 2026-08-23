@@ -3103,7 +3103,18 @@ function _anlSgovSpyBracketPcts(tlSorted) {
 // underlying principal base, so a straight weighted sum is valid): a null
 // on either side for a given date makes the blend null there too, matching
 // how the real SPY/SGOV lines already go null before a manual-원금 snapshot.
-const _SGOV_SPY_BLEND_COLOR = [217, 153, 34]; // accent-orange RGB — distinct from the existing green/blue/purple/yellow lines
+// Endpoints match the existing SPY (#58a6ff) and SGOV (#e8c84a) line colors,
+// so a bracket line's own hue reads directly as "how SPY-like vs SGOV-like"
+// — no legend lookup needed to tell a 70%-SGOV line from a 30%-SGOV one.
+const _SPY_RGB  = [0x58, 0xa6, 0xff];
+const _SGOV_RGB = [0xe8, 0xc8, 0x4a];
+function _anlSgovSpyBlendColor(sgovPct, opacity) {
+  const w = sgovPct / 100;
+  const r = Math.round(_SPY_RGB[0] + w * (_SGOV_RGB[0] - _SPY_RGB[0]));
+  const g = Math.round(_SPY_RGB[1] + w * (_SGOV_RGB[1] - _SPY_RGB[1]));
+  const b = Math.round(_SPY_RGB[2] + w * (_SGOV_RGB[2] - _SPY_RGB[2]));
+  return `rgba(${r},${g},${b},${opacity.toFixed(2)})`;
+}
 function _anlBuildSgovSpyBlendDatasets(tlSorted) {
   const pcts = _anlSgovSpyBracketPcts(tlSorted);
   return pcts.map((sgovPct, i) => {
@@ -3116,12 +3127,11 @@ function _anlBuildSgovSpyBlendDatasets(tlSorted) {
     // Fades out toward the edges of the bracket set so the ratio closest to
     // the portfolio's actual mix (always nearer the middle of the list) reads
     // as the most prominent line.
-    const opacity = 0.35 + 0.35 * (1 - Math.abs(i - (pcts.length - 1) / 2) / (pcts.length / 2));
-    const [r, g, b] = _SGOV_SPY_BLEND_COLOR;
+    const opacity = 0.45 + 0.4 * (1 - Math.abs(i - (pcts.length - 1) / 2) / (pcts.length / 2));
     return {
       label: `SGOV ${sgovPct}% / S&P500 ${100 - sgovPct}%`,
-      data, borderColor: `rgba(${r},${g},${b},${opacity.toFixed(2)})`,
-      borderWidth: 1, borderDash: [3, 3], pointRadius: 0, tension: 0.2, fill: false, spanGaps: true,
+      data, borderColor: _anlSgovSpyBlendColor(sgovPct, opacity),
+      borderWidth: 1, tension: 0.2, fill: false, spanGaps: true, pointRadius: 0,
     };
   });
 }
@@ -3214,10 +3224,37 @@ function _renderOnePie(canvas, holdings, compact) {
   });
 }
 
+// Appends one small labeled pie tile (title + 170x170 canvas) to `container`
+// and renders it via _renderOnePie; pushes the resulting Chart instance
+// into _anlPieChartsByPortfolio for cleanup on the next reload. Shared by
+// the "portfolio split" tile and each per-portfolio holdings tile below.
+function _anlAppendPieTile(container, title, holdings) {
+  const pfTotal = holdings.reduce((s, h) => s + h.value, 0);
+  if (pfTotal <= 0) return;
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'width:170px; text-align:center;';
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size:0.74rem; color:var(--text-secondary); margin-bottom:6px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+  label.textContent = title;
+  label.title = title;
+  const canvasWrap = document.createElement('div');
+  canvasWrap.style.cssText = 'position:relative; width:170px; height:170px;';
+  const canvas = document.createElement('canvas');
+  canvasWrap.appendChild(canvas);
+  wrap.appendChild(label);
+  wrap.appendChild(canvasWrap);
+  container.appendChild(wrap);
+  const chart = _renderOnePie(canvas, holdings, true);
+  if (chart) _anlPieChartsByPortfolio.push(chart);
+}
+
 // holdings: combined pie (all portfolios in the current selection summed).
 // byPortfolio: optional [{ name, holdings }] — when the current selection
-// covers more than one portfolio (그룹/전체), also renders one small pie
-// per constituent portfolio to the right of the combined one.
+// covers more than one portfolio (그룹/전체), also renders: first a
+// "portfolio split" pie (one slice per constituent portfolio, sized by its
+// total $ value — how the money is split ACROSS accounts), then one
+// symbol-level pie per constituent portfolio (what's held WITHIN each
+// account) — to the right of the combined symbol-level pie.
 function _renderHoldingsPie(holdings, byPortfolio) {
   const card = document.getElementById('anlPieCard');
   const total = holdings.reduce((s, h) => s + h.value, 0);
@@ -3232,24 +3269,12 @@ function _renderHoldingsPie(holdings, byPortfolio) {
   byPfContainer.innerHTML = '';
   if (byPortfolio && byPortfolio.length > 1) {
     byPfContainer.style.display = 'flex';
+    const portfolioSplit = byPortfolio
+      .map(pf => ({ sym: pf.name, value: pf.holdings.reduce((s, h) => s + h.value, 0) }))
+      .filter(p => p.value > 0);
+    _anlAppendPieTile(byPfContainer, '포트폴리오별 비중', portfolioSplit);
     for (const pf of byPortfolio) {
-      const pfTotal = pf.holdings.reduce((s, h) => s + h.value, 0);
-      if (pfTotal <= 0) continue;
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'width:170px; text-align:center;';
-      const label = document.createElement('div');
-      label.style.cssText = 'font-size:0.74rem; color:var(--text-secondary); margin-bottom:6px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
-      label.textContent = pf.name;
-      label.title = pf.name;
-      const canvasWrap = document.createElement('div');
-      canvasWrap.style.cssText = 'position:relative; width:170px; height:170px;';
-      const canvas = document.createElement('canvas');
-      canvasWrap.appendChild(canvas);
-      wrap.appendChild(label);
-      wrap.appendChild(canvasWrap);
-      byPfContainer.appendChild(wrap);
-      const chart = _renderOnePie(canvas, pf.holdings, true);
-      if (chart) _anlPieChartsByPortfolio.push(chart);
+      _anlAppendPieTile(byPfContainer, pf.name, pf.holdings);
     }
   } else {
     byPfContainer.style.display = 'none';
