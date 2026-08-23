@@ -2168,6 +2168,500 @@ let _anlActivePrincipalOverride = null; // current portfolio's principal-basis o
 let _anlHasExplicitPrincipalOverrides = false; // true if any BUY has a 거래내역-tab 원금 override set
 
 // Called from portDropdownChange / portSwitchView
+// ── Fetch SPY/QQQ + build the synthetic SGOV series once ────────────────
+// Shared across every portfolio processed by portLoadAnalysis, regardless
+// of how many (single / group / 전체) — these three series don't depend on
+// which portfolio is being analyzed.
+async function _anlFetchBenchmarkPrices() {
+  const [spyText, qqqText, sgovReturnData] = await Promise.all([
+    fetch(_STOCKS_BASE + 'SPY.csv').then(r => r.ok ? r.text() : ''),
+    fetch(_STOCKS_BASE + 'QQQ.csv').then(r => r.ok ? r.text() : ''),
+    fetch(_SGOV_RETURNS_URL).then(r => r.ok ? r.json() : null).catch(() => null),
+  ]);
+  return {
+    spyPrices: _anlParsePriceCsv(spyText),
+    qqqPrices: _anlParsePriceCsv(qqqText),
+    sgovPrices: _buildSyntheticSgovPrices(sgovReturnData),
+  };
+}
+
+// ── Compute the chart timeline + year-by-year figures for ONE portfolio ──
+// Returns null if the portfolio has no trade transactions. Every other
+// analysis mode (a single portfolio, a 그룹 of several, or 전체/all) calls
+// this once per constituent portfolio and merges the results (see
+// _anlMergeTimelines / _anlMergeYearRows below) — rather than merging raw
+// transactions from multiple portfolios into one shared replay, which had
+// no way to apply a manual_principal override (a fundamentally different
+// accounting mode — market value minus a fixed pinned total, not
+// cost-basis P&L) to just the one constituent portfolio it belongs to.
+// Running this exact same per-portfolio logic for a single-portfolio
+// selection too (as a "group of one") guarantees identical output to
+// before this was split out — there's exactly one code path now.
+async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPrices, sgovPrices) {
+  const allTxns = await window.txns.getTransactions(null, portfolioId);
+  // 'split' must be included here — computePnL (used by 보유현황, via
+  // transactions.js) applies stock splits to remaining share counts, but
+  // this tab's own event replay didn't, so any split-adjusted symbol
+  // (e.g. AVGO's 10:1 split in 2024) came out understated here by
+  // whatever the split ratio was, throwing off both this tab's total
+  // gain and the "내 포트폴리오" chart line relative to 보유현황.
+  const tradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short','split'].includes(t.type));
+  if (!tradeTxns.length) return null;
+
+  const BUY_T  = new Set(['buy','drip','buy_to_cover']);
+  const SELL_T = new Set(['sell','sell_short']);
+  const symbolTxns = {};
+  for (const t of tradeTxns) (symbolTxns[t.symbol] = symbolTxns[t.symbol] || []).push(t);
+
+  const currentPriceMap = {};
+  await Promise.all(Object.keys(symbolTxns).map(async sym => {
+    const p = await fetchCurrentPrice(sym);
+    if (p) currentPriceMap[sym] = p;
+  }));
+
+  // Best-effort full price history per held symbol, for mark-to-market
+  // valuations at arbitrary past dates (chart + year table both need this,
+  // not just "today"). Crypto symbols live under a different CSV filename
+  // here (e.g. BTC-USD.csv, not BTC.csv) so this fetch comes back empty
+  // for them and their past-date figures just fall back to realized-only —
+  // fine, since this portfolio tool's per-year table is aimed at
+  // stock/fund accounts like a 401k, not crypto.
+  const priceHistories = {};
+  await Promise.all(Object.keys(symbolTxns).map(async sym => {
+    try {
+      const r = await fetch(_STOCKS_BASE + sym + '.csv');
+      priceHistories[sym] = r.ok ? _anlParsePriceCsv(await r.text()) : {};
+    } catch(e) { priceHistories[sym] = {}; }
+  }));
+  function _priceOnOrBefore(sym, date) {
+    const hist = priceHistories[sym];
+    if (!hist) return null;
+    const near = _nearestPrice(hist, date);
+    if (near != null) return near;
+    const dates = Object.keys(hist).filter(d => d <= date).sort();
+    return dates.length ? hist[dates[dates.length - 1]] : null;
+  }
+
+  // Each event: { date, sym, type, amount, shares, price, countAsPrincipal }
+  const events = tradeTxns
+    .map(t => ({
+      date:   t.trade_date,
+      sym:    t.symbol,
+      type:   t.type,
+      amount: Math.abs(Number(t.amount) || 0),
+      commission: Number(t.commission) || 0,
+      lotMethod: t.lot_method || null,
+      shares: Math.abs(Number(t.shares) || 0),
+      price:  Number(t.price) || 0,
+      // Raw (uncoerced) price, kept separately from `price` above — for a
+      // USD=CASH row, MSP stores a 0/1 flag here (0 = this cash movement
+      // is tied to a stock trade, 1 = a genuine deposit/withdrawal), not
+      // a real price. `Number(t.price) || 0` collapses null (no data) and
+      // 0 (explicit MSP flag) to the same value, so _computeNetPrincipal
+      // needs this raw form to tell "MSP says linked" apart from "unknown".
+      cashLinkFlag: (t.price === null || t.price === undefined) ? null : Number(t.price),
+      // Per-transaction override (거래내역 tab). null = no override.
+      countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
+    }))
+    // Same-day tie-break: splits before buys/sells, matching computePnL
+    // (transactions.js) exactly — a same-day split must apply to shares
+    // bought earlier that day, not be skipped by running out of order.
+    .sort((a, b) => {
+      const dateCmp = a.date.localeCompare(b.date);
+      if (dateCmp !== 0) return dateCmp;
+      const rank = e => e.type === 'split' ? 0 : ['buy','drip','buy_to_cover'].includes(e.type) ? 1 : 2;
+      return rank(a) - rank(b);
+    });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const curYear = today.slice(0, 4);
+  const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
+
+  const zeroFromYear = override?.zero_principal_from_year || null;
+  // If ANY buy in this portfolio has an explicit 원금 override (set via the
+  // 거래내역 tab), switch the whole portfolio into "explicit mode": only
+  // buys explicitly marked 원금(true) count, and the account-level
+  // zero_principal_from_year / manual_principal settings are ignored
+  // entirely (the user is telling us they want precise, transaction-level
+  // control instead of the coarse year-cutoff / manual-total overrides).
+  const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
+
+  // A manual 원금 (e.g. "as of 1/15/2024 this account held about $170K",
+  // entered by hand — typically a 401k→IRA rollover where the recorded
+  // buy/sell history doesn't represent real new money) is a single
+  // point-in-time figure, not a year-by-year series — applies as-is
+  // throughout (chart + every table row), not just a trailing total.
+  const manualPrincipal = hasExplicitPrincipalOverrides ? null : override?.manual_principal;
+  // Same reasoning extends to the SPY/QQQ/SGOV chart lines: on a
+  // high-turnover account the money-weighted trading simulation below
+  // accumulates cost basis from every sell-then-rebuy cycle (each rebuy
+  // counts as "new money in", even though it's the same capital being
+  // recycled), which can dwarf the fixed 원금 baseline and make those
+  // lines' dollar figures incomparable to the portfolio line (which is
+  // pinned to manualPrincipal). So for a manual-원금 account, SPY/QQQ/
+  // SGOV chart lines also switch to simple buy-and-hold dollar growth
+  // from manualPrincipal invested at manual_principal_as_of.
+  const manualAsOfDate = override?.manual_principal_as_of || (events[0]?.date ?? null);
+  const isManualPrincipalAcct = manualPrincipal != null && manualPrincipal > 0;
+
+  // ── Buy-and-hold SPY/QQQ/SGOV simulation (see the design comment below) ──
+  let spyLots = [], spyRealizedGain = 0, spyCost = 0;
+  let qqqLots = [], qqqRealizedGain = 0, qqqCost = 0;
+  let sgovLots = [], sgovRealizedGain = 0, sgovCost = 0;
+  // spyCost/qqqCost/sgovCost track NET NEW principal (same classification
+  // as _computeNetPrincipal, via principalCalc below) — used purely as
+  // the denominator for % returns, decoupled from the lot mechanics.
+
+  // Portfolio: track per-symbol lots (see _lotTotals/_sellFromLots below)
+  const portHoldings = {}; // sym -> { lots: [{ shares, costPerShare }] }
+
+  // Cumulative realized gain timeline: [{ date, portGain, spyGain, qqqGain, sgovGain }]
+  const timeline = [];
+  let portRealizedGain = 0;
+
+  function _nearestPrice(map, date) {
+    // exact match or walk back up to 5 days
+    for (let d = 0; d <= 5; d++) {
+      const dt = new Date(date);
+      dt.setDate(dt.getDate() - d);
+      const key = dt.toISOString().slice(0, 10);
+      if (map[key] != null) return map[key];
+    }
+    return null;
+  }
+
+  // Buy-and-hold baseline prices for manual-원금 accounts (see comment
+  // above manualAsOfDate) — null when there's no manual override, in
+  // which case the buy-and-hold branches below never trigger anyway.
+  const spyBaseAtManualAsOf  = (isManualPrincipalAcct && manualAsOfDate) ? _nearestPrice(spyPrices,  manualAsOfDate) : null;
+  const qqqBaseAtManualAsOf  = (isManualPrincipalAcct && manualAsOfDate) ? _nearestPrice(qqqPrices,  manualAsOfDate) : null;
+  const sgovBaseAtManualAsOf = (isManualPrincipalAcct && manualAsOfDate) ? _nearestPrice(sgovPrices, manualAsOfDate) : null;
+
+  // SPY/QQQ/SGOV each answer "if my net-new principal had gone into this
+  // benchmark instead, and just stayed there, what would it be worth?" —
+  // a true buy-and-hold comparison, using the same lot accounting as
+  // computePnL (_sellFromLots/_lotTotals):
+  //   - every dollar of genuinely new principal (_computeNetPrincipal's
+  //     "principalAmt" — a cash deposit, or an RSU/grant-like buy with no
+  //     matching cash outflow) buys that much of the benchmark, at face
+  //     value, on that date, and is just held;
+  //   - internal rebalancing — selling one real holding to buy another,
+  //     or a real buy funded by cash already in the account
+  //     ("pairedBuyAmt"/"pairedCashInAmt") — never touches the benchmark
+  //     position at all, since that money was already counted as
+  //     "invested" (hypothetically, in the benchmark) the moment it first
+  //     arrived; moving it between real holdings doesn't change that;
+  //   - only a genuine withdrawal (cash actually leaving the account,
+  //     not funding a same-day purchase — "withdrawAmt") sells enough of
+  //     the benchmark position to raise that same dollar amount, since
+  //     that money would have left the hypothetical benchmark position
+  //     too.
+  const _CASH_SYMS = new Set(['USD=CASH', 'USD']);
+  const principalCalc = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromYear });
+  const perEvent = principalCalc.perEvent;
+
+  // Per-year mark-to-market checkpoints for the SPY/SGOV columns of the
+  // year table (below). The `timeline` array pushed inside the loop below
+  // only gets a new entry per EVENT, valued at that event's own date —
+  // fine for the chart (a natural sampling of points), but wrong for the
+  // table: a year whose last trade landed mid-year (say, March) would
+  // freeze that year's SPY/SGOV gain at March's price, silently missing
+  // all appreciation through year-end. The portfolio's own columns don't
+  // have this bug because they come from a wholly separate cutoff-based
+  // replay (`mtmHold` below) — this does the same for SPY/SGOV: snapshot
+  // cost/gain right as each year's cutoff is crossed, valued at the
+  // CUTOFF's price, not the last event's.
+  const _yearCutoffs = allYears.map(yr => yr === curYear ? today : `${yr}-12-31`);
+  let _yckIdx = 0;
+  const yearSpyGain = {}, yearSpyCost = {}, yearSgovGain = {}, yearSgovCost = {};
+  function _checkpointYearsUpTo(dateExclusive) {
+    while (_yckIdx < _yearCutoffs.length && dateExclusive > _yearCutoffs[_yckIdx]) {
+      const cutoff = _yearCutoffs[_yckIdx];
+      const yr = allYears[_yckIdx];
+      const cpSpyP  = _nearestPrice(spyPrices,  cutoff);
+      const cpSgovP = _nearestPrice(sgovPrices, cutoff);
+      yearSpyGain[yr]  = cpSpyP  != null ? spyRealizedGain  + (_lotTotals(spyLots).shares  * cpSpyP  - _lotTotals(spyLots).cost)  : null;
+      yearSgovGain[yr] = cpSgovP != null ? sgovRealizedGain + (_lotTotals(sgovLots).shares * cpSgovP - _lotTotals(sgovLots).cost) : null;
+      yearSpyCost[yr]  = spyCost;
+      yearSgovCost[yr] = sgovCost;
+      _yckIdx++;
+    }
+  }
+
+  // Mark-to-market snapshot at an arbitrary date, using whatever
+  // portHoldings/spyLots/qqqLots/sgovLots/portRealizedGain/*RealizedGain
+  // state is CURRENT at the time this is called (a plain function, not a
+  // pure one — reads the enclosing closure's live state). Shared by the
+  // per-event snapshot, the daily gap-fill snapshots below, and the
+  // "today" snapshot, so there's one formula instead of three copies.
+  const holdingsForPie = []; // [{ sym, value }] — current holdings pie chart (cash excluded), filled only when isToday
+  function _snapshotAt(date, isToday) {
+    let portUnreal = 0, portValue = 0;
+    for (const [sym, h] of Object.entries(portHoldings)) {
+      const { shares, cost } = _lotTotals(h.lots);
+      if (shares <= 0) continue;
+      const p = isToday ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, date)) : _priceOnOrBefore(sym, date);
+      if (p != null) {
+        portUnreal += p * shares - cost;
+        portValue  += p * shares;
+        if (isToday && !_CASH_SYMS.has(sym)) holdingsForPie.push({ sym, value: p * shares });
+      }
+    }
+    // manualPrincipal is a snapshot pinned AT manualAsOfDate ("as of this
+    // date, the account held about $X") — the whole point of the override
+    // is that pre-snapshot transaction history doesn't reliably represent
+    // real new-money contributions (e.g. a 401k rollover), so it isn't a
+    // meaningful baseline to compare against SPY/QQQ either. Splicing
+    // cost-basis P&L (pre-snapshot) with the pinned-baseline ratio calc
+    // (post-snapshot) produces a discontinuity right at manualAsOfDate
+    // (confirmed: SPY/QQQ appeared to "suddenly drop" there), so neither
+    // accounting method is shown before the snapshot — the chart simply
+    // starts cleanly at manualAsOfDate with everything at $0.
+    const beforeManualAsOf = isManualPrincipalAcct && date < manualAsOfDate;
+    const portGain = !isManualPrincipalAcct
+      ? portRealizedGain + portUnreal
+      : beforeManualAsOf ? null : portValue - manualPrincipal;
+    const spyP  = _nearestPrice(spyPrices,  date);
+    const qqqP  = _nearestPrice(qqqPrices,  date);
+    const sgovP = _nearestPrice(sgovPrices, date);
+    const spyGain  = !isManualPrincipalAcct
+      ? spyP  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyP  - _lotTotals(spyLots).cost)  : null
+      : beforeManualAsOf ? null : (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null;
+    const qqqGain  = !isManualPrincipalAcct
+      ? qqqP  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqP  - _lotTotals(qqqLots).cost)  : null
+      : beforeManualAsOf ? null : (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null;
+    const sgovGain = !isManualPrincipalAcct
+      ? sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null
+      : beforeManualAsOf ? null : (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null;
+    return { date, portGain, portRealizedGain, spyGain, qqqGain, sgovGain };
+  }
+  function _dateAddDays(dateStr, n) {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  // Fills in one chart point per day between the last plotted date and
+  // `untilExclusive` — holdings don't change between real events, only
+  // prices do, so during a multi-month quiet stretch this replays actual
+  // day-to-day price movement (from the already-fetched CSV histories)
+  // instead of Chart.js drawing one straight line across the whole gap.
+  let _lastChartDate = null;
+  function _fillChartGapUpTo(untilExclusive) {
+    if (!_lastChartDate) return;
+    let d = _dateAddDays(_lastChartDate, 1);
+    while (d < untilExclusive) {
+      timeline.push(_snapshotAt(d, false));
+      d = _dateAddDays(d, 1);
+    }
+  }
+
+  for (let _evIdx5 = 0; _evIdx5 < events.length; _evIdx5++) {
+    const ev = events[_evIdx5];
+    _checkpointYearsUpTo(ev.date);
+    _fillChartGapUpTo(ev.date);
+    const spyP  = _nearestPrice(spyPrices, ev.date);
+    const qqqP  = _nearestPrice(qqqPrices, ev.date);
+    const sgovP = _nearestPrice(sgovPrices, ev.date);
+    const h = portHoldings[ev.sym] || { lots: [] };
+
+    if (ev.type === 'split') {
+      // Mirrors computePnL's split handling (transactions.js) exactly —
+      // cost basis is untouched, only share count changes.
+      _applySplit(h, ev);
+      portHoldings[ev.sym] = h;
+    } else if (BUY_T.has(ev.type) && ev.shares > 0) {
+      // DRIP (reinvested dividends) adds shares but not cost basis —
+      // mirrors computePnL's treatment (transactions.js) exactly, so this
+      // chart's portfolio line and 보유현황's cost/gain figures agree.
+      if (!_CASH_SYMS.has(ev.sym)) {
+        const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
+        h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
+        portHoldings[ev.sym] = h;
+      }
+
+      if (ev.type === 'drip') {
+        if (spyP)  spyLots.push({ shares: ev.amount / spyP,   costPerShare: spyP  });
+        if (qqqP)  qqqLots.push({ shares: ev.amount / qqqP,   costPerShare: qqqP  });
+        if (sgovP) sgovLots.push({ shares: ev.amount / sgovP, costPerShare: sgovP });
+      } else {
+        const pe = perEvent[_evIdx5];
+        if (pe.principalAmt > 0) {
+          if (spyP)  spyLots.push({ shares: pe.principalAmt / spyP,  costPerShare: spyP  });
+          if (qqqP)  qqqLots.push({ shares: pe.principalAmt / qqqP,  costPerShare: qqqP  });
+          if (sgovP) sgovLots.push({ shares: pe.principalAmt / sgovP, costPerShare: sgovP });
+          spyCost += pe.principalAmt; qqqCost += pe.principalAmt; sgovCost += pe.principalAmt;
+        }
+      }
+    } else if (SELL_T.has(ev.type) && ev.shares > 0) {
+      // USD=CASH is skipped entirely — see portLoadHoldings' CASH_SYMS_SET
+      // exclusion ("FIFO clamping distorts cash balances").
+      if (!_CASH_SYMS.has(ev.sym)) {
+        const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
+        portRealizedGain += (ev.amount - (ev.commission || 0)) - costOfSold;
+        portHoldings[ev.sym] = h;
+      }
+      const pe = perEvent[_evIdx5];
+      if (pe.withdrawAmt > 0) {
+        if (spyP)  { const sh = Math.min(pe.withdrawAmt / spyP,  _lotTotals(spyLots).shares);  if (sh > 0) { const c = _sellFromLots(spyLots,  sh, null); spyRealizedGain  += sh * spyP  - c; } }
+        if (qqqP)  { const sh = Math.min(pe.withdrawAmt / qqqP,  _lotTotals(qqqLots).shares);  if (sh > 0) { const c = _sellFromLots(qqqLots,  sh, null); qqqRealizedGain  += sh * qqqP  - c; } }
+        if (sgovP) { const sh = Math.min(pe.withdrawAmt / sgovP, _lotTotals(sgovLots).shares); if (sh > 0) { const c = _sellFromLots(sgovLots, sh, null); sgovRealizedGain += sh * sgovP - c; } }
+      }
+    }
+
+    timeline.push(_snapshotAt(ev.date, false));
+    _lastChartDate = ev.date;
+  }
+  _checkpointYearsUpTo('9999-12-31');
+
+  _fillChartGapUpTo(today);
+  const todaySnap = _snapshotAt(today, true);
+  timeline.push(todaySnap);
+  const spyGainToday = todaySnap.spyGain;
+  const spyToday = _nearestPrice(spyPrices, today);
+
+  // ── Year-by-year table (cumulative-to-date, mark-to-market) ──────────
+  const yearInvested = principalCalc.yearNet;
+  const mtmHold = {};
+  let mtmRealized = 0, evIdx = 0;
+  const yearCumGain = {};
+  const yearMtmValue = {};
+  for (const yr of allYears) {
+    const isCurYr = yr === curYear;
+    const cutoff  = isCurYr ? today : `${yr}-12-31`;
+    while (evIdx < events.length && events[evIdx].date <= cutoff) {
+      const ev = events[evIdx];
+      const h  = mtmHold[ev.sym] || { lots: [] };
+      if (ev.type === 'split') {
+        if (!_CASH_SYMS.has(ev.sym)) _applySplit(h, ev);
+      } else if (BUY_T.has(ev.type) && ev.shares > 0 && !_CASH_SYMS.has(ev.sym)) {
+        const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
+        h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
+      } else if (SELL_T.has(ev.type) && ev.shares > 0 && !_CASH_SYMS.has(ev.sym)) {
+        const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
+        mtmRealized += (ev.amount - (ev.commission || 0)) - costOfSold;
+      }
+      mtmHold[ev.sym] = h;
+      evIdx++;
+    }
+    let unreal = 0, mtmValue = 0;
+    for (const [sym, h] of Object.entries(mtmHold)) {
+      const { shares, cost } = _lotTotals(h.lots);
+      if (shares <= 0) continue;
+      const p = isCurYr ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, cutoff)) : _priceOnOrBefore(sym, cutoff);
+      if (p != null) { unreal += p * shares - cost; mtmValue += p * shares; }
+    }
+    yearCumGain[yr] = mtmRealized + unreal;
+    yearMtmValue[yr] = mtmValue;
+  }
+
+  // Per-year dollar figures (invested / gain / SPY & SGOV gain+cost in $)
+  // so multiple portfolios can be blended by SUMMING DOLLARS before
+  // deriving % figures at merge time — averaging percentages directly
+  // would be economically wrong (a dollar-weighted blend, not a simple
+  // average, is what "combined group return" means). Same 원금-row logic
+  // as before: a row whose cutoff falls before manualAsOfDate contributes
+  // nothing (null), matching the chart's own pre-snapshot null-ing.
+  const yearRows = {};
+  let cumInvested = 0;
+  for (const yr of allYears) {
+    cumInvested += (yearInvested[yr] || 0);
+    const isCur = yr === curYear;
+    const cutoff = isCur ? today : `${yr}-12-31`;
+    const rowBeforeManualAsOf = isManualPrincipalAcct && !!manualAsOfDate && cutoff < manualAsOfDate;
+    const useManualRow = isManualPrincipalAcct && !!manualAsOfDate && !rowBeforeManualAsOf;
+    let invested = null, gain = null, spyGainD = null, spyCostD = null, sgovGainD = null, sgovCostD = null;
+    if (!rowBeforeManualAsOf) {
+      invested = useManualRow ? manualPrincipal : cumInvested;
+      gain = useManualRow ? yearMtmValue[yr] - manualPrincipal : yearCumGain[yr];
+      if (useManualRow) {
+        const spyNow  = _nearestPrice(spyPrices, cutoff);
+        const sgovNow = _nearestPrice(sgovPrices, cutoff);
+        spyGainD  = (spyBaseAtManualAsOf  && spyNow)  ? manualPrincipal * (spyNow  / spyBaseAtManualAsOf  - 1) : null;
+        spyCostD  = spyGainD  != null ? manualPrincipal : null;
+        sgovGainD = (sgovBaseAtManualAsOf && sgovNow) ? manualPrincipal * (sgovNow / sgovBaseAtManualAsOf - 1) : null;
+        sgovCostD = sgovGainD != null ? manualPrincipal : null;
+      } else {
+        spyGainD  = yearSpyGain[yr];  spyCostD  = yearSpyCost[yr]  > 0 ? yearSpyCost[yr]  : null;
+        sgovGainD = yearSgovGain[yr]; sgovCostD = yearSgovCost[yr] > 0 ? yearSgovCost[yr] : null;
+      }
+    }
+    yearRows[yr] = { invested, mtmValue: yearMtmValue[yr], gain, spyGainD, spyCostD, sgovGainD, sgovCostD };
+  }
+
+  const useManualPrincipalTotal = isManualPrincipalAcct && manualAsOfDate && today >= manualAsOfDate;
+  const lastYr = allYears.length ? allYears[allYears.length - 1] : null;
+  const totalInvestedThis = useManualPrincipalTotal ? manualPrincipal : cumInvested;
+  const totalGainThis = lastYr == null ? 0 : (useManualPrincipalTotal ? yearMtmValue[lastYr] - manualPrincipal : yearCumGain[lastYr]);
+  const spyTotalGainD = useManualPrincipalTotal
+    ? (spyBaseAtManualAsOf && spyToday) ? manualPrincipal * (spyToday / spyBaseAtManualAsOf - 1) : null
+    : (spyCost > 0 ? spyGainToday : null);
+  const spyTotalCostD = useManualPrincipalTotal ? (spyTotalGainD != null ? manualPrincipal : null) : (spyCost > 0 ? spyCost : null);
+
+  return {
+    timeline, allYears, yearRows,
+    totalInvestedThis, totalGainThis, spyTotalGainD, spyTotalCostD,
+    holdingsForPie, events, currentPriceMap, spyToday,
+    hasExplicitPrincipalOverrides,
+  };
+}
+
+// ── Merge N portfolios' daily chart timelines into one combined series ──
+// At each date, sums only the portfolios that have a NON-NULL value there
+// (a manual-원금 portfolio contributes nothing before its own
+// manualAsOfDate — see _anlComputeOnePortfolio — rather than being treated
+// as a $0 contribution, which would itself be a fabricated data point).
+function _anlMergeTimelines(results) {
+  const acc = new Map(); // date -> { portGain:[], portRealizedGain:[], spyGain:[], qqqGain:[], sgovGain:[] }
+  for (const r of results) {
+    for (const pt of r.timeline) {
+      let a = acc.get(pt.date);
+      if (!a) { a = { portGain: [], portRealizedGain: [], spyGain: [], qqqGain: [], sgovGain: [] }; acc.set(pt.date, a); }
+      if (pt.portGain != null) a.portGain.push(pt.portGain);
+      if (pt.portRealizedGain != null) a.portRealizedGain.push(pt.portRealizedGain);
+      if (pt.spyGain != null) a.spyGain.push(pt.spyGain);
+      if (pt.qqqGain != null) a.qqqGain.push(pt.qqqGain);
+      if (pt.sgovGain != null) a.sgovGain.push(pt.sgovGain);
+    }
+  }
+  const sum = arr => arr.length ? arr.reduce((s, v) => s + v, 0) : null;
+  return [...acc.keys()].sort().map(date => {
+    const a = acc.get(date);
+    return { date, portGain: sum(a.portGain), portRealizedGain: sum(a.portRealizedGain), spyGain: sum(a.spyGain), qqqGain: sum(a.qqqGain), sgovGain: sum(a.sgovGain) };
+  });
+}
+
+// ── Merge N portfolios' year-by-year dollar figures ──────────────────────
+// Sums dollars first (invested, gain, SPY/SGOV gain+cost), then the caller
+// derives %/alpha/beta from the summed totals — a dollar-weighted blend,
+// not an average of each portfolio's own %, which is what a combined
+// group return actually means.
+function _anlMergeYearRows(results) {
+  const allYears = [...new Set(results.flatMap(r => r.allYears))].sort();
+  const merged = {};
+  const sum = arr => arr.length ? arr.reduce((s, v) => s + v, 0) : null;
+  for (const yr of allYears) {
+    const invested = [], gain = [], mtmValue = [], spyGainD = [], spyCostD = [], sgovGainD = [], sgovCostD = [];
+    for (const r of results) {
+      const row = r.yearRows[yr];
+      if (!row) continue;
+      if (row.invested != null) invested.push(row.invested);
+      if (row.gain != null) gain.push(row.gain);
+      if (row.mtmValue != null) mtmValue.push(row.mtmValue);
+      if (row.spyGainD != null) spyGainD.push(row.spyGainD);
+      if (row.spyCostD != null) spyCostD.push(row.spyCostD);
+      if (row.sgovGainD != null) sgovGainD.push(row.sgovGainD);
+      if (row.sgovCostD != null) sgovCostD.push(row.sgovCostD);
+    }
+    merged[yr] = {
+      invested: sum(invested), gain: sum(gain), mtmValue: sum(mtmValue),
+      spyGainD: sum(spyGainD), spyCostD: sum(spyCostD),
+      sgovGainD: sum(sgovGainD), sgovCostD: sum(sgovCostD),
+    };
+  }
+  return { allYears, yearRows: merged };
+}
+
+// Called from portDropdownChange / portSwitchView
 async function portLoadAnalysis() {
   const loadEl    = document.getElementById('portAnalysisLoading');
   const contentEl = document.getElementById('portAnalysisContent');
@@ -2177,19 +2671,24 @@ async function portLoadAnalysis() {
   if (_anlPieChart) { _anlPieChart.destroy(); _anlPieChart = null; }
 
   try {
-    // ── 0. Resolve principal-basis overrides for the active portfolio ──
-    // Only meaningful when a single portfolio/account is selected (not "All"),
-    // since these overrides are account-specific (e.g. a 401k that was
-    // rolled into a Traditional IRA, where rollover-in "buys" aren't new
-    // principal contributed by the user).
-    let _principalOverride = null; // { zero_principal_from_year, manual_principal, manual_principal_as_of }
-    // Group mode: manual_principal (a single point-in-time total) has no
-    // sound way to combine across several portfolios with potentially
-    // different as-of dates, so it's still not applied there — but
-    // zero_principal_from_year is a per-event YEAR filter, not a total, so
-    // it CAN be applied per-portfolio within the merged group event stream
-    // (see zeroFromYearByPortfolio below and in _computeNetPrincipal).
-    let _zeroFromYearByPortfolio = null;
+    // ── 0. Resolve which portfolio(s) to analyze, and each one's own
+    // principal-basis override ────────────────────────────────────────
+    // Single portfolio: analyze just that one, with its own override.
+    // 그룹 or 전체 (no selection): analyze EVERY constituent portfolio
+    // separately (each with its own override correctly applied — a
+    // manual_principal account among several no longer gets that override
+    // silently dropped just because it's being viewed alongside others)
+    // and merge the per-portfolio results below.
+    let portfolioIds;
+    if (portActivePortfolioId) {
+      portfolioIds = [portActivePortfolioId];
+    } else if (portActiveGroupName) {
+      portfolioIds = portPortfolios.filter(p => (p.group_names || []).includes(portActiveGroupName)).map(p => p.id);
+    } else {
+      portfolioIds = portPortfolios.map(p => p.id);
+    }
+
+    let _principalOverride = null; // { zero_principal_from_year, manual_principal, manual_principal_as_of } — single-portfolio mode only, for the settings modal
     if (portActivePortfolioId) {
       const activePf = portPortfolios.find(p => p.id === portActivePortfolioId);
       if (activePf) {
@@ -2199,569 +2698,69 @@ async function portLoadAnalysis() {
           manual_principal_as_of: activePf.manual_principal_as_of || null,
         };
       }
-    } else if (portActiveGroupName) {
-      const groupPfs = portPortfolios.filter(p => (p.group_names || []).includes(portActiveGroupName));
-      const withZeroYear = groupPfs.filter(p => p.zero_principal_from_year);
-      if (withZeroYear.length) {
-        _zeroFromYearByPortfolio = {};
-        for (const p of withZeroYear) _zeroFromYearByPortfolio[p.id] = Number(p.zero_principal_from_year);
-      }
     }
     _anlActivePrincipalOverride = _principalOverride; // stash for the settings modal
 
-    // ── 1. Fetch transactions ───────────────────────────────────────
-    const allTxns = await window.txns.getTransactions(null, portQuerySelector());
-    // 'split' must be included here — computePnL (used by 보유현황, via
-    // transactions.js) applies stock splits to remaining share counts, but
-    // this tab's own event replay didn't, so any split-adjusted symbol
-    // (e.g. AVGO's 10:1 split in 2024) came out understated here by
-    // whatever the split ratio was, throwing off both this tab's total
-    // gain and the "내 포트폴리오" chart line relative to 보유현황.
-    const tradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short','split'].includes(t.type));
-    if (!tradeTxns.length) {
+    const { spyPrices, qqqPrices, sgovPrices } = await _anlFetchBenchmarkPrices();
+
+    const results = (await Promise.all(portfolioIds.map(id => {
+      const pf = portPortfolios.find(p => p.id === id);
+      const override = pf ? {
+        zero_principal_from_year: pf.zero_principal_from_year || null,
+        manual_principal: pf.manual_principal != null ? Number(pf.manual_principal) : null,
+        manual_principal_as_of: pf.manual_principal_as_of || null,
+      } : null;
+      return _anlComputeOnePortfolio(id, override, spyPrices, qqqPrices, sgovPrices);
+    }))).filter(r => r !== null);
+
+    if (!results.length) {
       loadEl.textContent = '거래 내역이 없습니다.';
       return;
     }
+    _anlHasExplicitPrincipalOverrides = portActivePortfolioId ? !!results[0]?.hasExplicitPrincipalOverrides : false; // stash for the settings modal
 
-    // ── 2. Fetch SPY + QQQ price CSVs; build a synthetic SGOV series ──
-    // SGOV's own price data can't work as a benchmark here: its NAV is
-    // designed to stay flat since ~all of its return is monthly dividend
-    // income, and this site's price CSVs aren't dividend-adjusted
-    // (free-tier Alpha Vantage doesn't provide that — see
-    // update_stocks.py). Instead of price data, build a synthetic NAV
-    // series by compounding SGOV's actual year-by-year total return
-    // (dividend-reinvested) day by day — sourced from
-    // assets/data/sgov_annual_returns.json, which
-    // scripts/update_sgov_returns.py regenerates automatically (via
-    // yfinance, which does provide dividend-adjusted prices for free) on
-    // the same schedule as the daily stock-data workflow. Falls back to a
-    // hardcoded snapshot if that fetch fails for any reason (e.g. the
-    // file doesn't exist yet on a fresh checkout).
-    const [spyText, qqqText, sgovReturnData] = await Promise.all([
-      fetch(_STOCKS_BASE + 'SPY.csv').then(r => r.ok ? r.text() : ''),
-      fetch(_STOCKS_BASE + 'QQQ.csv').then(r => r.ok ? r.text() : ''),
-      fetch(_SGOV_RETURNS_URL).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]);
-    const spyPrices = _anlParsePriceCsv(spyText);  // { 'YYYY-MM-DD': price }
-    const qqqPrices = _anlParsePriceCsv(qqqText);
-    const sgovPrices = _buildSyntheticSgovPrices(sgovReturnData);
-
-    // ── 3. Fetch current prices for held symbols ────────────────────
-    const BUY_T  = new Set(['buy','drip','buy_to_cover']);
-    const SELL_T = new Set(['sell','sell_short']);
-    const symbolTxns = {};
-    for (const t of tradeTxns) {
-      (symbolTxns[t.symbol] = symbolTxns[t.symbol] || []).push(t);
+    // ── Merge per-portfolio results ──────────────────────────────────
+    const tlSorted = _anlMergeTimelines(results);
+    const { allYears, yearRows } = _anlMergeYearRows(results);
+    // _renderHoldingsPie doesn't dedupe by symbol (never needed to before —
+    // a single portfolio's own holdingsForPie can't hold the same symbol
+    // twice), so when combining several portfolios that both hold e.g. SPY,
+    // sum them into one entry here rather than showing two same-symbol slices.
+    const holdingsForPieBySym = {};
+    for (const r of results) for (const h of r.holdingsForPie) {
+      holdingsForPieBySym[h.sym] = (holdingsForPieBySym[h.sym] || 0) + h.value;
     }
-    const currentPriceMap = {};
-    await Promise.all(Object.keys(symbolTxns).map(async sym => {
-      const p = await fetchCurrentPrice(sym);
-      if (p) currentPriceMap[sym] = p;
-    }));
-
-    // Best-effort full price history per held symbol, for mark-to-market
-    // valuations at arbitrary past dates (chart + year table both need this,
-    // not just "today"). Crypto symbols live under a different CSV filename
-    // here (e.g. BTC-USD.csv, not BTC.csv) so this fetch comes back empty
-    // for them and their past-date figures just fall back to realized-only —
-    // fine, since this portfolio tool's per-year table is aimed at
-    // stock/fund accounts like a 401k, not crypto.
-    const priceHistories = {};
-    await Promise.all(Object.keys(symbolTxns).map(async sym => {
-      try {
-        const r = await fetch(_STOCKS_BASE + sym + '.csv');
-        priceHistories[sym] = r.ok ? _anlParsePriceCsv(await r.text()) : {};
-      } catch(e) { priceHistories[sym] = {}; }
-    }));
-    function _priceOnOrBefore(sym, date) {
-      const hist = priceHistories[sym];
-      if (!hist) return null;
-      const near = _nearestPrice(hist, date);
-      if (near != null) return near;
-      const dates = Object.keys(hist).filter(d => d <= date).sort();
-      return dates.length ? hist[dates[dates.length - 1]] : null;
-    }
-
-    // ── 4. Build event timeline for chart + table ───────────────────
-    // Each event: { date, sym, type, amount, shares, price, countAsPrincipal }
-    const events = tradeTxns
-      .map(t => ({
-        date:   t.trade_date,
-        sym:    t.symbol,
-        type:   t.type,
-        portfolioId: t.portfolio_id || null,
-        amount: Math.abs(Number(t.amount) || 0),
-        commission: Number(t.commission) || 0,
-        lotMethod: t.lot_method || null,
-        shares: Math.abs(Number(t.shares) || 0),
-        price:  Number(t.price) || 0,
-        // Raw (uncoerced) price, kept separately from `price` above — for a
-        // USD=CASH row, MSP stores a 0/1 flag here (0 = this cash movement
-        // is tied to a stock trade, 1 = a genuine deposit/withdrawal), not
-        // a real price. `Number(t.price) || 0` collapses null (no data) and
-        // 0 (explicit MSP flag) to the same value, so _computeNetPrincipal
-        // needs this raw form to tell "MSP says linked" apart from "unknown".
-        cashLinkFlag: (t.price === null || t.price === undefined) ? null : Number(t.price),
-        // Per-transaction override (거래내역 tab). null = no override.
-        countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
-      }))
-      // Same-day tie-break: splits before buys/sells, matching computePnL
-      // (transactions.js) exactly — a same-day split must apply to shares
-      // bought earlier that day, not be skipped by running out of order.
-      .sort((a, b) => {
-        const dateCmp = a.date.localeCompare(b.date);
-        if (dateCmp !== 0) return dateCmp;
-        const rank = e => e.type === 'split' ? 0 : ['buy','drip','buy_to_cover'].includes(e.type) ? 1 : 2;
-        return rank(a) - rank(b);
-      });
-
+    const holdingsForPie = Object.entries(holdingsForPieBySym).map(([sym, value]) => ({ sym, value }));
+    const events = results.flatMap(r => r.events);
+    const currentPriceMap = Object.assign({}, ...results.map(r => r.currentPriceMap));
+    const spyToday = results.find(r => r.spyToday != null)?.spyToday ?? null;
     const today = new Date().toISOString().slice(0, 10);
-    // Needed early (before the cash-pool simulation below) to checkpoint
-    // SPY/QQQ/SGOV mark-to-market gain at each year's actual cutoff — see
-    // the design comment above _yearCutoffs / _checkpointYearsUpTo.
     const curYear = today.slice(0, 4);
-    const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
 
-    const zeroFromYear = _principalOverride?.zero_principal_from_year || null;
-    // If ANY buy in this portfolio has an explicit 원금 override (set via the
-    // 거래내역 tab), switch the whole portfolio into "explicit mode": only
-    // buys explicitly marked 원금(true) count, and the account-level
-    // zero_principal_from_year / manual_principal settings are ignored
-    // entirely (the user is telling us they want precise, transaction-level
-    // control instead of the coarse year-cutoff / manual-total overrides).
-    const hasExplicitPrincipalOverrides = events.some(ev => BUY_T.has(ev.type) && ev.countAsPrincipal !== null);
-    _anlHasExplicitPrincipalOverrides = hasExplicitPrincipalOverrides; // stash for the settings modal
+    const sumOrNull = vals => { const v = vals.filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) : null; };
+    const totalInvested = sumOrNull(results.map(r => r.totalInvestedThis)) ?? 0;
+    const totalGain = sumOrNull(results.map(r => r.totalGainThis)) ?? 0;
+    const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
+    const spyTotalGainD = sumOrNull(results.map(r => r.spyTotalGainD));
+    const spyTotalCostD = sumOrNull(results.map(r => r.spyTotalCostD));
+    const spyTotal = (spyTotalCostD != null && spyTotalCostD > 0) ? spyTotalGainD / spyTotalCostD * 100 : null;
 
-    // A manual 원금 (e.g. "as of 1/15/2024 this account held about $170K",
-    // entered by hand — typically a 401k→IRA rollover where the recorded
-    // buy/sell history doesn't represent real new money) is a single
-    // point-in-time figure, not a year-by-year series — applies as-is
-    // throughout (chart + every table row), not just a trailing total.
-    // Needed already in step 5 below: for such an account the chart's
-    // portfolio line should also be market-value-minus-principal, not
-    // cost-basis P&L (see the long comment in step 7 for why).
-    const manualPrincipal = hasExplicitPrincipalOverrides ? null : _principalOverride?.manual_principal;
-    // Same reasoning extends to the SPY/QQQ/SGOV chart lines: on a
-    // high-turnover account the money-weighted trading simulation below
-    // accumulates cost basis from every sell-then-rebuy cycle (each rebuy
-    // counts as "new money in", even though it's the same capital being
-    // recycled), which can dwarf the fixed 원금 baseline and make those
-    // lines' dollar figures incomparable to the portfolio line (which is
-    // pinned to manualPrincipal). So for a manual-원금 account, SPY/QQQ/
-    // SGOV chart lines also switch to simple buy-and-hold dollar growth
-    // from manualPrincipal invested at manual_principal_as_of — computed
-    // after 3-symbol price fetch below since it needs spyPrices etc.
-    const manualAsOfDate = _principalOverride?.manual_principal_as_of || (events[0]?.date ?? null);
-
-    // ── 5. Buy-and-hold SPY/QQQ/SGOV simulation (see the design comment below) ──
-    let spyLots = [], spyRealizedGain = 0, spyCost = 0;
-    let qqqLots = [], qqqRealizedGain = 0, qqqCost = 0;
-    let sgovLots = [], sgovRealizedGain = 0, sgovCost = 0;
-    // spyCost/qqqCost/sgovCost track NET NEW principal (same classification
-    // as _computeNetPrincipal, via principalCalc below) — used purely as
-    // the denominator for % returns, decoupled from the lot mechanics.
-
-    // Portfolio: track per-symbol lots (see _lotTotals/_sellFromLots below)
-    const portHoldings = {}; // sym -> { lots: [{ shares, costPerShare }] }
-
-    // Cumulative realized gain timeline: [{ date, portGain, spyGain, qqqGain, sgovGain }]
-    const timeline = [];
-    let portRealizedGain = 0;
-
-    function _nearestPrice(map, date) {
-      // exact match or walk back up to 5 days
-      for (let d = 0; d <= 5; d++) {
-        const dt = new Date(date);
-        dt.setDate(dt.getDate() - d);
-        const key = dt.toISOString().slice(0, 10);
-        if (map[key] != null) return map[key];
-      }
-      return null;
-    }
-
-    // Buy-and-hold baseline prices for manual-원금 accounts (see comment
-    // above manualAsOfDate) — null when there's no manual override, in
-    // which case the buy-and-hold branches below never trigger anyway.
-    const spyBaseAtManualAsOf  = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(spyPrices,  manualAsOfDate) : null;
-    const qqqBaseAtManualAsOf  = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(qqqPrices,  manualAsOfDate) : null;
-    const sgovBaseAtManualAsOf = (manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate) ? _nearestPrice(sgovPrices, manualAsOfDate) : null;
-
-    // SPY/QQQ/SGOV each answer "if my net-new principal had gone into this
-    // benchmark instead, and just stayed there, what would it be worth?" —
-    // a true buy-and-hold comparison, using the same lot accounting as
-    // computePnL (_sellFromLots/_lotTotals):
-    //   - every dollar of genuinely new principal (_computeNetPrincipal's
-    //     "principalAmt" — a cash deposit, or an RSU/grant-like buy with no
-    //     matching cash outflow) buys that much of the benchmark, at face
-    //     value, on that date, and is just held;
-    //   - internal rebalancing — selling one real holding to buy another,
-    //     or a real buy funded by cash already in the account
-    //     ("pairedBuyAmt"/"pairedCashInAmt") — never touches the benchmark
-    //     position at all, since that money was already counted as
-    //     "invested" (hypothetically, in the benchmark) the moment it first
-    //     arrived; moving it between real holdings doesn't change that;
-    //   - only a genuine withdrawal (cash actually leaving the account,
-    //     not funding a same-day purchase — "withdrawAmt") sells enough of
-    //     the benchmark position to raise that same dollar amount, since
-    //     that money would have left the hypothetical benchmark position
-    //     too.
-    // (Earlier iterations mirrored the real portfolio's own trade timing —
-    // liquidating a proportional share of the whole simulated position on
-    // every real sell, regardless of whether it was a withdrawal or just a
-    // stock swap. For an account that trades often, that meant the
-    // simulated benchmark spent most of its history sitting in cash between
-    // trades, capturing only short bursts of the benchmark's actual moves
-    // instead of a continuous hold — verified against a real, actively-
-    // traded account: SGOV showed a ~7-year cumulative return near 1%
-    // despite ~3.5-5%/yr actual yield, because its simulated position had
-    // been "sold" down to under 5% of cumulative cost at any given time.
-    // Switched to buy-and-hold, which answers the more commonly intended
-    // question — "what if I'd just parked this money in the benchmark" —
-    // rather than "what if I'd traded the benchmark exactly as often as I
-    // traded my actual holdings".)
-    const _CASH_SYMS = new Set(['USD=CASH', 'USD']);
-    const principalCalc = _computeNetPrincipal(events, { hasExplicitOverrides: hasExplicitPrincipalOverrides, zeroFromYear, zeroFromYearByPortfolio: _zeroFromYearByPortfolio });
-    const perEvent = principalCalc.perEvent;
-
-    // Per-year mark-to-market checkpoints for the SPY/SGOV columns of the
-    // year table (step 7 below). The `timeline` array pushed inside the
-    // loop below only gets a new entry per EVENT, valued at that event's
-    // own date — fine for the chart (a natural sampling of points), but
-    // wrong for the table: a year whose last trade landed mid-year (say,
-    // March) would freeze that year's SPY/SGOV gain at March's price,
-    // silently missing all appreciation through year-end. The portfolio's
-    // own columns don't have this bug because they come from a wholly
-    // separate cutoff-based replay (`mtmHold` below) — this does the same
-    // for SPY/SGOV: snapshot cost/gain right as each year's cutoff is
-    // crossed, valued at the CUTOFF's price, not the last event's.
-    const _yearCutoffs = allYears.map(yr => yr === curYear ? today : `${yr}-12-31`);
-    let _yckIdx = 0;
-    const yearSpyGain = {}, yearSpyCost = {}, yearSgovGain = {}, yearSgovCost = {};
-    function _checkpointYearsUpTo(dateExclusive) {
-      while (_yckIdx < _yearCutoffs.length && dateExclusive > _yearCutoffs[_yckIdx]) {
-        const cutoff = _yearCutoffs[_yckIdx];
-        const yr = allYears[_yckIdx];
-        const cpSpyP  = _nearestPrice(spyPrices,  cutoff);
-        const cpSgovP = _nearestPrice(sgovPrices, cutoff);
-        yearSpyGain[yr]  = cpSpyP  != null ? spyRealizedGain  + (_lotTotals(spyLots).shares  * cpSpyP  - _lotTotals(spyLots).cost)  : null;
-        yearSgovGain[yr] = cpSgovP != null ? sgovRealizedGain + (_lotTotals(sgovLots).shares * cpSgovP - _lotTotals(sgovLots).cost) : null;
-        yearSpyCost[yr]  = spyCost;
-        yearSgovCost[yr] = sgovCost;
-        _yckIdx++;
-      }
-    }
-
-    // Mark-to-market snapshot at an arbitrary date, using whatever
-    // portHoldings/spyLots/qqqLots/sgovLots/portRealizedGain/*RealizedGain
-    // state is CURRENT at the time this is called (a plain function, not a
-    // pure one — reads the enclosing closure's live state). Shared by the
-    // per-event snapshot, the daily gap-fill snapshots below, and the
-    // "today" snapshot, so there's one formula instead of three copies.
-    const holdingsForPie = []; // [{ sym, value }] — current holdings pie chart (cash excluded), filled only when isToday
-    function _snapshotAt(date, isToday) {
-      let portUnreal = 0, portValue = 0;
-      for (const [sym, h] of Object.entries(portHoldings)) {
-        const { shares, cost } = _lotTotals(h.lots);
-        if (shares <= 0) continue;
-        const p = isToday ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, date)) : _priceOnOrBefore(sym, date);
-        if (p != null) {
-          portUnreal += p * shares - cost;
-          portValue  += p * shares;
-          if (isToday && !_CASH_SYMS.has(sym)) holdingsForPie.push({ sym, value: p * shares });
-        }
-      }
-      // manualPrincipal is a snapshot pinned AT manualAsOfDate ("as of this
-      // date, the account held about $X") — the whole point of the override
-      // is that pre-snapshot transaction history doesn't reliably represent
-      // real new-money contributions (e.g. a 401k rollover), so it isn't a
-      // meaningful baseline to compare against SPY/QQQ either. An earlier
-      // fix made the pre-snapshot period fall back to cost-basis P&L instead
-      // of wrongly subtracting the full pinned total from a still-small
-      // portValue — but that introduced a NEW artifact: cost-basis P&L
-      // measures gain since the account's actual first transaction, while
-      // the post-snapshot ratio calc measures gain since manualAsOfDate
-      // (=0 by construction right at that date), so splicing the two
-      // together produced a sudden jump/drop in the SPY/QQQ lines exactly
-      // at manualAsOfDate (confirmed: "401k all new", manualAsOfDate
-      // 2020-12-31, showed SPY/QQQ suddenly dropping right at 2021-01-01).
-      // Neither accounting method is meaningful before the snapshot for
-      // this kind of account, so simply don't plot a value there at all —
-      // the chart starts cleanly at manualAsOfDate with everything at $0.
-      const isManualPrincipalAcct = manualPrincipal != null && manualPrincipal > 0;
-      const beforeManualAsOf = isManualPrincipalAcct && date < manualAsOfDate;
-      const portGain = !isManualPrincipalAcct
-        ? portRealizedGain + portUnreal
-        : beforeManualAsOf ? null : portValue - manualPrincipal;
-      const spyP  = _nearestPrice(spyPrices,  date);
-      const qqqP  = _nearestPrice(qqqPrices,  date);
-      const sgovP = _nearestPrice(sgovPrices, date);
-      const spyGain  = !isManualPrincipalAcct
-        ? spyP  ? spyRealizedGain  + (_lotTotals(spyLots).shares  * spyP  - _lotTotals(spyLots).cost)  : null
-        : beforeManualAsOf ? null : (spyBaseAtManualAsOf  && spyP)  ? manualPrincipal * (spyP  / spyBaseAtManualAsOf  - 1) : null;
-      const qqqGain  = !isManualPrincipalAcct
-        ? qqqP  ? qqqRealizedGain  + (_lotTotals(qqqLots).shares  * qqqP  - _lotTotals(qqqLots).cost)  : null
-        : beforeManualAsOf ? null : (qqqBaseAtManualAsOf  && qqqP)  ? manualPrincipal * (qqqP  / qqqBaseAtManualAsOf  - 1) : null;
-      const sgovGain = !isManualPrincipalAcct
-        ? sgovP ? sgovRealizedGain + (_lotTotals(sgovLots).shares * sgovP - _lotTotals(sgovLots).cost) : null
-        : beforeManualAsOf ? null : (sgovBaseAtManualAsOf && sgovP) ? manualPrincipal * (sgovP / sgovBaseAtManualAsOf - 1) : null;
-      return { date, portGain, portRealizedGain, spyGain, qqqGain, sgovGain, spyCost, qqqCost, sgovCost };
-    }
-    function _dateAddDays(dateStr, n) {
-      const d = new Date(dateStr + 'T00:00:00Z');
-      d.setUTCDate(d.getUTCDate() + n);
-      return d.toISOString().slice(0, 10);
-    }
-    // Fills in one chart point per day between the last plotted date and
-    // `untilExclusive` — holdings don't change between real events, only
-    // prices do, so during a multi-month quiet stretch this replays actual
-    // day-to-day price movement (from the already-fetched CSV histories)
-    // instead of Chart.js drawing one straight line across the whole gap.
-    // Verified against a real account: a ~7-month gap with no trades had
-    // been rendered as a single straight segment before this.
-    let _lastChartDate = null;
-    function _fillChartGapUpTo(untilExclusive) {
-      if (!_lastChartDate) return;
-      let d = _dateAddDays(_lastChartDate, 1);
-      while (d < untilExclusive) {
-        timeline.push(_snapshotAt(d, false));
-        d = _dateAddDays(d, 1);
-      }
-    }
-
-    for (let _evIdx5 = 0; _evIdx5 < events.length; _evIdx5++) {
-      const ev = events[_evIdx5];
-      // Checkpoint any year whose cutoff falls strictly before this event —
-      // using state as of all prior events only, since this one hasn't
-      // been applied yet (see _checkpointYearsUpTo above).
-      _checkpointYearsUpTo(ev.date);
-      // Fill any quiet days since the last plotted point, using state as
-      // of all prior events only — same reasoning as the checkpoint above.
-      _fillChartGapUpTo(ev.date);
-      const spyP  = _nearestPrice(spyPrices, ev.date);
-      const qqqP  = _nearestPrice(qqqPrices, ev.date);
-      const sgovP = _nearestPrice(sgovPrices, ev.date);
-      const h = portHoldings[ev.sym] || { lots: [] };
-
-      if (ev.type === 'split') {
-        // Mirrors computePnL's split handling (transactions.js) exactly —
-        // cost basis is untouched, only share count changes.
-        _applySplit(h, ev);
-        portHoldings[ev.sym] = h;
-      } else if (BUY_T.has(ev.type) && ev.shares > 0) {
-        // DRIP (reinvested dividends) adds shares but not cost basis —
-        // mirrors computePnL's treatment (transactions.js) exactly, so this
-        // chart's portfolio line and 보유현황's cost/gain figures agree.
-        // Commission is part of cost, also matching computePnL.
-        // USD=CASH never gets a lot pushed here — see the SELL branch's
-        // comment below for why treating cash as a lotted security is
-        // wrong, matching portLoadHoldings' own CASH_SYMS_SET exclusion.
-        if (!_CASH_SYMS.has(ev.sym)) {
-          const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
-          h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
-          portHoldings[ev.sym] = h;
-        }
-
-        if (ev.type === 'drip') {
-          // Dividend reinvestment — genuine investment income, not new
-          // principal. Invests immediately at face value, matching
-          // computePnL's own DRIP treatment (transactions.js: "adds shares
-          // but not cost basis").
-          if (spyP)  spyLots.push({ shares: ev.amount / spyP,   costPerShare: spyP  });
-          if (qqqP)  qqqLots.push({ shares: ev.amount / qqqP,   costPerShare: qqqP  });
-          if (sgovP) sgovLots.push({ shares: ev.amount / sgovP, costPerShare: sgovP });
-        } else {
-          // Buy-and-hold: only the genuinely-new-principal portion
-          // (principalAmt — a cash deposit, or an RSU/grant-like buy with
-          // no matching cash outflow) ever invests in the benchmark. The
-          // "paired" portion (a real buy funded by cash already in the
-          // account) is internal rebalancing and doesn't touch the
-          // benchmark position at all — see the design comment above.
-          const pe = perEvent[_evIdx5];
-          if (pe.principalAmt > 0) {
-            if (spyP)  spyLots.push({ shares: pe.principalAmt / spyP,  costPerShare: spyP  });
-            if (qqqP)  qqqLots.push({ shares: pe.principalAmt / qqqP,  costPerShare: qqqP  });
-            if (sgovP) sgovLots.push({ shares: pe.principalAmt / sgovP, costPerShare: sgovP });
-            spyCost += pe.principalAmt; qqqCost += pe.principalAmt; sgovCost += pe.principalAmt;
-          }
-        }
-      } else if (SELL_T.has(ev.type) && ev.shares > 0) {
-        // Consumes lots per this sell's own lot_method (FIFO/LIFO/High
-        // Cost/Low Cost) — matches computePnL exactly, so this chart's
-        // realized gain agrees with 보유현황's and the year table's.
-        // USD=CASH is skipped entirely: unlike a real security, a cash
-        // "sell" isn't a taxable event with its own cost basis — it's
-        // just money leaving. Running it through the same lot machinery
-        // (as this loop used to) computes a bogus "cost of sold cash"
-        // whenever the tracked cash lots run short of what's being spent
-        // (extremely common for an account that constantly cycles cash
-        // through many same-day buy/sell legs) and credits the shortfall
-        // as pure "realized gain" — verified against a real, heavily
-        // cash-cycling crypto account: this alone fabricated $54,684.68 of
-        // gain that doesn't exist in 보유현황's own totals (which already
-        // has this exact exclusion — see portLoadHoldings' CASH_SYMS_SET,
-        // "FIFO clamping distorts cash balances").
-        if (!_CASH_SYMS.has(ev.sym)) {
-          const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
-          portRealizedGain += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds
-          portHoldings[ev.sym] = h;
-        }
-
-        // Buy-and-hold: only a genuine withdrawal (withdrawAmt — cash
-        // actually leaving the account, not funding a same-day purchase)
-        // sells any of the benchmark position, raising exactly that many
-        // dollars at today's price — selling one real holding to buy
-        // another doesn't touch it, since that money would have stayed
-        // parked in the benchmark the whole time under buy-and-hold.
-        const pe = perEvent[_evIdx5];
-        if (pe.withdrawAmt > 0) {
-          if (spyP)  { const sh = Math.min(pe.withdrawAmt / spyP,  _lotTotals(spyLots).shares);  if (sh > 0) { const c = _sellFromLots(spyLots,  sh, null); spyRealizedGain  += sh * spyP  - c; } }
-          if (qqqP)  { const sh = Math.min(pe.withdrawAmt / qqqP,  _lotTotals(qqqLots).shares);  if (sh > 0) { const c = _sellFromLots(qqqLots,  sh, null); qqqRealizedGain  += sh * qqqP  - c; } }
-          if (sgovP) { const sh = Math.min(pe.withdrawAmt / sgovP, _lotTotals(sgovLots).shares); if (sh > 0) { const c = _sellFromLots(sgovLots, sh, null); sgovRealizedGain += sh * sgovP - c; } }
-        }
-      }
-
-      // Snapshot: mark-to-market (realized so far + unrealized at this
-      // event's date, using the held symbols' price history) — not
-      // realized-only, which used to leave this line flat near $0 for
-      // years/stretches with contributions but no sells, only to jump
-      // at the very end when "today"'s unrealized got added in one shot.
-      timeline.push(_snapshotAt(ev.date, false));
-      _lastChartDate = ev.date;
-    }
-    // Flush any year checkpoints not yet crossed by an event (typically
-    // just the current year, whose cutoff is "today") using the final
-    // post-loop state — a date sentinel guaranteed past any real date.
-    _checkpointYearsUpTo('9999-12-31');
-
-    // ── 6. Add "today" snapshot (live prices, more current than CSV) ──
-    // Fills any quiet days since the last event first (see _fillChartGapUpTo).
-    _fillChartGapUpTo(today);
-    const todaySnap = _snapshotAt(today, true);
-    timeline.push(todaySnap);
-    const spyGainToday = todaySnap.spyGain;
-    const spyToday  = _nearestPrice(spyPrices, today);
-
-    // ── 7. Year-by-year table (cumulative-to-date, mark-to-market) ────
-    // Each row shows CUMULATIVE invested principal and CUMULATIVE gain as
-    // of that year's close (today for the current year) — not a delta for
-    // just that year divided by just that year's new money. A delta-over-
-    // new-money framing overstates % once there's a carried-over balance:
-    // the gain includes appreciation on the whole position (prior years'
-    // contributions too), not just what was newly put in that year, so
-    // gain and principal need to be on the same (cumulative) basis to mean
-    // anything. S&P 500 (%) / SGOV (%) reuse the money-weighted "same
-    // dollars, same days" simulation already driving the chart below, but
-    // valued at each year's own cutoff via yearSpyGain/yearSgovGain (see
-    // _checkpointYearsUpTo above) rather than the chart's event-dated
-    // `timeline`, so Alpha/Beta compare like with like.
-
-    // year -> that year's genuinely new principal — reuses the same
-    // classification already computed above for the SPY/QQQ/SGOV
-    // simulation (principalCalc), rather than calling _computeNetPrincipal
-    // a second time, so the two can't drift apart.
-    const yearInvested = principalCalc.yearNet;
-
-    // Replay holdings chronologically, snapshotting cumulative mark-to-market
-    // total gain (realized + unrealized-at-cutoff) at the close of each year.
-    // Tracks individual lots per symbol (mirrors computePnL in transactions.js
-    // — see _applySplit / _lotTotals / _sellFromLots below) so a sell's own
-    // lot_method picks the same shares as 보유현황's computePnL would.
-    const mtmHold = {};
-    let mtmRealized = 0, evIdx = 0;
-    const yearCumGain = {};
-    const yearMtmValue = {}; // total market value of holdings at each cutoff (not gain) — used instead of cost-basis P&L for rollover accounts with a manual 원금 override, see below
-    for (const yr of allYears) {
-      const isCurYr = yr === curYear;
-      const cutoff  = isCurYr ? today : `${yr}-12-31`;
-      while (evIdx < events.length && events[evIdx].date <= cutoff) {
-        const ev = events[evIdx];
-        const h  = mtmHold[ev.sym] || { lots: [] };
-        // USD=CASH is skipped entirely, same as portLoadHoldings'
-        // CASH_SYMS_SET exclusion ("FIFO clamping distorts cash
-        // balances") and the matching fix in the chart's own replay
-        // above — cash isn't a lotted security, and running it through
-        // _sellFromLots fabricates "realized gain" out of thin air
-        // whenever tracked cash lots run short of what's being spent
-        // (routine for an account that cycles cash through many same-day
-        // buy/sell legs).
-        if (ev.type === 'split') {
-          if (!_CASH_SYMS.has(ev.sym)) _applySplit(h, ev);
-        } else if (BUY_T.has(ev.type) && ev.shares > 0 && !_CASH_SYMS.has(ev.sym)) {
-          // DRIP adds shares but not cost basis, matching computePnL.
-          const lotCost = ev.type !== 'drip' ? ev.amount + (ev.commission || 0) : 0;
-          h.lots.push({ shares: ev.shares, costPerShare: lotCost / ev.shares });
-        } else if (SELL_T.has(ev.type) && ev.shares > 0 && !_CASH_SYMS.has(ev.sym)) {
-          const costOfSold = _sellFromLots(h.lots, ev.shares, ev.lotMethod);
-          mtmRealized += (ev.amount - (ev.commission || 0)) - costOfSold; // commission reduces net sale proceeds, matching computePnL
-        }
-        mtmHold[ev.sym] = h;
-        evIdx++;
-      }
-      let unreal = 0, mtmValue = 0;
-      for (const [sym, h] of Object.entries(mtmHold)) {
-        const { shares, cost } = _lotTotals(h.lots);
-        if (shares <= 0) continue;
-        const p = isCurYr ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, cutoff)) : _priceOnOrBefore(sym, cutoff);
-        if (p != null) { unreal += p * shares - cost; mtmValue += p * shares; }
-      }
-      yearCumGain[yr] = mtmRealized + unreal;
-      yearMtmValue[yr] = mtmValue;
-    }
-
+    // ── Year table ────────────────────────────────────────────────────
     let tbody = '';
-    let cumInvested = 0;
     for (const yr of allYears) {
-      cumInvested += (yearInvested[yr] || 0);
-      // A manual 원금 override is a fixed point-in-time figure, not a
-      // year-by-year series — show and calculate against it directly on
-      // every row instead of the derived (possibly zero, e.g. if every
-      // buy is excluded via 연도별 $0 처리) running total.
+      const row = yearRows[yr];
       const isCur = yr === curYear;
-      const cutoff = isCur ? today : `${yr}-12-31`;
-      // Same reasoning as the chart snapshot function above: pre-snapshot
-      // cost-basis accounting isn't a meaningful baseline for a manual-원금
-      // account either (mixing it with the post-snapshot ratio calc is what
-      // caused the SPY/QQQ chart lines to jump right at manualAsOfDate), so
-      // a year row whose cutoff falls before manualAsOfDate shows "—"
-      // instead of a cost-basis-derived figure — only rows at or after the
-      // snapshot date compare against the fixed principal.
-      const isManualPrincipalAcct = manualPrincipal != null && manualPrincipal > 0 && !!manualAsOfDate;
-      const rowBeforeManualAsOf = isManualPrincipalAcct && cutoff < manualAsOfDate;
-      const useManualPrincipalRow = isManualPrincipalAcct && !rowBeforeManualAsOf;
-      const displayInvested = useManualPrincipalRow ? manualPrincipal : rowBeforeManualAsOf ? null : cumInvested;
-      // For a manual-원금 (rollover) account, use market VALUE minus the
-      // fixed principal — not cost-basis P&L (mtmRealized + unreal).
-      // Rollover-recorded "buys" get their cost basis set to each
-      // position's market value AT ROLLOVER TIME, not its true original
-      // purchase price, so cost-basis P&L understates gain relative to the
-      // real (much lower, pre-rollover) principal baseline — exactly the
-      // reasoning already documented on 보유현황's own "원금 …" comparison
-      // line, which this mirrors so the two tabs agree.
-      const cumGain = useManualPrincipalRow
-        ? yearMtmValue[yr] - manualPrincipal
-        : rowBeforeManualAsOf ? null : yearCumGain[yr];
-      const pct = (displayInvested != null && displayInvested > 0) ? cumGain / displayInvested * 100 : null;
-
-      let spyPct, sgovPct;
-      if (rowBeforeManualAsOf) {
-        spyPct = null; sgovPct = null;
-      } else if (useManualPrincipalRow) {
-        const spyNow  = _nearestPrice(spyPrices, cutoff);
-        const sgovNow = _nearestPrice(sgovPrices, cutoff);
-        spyPct  = (spyBaseAtManualAsOf  && spyNow)  ? (spyNow  / spyBaseAtManualAsOf  - 1) * 100 : null;
-        sgovPct = (sgovBaseAtManualAsOf && sgovNow) ? (sgovNow / sgovBaseAtManualAsOf - 1) * 100 : null;
-      } else {
-        spyPct  = (yearSpyCost[yr]  > 0 && yearSpyGain[yr]  != null) ? yearSpyGain[yr]  / yearSpyCost[yr]  * 100 : null;
-        sgovPct = (yearSgovCost[yr] > 0 && yearSgovGain[yr] != null) ? yearSgovGain[yr] / yearSgovCost[yr] * 100 : null;
-      }
+      const pct = (row.invested != null && row.invested > 0) ? row.gain / row.invested * 100 : null;
+      const spyPct  = (row.spyCostD  != null && row.spyCostD  > 0) ? row.spyGainD  / row.spyCostD  * 100 : null;
+      const sgovPct = (row.sgovCostD != null && row.sgovCostD > 0) ? row.sgovGainD / row.sgovCostD * 100 : null;
       const alpha = (pct != null && spyPct  != null) ? pct - spyPct  : null;
       const beta  = (pct != null && sgovPct != null) ? pct - sgovPct : null;
 
       tbody += `<tr${isCur ? ' style="background:rgba(88,166,255,0.04);"' : ''}>
         <td style="color:var(--text-secondary);">${yr}${isCur ? ' <span style="font-size:0.68rem;color:var(--accent-blue);">YTD</span>' : ''}</td>
-        <td style="text-align:right; color:var(--text-muted);">${displayInvested > 0 ? '$' + displayInvested.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
-        <td style="text-align:right; color:var(--text-muted);">${yearMtmValue[yr] > 0 ? '$' + yearMtmValue[yr].toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
-        <td style="text-align:right;" class="${cumGain == null ? '' : cumGain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${cumGain != null && cumGain !== 0 ? (cumGain >= 0 ? '+' : '') + '$' + Math.abs(cumGain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${row.invested > 0 ? '$' + row.invested.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right; color:var(--text-muted);">${row.mtmValue > 0 ? '$' + row.mtmValue.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+        <td style="text-align:right;" class="${row.gain == null ? '' : row.gain >= 0 ? 'pnl-pos' : 'pnl-neg'}">${row.gain != null && row.gain !== 0 ? (row.gain >= 0 ? '+' : '') + '$' + Math.abs(row.gain).toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
         <td style="text-align:right;" class="${pct == null ? '' : pct >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pct != null ? (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right; color:var(--text-muted);">${spyPct != null ? (spyPct >= 0 ? '+' : '') + spyPct.toFixed(1) + '%' : '—'}</td>
         <td style="text-align:right;" class="${alpha == null ? '' : alpha >= 0 ? 'pnl-pos' : 'pnl-neg'}">${alpha != null ? (alpha >= 0 ? '+' : '') + alpha.toFixed(1) + '%' : '—'}</td>
@@ -2769,19 +2768,6 @@ async function portLoadAnalysis() {
         <td style="text-align:right;" class="${beta == null ? '' : beta >= 0 ? 'pnl-pos' : 'pnl-neg'}">${beta != null ? (beta >= 0 ? '+' : '') + beta.toFixed(1) + '%' : '—'}</td>
       </tr>`;
     }
-    // No separate "전체 누적" row: with the manual-원금 override now applied
-    // to every per-year row above (not just a trailing summary), the last
-    // year row already shows these exact cumulative-to-date figures — a
-    // dedicated total row would just repeat it verbatim.
-    const lastYr = allYears.length ? allYears[allYears.length - 1] : null;
-    const useManualPrincipalTotal = manualPrincipal != null && manualPrincipal > 0 && manualAsOfDate && today >= manualAsOfDate;
-    const totalGain = lastYr == null ? 0
-      : useManualPrincipalTotal ? yearMtmValue[lastYr] - manualPrincipal : yearCumGain[lastYr];
-    const totalInvested = useManualPrincipalTotal ? manualPrincipal : cumInvested;
-    const totalPct = totalInvested > 0 ? totalGain / totalInvested * 100 : null;
-    const spyTotal = useManualPrincipalTotal
-      ? (spyBaseAtManualAsOf && spyToday) ? (spyToday / spyBaseAtManualAsOf - 1) * 100 : null
-      : (spyCost > 0 ? spyGainToday / spyCost * 100 : null);
     document.getElementById('anlYearTableBody').innerHTML = tbody;
 
     // Show "원금 설정" button only when a single account/portfolio is
@@ -2789,24 +2775,14 @@ async function portLoadAnalysis() {
     const principalBtn = document.getElementById('anlPrincipalSettingsBtn');
     if (principalBtn) principalBtn.style.display = portActivePortfolioId ? '' : 'none';
 
-    // ── 8. Cumulative gain chart ────────────────────────────────────
-    // Deduplicate timeline by date (keep last per date)
-    const tlMap = {};
-    for (const pt of timeline) tlMap[pt.date] = pt;
-    const tlSorted = Object.values(tlMap).sort((a, b) => a.date.localeCompare(b.date));
-
+    // ── Cumulative gain chart ──────────────────────────────────────────
     // {x, y} point objects with x = millisecond timestamp, not a shared
     // `labels` array — a plain `labels`+`data` pairing makes Chart.js
     // default the x-axis to an evenly-spaced category scale, positioning
     // every data point the same visual distance apart regardless of how
-    // much real time passed between them. Since a point only exists per
-    // TRANSACTION EVENT (not per calendar day), a multi-month stretch
-    // with no trades would then render exactly as wide as a single day
-    // with several trades — confirmed against a real account's chart,
-    // which showed a ~7-month gap (2024-08 to 2025-02) compressed to the
-    // same width as one day. `type: 'linear'` on the x-axis below (real
-    // numeric timestamps) fixes this without needing a Chart.js date
-    // adapter library.
+    // much real time passed between them. `type: 'linear'` on the x-axis
+    // below (real numeric timestamps) fixes this without needing a
+    // Chart.js date adapter library.
     const toPt = (p, key) => p[key] != null ? { x: new Date(p.date).getTime(), y: +p[key].toFixed(2) } : { x: new Date(p.date).getTime(), y: null };
     const portData     = tlSorted.map(p => toPt(p, 'portGain'));
     // Realized-only gain (actual cash locked in via sells, DRIP/dividend
@@ -2869,11 +2845,21 @@ async function portLoadAnalysis() {
 
     _renderHoldingsPie(holdingsForPie);
 
-    // ── 9. Per-symbol return vs. S&P 500 ─────────────────────────────
+    // ── Per-symbol return vs. S&P 500 ─────────────────────────────────
     // Compares each held symbol's own price return (its first buy date to
     // today) against SPY's return over that same window, so the coach can
     // point at which fund is actually driving a negative Alpha instead of
-    // just reporting the number.
+    // just reporting the number. Uses the merged/concatenated events and
+    // currentPriceMap across every portfolio in this selection.
+    const BUY_T = new Set(['buy','drip','buy_to_cover']);
+    function _nearestPriceTop(map, date) {
+      for (let d = 0; d <= 5; d++) {
+        const dt = new Date(date); dt.setDate(dt.getDate() - d);
+        const key = dt.toISOString().slice(0, 10);
+        if (map[key] != null) return map[key];
+      }
+      return null;
+    }
     const symFirstBuyDate = {};
     for (const ev of events) {
       if (BUY_T.has(ev.type) && !symFirstBuyDate[ev.sym]) symFirstBuyDate[ev.sym] = ev.date;
@@ -2882,17 +2868,32 @@ async function portLoadAnalysis() {
     for (const ev of events) {
       if (BUY_T.has(ev.type)) symBuyTotal[ev.sym] = (symBuyTotal[ev.sym] || 0) + ev.amount;
     }
-    const symReturns = Object.entries(symFirstBuyDate).map(([sym, firstDate]) => {
-      const p0 = _priceOnOrBefore(sym, firstDate);
-      const p1 = currentPriceMap[sym] ?? _priceOnOrBefore(sym, today);
+    const symPriceCache = {};
+    async function _symPriceOnOrBefore(sym, date) {
+      if (!symPriceCache[sym]) {
+        try {
+          const r = await fetch(_STOCKS_BASE + sym + '.csv');
+          symPriceCache[sym] = r.ok ? _anlParsePriceCsv(await r.text()) : {};
+        } catch(e) { symPriceCache[sym] = {}; }
+      }
+      const hist = symPriceCache[sym];
+      const near = _nearestPriceTop(hist, date);
+      if (near != null) return near;
+      const dates = Object.keys(hist).filter(d => d <= date).sort();
+      return dates.length ? hist[dates[dates.length - 1]] : null;
+    }
+    const symReturnEntries = await Promise.all(Object.entries(symFirstBuyDate).map(async ([sym, firstDate]) => {
+      const p0 = await _symPriceOnOrBefore(sym, firstDate);
+      const p1 = currentPriceMap[sym] ?? await _symPriceOnOrBefore(sym, today);
       const symRet = (p0 != null && p1 != null) ? (p1 / p0 - 1) * 100 : null;
-      const spyP0 = _nearestPrice(spyPrices, firstDate);
+      const spyP0 = _nearestPriceTop(spyPrices, firstDate);
       const spyRet = (spyP0 != null && spyToday != null) ? (spyToday / spyP0 - 1) * 100 : null;
       const diff = (symRet != null && spyRet != null) ? symRet - spyRet : null;
       return { sym, symRet, spyRet, diff, weight: symBuyTotal[sym] || 0 };
-    }).filter(r => r.diff != null);
+    }));
+    const symReturns = symReturnEntries.filter(r => r.diff != null);
 
-    // ── 10. Coaching text ────────────────────────────────────────────
+    // ── Coaching text ──────────────────────────────────────────────────
     document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, symReturns);
 
     loadEl.style.display = 'none';
