@@ -25,7 +25,12 @@ body {
 }
 
 /* NAV */
-nav {
+/* Scoped to .site-nav rather than the bare `nav` tag — a bare-element
+   selector here matched EVERY <nav> on the page, including the unrelated
+   prev/next-post <nav class="post-nav"> at the bottom of blog posts,
+   pinning it to a second fixed bar that visually covered the header's
+   own dropdown menus when open. */
+.site-nav {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 52px;
