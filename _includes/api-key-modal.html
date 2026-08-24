@@ -1,0 +1,97 @@
+<!-- API Key Modal: manage read-only agent/script access keys — reachable from
+     the avatar dropdown (nav.html) on every page, not just /portfolio/. -->
+<div id="apiKeyModal" onclick="apiKeyModalBgClick(event)" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
+  <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px 26px; min-width:320px; max-width:480px; width:90vw; max-height:85vh; overflow-y:auto;">
+    <div style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">API 키 관리</div>
+    <p style="color:var(--text-muted); font-size:0.78rem; line-height:1.6; margin:0 0 16px;">
+      AI 에이전트나 스크립트가 브라우저 로그인 없이 내 거래내역·포트폴리오를 <b>읽기 전용</b>으로 조회할 수 있는 키입니다. 발급 직후 한 번만 보여지고 이후엔 다시 볼 수 없습니다 — 잃어버리면 새로 발급하세요.
+    </p>
+    <div id="apiKeyList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+    <div id="apiKeyNewBox" style="display:none; margin-bottom:16px; padding:12px; border-radius:8px; background:rgba(63,185,80,0.08); border:1px solid rgba(63,185,80,0.3);">
+      <div style="font-size:0.78rem; color:rgba(63,185,80,0.95); font-weight:600; margin-bottom:6px;">⚠️ 이 키는 지금만 보입니다 — 복사해두세요</div>
+      <div style="display:flex; gap:6px;">
+        <input id="apiKeyNewValue" type="text" readonly style="flex:1; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.76rem; font-family:monospace;">
+        <button onclick="apiKeyCopyNew()" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.78rem;">복사</button>
+      </div>
+    </div>
+    <div style="display:flex; gap:6px; margin-bottom:6px;">
+      <input id="apiKeyNewLabel" type="text" placeholder="키 이름 (예: Claude, 스크립트)" style="flex:1; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem;">
+      <button onclick="apiKeyCreate()" style="padding:6px 14px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.82rem;">새 키 생성</button>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+      <button onclick="apiKeyModalClose()" style="padding:7px 18px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function apiKeyModalOpen() {
+  document.getElementById('apiKeyModal').style.display = 'flex';
+  document.getElementById('apiKeyNewBox').style.display = 'none';
+  document.getElementById('apiKeyNewLabel').value = '';
+  await apiKeyRefreshList();
+}
+
+function apiKeyModalClose() {
+  document.getElementById('apiKeyModal').style.display = 'none';
+}
+
+function apiKeyModalBgClick(e) {
+  if (e.target === document.getElementById('apiKeyModal')) apiKeyModalClose();
+}
+
+async function apiKeyRefreshList() {
+  const listEl = document.getElementById('apiKeyList');
+  listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem;">불러오는 중…</div>';
+  try {
+    const keys = await window.txns.getApiKeys();
+    if (!keys.length) {
+      listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem;">아직 발급된 키가 없습니다.</div>';
+      return;
+    }
+    listEl.innerHTML = keys.map(k => {
+      const revoked = !!k.revoked_at;
+      const lastUsed = k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : '사용 안 함';
+      return `<div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:6px; background:var(--bg-secondary); ${revoked ? 'opacity:0.5;' : ''}">
+        <div>
+          <div style="font-size:0.83rem; color:var(--text-primary); font-weight:600;">${k.label}${revoked ? ' (폐기됨)' : ''}</div>
+          <div style="font-size:0.72rem; color:var(--text-muted);">생성: ${new Date(k.created_at).toLocaleDateString()} · 마지막 사용: ${lastUsed}</div>
+        </div>
+        ${revoked ? '' : `<button onclick="apiKeyRevoke('${k.id}')" style="padding:4px 10px; border-radius:6px; border:1px solid rgba(248,81,73,0.35); background:none; color:rgba(248,81,73,0.7); cursor:pointer; font-size:0.75rem;">폐기</button>`}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:rgba(248,81,73,0.9); font-size:0.8rem;">불러오기 실패: ${e.message}</div>`;
+  }
+}
+
+async function apiKeyCreate() {
+  const labelInput = document.getElementById('apiKeyNewLabel');
+  const label = labelInput.value.trim();
+  try {
+    const result = await window.txns.createApiKey(label);
+    document.getElementById('apiKeyNewValue').value = result.rawKey;
+    document.getElementById('apiKeyNewBox').style.display = 'block';
+    labelInput.value = '';
+    await apiKeyRefreshList();
+  } catch(e) {
+    alert('키 생성 실패: ' + e.message);
+  }
+}
+
+function apiKeyCopyNew() {
+  const input = document.getElementById('apiKeyNewValue');
+  input.select();
+  navigator.clipboard?.writeText(input.value).catch(() => document.execCommand('copy'));
+}
+
+async function apiKeyRevoke(id) {
+  if (!confirm('이 키를 폐기하시겠습니까? 이 키를 쓰는 스크립트/에이전트는 더 이상 접근할 수 없게 됩니다.')) return;
+  try {
+    await window.txns.revokeApiKey(id);
+    await apiKeyRefreshList();
+  } catch(e) {
+    alert('폐기 실패: ' + e.message);
+  }
+}
+</script>
