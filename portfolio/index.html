@@ -293,7 +293,13 @@ title: 포트폴리오
 
       <!-- Cumulative gain chart -->
       <div class="card" style="margin-bottom:20px;">
-        <div class="port-section-label" style="margin-bottom:12px;">누적 손익 비교 (동일 자금흐름)</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <div class="port-section-label" style="margin-bottom:0;">누적 손익 비교 (동일 자금흐름)</div>
+          <label id="anlSgovSpyToggleWrap" style="display:none; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted); cursor:pointer;">
+            <input type="checkbox" id="anlSgovSpyToggle" onchange="anlToggleSgovSpyBlend(this.checked)" style="cursor:pointer; accent-color:var(--accent-blue);">
+            SGOV/SPY 혼합 보조선
+          </label>
+        </div>
         <div style="position:relative; width:100%; height:360px;">
           <canvas id="anlGainChart"></canvas>
         </div>
@@ -2217,6 +2223,12 @@ async function editSave() {
 let _anlChart = null;
 let _anlPieChart = null;
 let _anlPieChartsByPortfolio = []; // 그룹/전체 mode: one small pie per constituent portfolio
+let _anlShowSgovSpyBlend = false; // SGOV/SPY 혼합 보조선 표시 여부 (401k 뷰 전용, 기본 꺼짐)
+
+function anlToggleSgovSpyBlend(checked) {
+  _anlShowSgovSpyBlend = checked;
+  portLoadAnalysis();
+}
 let _anlLoaded = false; // reset when portfolio changes
 let _anlActivePrincipalOverride = null; // current portfolio's principal-basis override, if any
 let _anlHasExplicitPrincipalOverrides = false; // true if any BUY has a 거래내역-tab 원금 override set
@@ -2877,7 +2889,12 @@ async function portLoadAnalysis() {
     // whether any of them carry the "401k" group tag covers all three at
     // once — no need to special-case portActivePortfolioId/portActiveGroupName here.
     const is401kView = portfolioIds.some(id => (portPortfolios.find(p => p.id === id)?.group_names || []).includes('401k'));
-    const blendDatasets = is401kView ? _anlBuildSgovSpyBlendDatasets(tlSorted) : [];
+    const toggleWrap = document.getElementById('anlSgovSpyToggleWrap');
+    if (toggleWrap) {
+      toggleWrap.style.display = is401kView ? 'flex' : 'none';
+      document.getElementById('anlSgovSpyToggle').checked = _anlShowSgovSpyBlend;
+    }
+    const blendDatasets = (is401kView && _anlShowSgovSpyBlend) ? _anlBuildSgovSpyBlendDatasets(tlSorted) : [];
 
     const ctx = document.getElementById('anlGainChart').getContext('2d');
     _anlChart = new Chart(ctx, {
