@@ -293,6 +293,13 @@ footer {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+.footer-link {
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
+}
+.footer-link:hover { color: var(--accent-blue); }
 @media (max-width: 640px) {
   .footer-inner { flex-direction: column; align-items: center; text-align: center; }
 }
