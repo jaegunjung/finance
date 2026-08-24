@@ -11,52 +11,28 @@ excerpt_en: "Based on Shinhan Securities Aug 2025 report: comparing historical b
 excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사이클과 금리인하 이후 랠리 패턴을 비교하면 S&P 500은 2027년 하반기까지 추가 상승 여지가 있다."
 ---
 
-<!-- Reference charts from Shinhan Securities report (2025-08-19) -->
-<!-- TODO: Copy shinhan_bubble_cycle_comparison.PNG and shinhan_post_ratecut_rally.PNG to assets/images/
-     These are screenshots from Shinhan Securities report pages 45 and 47 (2025-08-19) -->
-
 <style>
 .ref-chart-block { margin: 24px 0; }
-.ref-chart-img { width: 100%; border-radius: 6px; border: 1px solid var(--border); display: block; }
-.ref-chart-placeholder {
-  width: 100%; min-height: 220px; border-radius: 6px;
-  border: 2px dashed var(--border); background: var(--bg-secondary);
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 8px; padding: 24px; box-sizing: border-box;
-}
-.ref-chart-placeholder .ph-label { color: var(--text-muted); font-size: 0.8rem; text-align: center; }
-.ref-chart-caption { font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; font-style: italic; }
+.ref-chart-caption { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; }
 .ref-chart-source { font-size: 0.78rem; color: var(--text-muted); margin-top: 16px; }
 </style>
 
 <div class="ref-chart-block">
-  {% if site.data %}
-  {% assign img_a = "/assets/images/shinhan_bubble_cycle_comparison.PNG" | relative_url %}
-  {% endif %}
-  {% capture img_a_path %}{{ site.baseurl }}/assets/images/shinhan_bubble_cycle_comparison.PNG{% endcapture %}
-  <div class="ref-chart-placeholder" id="phA">
-    <div class="ph-label en-only">[ Fig 1 — Shinhan bubble cycle chart ]<br>Place <code>assets/images/shinhan_bubble_cycle_comparison.PNG</code></div>
-    <div class="ph-label ko-only">[ 그림 1 — 신한증권 버블 사이클 비교 차트 ]<br><code>assets/images/shinhan_bubble_cycle_comparison.PNG</code> 파일을 넣어주세요</div>
-  </div>
   <p class="ref-chart-caption">
-    <span class="en-only">Fig 1. Historical bubble cycles comparison (Shinhan Securities, 2025-08-19). In August 2025 the AI cycle was at T+2.5Y; as of May 2026 it has advanced to T+3.5Y — still 1.5+ years before the historical T+5Y peak.</span>
-    <span class="ko-only">그림 1. 과거 버블 국면 비교 (신한투자증권, 2025-08-19). 2025년 8월 기준 AI 사이클은 T+2.5년 진행 중이었으나, 2026년 5월 현재 T+3.5년으로 — 여전히 과거 버블 정점(T+5년)까지 1.5년 이상의 여력이 남아있다.</span>
+    <span class="en-only"><strong>Historical bubble cycles comparison</strong> (per Shinhan Securities, 2025-08-19): in August 2025 the AI cycle was at T+2.5Y; as of May 2026 it has advanced to T+3.5Y — still 1.5+ years before the historical T+5Y peak.</span>
+    <span class="ko-only"><strong>과거 버블 국면 비교</strong> (신한투자증권, 2025-08-19 기준): 2025년 8월 기준 AI 사이클은 T+2.5년 진행 중이었으나, 2026년 5월 현재 T+3.5년으로 — 여전히 과거 버블 정점(T+5년)까지 1.5년 이상의 여력이 남아있다.</span>
   </p>
 </div>
 
 <p style="background:rgba(59,139,212,0.08);border-left:3px solid #3B8BD4;padding:12px 16px;border-radius:0 6px 6px 0;margin:20px 0;font-size:0.875rem;line-height:1.7;">
   <span class="en-only">▶ <strong>May 2026 Update:</strong> Nine months have passed since this report was published in August 2025. The AI cycle has advanced from T+2.5Y (just past the first price correction) to T+3.5Y. Both the dot-com bubble and FANG cycle showed brief consolidation at this stage before further advances.</span>
-  <span class="ko-only">▶ <strong>2026년 5월 업데이트:</strong> 위 보고서가 발간된 2025년 8월 이후 9개월이 지났다. AI 사이클은 그림 1(좌측 차트)에서 T+2.5년(1차 가격 조정 직후)에 위치했으나, 현재는 T+3.5년으로 이동했다. 닷컴 버블과 FANG 사이클 모두 이 구간에서 잠시 숨고르기 후 추가 상승했다.</span>
+  <span class="ko-only">▶ <strong>2026년 5월 업데이트:</strong> 위 보고서가 발간된 2025년 8월 이후 9개월이 지났다. AI 사이클은 T+2.5년(1차 가격 조정 직후)에 위치했으나, 현재는 T+3.5년으로 이동했다. 닷컴 버블과 FANG 사이클 모두 이 구간에서 잠시 숨고르기 후 추가 상승했다.</span>
 </p>
 
 <div class="ref-chart-block">
-  <div class="ref-chart-placeholder" id="phB">
-    <div class="ph-label en-only">[ Fig 2 — Shinhan post-rate-cut rally chart ]<br>Place <code>assets/images/shinhan_post_ratecut_rally.PNG</code></div>
-    <div class="ph-label ko-only">[ 그림 2 — 신한증권 금리 인하 후 랠리 차트 ]<br><code>assets/images/shinhan_post_ratecut_rally.PNG</code> 파일을 넣어주세요</div>
-  </div>
   <p class="ref-chart-caption">
-    <span class="en-only">Fig 2. Post-final-rate-cut rally patterns (Shinhan Securities, 2025-08-19). In August 2025 this was at T+2.5Y just after the first price correction; as of May 2026 at T+3.5Y, this aligns with the pre-secondary-correction phase in both the dot-com (yellow) and FANG (grey) cycles. Per historical patterns, late 2027 would be the final peak zone.</span>
-    <span class="ko-only">그림 2. 마지막 금리 인하 후 주가 궤적 (신한투자증권, 2025-08-19). 2025년 8월에는 1차 가격 조정 직후 T+2.5년 구간이었으나, 2026년 5월 현재 T+3.5년으로 닷컴(노란) 및 FANG(회색) 사이클의 2차 조정 이전 구간에 해당. 과거 패턴대로라면 2027년 하반기가 최종 정점 구간.</span>
+    <span class="en-only"><strong>Post-final-rate-cut rally patterns</strong> (per Shinhan Securities, 2025-08-19): in August 2025 this was at T+2.5Y just after the first price correction; as of May 2026 at T+3.5Y, this aligns with the pre-secondary-correction phase in both the dot-com and FANG cycles. Per historical patterns, late 2027 would be the final peak zone.</span>
+    <span class="ko-only"><strong>마지막 금리 인하 후 주가 궤적</strong> (신한투자증권, 2025-08-19 기준): 2025년 8월에는 1차 가격 조정 직후 T+2.5년 구간이었으나, 2026년 5월 현재 T+3.5년으로 닷컴 및 FANG 사이클의 2차 조정 이전 구간에 해당. 과거 패턴대로라면 2027년 하반기가 최종 정점 구간.</span>
   </p>
 </div>
 
@@ -64,31 +40,6 @@ excerpt_ko: "신한투자증권 2025년 8월 리포트 기반: 역대 버블 사
   <span class="en-only">Source: Shinhan Securities Global Equity Strategy, 'Bubble Template: 2026-2027 US Market Bubble Scenario' (Kim Sung-hwan &amp; Oh Han-bi, 2025-08-19)</span>
   <span class="ko-only">출처: 신한투자증권 글로벌 주식전략, '버블 템플릿: 2026-2027 미국 증시 버블 시나리오' (김성환·오한비, 2025-08-19)</span>
 </p>
-
-<script>
-// Replace placeholders with real images if they exist
-(function() {
-  function tryImg(placeholderId, src, altEn, altKo) {
-    var img = new Image();
-    img.onload = function() {
-      var ph = document.getElementById(placeholderId);
-      if (ph) {
-        var imgEl = document.createElement('img');
-        imgEl.src = src;
-        imgEl.alt = document.documentElement.classList.contains('ko-mode') ? altKo : altEn;
-        imgEl.className = 'ref-chart-img';
-        ph.parentNode.replaceChild(imgEl, ph);
-      }
-    };
-    img.src = src;
-  }
-  var base = '{{ site.baseurl }}';
-  tryImg('phA', base + '/assets/images/shinhan_bubble_cycle_comparison.PNG',
-    'Historical bubble cycles comparison', '과거 버블 국면 비교');
-  tryImg('phB', base + '/assets/images/shinhan_post_ratecut_rally.PNG',
-    'Post-rate-cut rally patterns', '금리 인하 후 랠리 패턴');
-})();
-</script>
 
 <div class="ko-only" markdown="1">
 
