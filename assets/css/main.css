@@ -365,6 +365,22 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
 .post-content ul, .post-content ol { padding-left: 1.5em; margin-bottom: 1.2em; }
 .post-content li { margin-bottom: 0.3em; }
 .post-content strong { color: var(--text-primary); font-weight: 600; }
+/* Links inside prose weren't styled at all, so they fell back to the
+   browser's default UA colors (#0000EE unvisited / purple visited) —
+   both near-invisible against this site's near-black background
+   (contrast ~2:1, well under WCAG AA's 4.5:1). Author-origin rules like
+   this one win over the UA default regardless of :visited, so a single
+   color declaration fixes both states. */
+.post-content a, .about-content a {
+  color: var(--accent-blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(59,139,212,0.45);
+  text-underline-offset: 2px;
+}
+.post-content a:hover, .about-content a:hover {
+  color: #6fb2f2;
+  text-decoration-color: currentColor;
+}
 /* display:block + overflow-x:auto turns the table itself into a scroll
    container as a fallback — but white-space:normal below (not nowrap) is
    the actual fix: it lets long free-text cells (e.g. a "세부" column) wrap

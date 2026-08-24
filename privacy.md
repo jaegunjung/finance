@@ -76,7 +76,7 @@ permalink: /privacy/
     <p>
       You can delete individual transactions or entire portfolios yourself from within the Portfolio
       tool at any time. To request full account deletion, or to ask what data we hold about you, email
-      <a href="mailto:jaegunjung@gmail.com">jaegunjung@gmail.com</a>.
+      <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a>.
     </p>
 
     <h2>Children's Privacy</h2>
@@ -89,7 +89,7 @@ permalink: /privacy/
     </p>
 
     <h2>Contact</h2>
-    <p>Questions about this policy: <a href="mailto:jaegunjung@gmail.com">jaegunjung@gmail.com</a></p>
+    <p>Questions about this policy: <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a></p>
 
   </div>
 
@@ -153,7 +153,7 @@ permalink: /privacy/
     <p>
       포트폴리오 도구 안에서 언제든 개별 거래 또는 포트폴리오 전체를 직접 삭제할 수 있습니다. 계정 전체
       삭제를 요청하거나 보유 중인 데이터가 무엇인지 문의하려면
-      <a href="mailto:jaegunjung@gmail.com">jaegunjung@gmail.com</a>으로 연락 주세요.
+      <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a>으로 연락 주세요.
     </p>
 
     <h2>아동 개인정보 보호</h2>
@@ -163,7 +163,7 @@ permalink: /privacy/
     <p>수집 항목이나 이용 방식이 실질적으로 바뀌면 이 페이지와 위의 "최종 업데이트" 날짜를 갱신합니다.</p>
 
     <h2>문의</h2>
-    <p>이 정책에 대한 문의: <a href="mailto:jaegunjung@gmail.com">jaegunjung@gmail.com</a></p>
+    <p>이 정책에 대한 문의: <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a></p>
 
   </div>
 
