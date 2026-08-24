@@ -194,6 +194,12 @@ nav {
   text-decoration: none; cursor: pointer; background: none; border: none;
   width: 100%; text-align: left; transition: background 0.12s;
 }
+/* Fixed-width icon column — emoji glyphs render at different natural
+   widths (📥 vs 🔑 vs ↩), so without this the label text after each one
+   starts at a different x-offset per row. */
+.nav-profile-link > span:first-child {
+  display: inline-flex; justify-content: center; flex-shrink: 0; width: 18px;
+}
 .nav-profile-link:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
 .nav-profile-signout { color: var(--accent-red, #f85149); }
 .nav-profile-signout:hover { background: rgba(248,81,73,0.1); color: var(--accent-red, #f85149); }
