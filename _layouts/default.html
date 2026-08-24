@@ -21,7 +21,7 @@
   <meta property="og:description" content="{% if page.description %}{{ page.description }}{% elsif page.excerpt %}{{ page.excerpt | strip_html | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
   <meta property="og:url"         content="{{ page.url | absolute_url }}">
   <meta property="og:image"       content="{{ '/assets/images/jj-og-logo.svg' | absolute_url }}">
-  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}?v={{ site.time | date: '%s' }}">
   <script>
     // Apply saved language before first paint to avoid flash
     (function() {
