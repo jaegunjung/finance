@@ -2224,10 +2224,20 @@ let _anlChart = null;
 let _anlPieChart = null;
 let _anlPieChartsByPortfolio = []; // 그룹/전체 mode: one small pie per constituent portfolio
 let _anlShowSgovSpyBlend = false; // SGOV/SPY 혼합 보조선 표시 여부 (401k 뷰 전용, 기본 꺼짐)
+let _anlLastTlSorted = null;   // 마지막으로 렌더링한 차트의 timeline (토글용 캐시)
+let _anlLastIs401kView = false;
 
+// Re-renders just the blend-line datasets on the already-drawn chart, so
+// clicking the checkbox doesn't refetch/recompute everything and flash the
+// "분석 중…" loading state — only portLoadAnalysis() has that cost.
 function anlToggleSgovSpyBlend(checked) {
   _anlShowSgovSpyBlend = checked;
-  portLoadAnalysis();
+  if (!_anlChart || !_anlLastTlSorted) { portLoadAnalysis(); return; }
+  const newBlend = (_anlLastIs401kView && _anlShowSgovSpyBlend) ? _anlBuildSgovSpyBlendDatasets(_anlLastTlSorted) : [];
+  // Dataset order is always [내 포트폴리오, 실현 손익, ...blend, SPY, QQQ, SGOV] —
+  // splice out whatever's currently in the middle slot and drop in the new set.
+  _anlChart.data.datasets.splice(2, _anlChart.data.datasets.length - 2 - 3, ...newBlend);
+  _anlChart.update();
 }
 let _anlLoaded = false; // reset when portfolio changes
 let _anlActivePrincipalOverride = null; // current portfolio's principal-basis override, if any
@@ -2895,6 +2905,11 @@ async function portLoadAnalysis() {
       document.getElementById('anlSgovSpyToggle').checked = _anlShowSgovSpyBlend;
     }
     const blendDatasets = (is401kView && _anlShowSgovSpyBlend) ? _anlBuildSgovSpyBlendDatasets(tlSorted) : [];
+    // Stashed so the toggle checkbox can rebuild just the blend datasets and
+    // patch the live chart in place, instead of re-running the whole
+    // fetch+compute+render pipeline (which flashes "분석 중…" on every click).
+    _anlLastTlSorted = tlSorted;
+    _anlLastIs401kView = is401kView;
 
     const ctx = document.getElementById('anlGainChart').getContext('2d');
     _anlChart = new Chart(ctx, {
