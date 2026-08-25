@@ -29,7 +29,7 @@ title: 포트폴리오
 
 /* Holdings table */
 .h-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
-.h-table th { padding:8px 12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:0.69rem; letter-spacing:0.06em; border-bottom:2px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; }
+.h-table th { padding:8px 12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:0.69rem; letter-spacing:0.06em; border-bottom:2px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:52px; background:var(--bg-card); z-index:5; }
 .h-table th:not(:first-child) { text-align:right; }
 .h-table th:hover { color:var(--text-primary); }
 .h-table td { padding:10px 12px; border-bottom:1px solid rgba(48,54,61,0.4); vertical-align:top; }
@@ -1228,12 +1228,28 @@ async function portLoadHoldings() {
   // Store for re-render (sort/filter)
   _holdingsOpenRows   = openRows;
   _holdingsClosedRows = closedRows;
-  // Invested-principal comparison (only meaningful for a single selected
-  // portfolio that actually uses a 원금 override — see 분석 코치 탭).
+  // Invested-principal comparison. Single portfolio: that portfolio's own
+  // override. 그룹 or 전체 (no selection): sum each constituent portfolio's
+  // own principal separately, same per-portfolio-override pattern as
+  // portLoadAnalysis's 그룹 모드 (see the comment there) — previously this
+  // branch was never handled at all, leaving principal at 0 and the 평가
+  // 합계 row's total % stuck at +0.00% whenever a group/전체 view was open.
   let principalInfo = { principal: 0, hasOverride: false };
   if (portActivePortfolioId) {
     const pf = portPortfolios.find(p => p.id === portActivePortfolioId);
     principalInfo = _computePortfolioPrincipal(allTxns, pf);
+  } else {
+    const groupPortfolioIds = portActiveGroupName
+      ? portPortfolios.filter(p => (p.group_names || []).includes(portActiveGroupName)).map(p => p.id)
+      : portPortfolios.map(p => p.id);
+    let principal = 0, hasOverride = false;
+    for (const id of groupPortfolioIds) {
+      const pf = portPortfolios.find(p => p.id === id);
+      const info = _computePortfolioPrincipal(allTxns.filter(t => t.portfolio_id === id), pf);
+      principal += info.principal;
+      hasOverride = hasOverride || info.hasOverride;
+    }
+    principalInfo = { principal, hasOverride };
   }
   _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain, totalBoughtAll, ...principalInfo };
 
