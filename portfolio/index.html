@@ -29,7 +29,7 @@ title: 포트폴리오
 
 /* Holdings table */
 .h-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
-.h-table th { padding:8px 12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:0.69rem; letter-spacing:0.06em; border-bottom:2px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:52px; background:var(--bg-card); z-index:5; }
+.h-table th { padding:8px 12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:0.69rem; letter-spacing:0.06em; border-bottom:2px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; position:sticky; top:0; background:var(--bg-card); z-index:5; }
 .h-table th:not(:first-child) { text-align:right; }
 .h-table th:hover { color:var(--text-primary); }
 .h-table td { padding:10px 12px; border-bottom:1px solid rgba(48,54,61,0.4); vertical-align:top; }
@@ -1499,7 +1499,7 @@ function portRenderHoldings() {
         oninput="holdingsApplyFilter(this.value)"
         style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.78rem;padding:4px 8px;width:140px;">
     </div>
-    <div style="overflow-x:auto;">
+    <div style="overflow-x:auto;overflow-y:auto;max-height:70vh;">
     <table class="h-table">
       <thead><tr>
         <th style="${thStyle}" onclick="holdingsSortBy('sym')"><span class="en-only">Ticker</span><span class="ko-only">종목</span>${siIcon('sym')}</th>
