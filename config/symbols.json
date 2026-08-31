@@ -33,6 +33,8 @@
     "IBIT",
     "INTC",
     "IPO",
+    "IWM",
+    "IWV",
     "JHOXX",
     "JRVSX",
     "KORU",
@@ -76,5 +78,5 @@
     "XOM"
   ],
   "csv_output_dir": "assets/data/stocks",
-  "_stock_cursor": 32
+  "_stock_cursor": 61
 }
