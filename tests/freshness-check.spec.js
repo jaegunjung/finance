@@ -114,27 +114,35 @@ test.describe("B. 주식 데이터 freshness", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// [C] 거시지표 freshness (60일 초과 — CPI/금리)
+// [C] 거시지표 freshness (기본 60일 초과 — 시리즈별 발표 주기에 따라 예외)
 // ═══════════════════════════════════════════════════════════════════════
 test.describe("C. 거시지표 데이터 freshness", () => {
   // GDP는 분기 발표 + 보고 지연으로 60일을 넘기는 게 정상이라 제외.
   // "실업률(UNRATE)"은 이 사이트가 별도로 수집하지 않아 대신 CPI/DGS10만 확인.
+  //
+  // CPI(CPIAUCSL)는 FRED가 "월초 날짜"로 값을 찍지만 발표는 그 다음다음 달
+  // 중순(예: 7월분 → 2026-07-01로 기록되지만 실제 발표는 8월 12일, 8월분은
+  // 9월 10~13일 발표)이라, 다음 발표 직전 시점엔 daysAgo가 구조적으로 70일을
+  // 넘는다. 60일 기준이면 매달 말마다 정상 상황을 오탐하므로 maxDays를 넉넉히
+  // 90일로 잡아 실제 지연(스크립트 장애 등)만 잡히게 한다.
+  // (2026-09-02 세션: FRED API 직접 조회로 CPIAUCSL 최신값이 로컬 CSV와
+  // 정확히 일치함을 확인 — 파이프라인 정상, 60일 임계값만 비현실적이었음.)
   const SERIES = [
-    { file: "CPI", label: "CPI (소비자물가지수)" },
-    { file: "DGS10", label: "DGS10 (10년물 금리)" },
+    { file: "CPI", label: "CPI (소비자물가지수)", maxDays: 90 },
+    { file: "DGS10", label: "DGS10 (10년물 금리)", maxDays: 60 },
   ];
-  for (const { file, label } of SERIES) {
-    test(`${label} — 60일 이내 갱신`, async ({ request }) => {
+  for (const { file, label, maxDays } of SERIES) {
+    test(`${label} — ${maxDays}일 이내 갱신`, async ({ request }) => {
       const lastDate = await fetchCsvLastDate(request, `assets/data/macro/${file}.csv`);
       if (!lastDate) {
         writeResult(`macro-${file}`, { category: "macro", label, status: "issue", detail: "CSV 조회 실패" });
         return;
       }
       const age = daysAgo(lastDate);
-      const status = age > 60 ? "issue" : "ok";
+      const status = age > maxDays ? "issue" : "ok";
       writeResult(`macro-${file}`, {
         category: "macro", label, status,
-        detail: `마지막 업데이트: ${lastDate} (${age}일 전)`,
+        detail: `마지막 업데이트: ${lastDate} (${age}일 전, 기준 ${maxDays}일)`,
       });
     });
   }
