@@ -1,11 +1,11 @@
 {
   "_comment": "Powers the Clarity Act status card on crypto/index.html (rendered via Jekyll site.data.clarity_act_status.*). Kept as data instead of hardcoded HTML so daily-news-watch.yml can safely refresh it whenever it publishes a new Clarity Act post -- editing these fields carries far less risk than an unattended job hand-editing the page's HTML directly.",
-  "status_label_en": "In Progress · Sept 15, 2026 Cloture Vote",
-  "status_label_ko": "진행 중 · 2026.9.15 클로처 표결",
-  "description_en": "Defines Bitcoin and Ether as commodities under CFTC. Resolves SEC/CFTC jurisdiction. Passed Senate Banking Committee May 14, 2026. Cloture vote set for Sept 15 (60 votes needed) — Polymarket implied odds ~19%, Galaxy Digital estimate 10%, as of Aug 15, 2026. A Trump-linked bank charter approval (World Liberty Trust Co., Aug 14) triggered an anti-corruption bill co-signed by the bill's own bipartisan negotiators, reopening the ethics dispute days before the vote.",
-  "description_ko": "BTC·ETH를 CFTC 관할 상품으로 분류. SEC/CFTC 관할권 법적 확정. 2026.5.14 상원 은행위 마크업 통과. 9월 15일 클로처 표결 예정(60표 필요) — 폴리마켓 내재확률 약 19%, 갤럭시디지털 전망치 10% (2026.8.15 기준). 트럼프 관련 은행 인가(World Liberty Trust Co., 8/14) 승인이 반부패 법안 발의로 이어졌고, 법안 협상 당사자들까지 여기 서명하며 표결을 앞두고 윤리 분쟁이 재점화됐다.",
-  "latest_post_url": "/crypto/2026/08/23/clarity-act-world-liberty-ethics-fight/",
-  "latest_post_label_en": "Latest Clarity Act update (Aug 23, 2026)",
-  "latest_post_label_ko": "Clarity Act 최신 업데이트 (2026.8.23)",
-  "last_updated": "2026-08-23"
+  "status_label_en": "At Risk · Sept 15 Cloture Vote, House Out Until Nov 9",
+  "status_label_ko": "위험 · 9.15 클로처 표결, 하원은 11.9까지 휴회",
+  "description_en": "Defines Bitcoin and Ether as commodities under CFTC. Resolves SEC/CFTC jurisdiction. Passed Senate Banking Committee May 14, 2026. Cloture vote still set for Sept 15 (60 votes needed), but House GOP leadership canceled its last two September session weeks on Sept 3 — the next House floor day is Nov 9, six days after the midterms, leaving no floor time in 2026 to reconcile an amended Senate bill with the House's own text. Polymarket-implied odds of 2026 enactment: ~13-17.5% as of Sept 1-3, 2026. Industry sentiment at the Wyoming Blockchain Symposium (reported by CNBC, Sept 1) has shifted toward expecting the bill dies in 2026.",
+  "description_ko": "BTC·ETH를 CFTC 관할 상품으로 분류. SEC/CFTC 관할권 법적 확정. 2026.5.14 상원 은행위 마크업 통과. 9월 15일 클로처 표결은 예정대로지만, 하원 공화당 지도부가 9월 3일 9월 마지막 2주 회기를 취소하며 다음 하원 본회의일이 중간선거 6일 뒤인 11월 9일로 밀렸다 — 2026년 안에 상원 수정안과 하원 문안을 조정할 회기 시간이 없다. 폴리마켓 내재확률(2026년 내 입법)은 2026.9.1~3 기준 약 13~17.5%. CNBC가 9월 1일 보도한 와이오밍 블록체인 심포지엄 업계 정서는 '2026년 내 무산' 쪽으로 기울었다.",
+  "latest_post_url": "/crypto/2026/09/03/clarity-act-house-calendar-closes-2026-window/",
+  "latest_post_label_en": "Latest Clarity Act update (Sept 3, 2026)",
+  "latest_post_label_ko": "Clarity Act 최신 업데이트 (2026.9.3)",
+  "last_updated": "2026-09-03"
 }
