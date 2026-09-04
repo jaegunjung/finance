@@ -187,6 +187,7 @@ title: 포트폴리오
             <option value="ENVX">ENVX</option>
             <option value="BTC">BTC</option><option value="ETH">ETH</option><option value="PEPE">PEPE</option>
           </select>
+          <button onclick="addModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Add a transaction manually">➕ Add</button>
           <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
           <button onclick="portExportCsv()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Export current view to CSV">📤 Export</button>
           <button id="portBulkDelBtn" onclick="portBulkDelete()" style="display:none; padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.4); background:rgba(248,81,73,0.08); color:rgba(248,81,73,0.9); cursor:pointer; font-size:0.8rem;" title="Delete selected">🗑 <span id="portBulkDelCount"></span></button>
@@ -356,9 +357,18 @@ title: 포트폴리오
 <!-- Edit Modal (Item 2) -->
 <div id="editModal" onclick="editModalBgClick(event)">
   <div id="editModalBox">
-    <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:16px;">Edit Transaction</div>
+    <div id="editModalTitle" style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:16px;">Edit Transaction</div>
     <input type="hidden" id="editTxnId">
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div class="modal-field" id="editSymbolField" style="display:none;">
+        <label>Symbol</label>
+        <input type="text" id="editSymbol" class="modal-input" placeholder="e.g. AAPL" list="editSymbolList" style="text-transform:uppercase;">
+        <datalist id="editSymbolList"></datalist>
+      </div>
+      <div class="modal-field" id="editPortfolioField" style="display:none;">
+        <label>Portfolio</label>
+        <select id="editPortfolio" class="modal-input"></select>
+      </div>
       <div class="modal-field">
         <label>Date</label>
         <input type="date" id="editDate" class="modal-input">
@@ -2034,10 +2044,18 @@ async function portCreatePortfolio() {
   }
 }
 
-// ── Edit modal (Item 2) ──
+// ── Edit modal (Item 2) — also doubles as the manual "Add Transaction"
+// modal (same fields; Symbol/Portfolio pickers only shown in add mode). ──
+let _editModalMode = 'edit'; // 'edit' | 'add'
+
 function editModalOpen(id) {
   const txn = portAllTxns.find(t => t.id === id);
   if (!txn) return;
+  _editModalMode = 'edit';
+  document.getElementById('editModalTitle').textContent = 'Edit Transaction';
+  document.getElementById('editSaveBtn').textContent = 'Save';
+  document.getElementById('editSymbolField').style.display = 'none';
+  document.getElementById('editPortfolioField').style.display = 'none';
   document.getElementById('editTxnId').value       = txn.id;
   document.getElementById('editDate').value        = txn.trade_date || '';
   document.getElementById('editTime').value        = txn.trade_time || '';
@@ -2048,6 +2066,50 @@ function editModalOpen(id) {
   document.getElementById('editCommission').value  = txn.commission != null ? txn.commission : 0;
   document.getElementById('editLotMethod').value   = txn.lot_method || '';
   document.getElementById('editNotes').value       = txn.notes || '';
+  document.getElementById('editStatus').style.display = 'none';
+  document.getElementById('editModal').classList.add('open');
+}
+
+// Opens the same modal to create a brand-new transaction from scratch —
+// used by the 거래내역 tab's "➕ Add" button for manual entry (no CSV/trade
+// panel needed).
+function addModalOpen() {
+  if (!portPortfolios.length) {
+    alert('먼저 포트폴리오를 하나 만들어주세요.');
+    return;
+  }
+  _editModalMode = 'add';
+  document.getElementById('editModalTitle').textContent = 'Add Transaction';
+  document.getElementById('editSaveBtn').textContent = 'Add';
+  document.getElementById('editSymbolField').style.display = '';
+  document.getElementById('editPortfolioField').style.display = '';
+  document.getElementById('editTxnId').value = '';
+
+  const symList = document.getElementById('editSymbolList');
+  symList.innerHTML = [..._AVAILABLE_SYMS].sort().map(s => `<option value="${s}">`).join('');
+
+  const symFilter = (document.getElementById('portSymbolFilter') || {}).value || '';
+  document.getElementById('editSymbol').value = symFilter;
+
+  const portSel = document.getElementById('editPortfolio');
+  portSel.innerHTML = '';
+  for (const p of portPortfolios) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    portSel.appendChild(opt);
+  }
+  portSel.value = portActivePortfolioId || portPortfolios[0].id;
+
+  document.getElementById('editDate').value        = new Date().toISOString().slice(0, 10);
+  document.getElementById('editTime').value        = '';
+  document.getElementById('editType').value        = 'buy';
+  document.getElementById('editShares').value      = '';
+  document.getElementById('editPrice').value       = '';
+  document.getElementById('editAmount').value      = '';
+  document.getElementById('editCommission').value  = 0;
+  document.getElementById('editLotMethod').value   = '';
+  document.getElementById('editNotes').value       = '';
   document.getElementById('editStatus').style.display = 'none';
   document.getElementById('editModal').classList.add('open');
 }
@@ -2187,13 +2249,12 @@ const _SPY_SIM_METHOD_HTML = `
 function _showSpySimInfo() { showInfoPanel('SPY/QQQ/SGOV 비교 계산 방법', _SPY_SIM_METHOD_HTML); }
 
 async function editSave() {
-  const id  = document.getElementById('editTxnId').value;
   const btn = document.getElementById('editSaveBtn');
   btn.disabled = true;
   const statusEl = document.getElementById('editStatus');
   statusEl.style.display = 'none';
   try {
-    await window.txns.updateTransaction(id, {
+    const fields = {
       trade_date:  document.getElementById('editDate').value,
       trade_time:  document.getElementById('editTime').value || null,
       type:        document.getElementById('editType').value,
@@ -2203,7 +2264,20 @@ async function editSave() {
       commission:  parseFloat(document.getElementById('editCommission').value) || 0,
       lot_method:  document.getElementById('editLotMethod').value || null,
       notes:       document.getElementById('editNotes').value.trim() || null,
-    });
+    };
+    if (!fields.trade_date) throw new Error('날짜를 입력해주세요.');
+    if (!Number.isFinite(fields.amount)) throw new Error('금액을 입력해주세요.');
+
+    if (_editModalMode === 'add') {
+      const symbol = document.getElementById('editSymbol').value.trim().toUpperCase();
+      if (!symbol) throw new Error('종목(Symbol)을 입력해주세요.');
+      fields.symbol = symbol;
+      fields.portfolio_id = document.getElementById('editPortfolio').value || null;
+      await window.txns.addTransaction(fields);
+    } else {
+      const id = document.getElementById('editTxnId').value;
+      await window.txns.updateTransaction(id, fields);
+    }
     editModalClose();
     portLoadTxns();
   } catch(e) {
