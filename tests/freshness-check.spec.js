@@ -92,19 +92,27 @@ test.describe("A. Crypto 데이터 freshness", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// [B] 주식 데이터 freshness (거래일 기준 3일 초과 — 주말 제외 근사)
+// [B] 주식 데이터 freshness (거래일 기준 5일 초과 — 주말 제외 근사)
 // ═══════════════════════════════════════════════════════════════════════
+// update_stocks.py는 Alpha Vantage 무료 티어의 일 25회 요청 한도 안에서
+// config/symbols.json의 전 종목(2026-09 기준 76개+)을 커서로 로테이션하며
+// 순회한다 — 즉 한 바퀴 도는 데만 최소 76/25 ≈ 4일이 걸리는 게 정상 구조다.
+// (2026-09 세션: 신규 종목 11개가 outputsize=full 프리미엄 제한에 걸려
+// 매일 요청만 날리고 실패하며 할당량을 낭비하던 별도 버그를 수정했지만,
+// 그 버그가 없어도 종목 수 자체가 이미 며칠짜리 로테이션을 강제한다.)
+// 3일 기준이면 정상적인 로테이션 대기만으로도 오탐이 나서 5일로 완화.
+const MAX_TRADING_DAYS = 5;
 test.describe("B. 주식 데이터 freshness", () => {
   const SYMBOLS = ["SPY", "AAPL", "NVDA"];
   for (const sym of SYMBOLS) {
-    test(`${sym} — 거래일 3일 이내 갱신`, async ({ request }) => {
+    test(`${sym} — 거래일 ${MAX_TRADING_DAYS}일 이내 갱신`, async ({ request }) => {
       const lastDate = await fetchCsvLastDate(request, `assets/data/stocks/${sym}.csv`);
       if (!lastDate) {
         writeResult(`stock-${sym}`, { category: "stock", label: sym, status: "issue", detail: "CSV 조회 실패" });
         return;
       }
       const age = tradingDaysAgo(lastDate);
-      const status = age > 3 ? "issue" : "ok";
+      const status = age > MAX_TRADING_DAYS ? "issue" : "ok";
       writeResult(`stock-${sym}`, {
         category: "stock", label: sym, status,
         detail: `마지막 업데이트: ${lastDate} (거래일 기준 ${age}일 전, 공휴일 미반영 근사치)`,
