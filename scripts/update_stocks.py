@@ -69,6 +69,16 @@ def fetch_adjusted(symbol: str, full: bool = False) -> dict:
                 note = data.get('Note') or data.get('Information') or str(data)[:120]
                 if 'requests per day' in note.lower() or 'rate limit' in note.lower():
                     raise RateLimited(note)
+                if params['outputsize'] == 'full' and 'premium' in note.lower():
+                    # Free tier no longer allows outputsize=full (only the free
+                    # ~100-day "compact" mode). Without this fallback, a brand-new
+                    # symbol (no CSV yet) retries this same doomed full-history
+                    # request every single day forever, burning a chunk of the
+                    # 25-req/day quota before the run ever reaches later symbols
+                    # (e.g. NVDA) — 11 symbols were stuck like this as of 2026-09.
+                    print(f'  [{symbol}] outputsize=full needs premium — falling back to compact', flush=True)
+                    params['outputsize'] = 'compact'
+                    continue
                 print(f'  [{symbol}] Unexpected response: {note}', flush=True)
                 return {}
             return data['Time Series (Daily)']
