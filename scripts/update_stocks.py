@@ -128,14 +128,31 @@ def main():
         cfg = json.load(f)
     symbols = cfg['stocks']
 
-    # Alpha Vantage free tier allows only 25 requests/day, far fewer than
+    # Alpha Vantage free tier allows only ~25 requests/day, far fewer than
     # len(symbols). Always starting from symbols[0] means everything past
     # the ~25th (alphabetically) never gets a turn. Instead rotate the
     # start position each run so the whole list cycles through over a few
     # days, and persist how far we got so tomorrow picks up where today
     # stopped (whether that's from finishing the list or hitting the cap).
-    cursor = cfg.get('_stock_cursor', 0) % len(symbols)
-    order = symbols[cursor:] + symbols[:cursor]
+    #
+    # The cursor rotates through EXISTING symbols (already have a CSV --
+    # cheap single compact request, and what the daily QA freshness check
+    # actually watches) only, and "new" symbols (no CSV yet -- 2-request
+    # full->compact backfill, see fetch_adjusted) are always processed last.
+    # Without this split, a newly-synced symbol with no CSV could land right
+    # before an important one in the alphabetical rotation (e.g. NKLA sat
+    # right before NVDA) and -- on any day the quota ran out before the
+    # scheduled run even reached it -- permanently block every symbol after
+    # it. That's what left NVDA/AAPL/SPY stale for 9 trading days in
+    # 2026-09: the cursor was parked on NKLA and never advanced past it.
+    existing = [s for s in symbols if csv_path(s).exists()]
+    new_symbols = [s for s in symbols if not csv_path(s).exists()]
+
+    cursor = cfg.get('_stock_cursor', 0) % len(existing) if existing else 0
+    rotated_existing = existing[cursor:] + existing[:cursor] if existing else []
+    order = rotated_existing + new_symbols
+    print(f'{len(existing)} existing symbol(s) (rotation starts at cursor {cursor}), '
+          f'{len(new_symbols)} new symbol(s) queued last: {new_symbols}', flush=True)
 
     total_new = 0
     processed = 0
@@ -167,11 +184,16 @@ def main():
         # Free tier: max 5 requests/minute → sleep between calls
         time.sleep(13)
 
-    cfg['_stock_cursor'] = (cursor + processed) % len(symbols)
+    if existing:
+        # order's first len(existing) items are rotated_existing, so however
+        # many of those got processed before any break maps straight back.
+        processed_existing = min(processed, len(existing))
+        cfg['_stock_cursor'] = (cursor + processed_existing) % len(existing)
     with open(CONFIG_PATH, 'w') as f:
         json.dump(cfg, f, indent=2)
 
-    print(f'\nDone. Total new rows: {total_new}, processed {processed}/{len(symbols)}, next cursor: {cfg["_stock_cursor"]}', flush=True)
+    print(f'\nDone. Total new rows: {total_new}, processed {processed}/{len(order)}, '
+          f'next cursor: {cfg.get("_stock_cursor", 0)}', flush=True)
     if total_new == 0:
         sys.exit(0)
 
