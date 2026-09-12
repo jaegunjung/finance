@@ -1,0 +1,44 @@
+<svg viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans KR','Malgun Gothic',sans-serif">
+  <rect x="0" y="0" width="600" height="340" fill="#F7F4EE"/>
+
+  <text x="32" y="40" font-size="18" font-weight="700" fill="#1B1F23">비트코인 2026년 월별 수익률</text>
+  <text x="32" y="60" font-size="12.5" fill="#6B6F72">6월 급락 → 7~8월 반등, 변동성 장세 (개념도)</text>
+
+  <line x1="80" y1="225" x2="530" y2="225" stroke="#C9C4B8" stroke-width="1.5"/>
+
+  <!-- Jan +4.2 -->
+  <rect x="98" y="208.2" width="32" height="16.8" rx="3" fill="#1F4E79"/>
+  <text x="114" y="202" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">+4.2%</text>
+  <!-- Feb -8.1 -->
+  <rect x="146" y="225" width="32" height="32.4" rx="3" fill="#C1592B"/>
+  <text x="162" y="271" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">-8.1%</text>
+  <!-- Mar +6.5 -->
+  <rect x="194" y="199" width="32" height="26" rx="3" fill="#1F4E79"/>
+  <text x="210" y="193" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">+6.5%</text>
+  <!-- Apr -3.8 -->
+  <rect x="242" y="225" width="32" height="15.2" rx="3" fill="#C1592B"/>
+  <text x="258" y="254" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">-3.8%</text>
+  <!-- May -11.2 -->
+  <rect x="290" y="225" width="32" height="44.8" rx="3" fill="#C1592B"/>
+  <text x="306" y="283" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">-11.2%</text>
+  <!-- Jun -20.5 -->
+  <rect x="338" y="225" width="32" height="82" rx="3" fill="#C1592B"/>
+  <text x="354" y="320" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">-20.5%</text>
+  <!-- Jul +7.4 -->
+  <rect x="386" y="195.4" width="32" height="29.6" rx="3" fill="#1F4E79"/>
+  <text x="402" y="189" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">+7.4%</text>
+  <!-- Aug +24.9 -->
+  <rect x="434" y="125.4" width="32" height="99.6" rx="3" fill="#1F4E79"/>
+  <text x="450" y="119" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">+24.9%</text>
+  <!-- Sep* -2.8 -->
+  <rect x="482" y="225" width="32" height="11.2" rx="3" fill="#C1592B"/>
+  <text x="498" y="248" text-anchor="middle" font-size="12" font-weight="700" fill="#1B1F23">-2.8%*</text>
+
+  <g font-size="11" fill="#6B6F72" text-anchor="middle">
+    <text x="114" y="336">1월</text><text x="162" y="336">2월</text><text x="210" y="336">3월</text>
+    <text x="258" y="336">4월</text><text x="306" y="336">5월</text><text x="354" y="336">6월</text>
+    <text x="402" y="336">7월</text><text x="450" y="336">8월</text><text x="498" y="336">9월*</text>
+  </g>
+
+  <text x="32" y="325" font-size="10.5" fill="#8A8F93">*9월은 9월 초 기준 · 자료: 본문 인용 수치 기반 개념도</text>
+</svg>

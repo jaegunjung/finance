@@ -1,0 +1,36 @@
+<svg viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans KR','Malgun Gothic',sans-serif">
+  <rect x="0" y="0" width="600" height="340" fill="#F7F4EE"/>
+
+  <text x="32" y="40" font-size="18" font-weight="700" fill="#1B1F23">S&amp;P500 vs 동일가중지수(RSP), 2026년 흐름</text>
+  <text x="32" y="60" font-size="12.5" fill="#6B6F72">지수화(1월=100) 개념도 — 상반기엔 RSP가 앞섰지만 하반기 들어 격차가 좁혀졌다</text>
+
+  <line x1="90" y1="227" x2="520" y2="227" stroke="#D8D3C6" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="60" y="231" font-size="10" fill="#9A9F93" text-anchor="end">100</text>
+
+  <polyline points="90,227 144,238 198,217 251,206 305,195 359,238 413,259 466,195 520,132"
+            fill="none" stroke="#1F4E79" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="90,227 144,174 198,164 251,153 305,164 359,195 413,217 466,185 520,153"
+            fill="none" stroke="#2E8B7A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g fill="#1F4E79">
+    <circle cx="90" cy="227" r="3"/><circle cx="144" cy="238" r="3"/><circle cx="198" cy="217" r="3"/>
+    <circle cx="251" cy="206" r="3"/><circle cx="305" cy="195" r="3"/><circle cx="359" cy="238" r="3"/>
+    <circle cx="413" cy="259" r="3"/><circle cx="466" cy="195" r="3"/><circle cx="520" cy="132" r="3"/>
+  </g>
+  <g fill="#2E8B7A">
+    <circle cx="90" cy="227" r="3"/><circle cx="144" cy="174" r="3"/><circle cx="198" cy="164" r="3"/>
+    <circle cx="251" cy="153" r="3"/><circle cx="305" cy="164" r="3"/><circle cx="359" cy="195" r="3"/>
+    <circle cx="413" cy="217" r="3"/><circle cx="466" cy="185" r="3"/><circle cx="520" cy="153" r="3"/>
+  </g>
+
+  <text x="528" y="128" font-size="13" font-weight="700" fill="#1F4E79">SPY</text>
+  <text x="528" y="157" font-size="13" font-weight="700" fill="#2E8B7A">RSP</text>
+
+  <g font-size="11" fill="#6B6F72" text-anchor="middle">
+    <text x="90" y="300">1월</text><text x="144" y="300">2월</text><text x="198" y="300">3월</text>
+    <text x="251" y="300">4월</text><text x="305" y="300">5월</text><text x="359" y="300">6월</text>
+    <text x="413" y="300">7월</text><text x="466" y="300">8월</text><text x="520" y="300">9월</text>
+  </g>
+
+  <text x="32" y="320" font-size="11" fill="#8A8F93">자료: 본문 인용 수치 기반 개념도 · 실제 일별 데이터 아님</text>
+</svg>

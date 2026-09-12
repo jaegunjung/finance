@@ -1,0 +1,25 @@
+<svg viewBox="0 0 600 340" xmlns="http://www.w3.org/2000/svg" font-family="'Noto Sans KR','Malgun Gothic',sans-serif">
+  <rect x="0" y="0" width="600" height="340" fill="#F7F4EE"/>
+
+  <text x="32" y="46" font-size="21" font-weight="700" fill="#1B1F23">지수는 +12%, 내 계좌는 +3%</text>
+  <text x="32" y="68" font-size="13" fill="#6B6F72">2026년 연초 대비 누적 수익률 · 9월 중순 기준 (개념도)</text>
+
+  <line x1="90" y1="280" x2="520" y2="280" stroke="#C9C4B8" stroke-width="1.5"/>
+
+  <rect x="135" y="125.7" width="110" height="154.3" rx="4" fill="#1F4E79"/>
+  <rect x="355" y="241.4" width="110" height="38.6" rx="4" fill="#C1592B"/>
+
+  <text x="190" y="112" text-anchor="middle" font-size="26" font-weight="700" fill="#1B1F23">+12%</text>
+  <text x="410" y="228" text-anchor="middle" font-size="26" font-weight="700" fill="#1B1F23">+3%</text>
+
+  <text x="190" y="302" text-anchor="middle" font-size="14" fill="#4A5056">S&amp;P500</text>
+  <text x="410" y="302" text-anchor="middle" font-size="14" fill="#4A5056">내 계좌</text>
+
+  <line x1="460" y1="125.7" x2="472" y2="125.7" stroke="#9A9F93" stroke-width="1.5"/>
+  <line x1="472" y1="125.7" x2="472" y2="241.4" stroke="#9A9F93" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <line x1="460" y1="241.4" x2="472" y2="241.4" stroke="#9A9F93" stroke-width="1.5"/>
+  <text x="481" y="179" font-size="16" font-weight="700" fill="#C1592B">9%p</text>
+  <text x="481" y="196" font-size="12" fill="#6B6F72">격차</text>
+
+  <text x="32" y="318" font-size="11" fill="#8A8F93">자료: 본문 인용 수치 기반 · 시각화는 개념도</text>
+</svg>
