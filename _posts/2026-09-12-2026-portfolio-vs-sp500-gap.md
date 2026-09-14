@@ -40,23 +40,11 @@ Here's where things diverged from what I expected. Through 2026, the equal-weigh
   <div style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:6px;">SPY vs. RSP, indexed to 100 at the start of 2026 (illustrative)</div>
 </div>
 
-**Which stocks actually swapped places?** Looking at the roughly two dozen individual stocks this site tracks with at least two years of price history, several names flipped their status relative to the index between 2025 and 2026:
+**So how many stocks are actually beating the index?** Rather than guess from a small sample, this is a statistic research desks already track every year: the share of individual S&P 500 constituents that outperform the index itself. [First Trust Portfolios' running series](https://www.ftportfolios.com/Commentary/EconomicResearch/2026/7/9/sp-500-index--1h-update-the-broadening-continues) shows it climbing sharply -- **26.9%** in 2023, **27.7%** in 2024, **30.5%** in 2025, and **46%** in the first half of 2026 alone, with some 2026 snapshots running as high as the high-50s to low-60s percent, a level of participation not seen in close to a decade. So the concentration story from Section 1 really has been unwinding in 2026: a clear majority-trending share of individual stocks are now keeping pace with or beating the index, not just a handful of mega-caps.
 
-| Stock | 2025 return | 2026 YTD return | Change |
-|---|---|---|---|
-| Apple (AAPL) | **+8.6%** (lagged) | **+20.1%** (as of 9/10, led) | Newly leading |
-| Delta Air Lines (DAL) | **+16.1%** (lagged) | **+13.2%** (as of 9/2, led) | Newly leading |
-| Alphabet (GOOGL / GOOG) | **+66.0% / +64.8%** (led) | **+7.8% / +6.4%** (as of 9/2, lagged) | Fell out of the lead |
-| Uber (UBER) | **+35.5%** (led) | **-11.2%** (as of 9/10, lagged) | Fell out of the lead |
-| Alibaba (BABA) | **+75.8%** (led) | **-25.3%** (as of 9/10, lagged) | Fell out of the lead |
+Two names from this site's own tracked list illustrate the shift concretely: Apple (AAPL) lagged the index in 2025 (**+8.6%** vs. the index's **+18.0%**) but is beating it in 2026 (**+20.1%** vs. **+11.1%** YTD as of 9/10), while Alphabet (GOOGL/GOOG) -- one of 2025's strongest Magnificent Seven names (**+66.0%** / **+64.8%**) -- has fallen behind in 2026 (**+7.8%** / **+6.4%**), exactly the "correction in the leaders themselves" pattern this post pointed to above.
 
-*(For reference, SPY returned **+18.0%** in 2025 and **+11.1%** year-to-date as of 9/10, 2026.)*
-
-Alphabet's reversal is the clearest confirmation of the "correction in the leaders themselves" story above -- one of 2025's strongest Magnificent Seven names is now trailing the index in 2026.
-
-*Correction (Sept 13, 2026): an earlier version of this table also listed Beyond Meat (BYND) as "newly leading," with a 2026 YTD return of +1,311%. That number was wrong -- it came from dividing a post-split price by a pre-split price in this site's local data, after the stock underwent a reverse split this site's data pipeline didn't retroactively adjust for. Beyond Meat's actual 2026 YTD return is roughly -61%, meaning it lagged the index in both 2025 and 2026 and never belonged in this "changed status" table to begin with. It has been removed. The other five rows were re-checked for the same kind of split-adjustment error and are unaffected.*
-
-*Note: this table covers only the ~24 individually-tracked stocks on this site with enough price history to compare both years -- a much smaller and different sample than the "30.5%" breadth figure cited earlier, which covers the full S&P 500. A few names this blog has covered before, including PLTR, AVGO, ORCL, and UNH, don't yet have two full years of local price history and are excluded from this comparison for that reason. "Year-to-date" reference dates vary slightly by stock (Aug 31 - Sep 10, 2026) because of how this site's data pipeline refreshes tracked symbols.*
+*Update (Sept 13, 2026): an earlier version of this section instead built a stock-by-stock table from this site's own small tracked-stock sample. That table both drew the wrong conclusion from too small a sample (its count of "newly leading" vs. "fell behind" names didn't actually support a broadening claim) and contained a data error -- a stock split that this site's data pipeline hadn't retroactively adjusted for made Beyond Meat's (BYND) 2026 return look like +1,311% instead of its real, still-lagging ~-61%. It's been replaced with the published breadth statistic above, which is both more reliable and the more directly relevant number for this claim.*
 
 In fact, the Philadelphia Semiconductor Index (SOX) dropped **20.6%** in July alone. Big Tech's (Microsoft, Alphabet, Amazon, Meta) consensus AI capex estimate more than doubled in a year, from **$330 billion** to **$714 billion** -- but over the same period, capex as a share of EBITDA jumped from **52%** to **86%**, and the market started questioning whether that spending was translating into cash flow. That's the backdrop for why the AI-infrastructure names I bought near their May-June highs went on to chop sideways and correct.
 
@@ -92,7 +80,7 @@ Pulling it together, my account's weak 2026 wasn't caused by "worsening concentr
 
 *This post is based on publicly available market data as of September 12, 2026, and is not investment advice.*
 
-**Sources used in this post**: S&P Dow Jones Indices (S&P 500 index and constituent contribution data); Invesco RSP (equal-weight S&P 500 ETF) price data; CoinGecko / CoinMarketCap (Bitcoin monthly price data); U.S. Energy Information Administration (EIA, WTI spot price data); Federal Reserve Bank of St. Louis (FRED, 10-year Treasury yield); Enovix Corporation disclosures and press releases; Philadelphia Semiconductor Index (SOX) closing price data; this site's own tracked daily price history (Alpha Vantage) for the stock-by-stock 2025 vs. 2026 comparison table. These are general references for the figures cited rather than a formal citation list -- verify and link the exact sources before republishing elsewhere.
+**Sources used in this post**: S&P Dow Jones Indices (S&P 500 index and constituent contribution data); [First Trust Portfolios, "S&P 500 Index 1H Update: The Broadening Continues" (July 9, 2026)](https://www.ftportfolios.com/Commentary/EconomicResearch/2026/7/9/sp-500-index--1h-update-the-broadening-continues) for the 2023-2026 breadth statistics; Invesco RSP (equal-weight S&P 500 ETF) price data; CoinGecko / CoinMarketCap (Bitcoin monthly price data); U.S. Energy Information Administration (EIA, WTI spot price data); Federal Reserve Bank of St. Louis (FRED, 10-year Treasury yield); Enovix Corporation disclosures and press releases; Philadelphia Semiconductor Index (SOX) closing price data; this site's own tracked daily price history (Alpha Vantage) for the Apple/Alphabet return figures. These are general references for the figures cited rather than a formal citation list -- verify and link the exact sources before republishing elsewhere.
 
 </div>
 
@@ -124,21 +112,11 @@ Pulling it together, my account's weak 2026 wasn't caused by "worsening concentr
   <div style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:6px;">S&P500(SPY) vs 동일가중 S&P500(RSP), 2026년 초 = 100 기준 (개념도)</div>
 </div>
 
-**실제로 어떤 종목이 자리를 바꿨을까.** 이 사이트가 2년 이상 시세 데이터를 확보한 개별 종목 약 24개를 놓고 보면, 2025년과 2026년 사이에 지수 대비 성과가 뒤바뀐 종목들이 눈에 띈다.
+**그래서 실제로 지수를 상회하는 종목이 몇 개나 될까.** 표본이 작은 데이터로 추측하기보다, 이건 리서치 업계가 매년 실제로 추적하는 통계다 — S&P500 개별 종목 중 지수 자체를 상회한 비중. [First Trust Portfolios의 추적 시리즈](https://www.ftportfolios.com/Commentary/EconomicResearch/2026/7/9/sp-500-index--1h-update-the-broadening-continues)를 보면 이 비중이 뚜렷하게 늘고 있다 — 2023년 **26.9%**, 2024년 **27.7%**, 2025년 **30.5%**, 그리고 2026년 상반기만 놓고 보면 **46%**까지 올라왔고, 2026년 특정 시점에는 50%대 후반~60%대 초반까지 찍은 적도 있다 — 거의 10년 만에 보는 수준의 참여율이다. 즉 1번 섹션에서 말한 "소수 종목 쏠림"이 2026년 들어 실제로 풀리고 있다는 뜻이다 — 극소수 대형주가 아니라, 과반에 가까운 개별 종목들이 지수와 비슷하거나 더 나은 성과를 내고 있다.
 
-| 종목 | 2025년 수익률 | 2026년 YTD 수익률 | 변화 |
-|---|---|---|---|
-| 애플(AAPL) | **+8.6%** (지수 하회) | **+20.1%** (9/10 기준, 지수 상회) | 신규 아웃퍼폼 |
-| 델타항공(DAL) | **+16.1%** (지수 하회) | **+13.2%** (9/2 기준, 지수 상회) | 신규 아웃퍼폼 |
-| 알파벳(GOOGL/GOOG) | **+66.0%/+64.8%** (지수 상회) | **+7.8%/+6.4%** (9/2 기준, 지수 하회) | 아웃퍼폼 이탈 |
-| 우버(UBER) | **+35.5%** (지수 상회) | **-11.2%** (9/10 기준, 지수 하회) | 아웃퍼폼 이탈 |
-| 알리바바(BABA) | **+75.8%** (지수 상회) | **-25.3%** (9/10 기준, 지수 하회) | 아웃퍼폼 이탈 |
+이 사이트가 추적하는 종목 중에서도 이 흐름을 보여주는 사례가 있다. 애플(AAPL)은 2025년엔 지수를 하회했지만(**+8.6%** vs 지수 **+18.0%**), 2026년엔 지수를 상회하고 있다(**+20.1%** vs 9/10 기준 지수 **+11.1%**). 반대로 알파벳(GOOGL/GOOG)은 2025년 매그니피센트7 중에서도 가장 강했던 종목(**+66.0%/+64.8%**)이었지만, 2026년엔 오히려 지수를 하회한다(**+7.8%/+6.4%**) — 앞서 말한 "쏠림 종목 자체의 조정" 패턴을 정확히 보여주는 사례다.
 
-*(참고: SPY는 2025년 **+18.0%**, 2026년은 9/10 기준 **+11.1%**.)*
-
-알파벳의 역전은 앞서 말한 "쏠림 종목 자체의 조정" 이야기를 가장 분명하게 뒷받침하는 사례다 — 2025년 매그니피센트7 중에서도 가장 강했던 종목 중 하나가 2026년엔 오히려 지수보다 못한 성과를 내고 있다.
-
-*정정 (2026년 9월 13일): 이 표의 최초 게시 버전에는 비욘드미트(BYND)가 "신규 아웃퍼폼"으로 2026년 YTD +1,311%와 함께 포함돼 있었습니다. 이 수치는 오류였습니다 — 이 사이트의 로컬 데이터에서 비욘드미트가 겪은 주식분할을 파이프라인이 소급 조정하지 못해, 분할 이후 가격을 분할 이전 가격으로 나누면서 생긴 계산 오류였습니다. 실제 비욘드미트의 2026년 YTD 수익률은 약 -61%로, 2025년과 2026년 모두 지수를 하회해 애초에 "순위가 바뀐 종목" 표에 들어갈 자격이 없었습니다. 해당 행은 삭제했습니다. 나머지 5개 종목은 같은 유형의 분할 조정 오류가 없는지 다시 확인했고 문제없음을 확인했습니다.*
+*업데이트 (2026년 9월 13일): 이 섹션은 원래 이 사이트가 자체 추적하는 소수 종목만으로 만든 비교표였습니다. 그런데 그 표는 표본이 너무 작아 애초에 "상회 종목이 늘었다"는 주장을 뒷받침하지 못했고("신규 상회" 2개, "이탈" 4개로 오히려 반대 방향을 시사), 게다가 데이터 오류까지 있었습니다 — 이 사이트의 데이터 파이프라인이 소급 조정하지 못한 주식분할 때문에 비욘드미트(BYND)의 2026년 수익률이 실제 -61%가 아니라 +1,311%로 잘못 계산됐습니다. 이제는 이미 발표된 위 통계로 대체했습니다 — 이 주장에 훨씬 신뢰할 수 있고 직접적으로 맞는 근거입니다.*
 
 *참고: 이 표는 이 사이트가 2년 치 데이터를 확보한 개별 종목 약 24개만을 대상으로 한 것으로, 앞서 언급한 "30.5%"(전체 S&P500 500개 종목 기준 수치)와는 표본 자체가 다르다. PLTR·AVGO·ORCL·UNH 등 이 블로그가 이전에 다뤘던 일부 종목은 로컬 데이터가 아직 2년 치를 채우지 못해 이번 비교에서 제외했다. "YTD" 기준일이 종목별로 8월 31일~9월 10일(2026년) 사이로 조금씩 다른 것은 이 사이트가 종목 데이터를 순환 방식으로 갱신하기 때문이다.*
 
@@ -176,6 +154,6 @@ ENVX는 더 가혹했다. 8월 13일 CEO가 전격 사임하며 주가가 하루
 
 *이 글은 2026년 9월 12일 기준 공개된 시장 데이터를 바탕으로 작성되었으며, 투자 조언이 아닙니다.*
 
-**이 글에서 사용한 주요 출처**: S&P Dow Jones Indices(S&P500 지수 및 종목별 기여도 데이터); Invesco RSP(동일가중 S&P500 ETF) 가격 데이터; CoinGecko / CoinMarketCap(비트코인 월별 가격 데이터); 미 에너지정보청(EIA, WTI 현물가격 데이터); 세인트루이스 연방준비은행(FRED, 미 국채 10년물 금리); Enovix Corporation 공시자료 및 보도자료; 필라델피아 반도체지수(SOX) 종가 데이터; 종목별 2025 vs 2026 비교표는 이 사이트가 자체 추적 중인 일별 시세 데이터(Alpha Vantage 기반)를 직접 계산한 것. 위 출처는 인용 수치의 일반적 출처를 밝힌 것이며, 다른 곳에 다시 게시하기 전에 정확한 링크를 직접 확인해 추가하는 것을 권장합니다.
+**이 글에서 사용한 주요 출처**: S&P Dow Jones Indices(S&P500 지수 및 종목별 기여도 데이터); [First Trust Portfolios, "S&P 500 Index 1H Update: The Broadening Continues"(2026년 7월 9일)](https://www.ftportfolios.com/Commentary/EconomicResearch/2026/7/9/sp-500-index--1h-update-the-broadening-continues) — 2023~2026년 종목별 지수 상회 비중 통계 출처; Invesco RSP(동일가중 S&P500 ETF) 가격 데이터; CoinGecko / CoinMarketCap(비트코인 월별 가격 데이터); 미 에너지정보청(EIA, WTI 현물가격 데이터); 세인트루이스 연방준비은행(FRED, 미 국채 10년물 금리); Enovix Corporation 공시자료 및 보도자료; 필라델피아 반도체지수(SOX) 종가 데이터; 애플·알파벳 수익률은 이 사이트가 자체 추적 중인 일별 시세 데이터(Alpha Vantage 기반)를 직접 계산한 것. 위 출처는 인용 수치의 일반적 출처를 밝힌 것이며, 다른 곳에 다시 게시하기 전에 정확한 링크를 직접 확인해 추가하는 것을 권장합니다.
 
 </div>
