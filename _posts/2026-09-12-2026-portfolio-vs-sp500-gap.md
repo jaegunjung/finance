@@ -44,7 +44,6 @@ Here's where things diverged from what I expected. Through 2026, the equal-weigh
 
 | Stock | 2025 return | 2026 YTD return | Change |
 |---|---|---|---|
-| Beyond Meat (BYND) | **-78.2%** (lagged) | **+1,311.0%** (as of 9/2, led) | Newly leading |
 | Apple (AAPL) | **+8.6%** (lagged) | **+20.1%** (as of 9/10, led) | Newly leading |
 | Delta Air Lines (DAL) | **+16.1%** (lagged) | **+13.2%** (as of 9/2, led) | Newly leading |
 | Alphabet (GOOGL / GOOG) | **+66.0% / +64.8%** (led) | **+7.8% / +6.4%** (as of 9/2, lagged) | Fell out of the lead |
@@ -53,7 +52,9 @@ Here's where things diverged from what I expected. Through 2026, the equal-weigh
 
 *(For reference, SPY returned **+18.0%** in 2025 and **+11.1%** year-to-date as of 9/10, 2026.)*
 
-Alphabet's reversal is the clearest confirmation of the "correction in the leaders themselves" story above -- one of 2025's strongest Magnificent Seven names is now trailing the index in 2026. Beyond Meat is the outlier to read carefully: a heavily-shorted, low-priced stock, its move looks more like a squeeze than a fundamental turnaround, and shouldn't be read the same way as Apple's or Delta's steadier improvement.
+Alphabet's reversal is the clearest confirmation of the "correction in the leaders themselves" story above -- one of 2025's strongest Magnificent Seven names is now trailing the index in 2026.
+
+*Correction (Sept 13, 2026): an earlier version of this table also listed Beyond Meat (BYND) as "newly leading," with a 2026 YTD return of +1,311%. That number was wrong -- it came from dividing a post-split price by a pre-split price in this site's local data, after the stock underwent a reverse split this site's data pipeline didn't retroactively adjust for. Beyond Meat's actual 2026 YTD return is roughly -61%, meaning it lagged the index in both 2025 and 2026 and never belonged in this "changed status" table to begin with. It has been removed. The other five rows were re-checked for the same kind of split-adjustment error and are unaffected.*
 
 *Note: this table covers only the ~24 individually-tracked stocks on this site with enough price history to compare both years -- a much smaller and different sample than the "30.5%" breadth figure cited earlier, which covers the full S&P 500. A few names this blog has covered before, including PLTR, AVGO, ORCL, and UNH, don't yet have two full years of local price history and are excluded from this comparison for that reason. "Year-to-date" reference dates vary slightly by stock (Aug 31 - Sep 10, 2026) because of how this site's data pipeline refreshes tracked symbols.*
 
@@ -127,7 +128,6 @@ Pulling it together, my account's weak 2026 wasn't caused by "worsening concentr
 
 | 종목 | 2025년 수익률 | 2026년 YTD 수익률 | 변화 |
 |---|---|---|---|
-| 비욘드미트(BYND) | **-78.2%** (지수 하회) | **+1,311.0%** (9/2 기준, 지수 상회) | 신규 아웃퍼폼 |
 | 애플(AAPL) | **+8.6%** (지수 하회) | **+20.1%** (9/10 기준, 지수 상회) | 신규 아웃퍼폼 |
 | 델타항공(DAL) | **+16.1%** (지수 하회) | **+13.2%** (9/2 기준, 지수 상회) | 신규 아웃퍼폼 |
 | 알파벳(GOOGL/GOOG) | **+66.0%/+64.8%** (지수 상회) | **+7.8%/+6.4%** (9/2 기준, 지수 하회) | 아웃퍼폼 이탈 |
@@ -136,7 +136,9 @@ Pulling it together, my account's weak 2026 wasn't caused by "worsening concentr
 
 *(참고: SPY는 2025년 **+18.0%**, 2026년은 9/10 기준 **+11.1%**.)*
 
-알파벳의 역전은 앞서 말한 "쏠림 종목 자체의 조정" 이야기를 가장 분명하게 뒷받침하는 사례다 — 2025년 매그니피센트7 중에서도 가장 강했던 종목 중 하나가 2026년엔 오히려 지수보다 못한 성과를 내고 있다. 비욘드미트는 예외적인 사례로 읽어야 한다 — 공매도 비중이 높은 저가주의 숏스퀴즈성 급등에 가까워서, 애플·델타항공처럼 꾸준한 개선과는 성격이 다르다.
+알파벳의 역전은 앞서 말한 "쏠림 종목 자체의 조정" 이야기를 가장 분명하게 뒷받침하는 사례다 — 2025년 매그니피센트7 중에서도 가장 강했던 종목 중 하나가 2026년엔 오히려 지수보다 못한 성과를 내고 있다.
+
+*정정 (2026년 9월 13일): 이 표의 최초 게시 버전에는 비욘드미트(BYND)가 "신규 아웃퍼폼"으로 2026년 YTD +1,311%와 함께 포함돼 있었습니다. 이 수치는 오류였습니다 — 이 사이트의 로컬 데이터에서 비욘드미트가 겪은 주식분할을 파이프라인이 소급 조정하지 못해, 분할 이후 가격을 분할 이전 가격으로 나누면서 생긴 계산 오류였습니다. 실제 비욘드미트의 2026년 YTD 수익률은 약 -61%로, 2025년과 2026년 모두 지수를 하회해 애초에 "순위가 바뀐 종목" 표에 들어갈 자격이 없었습니다. 해당 행은 삭제했습니다. 나머지 5개 종목은 같은 유형의 분할 조정 오류가 없는지 다시 확인했고 문제없음을 확인했습니다.*
 
 *참고: 이 표는 이 사이트가 2년 치 데이터를 확보한 개별 종목 약 24개만을 대상으로 한 것으로, 앞서 언급한 "30.5%"(전체 S&P500 500개 종목 기준 수치)와는 표본 자체가 다르다. PLTR·AVGO·ORCL·UNH 등 이 블로그가 이전에 다뤘던 일부 종목은 로컬 데이터가 아직 2년 치를 채우지 못해 이번 비교에서 제외했다. "YTD" 기준일이 종목별로 8월 31일~9월 10일(2026년) 사이로 조금씩 다른 것은 이 사이트가 종목 데이터를 순환 방식으로 갱신하기 때문이다.*
 
