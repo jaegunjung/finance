@@ -40,6 +40,23 @@ Here's where things diverged from what I expected. Through 2026, the equal-weigh
   <div style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:6px;">SPY vs. RSP, indexed to 100 at the start of 2026 (illustrative)</div>
 </div>
 
+**Which stocks actually swapped places?** Looking at the roughly two dozen individual stocks this site tracks with at least two years of price history, several names flipped their status relative to the index between 2025 and 2026:
+
+| Stock | 2025 return | 2026 YTD return | Change |
+|---|---|---|---|
+| Beyond Meat (BYND) | **-78.2%** (lagged) | **+1,311.0%** (as of 9/2, led) | Newly leading |
+| Apple (AAPL) | **+8.6%** (lagged) | **+20.1%** (as of 9/10, led) | Newly leading |
+| Delta Air Lines (DAL) | **+16.1%** (lagged) | **+13.2%** (as of 9/2, led) | Newly leading |
+| Alphabet (GOOGL / GOOG) | **+66.0% / +64.8%** (led) | **+7.8% / +6.4%** (as of 9/2, lagged) | Fell out of the lead |
+| Uber (UBER) | **+35.5%** (led) | **-11.2%** (as of 9/10, lagged) | Fell out of the lead |
+| Alibaba (BABA) | **+75.8%** (led) | **-25.3%** (as of 9/10, lagged) | Fell out of the lead |
+
+*(For reference, SPY returned **+18.0%** in 2025 and **+11.1%** year-to-date as of 9/10, 2026.)*
+
+Alphabet's reversal is the clearest confirmation of the "correction in the leaders themselves" story above -- one of 2025's strongest Magnificent Seven names is now trailing the index in 2026. Beyond Meat is the outlier to read carefully: a heavily-shorted, low-priced stock, its move looks more like a squeeze than a fundamental turnaround, and shouldn't be read the same way as Apple's or Delta's steadier improvement.
+
+*Note: this table covers only the ~24 individually-tracked stocks on this site with enough price history to compare both years -- a much smaller and different sample than the "30.5%" breadth figure cited earlier, which covers the full S&P 500. A few names this blog has covered before, including PLTR, AVGO, ORCL, and UNH, don't yet have two full years of local price history and are excluded from this comparison for that reason. "Year-to-date" reference dates vary slightly by stock (Aug 31 - Sep 10, 2026) because of how this site's data pipeline refreshes tracked symbols.*
+
 In fact, the Philadelphia Semiconductor Index (SOX) dropped **20.6%** in July alone. Big Tech's (Microsoft, Alphabet, Amazon, Meta) consensus AI capex estimate more than doubled in a year, from **$330 billion** to **$714 billion** -- but over the same period, capex as a share of EBITDA jumped from **52%** to **86%**, and the market started questioning whether that spending was translating into cash flow. That's the backdrop for why the AI-infrastructure names I bought near their May-June highs went on to chop sideways and correct.
 
 ## 3. Bitcoin and ENVX: a double dose of risk-asset pain
@@ -74,7 +91,7 @@ Pulling it together, my account's weak 2026 wasn't caused by "worsening concentr
 
 *This post is based on publicly available market data as of September 12, 2026, and is not investment advice.*
 
-**Sources used in this post**: S&P Dow Jones Indices (S&P 500 index and constituent contribution data); Invesco RSP (equal-weight S&P 500 ETF) price data; CoinGecko / CoinMarketCap (Bitcoin monthly price data); U.S. Energy Information Administration (EIA, WTI spot price data); Federal Reserve Bank of St. Louis (FRED, 10-year Treasury yield); Enovix Corporation disclosures and press releases; Philadelphia Semiconductor Index (SOX) closing price data. These are general references for the figures cited rather than a formal citation list -- verify and link the exact sources before republishing elsewhere.
+**Sources used in this post**: S&P Dow Jones Indices (S&P 500 index and constituent contribution data); Invesco RSP (equal-weight S&P 500 ETF) price data; CoinGecko / CoinMarketCap (Bitcoin monthly price data); U.S. Energy Information Administration (EIA, WTI spot price data); Federal Reserve Bank of St. Louis (FRED, 10-year Treasury yield); Enovix Corporation disclosures and press releases; Philadelphia Semiconductor Index (SOX) closing price data; this site's own tracked daily price history (Alpha Vantage) for the stock-by-stock 2025 vs. 2026 comparison table. These are general references for the figures cited rather than a formal citation list -- verify and link the exact sources before republishing elsewhere.
 
 </div>
 
@@ -105,6 +122,23 @@ Pulling it together, my account's weak 2026 wasn't caused by "worsening concentr
   <img src="{{ '/assets/images/blog/2026-09-12-rsp-vs-spy.svg' | relative_url }}" alt="S&P500과 동일가중지수(RSP)의 2026년 흐름 비교 차트" style="width:100%; max-width:640px; border-radius:8px; display:block; margin:0 auto;">
   <div style="text-align:center; font-size:0.78rem; color:var(--text-muted); margin-top:6px;">S&P500(SPY) vs 동일가중 S&P500(RSP), 2026년 초 = 100 기준 (개념도)</div>
 </div>
+
+**실제로 어떤 종목이 자리를 바꿨을까.** 이 사이트가 2년 이상 시세 데이터를 확보한 개별 종목 약 24개를 놓고 보면, 2025년과 2026년 사이에 지수 대비 성과가 뒤바뀐 종목들이 눈에 띈다.
+
+| 종목 | 2025년 수익률 | 2026년 YTD 수익률 | 변화 |
+|---|---|---|---|
+| 비욘드미트(BYND) | **-78.2%** (지수 하회) | **+1,311.0%** (9/2 기준, 지수 상회) | 신규 아웃퍼폼 |
+| 애플(AAPL) | **+8.6%** (지수 하회) | **+20.1%** (9/10 기준, 지수 상회) | 신규 아웃퍼폼 |
+| 델타항공(DAL) | **+16.1%** (지수 하회) | **+13.2%** (9/2 기준, 지수 상회) | 신규 아웃퍼폼 |
+| 알파벳(GOOGL/GOOG) | **+66.0%/+64.8%** (지수 상회) | **+7.8%/+6.4%** (9/2 기준, 지수 하회) | 아웃퍼폼 이탈 |
+| 우버(UBER) | **+35.5%** (지수 상회) | **-11.2%** (9/10 기준, 지수 하회) | 아웃퍼폼 이탈 |
+| 알리바바(BABA) | **+75.8%** (지수 상회) | **-25.3%** (9/10 기준, 지수 하회) | 아웃퍼폼 이탈 |
+
+*(참고: SPY는 2025년 **+18.0%**, 2026년은 9/10 기준 **+11.1%**.)*
+
+알파벳의 역전은 앞서 말한 "쏠림 종목 자체의 조정" 이야기를 가장 분명하게 뒷받침하는 사례다 — 2025년 매그니피센트7 중에서도 가장 강했던 종목 중 하나가 2026년엔 오히려 지수보다 못한 성과를 내고 있다. 비욘드미트는 예외적인 사례로 읽어야 한다 — 공매도 비중이 높은 저가주의 숏스퀴즈성 급등에 가까워서, 애플·델타항공처럼 꾸준한 개선과는 성격이 다르다.
+
+*참고: 이 표는 이 사이트가 2년 치 데이터를 확보한 개별 종목 약 24개만을 대상으로 한 것으로, 앞서 언급한 "30.5%"(전체 S&P500 500개 종목 기준 수치)와는 표본 자체가 다르다. PLTR·AVGO·ORCL·UNH 등 이 블로그가 이전에 다뤘던 일부 종목은 로컬 데이터가 아직 2년 치를 채우지 못해 이번 비교에서 제외했다. "YTD" 기준일이 종목별로 8월 31일~9월 10일(2026년) 사이로 조금씩 다른 것은 이 사이트가 종목 데이터를 순환 방식으로 갱신하기 때문이다.*
 
 실제로 7월 한 달간 필라델피아 반도체지수(SOX)는 **20.6%** 급락했다. 빅테크(마이크로소프트·알파벳·아마존·메타)의 AI 설비투자 컨센서스는 1년 만에 **3,300억** 달러에서 **7,140억** 달러로 두 배 넘게 불었지만, 같은 기간 EBITDA 대비 자본지출 비중은 **52%**에서 **86%**로 치솟으며 "투자 대비 현금흐름"에 대한 의구심이 시장을 짓눌렀다. 내가 5~6월 고점 부근에서 들어간 AI 인프라주들이 이후 횡보·조정을 겪은 배경이 여기에 있다.
 
@@ -140,6 +174,6 @@ ENVX는 더 가혹했다. 8월 13일 CEO가 전격 사임하며 주가가 하루
 
 *이 글은 2026년 9월 12일 기준 공개된 시장 데이터를 바탕으로 작성되었으며, 투자 조언이 아닙니다.*
 
-**이 글에서 사용한 주요 출처**: S&P Dow Jones Indices(S&P500 지수 및 종목별 기여도 데이터); Invesco RSP(동일가중 S&P500 ETF) 가격 데이터; CoinGecko / CoinMarketCap(비트코인 월별 가격 데이터); 미 에너지정보청(EIA, WTI 현물가격 데이터); 세인트루이스 연방준비은행(FRED, 미 국채 10년물 금리); Enovix Corporation 공시자료 및 보도자료; 필라델피아 반도체지수(SOX) 종가 데이터. 위 출처는 인용 수치의 일반적 출처를 밝힌 것이며, 다른 곳에 다시 게시하기 전에 정확한 링크를 직접 확인해 추가하는 것을 권장합니다.
+**이 글에서 사용한 주요 출처**: S&P Dow Jones Indices(S&P500 지수 및 종목별 기여도 데이터); Invesco RSP(동일가중 S&P500 ETF) 가격 데이터; CoinGecko / CoinMarketCap(비트코인 월별 가격 데이터); 미 에너지정보청(EIA, WTI 현물가격 데이터); 세인트루이스 연방준비은행(FRED, 미 국채 10년물 금리); Enovix Corporation 공시자료 및 보도자료; 필라델피아 반도체지수(SOX) 종가 데이터; 종목별 2025 vs 2026 비교표는 이 사이트가 자체 추적 중인 일별 시세 데이터(Alpha Vantage 기반)를 직접 계산한 것. 위 출처는 인용 수치의 일반적 출처를 밝힌 것이며, 다른 곳에 다시 게시하기 전에 정확한 링크를 직접 확인해 추가하는 것을 권장합니다.
 
 </div>
