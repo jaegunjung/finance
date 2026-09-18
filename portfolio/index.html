@@ -291,6 +291,26 @@ title: 포트폴리오
         </div>
       </div>
 
+      <!-- Annual (single-year, NOT cumulative) returns vs QQQ / SPY / SGOV -->
+      <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
+        <div style="padding:16px 18px 12px; border-bottom:1px solid var(--border);">
+          <div class="port-section-label" style="margin-bottom:0;">연간 수익률 비교 (%) — 그 해만, 누적 아님</div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="anlAnnualTable" style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:520px;">
+            <thead><tr id="anlAnnualHead" style="background:var(--bg-secondary);"></tr></thead>
+            <tbody id="anlAnnualBody"></tbody>
+          </table>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.72rem; margin:0; padding:10px 18px 14px;">
+          각 칸은 해당 연도 1/1~12/31(올해는 오늘까지)의 수익률만입니다 — 연도별로 누적되지 않습니다. 메인 페이지의 연간 수익률 표와 같은 방식으로 계산한 QQQ·SPY(수정 종가)와 SGOV(실제 연도별 총수익률, 배당 재투자)를 내 계좌와 나란히 비교합니다.
+          <b>내 계좌</b> = 그 해 보유 종목의 손익 ÷ (연초 평가액 + 그 해 순매수액의 기간 가중) — 연중 매수·매도 시점을 반영한 Modified Dietz 방식이며, 거래 시점·원금 분류·로트 방식에는 영향을 받지 않습니다.
+          <sup>*</sup> 표시는 연중에 시작한 기간(첫 거래일 또는 원금 설정 기준일부터)의 수익률이라 같은 해 벤치마크(1/1 기준)와 기간이 다릅니다.
+          현금 배당 수령분은 포함되지 않습니다(DRIP 재투자분은 포함).
+          <span id="anlAnnualWarn"></span>
+        </p>
+      </div>
+
       <!-- Cumulative gain chart -->
       <div class="card" style="margin-bottom:20px;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
@@ -2677,7 +2697,19 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
   let mtmRealized = 0, evIdx = 0;
   const yearCumGain = {};
   const yearMtmValue = {};
-  for (const yr of allYears) {
+  // 연간(그 해만) 표는 거래가 없던 해도 빠짐없이 보여줘야 하므로 첫 거래 해~올해까지
+  // 연속 구간을 순회한다 (allYears는 거래가 있던 해만 담고 있어 기존 표는 그대로 씀).
+  const firstEvDate = events[0].date;
+  const annYears = [];
+  for (let y = Number(firstEvDate.slice(0, 4)); y <= Number(curYear); y++) annYears.push(String(y));
+  // V for the annual return: priced holdings at market value, holdings with
+  // NO price available (delisted tickers, warrants, funds without a CSV) at
+  // cost — the same "unrealized = 0" treatment yearCumGain above gives them.
+  // Because flows below include every trade, Σ(annual $ gain) then equals
+  // the cumulative gain exactly (gain = ΔV − netFlow telescopes).
+  const yearAnnValue = {};
+  const annUnpricedSyms = new Set();
+  for (const yr of annYears) {
     const isCurYr = yr === curYear;
     const cutoff  = isCurYr ? today : `${yr}-12-31`;
     while (evIdx < events.length && events[evIdx].date <= cutoff) {
@@ -2695,16 +2727,32 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
       mtmHold[ev.sym] = h;
       evIdx++;
     }
-    let unreal = 0, mtmValue = 0;
+    let unreal = 0, mtmValue = 0, annValue = 0;
     for (const [sym, h] of Object.entries(mtmHold)) {
       const { shares, cost } = _lotTotals(h.lots);
       if (shares <= 0) continue;
       const p = isCurYr ? (currentPriceMap[sym] ?? _priceOnOrBefore(sym, cutoff)) : _priceOnOrBefore(sym, cutoff);
-      if (p != null) { unreal += p * shares - cost; mtmValue += p * shares; }
+      if (p != null) { unreal += p * shares - cost; mtmValue += p * shares; annValue += p * shares; }
+      else { annValue += cost; annUnpricedSyms.add(sym); }
     }
     yearCumGain[yr] = mtmRealized + unreal;
     yearMtmValue[yr] = mtmValue;
+    yearAnnValue[yr] = annValue;
   }
+
+  // Trade cash legs for the annual (Modified Dietz) return: a buy puts
+  // money into the holdings sleeve, a sell takes proceeds out; DRIP/split add
+  // shares without any cash movement, so they're gains, not flows.
+  const annFlows = [];
+  for (const ev of events) {
+    if (ev.type === 'split' || ev.type === 'drip' || _CASH_SYMS.has(ev.sym) || !(ev.shares > 0)) continue;
+    if (BUY_T.has(ev.type)) annFlows.push({ date: ev.date, amt: ev.amount + (ev.commission || 0) });
+    else if (SELL_T.has(ev.type)) annFlows.push({ date: ev.date, amt: -(ev.amount - (ev.commission || 0)) });
+  }
+  const annRows = _anlAnnualDollars({
+    annYears, curYear, today, firstEvDate, flows: annFlows, yearAnnValue,
+    manual: (isManualPrincipalAcct && manualAsOfDate) ? { asOf: manualAsOfDate, principal: manualPrincipal } : null,
+  });
 
   // Per-year dollar figures (invested / gain / SPY & SGOV gain+cost in $)
   // so multiple portfolios can be blended by SUMMING DOLLARS before
@@ -2768,7 +2816,7 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
   const dedupedTimeline = Object.values(tlByDate).sort((a, b) => a.date.localeCompare(b.date));
 
   return {
-    timeline: dedupedTimeline, allYears, yearRows,
+    timeline: dedupedTimeline, allYears, yearRows, annYears, annRows, annUnpriced: [...annUnpricedSyms],
     totalInvestedThis, totalGainThis, spyTotalGainD, spyTotalCostD,
     holdingsForPie, events, currentPriceMap, spyToday,
     hasExplicitPrincipalOverrides,
@@ -2943,6 +2991,14 @@ async function portLoadAnalysis() {
       </tr>`;
     }
     document.getElementById('anlYearTableBody').innerHTML = tbody;
+    _anlRenderAnnualTable(_anlMergeAnnualRows(results), spyPrices, qqqPrices, sgovPrices, today);
+    const _annWarn = document.getElementById('anlAnnualWarn');
+    if (_annWarn) {
+      const unpriced = [...new Set(results.flatMap(r => r.annUnpriced))].sort();
+      _annWarn.textContent = unpriced.length
+        ? `가격 데이터가 없는 보유 종목(${unpriced.join(', ')})은 원가로 평가되어 미실현 손익이 반영되지 않습니다.`
+        : '';
+    }
 
     // Show "원금 설정" button only when a single account/portfolio is
     // selected — the override is account-specific and meaningless for "All".
@@ -3409,6 +3465,117 @@ function _anlParsePriceCsv(text) {
     if (d && !isNaN(v) && v > 0) map[d] = v;
   }
   return map;
+}
+
+// ── 연간(그 해만) 수익률 비교 표 helpers ─────────────────────────────
+// Calendar-year return (%) of a { date: price } map — same rule as the
+// landing page's yearReturn() (index.html): prior-year-end close → this
+// year's last close on/before Dec 31 (or today, for the in-progress year);
+// falls back to the year's first price when the series starts mid-year.
+const _anlSortedDatesCache = new WeakMap();
+function _anlCalendarYearReturn(priceMap, year, today) {
+  if (!priceMap) return null;
+  let dates = _anlSortedDatesCache.get(priceMap);
+  if (!dates) { dates = Object.keys(priceMap).sort(); _anlSortedDatesCache.set(priceMap, dates); }
+  if (!dates.length) return null;
+  const lastOnOrBefore = end => { for (let i = dates.length - 1; i >= 0; i--) if (dates[i] <= end) return priceMap[dates[i]]; return null; };
+  const currEnd = String(year) === today.slice(0, 4) ? today : `${year}-12-31`;
+  let prevP = lastOnOrBefore(`${year - 1}-12-31`);
+  if (prevP == null) { const first = dates.find(d => d >= `${year}-01-01`); prevP = first ? priceMap[first] : null; }
+  const currP = lastOnOrBefore(currEnd);
+  return (prevP && currP) ? (currP / prevP - 1) * 100 : null;
+}
+
+// Modified-Dietz dollars for each calendar year of ONE portfolio's holdings:
+//   gain = V_end − V_start − netFlow      (netFlow = buys − sell proceeds)
+//   base = V_start + Σ netFlow_i × (days remaining in period / period days)
+// gain/base is that year's return alone — never cumulative. Returned as
+// dollars (not %) so several portfolios can be summed before dividing,
+// same policy as _anlMergeYearRows. V_* are priced-holdings market values
+// (yearAnnValue), flows are trade cash legs — no dependence on lot method
+// or on the 원금 (principal) classification.
+function _anlAnnualDollars({ annYears, curYear, today, firstEvDate, flows, yearAnnValue, manual }) {
+  const dayIdx = d => Date.parse(d + 'T00:00:00Z') / 86400000;
+  const out = {};
+  annYears.forEach((yr, i) => {
+    const end = yr === curYear ? today : `${yr}-12-31`;
+    let start = `${yr}-01-01`;
+    let vStart = i > 0 ? yearAnnValue[annYears[i - 1]] : 0;
+    let partialFrom = null;
+    if (i === 0 && firstEvDate > start) { start = firstEvDate; partialFrom = start; }
+    let skipUpTo = null; // flows on/before this date are already inside the pinned snapshot
+    if (manual) {
+      if (end < manual.asOf) { out[yr] = null; return; }
+      if (start <= manual.asOf) { start = manual.asOf; vStart = manual.principal; skipUpTo = manual.asOf; partialFrom = start; }
+    }
+    const D = dayIdx(end) - dayIdx(start) + 1;
+    let netFlow = 0, weighted = 0;
+    for (const f of flows) {
+      if (f.date < start || f.date > end) continue;
+      if (skipUpTo && f.date <= skipUpTo) continue;
+      netFlow += f.amt;
+      weighted += f.amt * (D - (dayIdx(f.date) - dayIdx(start))) / D;
+    }
+    const base = vStart + weighted;
+    out[yr] = base > 0 ? { gain: yearAnnValue[yr] - vStart - netFlow, base, partialFrom } : null;
+  });
+  return out;
+}
+
+function _anlMergeAnnualRows(results) {
+  const years = [...new Set(results.flatMap(r => r.annYears))].sort();
+  const rows = {};
+  for (const yr of years) {
+    let gain = 0, base = 0, any = false, partialFrom = null;
+    for (const r of results) {
+      const a = r.annRows[yr];
+      if (!a) continue;
+      gain += a.gain; base += a.base; any = true;
+      if (a.partialFrom && (!partialFrom || a.partialFrom < partialFrom)) partialFrom = a.partialFrom;
+    }
+    rows[yr] = any && base > 0 ? { gain, base, partialFrom } : null;
+  }
+  return { years, rows };
+}
+
+// Same green/red heat-map scale as the landing page's annual-returns table
+// (index.html cellStyle) — per column, scaled to that column's max gain/loss.
+function _anlHeatCell(val, colVals) {
+  if (val == null) return { bg: 'transparent', color: 'var(--text-muted)', shadow: 'none' };
+  const pos = colVals.filter(v => v != null && v > 0), neg = colVals.filter(v => v != null && v < 0);
+  const maxPos = pos.length ? Math.max(...pos) : 1, minNeg = neg.length ? Math.min(...neg) : -1;
+  const t = val >= 0 ? (maxPos > 0 ? Math.min(1, val / maxPos) : 0) : (minNeg < 0 ? Math.min(1, Math.abs(val) / Math.abs(minNeg)) : 0);
+  const l = Math.round(13 + 22 * t), s = Math.round(70 * t);
+  return { bg: `hsl(${val >= 0 ? 120 : 0},${s}%,${l}%)`, color: t > 0.25 ? '#e6edf3' : 'var(--text-secondary)',
+           shadow: `inset 0 1px rgba(255,255,255,${0.05 + 0.1 * t}), inset 0 -1px rgba(0,0,0,${0.1 + 0.15 * t})` };
+}
+
+function _anlRenderAnnualTable(ann, spyPrices, qqqPrices, sgovPrices, today) {
+  const head = document.getElementById('anlAnnualHead'), body = document.getElementById('anlAnnualBody');
+  if (!head || !body) return;
+  const curYear = today.slice(0, 4);
+  const years = ann.years;
+  const rows = [
+    { label: 'QQQ',    vals: years.map(y => _anlCalendarYearReturn(qqqPrices,  +y, today)) },
+    { label: 'SPY',    vals: years.map(y => _anlCalendarYearReturn(spyPrices,  +y, today)) },
+    { label: '내 계좌', mine: true,
+      vals: years.map(y => ann.rows[y] ? ann.rows[y].gain / ann.rows[y].base * 100 : null),
+      partial: years.map(y => ann.rows[y]?.partialFrom || null) },
+    { label: 'SGOV',   vals: years.map(y => _anlCalendarYearReturn(sgovPrices, +y, today)) },
+  ];
+  const thBase = 'padding:8px 8px; color:var(--text-secondary); font-weight:600; text-align:right; white-space:nowrap;';
+  head.innerHTML = `<th style="text-align:left; padding:8px 10px; color:var(--text-secondary); font-weight:600; min-width:110px; position:sticky; left:0; background:var(--bg-secondary); z-index:1;">종목</th>`
+    + years.map(y => `<th style="${thBase}">${y}${y === curYear ? ' <span style="font-size:0.7em;color:var(--accent-blue);">YTD</span>' : ''}</th>`).join('');
+  const colVals = years.map((_, ci) => rows.map(r => r.vals[ci]).filter(v => v != null));
+  body.innerHTML = rows.map(r => {
+    const td0 = `<td style="padding:5px 10px; color:var(--text-primary); font-weight:${r.mine ? 700 : 500}; white-space:nowrap; position:sticky; left:0; background:var(--bg-card); z-index:1; border-bottom:1px solid var(--border);${r.mine ? ' border-left:3px solid var(--accent-amber);' : ''}">${r.label}</td>`;
+    const cells = r.vals.map((v, ci) => {
+      const { bg, color, shadow } = _anlHeatCell(v, colVals[ci]);
+      const star = (r.mine && r.partial[ci] && v != null) ? `<sup title="${r.partial[ci]}부터의 기간 수익률 (연중 시작)" style="cursor:help;">*</sup>` : '';
+      return `<td style="padding:5px 8px; text-align:right; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; background:${bg}; color:${color}; box-shadow:${shadow};${r.mine ? ' font-weight:600;' : ''}">${v != null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—'}${star}</td>`;
+    }).join('');
+    return `<tr>${td0}${cells}</tr>`;
+  }).join('');
 }
 
 // ── Synthetic SGOV NAV series, built from known annual total returns ──
