@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "S&P 500 Trend Channel & Current Position"
 title_en: "S&P 500 Trend Channel & Current Position"
 title_ko: "S&P 500 추세 채널과 현재 위치"

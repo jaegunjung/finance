@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Fed Rate Cycles vs S&P 500: What History Actually Says"
 title_en: "Fed Rate Cycles vs S&P 500: What History Actually Says"
 title_ko: "연준 금리 사이클과 S&P 500 — 역사는 뭐라고 말하나"

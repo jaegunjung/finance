@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Bitcoin's Surge: Is the Treasury's Long-Bond Buyback Really the Cause?"
 title_en: "Bitcoin's Surge: Is the Treasury's Long-Bond Buyback Really the Cause?"
 title_ko: "비트코인 급등, 재무부 장기채 바이백 확대가 진짜 원인인가"

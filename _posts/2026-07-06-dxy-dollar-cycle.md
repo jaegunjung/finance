@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "The Dollar Cycle: What Happens to Stocks and Crypto When DXY Falls"
 title_en: "The Dollar Cycle: What Happens to Stocks and Crypto When DXY Falls"
 title_ko: "달러 인덱스 사이클 — DXY가 내려가면 무슨 일이 벌어지나"

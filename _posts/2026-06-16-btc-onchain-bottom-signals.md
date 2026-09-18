@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "3 On-Chain Bottom Signals for Bitcoin — Are They Flashing Now?"
 title_en: "3 On-Chain Bottom Signals for Bitcoin — Are They Flashing Now?"
 title_ko: "BTC 온체인 저점 신호 3가지 — 지금 깜빡이고 있나"

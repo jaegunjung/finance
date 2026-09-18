@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Bitcoin's 200-Week Moving Average: What History Says When It Breaks"
 title_en: "Bitcoin's 200-Week Moving Average: What History Says When It Breaks"
 title_ko: "비트코인 200주 이동평균 — 역사상 이 선을 깼을 때 어떻게 됐나"

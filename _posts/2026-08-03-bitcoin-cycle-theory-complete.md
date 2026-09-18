@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "The Complete Bitcoin Cycle Theory: Where Halving, On-Chain & Macro Converge"
 title_en: "The Complete Bitcoin Cycle Theory: Where Halving, On-Chain & Macro Converge"
 title_ko: "비트코인 주기 이론 완전 가이드 — 반감기·온체인·매크로의 교차점"

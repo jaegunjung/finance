@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "US Crypto Legislation: GENIUS Act, Clarity Act & ARMA"
 title_en: "US Crypto Legislation: GENIUS Act Signed, Clarity Act D-40, ARMA Introduced"
 title_ko: "미국 크립토 입법 현황: GENIUS Act 통과, Clarity Act D-40일, ARMA 발의"

@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Market Cycle Checklist for Individual Investors"
 title_en: "Market Cycle Checklist for Individual Investors"
 title_ko: "개인 투자자를 위한 시장 사이클 체크리스트"

@@ -1,5 +1,6 @@
 ---
-layout: post
+layout: post
+deep_dive: true
 title: "2026 Mid-Year Check: The Index Is Up 12%, My Portfolio Is Up 3% — What Actually Caused the Gap"
 title_en: "2026 Mid-Year Check: The Index Is Up 12%, My Portfolio Is Up 3% — What Actually Caused the Gap"
 title_ko: "2026년 중간 결산: 지수는 12%, 내 계좌는 3% — 그 격차의 정체"

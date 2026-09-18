@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "450 Days After Bitcoin Halving: This Has Happened Every Single Time"
 title_en: "450 Days After Bitcoin Halving: This Has Happened Every Single Time"
 title_ko: "비트코인 반감기 후 450일 — 지금까지 항상 이 일이 일어났다"

@@ -17,7 +17,7 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
 
 <ul class="post-list">
   {% for post in site.posts %}
-  <li class="post-item">
+  <li class="post-item{% if post.deep_dive %} deep-dive{% endif %}">
     <a href="{{ post.url | relative_url }}">
       <div class="post-meta">
         <span>{{ post.date | date: "%Y-%m-%d" }}</span>
@@ -26,6 +26,7 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
         {% endfor %}
       </div>
       <h3>
+        {% if post.deep_dive %}{% include deep-dive-badge.html %}{% endif %}
         {% if post.title_en or post.title_ko %}
           <span class="en-only">{{ post.title_en | default: post.title }}</span>
           <span class="ko-only">{{ post.title_ko | default: post.title }}</span>

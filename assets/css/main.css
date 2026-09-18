@@ -354,6 +354,13 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
   transition: border-color 0.15s;
 }
 .post-item:hover { border-color: var(--accent-blue); }
+/* Posts written interactively (not by the auto-news-watch bot): front matter `deep_dive: true` */
+.post-item.deep-dive {
+  border-left: 4px solid var(--accent-amber);
+  background: linear-gradient(90deg, rgba(210,153,34,0.10), var(--bg-card) 40%);
+}
+.post-item.deep-dive:hover { border-color: var(--accent-amber); }
+.dd-badge { color: var(--accent-amber); font-weight: 700; margin-right: 0.35em; }
 .post-item a { text-decoration: none; }
 .post-item h3 { color: var(--text-primary); font-size: 1.05rem; margin-bottom: 4px; }
 .post-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; display: flex; gap: 12px; align-items: center; }

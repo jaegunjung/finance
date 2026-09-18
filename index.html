@@ -289,13 +289,14 @@ description_ko: "S&P 500·비트코인·매크로 지표의 장기 정량 분석
   </h2>
   <ul class="post-list" style="margin-top:12px;">
     {% for post in site.posts limit:3 %}
-    <li class="post-item">
+    <li class="post-item{% if post.deep_dive %} deep-dive{% endif %}">
       <a href="{{ post.url | relative_url }}">
         <div class="post-meta">
           <span>{{ post.date | date: "%Y-%m-%d" }}</span>
           {% for cat in post.categories %}<span class="badge badge-{{ cat }}">{{ cat }}</span>{% endfor %}
         </div>
         <h3>
+          {% if post.deep_dive %}{% include deep-dive-badge.html %}{% endif %}
           {% if post.title_en or post.title_ko %}
             <span class="en-only">{{ post.title_en | default: post.title }}</span>
             <span class="ko-only">{{ post.title_ko | default: post.title }}</span>

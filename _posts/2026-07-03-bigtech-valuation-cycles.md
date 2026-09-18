@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Big Tech Valuation Cycles: Where FAANG Stands Historically by P/E"
 title_en: "Big Tech Valuation Cycles: Where FAANG Stands Historically by P/E"
 title_ko: "빅테크 5인방 밸류에이션 사이클 — PER로 본 역사적 위치"

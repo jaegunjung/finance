@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Three Clocks, One Week: Clarity Act's Failure, the Midterm Countdown, and the Fed's First Hike Since 2023"
 title_en: "Three Clocks, One Week: Clarity Act's Failure, the Midterm Countdown, and the Fed's First Hike Since 2023"
 title_ko: "한 주에 겹친 세 개의 시계: Clarity Act 부결, 중간선거 카운트다운, 2023년 이후 첫 금리인상"

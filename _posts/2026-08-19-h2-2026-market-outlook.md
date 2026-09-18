@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "H2 2026 Market Outlook: Where Log-Scale & Cycle Analysis Point"
 title_en: "H2 2026 Market Outlook: Where Log-Scale & Cycle Analysis Point"
 title_ko: "2026 하반기 시장 전망 — 로그 스케일과 사이클이 가리키는 곳"

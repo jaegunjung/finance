@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "ETH vs BTC in Bear Markets: Which Holds Up Better?"
 title_en: "ETH vs BTC in Bear Markets: Which Holds Up Better?"
 title_ko: "이더리움 vs 비트코인 — 하락장에서 어느 쪽이 덜 무너지나"

@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Why Linear Charts Lie: A Beginner's Guide to Log-Scale Investing"
 title_en: "Why Linear Charts Lie: A Beginner's Guide to Log-Scale Investing"
 title_ko: "왜 선형 차트는 당신을 속이는가 — 로그 스케일 입문"

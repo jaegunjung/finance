@@ -108,3 +108,11 @@
   - API 로드 실패/치명적 JS 콘솔 에러
 - 새 테스트가 필요하면 이 파일에 추가할 것 — 별도 테스트 파일을 새로 만들지 말 것
   (이미 git-log 기반 동적 검증 구조가 있으므로 중복 생성 금지).
+
+# 심층 분석(deep_dive) 포스트 표시
+- 사용자와 토의하며 직접 쓴 글은 front matter에 `deep_dive: true`를 넣는다. 블로그/홈 목록에서
+  강조(노란 좌측 바)되고 제목 앞에 `[심층 분석]`/`[Deep Dive]`가 렌더링 시점에 붙는다
+  (`_includes/deep-dive-badge.html` — 제목 문자열 자체는 수정하지 말 것).
+- `daily-news-watch` 등 봇이 자동 생성하는 글에는 **절대 `deep_dive`를 넣지 말 것**
+  (최근 글의 front matter를 복사하다가 이 필드를 따라 쓰지 않도록 주의).
+- 구분 기준: git 작성자가 `claude[bot]`이거나 커밋 메시지에 `[auto-news-watch]`가 있으면 자동 생성.

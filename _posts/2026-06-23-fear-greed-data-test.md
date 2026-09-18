@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "\"Buy Fear, Sell Greed\" — Does It Actually Work? A Data Test"
 title_en: "\"Buy Fear, Sell Greed\" — Does It Actually Work? A Data Test"
 title_ko: "공포에 사고 탐욕에 팔아 — 실제로 작동하는가? 데이터로 검증"

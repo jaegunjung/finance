@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "S&P 500: Five Phases of Growth"
 title_en: "S&P 500: Five Phases of Growth"
 title_ko: "S&P 500: 성장률의 5가지 국면"

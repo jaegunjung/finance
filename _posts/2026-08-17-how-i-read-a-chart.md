@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "How I Read a Chart: The JJ Analysis Process, Step by Step"
 title_en: "How I Read a Chart: The JJ Analysis Process, Step by Step"
 title_ko: "내가 차트를 읽는 방법 — JJ Analysis 분석 프로세스 공개"

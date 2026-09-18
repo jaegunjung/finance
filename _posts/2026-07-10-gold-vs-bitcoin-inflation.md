@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Gold vs Bitcoin as Inflation Hedge: The Data-Driven Verdict"
 title_en: "Gold vs Bitcoin as Inflation Hedge: The Data-Driven Verdict"
 title_ko: "금 vs 비트코인 — 인플레이션 헤지로서 누가 이기나"

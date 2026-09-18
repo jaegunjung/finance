@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Where Are We in the AI Bubble Cycle?"
 title_en: "Where Are We in the AI Bubble Cycle? Reading 2026 S&P 500 via Shinhan's Bubble Template"
 title_ko: "AI 사이클은 지금 어디쯤인가 — 신한투자증권 버블 템플릿으로 읽는 2026년 S&P 500"

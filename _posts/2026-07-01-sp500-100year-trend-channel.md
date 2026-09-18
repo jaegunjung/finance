@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "S&P 500 100-Year Trend Channel: The Complete Guide to Where We Stand"
 title_en: "S&P 500 100-Year Trend Channel: The Complete Guide to Where We Stand"
 title_ko: "S&P 500 100년 추세 채널 완전 분석 — 지금은 어디에 있나"

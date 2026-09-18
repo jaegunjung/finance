@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "5 Recession Leading Indicators — How Many Are Signaling Right Now?"
 title_en: "5 Recession Leading Indicators — How Many Are Signaling Right Now?"
 title_ko: "경기침체 선행지표 5개 — 지금 몇 개나 켜져 있나"

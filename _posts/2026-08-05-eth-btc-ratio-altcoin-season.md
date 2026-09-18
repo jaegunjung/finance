@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "Predicting Altcoin Season with the ETH/BTC Ratio"
 title_en: "Predicting Altcoin Season with the ETH/BTC Ratio"
 title_ko: "ETH/BTC 비율로 알트코인 시즌 예측하기"

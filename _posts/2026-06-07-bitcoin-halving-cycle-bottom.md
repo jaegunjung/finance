@@ -1,5 +1,6 @@
 ---
-layout: post
+layout: post
+deep_dive: true
 title: "Bitcoin Halving Cycle: Where Are We Now?"
 title_en: "Bitcoin Halving Cycle: Where Are We Now?"
 title_ko: "비트코인 반감기 사이클: 지금 우리는 어디에 있나"

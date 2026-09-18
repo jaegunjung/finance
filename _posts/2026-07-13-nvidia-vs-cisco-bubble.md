@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "NVIDIA vs Cisco 1999: Are We in a Bubble or a Paradigm Shift?"
 title_en: "NVIDIA vs Cisco 1999: Are We in a Bubble or a Paradigm Shift?"
 title_ko: "NVIDIA와 과거 반도체 붐 — 시스코 1999년과 얼마나 다른가"

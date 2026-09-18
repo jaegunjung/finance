@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "When U.S. Unemployment Rises 0.5%: History Always Says the Same Thing"
 title_en: "When U.S. Unemployment Rises 0.5%: History Always Says the Same Thing"
 title_ko: "미국 실업률이 0.5% 오를 때 — 역사는 항상 같은 말을 했다"

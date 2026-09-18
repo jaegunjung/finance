@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "10 Historic S&P 500 Corrections: A Log-Scale Perspective"
 title_en: "10 Historic S&P 500 Corrections: A Log-Scale Perspective"
 title_ko: "S&P 500 역사적 조정 10선 — 지금은 어디쯤인가"

@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "S&P 500 Sector Rotation: Which Sectors Lead in Each Economic Phase"
 title_en: "S&P 500 Sector Rotation: Which Sectors Lead in Each Economic Phase"
 title_ko: "S&P 500 섹터 로테이션 — 경기 국면별 어느 섹터가 앞서나"

@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "When the Yield Curve Un-Inverts: History's Most Dangerous Moment"
 title_en: "When the Yield Curve Un-Inverts: History's Most Dangerous Moment"
 title_ko: "장단기 금리 역전이 해소될 때 — 역사상 가장 위험한 순간"

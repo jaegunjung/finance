@@ -1,5 +1,6 @@
 ---
 layout: post
+deep_dive: true
 title: "The 3-Asset Portfolio for Long-Term Investors: Data-Driven Allocation"
 title_en: "The 3-Asset Portfolio for Long-Term Investors: Data-Driven Allocation"
 title_ko: "장기 투자자를 위한 포트폴리오 3분법 — 데이터로 본 최적 비중"
