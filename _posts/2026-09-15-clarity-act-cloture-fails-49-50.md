@@ -1,6 +1,5 @@
 ---
 layout: post
-deep_dive: true
 title: "Clarity Act Fails 49-50: The Ethics Concession Didn't Move a Single Democrat"
 title_en: "Clarity Act Fails 49-50: The Ethics Concession Didn't Move a Single Democrat"
 title_ko: "Clarity Act 클로처 49-50 부결 — 윤리 양보로도 민주당 표는 단 한 장도 못 움직였다"
