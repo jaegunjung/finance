@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: post
 deep_dive: true
 title: "2026 Mid-Year Check: The Index Is Up 12%, My Portfolio Is Up 3% — What Actually Caused the Gap"
 title_en: "2026 Mid-Year Check: The Index Is Up 12%, My Portfolio Is Up 3% — What Actually Caused the Gap"

@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: post
 deep_dive: true
 title: "Clarity Act Fails 49-50: The Ethics Concession Didn't Move a Single Democrat"
 title_en: "Clarity Act Fails 49-50: The Ethics Concession Didn't Move a Single Democrat"

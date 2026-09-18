@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: post
 deep_dive: true
 title: "Bitcoin Halving Cycle: Where Are We Now?"
 title_en: "Bitcoin Halving Cycle: Where Are We Now?"
