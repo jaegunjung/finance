@@ -361,6 +361,12 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
 }
 .post-item.deep-dive:hover { border-color: var(--accent-amber); }
 .dd-badge { color: var(--accent-amber); font-weight: 700; margin-right: 0.35em; }
+/* Title prefix tags: front matter `post_tag: news | macro | crypto` (see _includes/post-tag.html).
+   All amber for now; override a single class to give a category its own color. */
+.post-tag { font-weight: 700; margin-right: 0.35em; color: var(--accent-amber); }
+.post-tag-news   { color: var(--accent-amber); }
+.post-tag-macro  { color: var(--accent-amber); }
+.post-tag-crypto { color: var(--accent-amber); }
 .post-item a { text-decoration: none; }
 .post-item h3 { color: var(--text-primary); font-size: 1.05rem; margin-bottom: 4px; }
 .post-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; display: flex; gap: 12px; align-items: center; }
