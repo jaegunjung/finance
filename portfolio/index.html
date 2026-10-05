@@ -261,6 +261,16 @@ title: 포트폴리오
     </div>
     <div id="portAnalysisContent" style="display:none;">
 
+      <!-- Symbol filter: populated from the current selection's trades (see anlRenderSymbolFilter) -->
+      <div id="anlSymbolBar" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+        <div class="port-section-label" style="margin-bottom:0;">종목</div>
+        <select id="anlSymbolSelect" onchange="anlSymbolChange(this.value)" style="
+          background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px;
+          color:var(--text-primary); padding:6px 12px; font-size:0.85rem; cursor:pointer; min-width:140px;
+        "></select>
+        <span id="anlSymbolHint" style="display:none; color:var(--text-muted); font-size:0.74rem; line-height:1.5; flex:1; min-width:240px;"></span>
+      </div>
+
       <!-- Year-by-year table -->
       <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
         <div style="padding:16px 18px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
@@ -314,11 +324,16 @@ title: 포트폴리오
       <!-- Cumulative gain chart -->
       <div class="card" style="margin-bottom:20px;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-          <div class="port-section-label" style="margin-bottom:0;">누적 손익 비교 (동일 자금흐름)</div>
-          <label id="anlSgovSpyToggleWrap" style="display:none; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted); cursor:pointer;">
-            <input type="checkbox" id="anlSgovSpyToggle" onchange="anlToggleSgovSpyBlend(this.checked)" style="cursor:pointer; accent-color:var(--accent-blue);">
-            SGOV/SPY 혼합 보조선
-          </label>
+          <div class="port-section-label" style="margin-bottom:0;" id="anlGainChartTitle">누적 손익 비교 (동일 자금흐름)</div>
+          <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+            <label id="anlSgovSpyToggleWrap" style="display:none; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted); cursor:pointer;">
+              <input type="checkbox" id="anlSgovSpyToggle" onchange="anlToggleSgovSpyBlend(this.checked)" style="cursor:pointer; accent-color:var(--accent-blue);">
+              SGOV/SPY 혼합 보조선
+            </label>
+            <button id="anlTradeToggleBtn" type="button" onclick="anlToggleTrades()" aria-pressed="true" style="
+              padding:4px 12px; border-radius:20px; font-size:0.76rem; cursor:pointer; font-weight:600;
+              border:1px solid var(--border); background:none; color:var(--text-secondary);">거래 표시 ON</button>
+          </div>
         </div>
         <div style="position:relative; width:100%; height:360px;">
           <canvas id="anlGainChart"></canvas>
@@ -338,6 +353,11 @@ title: 포트폴리오
           </span>
           <span style="display:flex; align-items:center; gap:6px;">
             <span style="display:inline-block; width:20px; height:3px; background:#e8c84a; border-radius:2px;"></span>SGOV (동일 투자)
+          </span>
+          <span id="anlTradeLegend" style="display:flex; align-items:center; gap:10px;">
+            <span style="display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(63,185,80,0.55); border:1.5px solid #3fb950;"></span>매수</span>
+            <span style="display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(248,81,73,0.55); border:1.5px solid #f85149;"></span>매도</span>
+            <span style="color:var(--text-muted);">(원 크기 ∝ 거래금액)</span>
           </span>
         </div>
         <p style="color:var(--text-muted); font-size:0.73rem; margin-top:8px;">
@@ -671,6 +691,7 @@ function portDropdownChange() {
   // Group mode behaves like "All" for single-portfolio-only actions
   // (delete this portfolio, dedupe this portfolio's own trades, 원금
   // 설정 for one account) — those stay hidden/disabled in group mode.
+  _anlSymbolFilter = null; // a symbol pick belongs to the portfolio it was made in
   const hasPort = !!portActivePortfolioId;
   document.getElementById('portDeletePortfolioBtn').style.display = hasPort ? '' : 'none';
   document.getElementById('portDedupeBtn').style.display = hasPort ? '' : 'none';
@@ -2330,10 +2351,133 @@ function anlToggleSgovSpyBlend(checked) {
   _anlShowSgovSpyBlend = checked;
   if (!_anlChart || !_anlLastTlSorted) { portLoadAnalysis(); return; }
   const newBlend = (_anlLastIs401kView && _anlShowSgovSpyBlend) ? _anlBuildSgovSpyBlendDatasets(_anlLastTlSorted) : [];
-  // Dataset order is always [내 포트폴리오, 실현 손익, ...blend, SPY, QQQ, SGOV] —
-  // splice out whatever's currently in the middle slot and drop in the new set.
-  _anlChart.data.datasets.splice(2, _anlChart.data.datasets.length - 2 - 3, ...newBlend);
+  // Line-dataset order is always [내 포트폴리오, 실현 손익, ...blend, SPY, QQQ, SGOV];
+  // the trade-circle scatter datasets (if shown) ride along at the very end,
+  // so pull them out, splice the blend slot, then put them back.
+  const ds = _anlChart.data.datasets;
+  const trades = ds.filter(d => d.type === 'scatter');
+  const lines = ds.filter(d => d.type !== 'scatter');
+  lines.splice(2, lines.length - 2 - 3, ...newBlend);
+  ds.length = 0;
+  ds.push(...lines, ...trades);
   _anlChart.update();
+}
+
+// ── Trade circles (매수/매도) on the cumulative-gain chart ─────────────
+let _anlShowTrades = true;      // "거래 표시" toggle (session-wide, default ON)
+let _anlTradePoints = [];       // [{x, y, ...trade}] for the chart currently drawn
+let _anlSymbolFilter = null;    // null = 전체(All), else a ticker
+let _anlSymbolsAvail = [];      // symbols offered in the dropdown for the current selection
+
+// One circle per buy/sell, parked on the portfolio-gain line at that trade's
+// date. DRIP / splits / cash rows aren't "trades" here. `events` is whatever
+// the current view (전체 or one symbol) computed, so the filter needs nothing
+// extra: a symbol view simply has no other symbols' events to draw.
+function _anlBuildTradePoints(events, tlSorted) {
+  const gainByDate = new Map(tlSorted.map(p => [p.date, p.portGain]));
+  const pts = [];
+  for (const ev of events) {
+    const isBuy = ev.type === 'buy' || ev.type === 'buy_to_cover';
+    const isSell = ev.type === 'sell' || ev.type === 'sell_short';
+    if ((!isBuy && !isSell) || !(ev.shares > 0) || ev.sym === 'USD=CASH' || ev.sym === 'USD') continue;
+    const y = gainByDate.get(ev.date);
+    if (y == null) continue;
+    pts.push({
+      x: new Date(ev.date).getTime(), y: +y.toFixed(2),
+      side: isBuy ? 'BUY' : 'SELL', date: ev.date, sym: ev.sym,
+      shares: ev.shares, price: ev.price > 0 ? ev.price : ev.amount / ev.shares, amount: ev.amount,
+    });
+  }
+  return pts;
+}
+
+function _anlTradeRadius(amount) {
+  return amount <= 100 ? 6 : amount <= 500 ? 10 : 15;
+}
+
+function _anlBuildTradeDatasets() {
+  const mk = (label, type, rgb) => ({
+    type: 'scatter', label, order: -1, _anlTradeType: type,
+    data: _anlTradePoints.filter(p => p.side === type),
+    showLine: false,
+    backgroundColor: `rgba(${rgb},0.55)`, borderColor: `rgb(${rgb})`, borderWidth: 1.5,
+    pointRadius: ctx => _anlTradeRadius(ctx.raw?.amount || 0),
+    pointHoverRadius: ctx => _anlTradeRadius(ctx.raw?.amount || 0) + 2,
+    pointHitRadius: 2,
+  });
+  return [mk('매수', 'BUY', '63,185,80'), mk('매도', 'SELL', '248,81,73')];
+}
+
+function _anlSyncTradeBtn() {
+  const btn = document.getElementById('anlTradeToggleBtn');
+  const legend = document.getElementById('anlTradeLegend');
+  if (legend) legend.style.display = _anlShowTrades ? 'flex' : 'none';
+  if (!btn) return;
+  btn.textContent = _anlShowTrades ? '거래 표시 ON' : '거래 표시 OFF';
+  btn.setAttribute('aria-pressed', _anlShowTrades ? 'true' : 'false');
+  btn.style.background = _anlShowTrades ? 'rgba(63,185,80,0.85)' : 'var(--bg-secondary)';
+  btn.style.color = _anlShowTrades ? '#fff' : 'var(--text-muted)';
+  btn.style.borderColor = _anlShowTrades ? 'rgba(63,185,80,0.9)' : 'var(--border)';
+}
+
+// Adds/removes just the scatter datasets on the live chart — no destroy,
+// no recompute. (A portfolio/filter change goes through portLoadAnalysis,
+// which always destroys and rebuilds the chart from scratch, so circles
+// can never leak from one view into another.)
+function anlToggleTrades() {
+  _anlShowTrades = !_anlShowTrades;
+  _anlSyncTradeBtn();
+  if (!_anlChart) return;
+  const ds = _anlChart.data.datasets;
+  for (let i = ds.length - 1; i >= 0; i--) if (ds[i].type === 'scatter') ds.splice(i, 1);
+  if (_anlShowTrades) ds.push(..._anlBuildTradeDatasets());
+  _anlChart.update();
+}
+
+// Chart.js custom interaction mode: hovering a trade circle shows that
+// trade's tooltip; anywhere else falls back to the usual vertical "index"
+// tooltip across the line datasets (scatter datasets are excluded there —
+// their point indices have nothing to do with the line datasets' indices).
+const _ANL_MAX_TRADES_IN_TIP = 8;
+function _anlRegisterTradeInteraction() {
+  if (Chart.Interaction.modes.anlTradeOrIndex) return;
+  Chart.Interaction.modes.anlTradeOrIndex = function (chart, e, options, useFinalPosition) {
+    const hits = [];
+    chart.data.datasets.forEach((d, di) => {
+      if (d.type !== 'scatter' || !chart.isDatasetVisible(di)) return;
+      chart.getDatasetMeta(di).data.forEach((el, i) => {
+        if (el && !el.skip && el.inRange(e.x, e.y, useFinalPosition)) hits.push({ element: el, datasetIndex: di, index: i });
+      });
+    });
+    // Piled-up circles: list the ones closest to the cursor first, so the
+    // circle actually under the pointer is never cut off by the cap below.
+    hits.sort((a, b) => ((a.element.x - e.x) ** 2 + (a.element.y - e.y) ** 2) - ((b.element.x - e.x) ** 2 + (b.element.y - e.y) ** 2));
+    chart._anlTradeOverflow = Math.max(0, hits.length - _ANL_MAX_TRADES_IN_TIP);
+    if (hits.length) return hits.slice(0, _ANL_MAX_TRADES_IN_TIP);
+    return Chart.Interaction.modes.index(chart, e, { intersect: false, axis: 'x' }, useFinalPosition)
+      .filter(it => chart.data.datasets[it.datasetIndex].type !== 'scatter');
+  };
+}
+
+function anlSymbolChange(val) {
+  _anlSymbolFilter = val || null;
+  portLoadAnalysis({ soft: true });
+}
+
+// (Re)builds the dropdown from the symbols found in the current selection's
+// trades (single portfolio, 그룹, or 전체). If the previously picked symbol
+// isn't in this selection, falls back to 전체 and tells the caller to re-run.
+function anlRenderSymbolFilter(symbols) {
+  _anlSymbolsAvail = symbols;
+  const sel = document.getElementById('anlSymbolSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  add('', '전체 (All)');
+  for (const s of symbols) add(s, s);
+  sel.value = _anlSymbolFilter || '';
+  const bar = document.getElementById('anlSymbolBar');
+  if (bar) bar.style.display = symbols.length ? 'flex' : 'none';
 }
 let _anlLoaded = false; // reset when portfolio changes
 let _anlActivePrincipalOverride = null; // current portfolio's principal-basis override, if any
@@ -2357,6 +2501,43 @@ async function _anlFetchBenchmarkPrices() {
   };
 }
 
+// ── 종목 필터용 가상 현금 지갑 ────────────────────────────────────────────
+// A single symbol has no USD=CASH rows of its own, so every buy would look like
+// brand-new principal (even when it was funded by an earlier sell of the same
+// symbol) and the 원금/SPY 비교 would balloon on any actively traded name. This
+// recreates the whole-account behavior for that one symbol: sell proceeds go
+// into a wallet, later buys draw from it first, and only the shortfall is a
+// genuine deposit. The rows are shaped exactly like real MSP cash rows so
+// _computeNetPrincipal and the SPY/QQQ/SGOV simulation consume them unchanged
+// (flag 0 = tied to a trade, null = a genuine deposit; shares = amount).
+function _anlSyntheticWalletCash(symEvents) {
+  const isBuy = e => e.type === 'buy' || e.type === 'buy_to_cover';
+  const isSell = e => e.type === 'sell' || e.type === 'sell_short';
+  const ordered = symEvents.filter(e => (isBuy(e) || isSell(e)) && e.shares > 0)
+    .sort((a, b) => a.date.localeCompare(b.date) || (isSell(b) - isSell(a))); // same day: sells first, so proceeds can fund that day's buy
+  const mk = (date, type, amount, flag) => ({
+    date, sym: 'USD=CASH', type, amount, commission: 0, lotMethod: null,
+    shares: amount, price: 1, cashLinkFlag: flag, countAsPrincipal: null,
+  });
+  const out = [];
+  let wallet = 0;
+  for (const e of ordered) {
+    if (isBuy(e)) {
+      const cost = e.amount + (e.commission || 0);
+      const fromWallet = Math.min(wallet, cost);
+      wallet -= fromWallet;
+      const deposit = cost - fromWallet;
+      if (deposit > 1e-6) out.push(mk(e.date, 'buy', deposit, null));
+      if (cost > 1e-6) out.push(mk(e.date, 'sell', cost, 0));
+    } else {
+      const proceeds = Math.max(0, e.amount - (e.commission || 0));
+      wallet += proceeds;
+      if (proceeds > 1e-6) out.push(mk(e.date, 'buy', proceeds, 0));
+    }
+  }
+  return out;
+}
+
 // ── Compute the chart timeline + year-by-year figures for ONE portfolio ──
 // Returns null if the portfolio has no trade transactions. Every other
 // analysis mode (a single portfolio, a 그룹 of several, or 전체/all) calls
@@ -2369,7 +2550,7 @@ async function _anlFetchBenchmarkPrices() {
 // Running this exact same per-portfolio logic for a single-portfolio
 // selection too (as a "group of one") guarantees identical output to
 // before this was split out — there's exactly one code path now.
-async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPrices, sgovPrices) {
+async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPrices, sgovPrices, symbolFilter) {
   const allTxns = await window.txns.getTransactions(null, portfolioId);
   // 'split' must be included here — computePnL (used by 보유현황, via
   // transactions.js) applies stock splits to remaining share counts, but
@@ -2377,8 +2558,19 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
   // (e.g. AVGO's 10:1 split in 2024) came out understated here by
   // whatever the split ratio was, throwing off both this tab's total
   // gain and the "내 포트폴리오" chart line relative to 보유현황.
-  const tradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short','split'].includes(t.type));
-  if (!tradeTxns.length) return null;
+  const allTradeTxns = allTxns.filter(t => ['buy','sell','drip','buy_to_cover','sell_short','split'].includes(t.type));
+  if (!allTradeTxns.length) return null;
+  // Symbols this portfolio trades (cash rows aren't a "종목") — feeds the
+  // dropdown regardless of which symbol is currently being analyzed.
+  const allSymbols = [...new Set(allTradeTxns.map(t => t.symbol).filter(s => s && s !== 'USD=CASH' && s !== 'USD'))];
+  // 종목 필터: that symbol's own buys/sells/splits/DRIP only. Cash rows are
+  // dropped (they belong to the account, not a symbol) and replaced below by
+  // a synthetic "wallet" so sell proceeds can fund later buys without
+  // counting as new principal — same recycling the whole-account view gets
+  // from its real USD=CASH rows.
+  const tradeTxns = symbolFilter ? allTradeTxns.filter(t => t.symbol === symbolFilter) : allTradeTxns;
+  if (!tradeTxns.length) return { noData: true, allSymbols };
+  if (symbolFilter) override = null; // account-level 원금 설정 (manual/zero-from) has no per-symbol meaning
 
   const BUY_T  = new Set(['buy','drip','buy_to_cover']);
   const SELL_T = new Set(['sell','sell_short']);
@@ -2433,21 +2625,30 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
       // needs this raw form to tell "MSP says linked" apart from "unknown".
       cashLinkFlag: (t.price === null || t.price === undefined) ? null : Number(t.price),
       // Per-transaction override (거래내역 tab). null = no override.
-      countAsPrincipal: t.count_as_principal === true ? true : t.count_as_principal === false ? false : null,
-    }))
-    // Same-day tie-break: splits before buys/sells, matching computePnL
-    // (transactions.js) exactly — a same-day split must apply to shares
-    // bought earlier that day, not be skipped by running out of order.
-    .sort((a, b) => {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) return dateCmp;
-      const rank = e => e.type === 'split' ? 0 : ['buy','drip','buy_to_cover'].includes(e.type) ? 1 : 2;
-      return rank(a) - rank(b);
-    });
+      countAsPrincipal: symbolFilter ? null : (t.count_as_principal === true ? true : t.count_as_principal === false ? false : null),
+    }));
+  if (symbolFilter) events.push(..._anlSyntheticWalletCash(events));
+  // Same-day tie-break: splits before buys/sells, matching computePnL
+  // (transactions.js) exactly — a same-day split must apply to shares
+  // bought earlier that day, not be skipped by running out of order.
+  events.sort((a, b) => {
+    const dateCmp = a.date.localeCompare(b.date);
+    if (dateCmp !== 0) return dateCmp;
+    const rank = e => e.type === 'split' ? 0 : ['buy','drip','buy_to_cover'].includes(e.type) ? 1 : 2;
+    return rank(a) - rank(b);
+  });
 
   const today = new Date().toISOString().slice(0, 10);
   const curYear = today.slice(0, 4);
-  const allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
+  // 전체 보기: only years that had events get a row (unchanged). 종목 보기: a
+  // position can sit untouched for years, and its value keeps moving — so run
+  // contiguously from the first event year through today, otherwise the last
+  // row would be a stale snapshot from whenever that symbol last traded.
+  let allYears = [...new Set(events.map(e => e.date.slice(0, 4)))].sort();
+  if (symbolFilter) {
+    allYears = [];
+    for (let y = Number(events[0].date.slice(0, 4)); y <= Number(curYear); y++) allYears.push(String(y));
+  }
 
   const zeroFromDate = override?.zero_principal_from_date || null;
   // If ANY buy in this portfolio has an explicit 원금 override (set via the
@@ -2789,7 +2990,10 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
   }
 
   const useManualPrincipalTotal = isManualPrincipalAcct && manualAsOfDate && today >= manualAsOfDate;
-  const lastYr = allYears.length ? allYears[allYears.length - 1] : null;
+  // Totals are "as of today" — the current year's checkpoint, not the last year
+  // that happened to have a trade (would be stale for a portfolio/symbol that
+  // hasn't traded this year).
+  const lastYr = allYears.length ? curYear : null;
   const totalInvestedThis = useManualPrincipalTotal ? manualPrincipal : cumInvested;
   const totalGainThis = lastYr == null ? 0 : (useManualPrincipalTotal ? yearMtmValue[lastYr] - manualPrincipal : yearCumGain[lastYr]);
   const spyTotalGainD = useManualPrincipalTotal
@@ -2819,7 +3023,7 @@ async function _anlComputeOnePortfolio(portfolioId, override, spyPrices, qqqPric
     timeline: dedupedTimeline, allYears, yearRows, annYears, annRows, annUnpriced: [...annUnpricedSyms],
     totalInvestedThis, totalGainThis, spyTotalGainD, spyTotalCostD,
     holdingsForPie, events, currentPriceMap, spyToday,
-    hasExplicitPrincipalOverrides,
+    hasExplicitPrincipalOverrides, allSymbols,
   };
 }
 
@@ -2880,11 +3084,18 @@ function _anlMergeYearRows(results) {
 }
 
 // Called from portDropdownChange / portSwitchView
-async function portLoadAnalysis() {
+async function portLoadAnalysis(opts) {
+  // soft: re-run for a symbol-filter change — keep the page (and the dropdown
+  // the user is holding) on screen, just dimmed, instead of flashing "분석 중…".
+  const soft = !!(opts && opts.soft);
   const loadEl    = document.getElementById('portAnalysisLoading');
   const contentEl = document.getElementById('portAnalysisContent');
-  loadEl.style.display = '';
-  contentEl.style.display = 'none';
+  if (soft) {
+    contentEl.style.opacity = '0.45'; contentEl.style.pointerEvents = 'none';
+  } else {
+    loadEl.style.display = '';
+    contentEl.style.display = 'none';
+  }
   if (_anlChart) { _anlChart.destroy(); _anlChart = null; }
   if (_anlPieChart) { _anlPieChart.destroy(); _anlPieChart = null; }
   for (const c of _anlPieChartsByPortfolio) c.destroy();
@@ -2923,19 +3134,33 @@ async function portLoadAnalysis() {
 
     const { spyPrices, qqqPrices, sgovPrices } = await _anlFetchBenchmarkPrices();
 
-    const resultsWithNames = (await Promise.all(portfolioIds.map(async id => {
+    const symbolFilter = _anlSymbolFilter;
+    const rawResults = await Promise.all(portfolioIds.map(async id => {
       const pf = portPortfolios.find(p => p.id === id);
       const override = pf ? {
         zero_principal_from_date: _zeroPrincipalCutoffDate(pf),
         manual_principal: pf.manual_principal != null ? Number(pf.manual_principal) : null,
         manual_principal_as_of: pf.manual_principal_as_of || null,
       } : null;
-      const result = await _anlComputeOnePortfolio(id, override, spyPrices, qqqPrices, sgovPrices);
+      const result = await _anlComputeOnePortfolio(id, override, spyPrices, qqqPrices, sgovPrices, symbolFilter);
       return result ? { name: pf?.name || '', result } : null;
-    }))).filter(r => r !== null);
+    }));
+    // Symbols across the WHOLE selection (a 그룹/전체 includes every member
+    // portfolio, even ones that don't trade the currently picked symbol).
+    const availSymbols = [...new Set(rawResults.flatMap(r => r ? r.result.allSymbols : []))].sort();
+    if (symbolFilter && !availSymbols.includes(symbolFilter)) {
+      // Stale pick (e.g. left over from another portfolio) — fall back to 전체.
+      _anlSymbolFilter = null;
+      return portLoadAnalysis(opts);
+    }
+    anlRenderSymbolFilter(availSymbols);
+    const resultsWithNames = rawResults.filter(r => r && !r.result.noData);
     const results = resultsWithNames.map(r => r.result);
 
     if (!results.length) {
+      contentEl.style.opacity = ''; contentEl.style.pointerEvents = '';
+      contentEl.style.display = 'none';
+      loadEl.style.display = '';
       loadEl.textContent = '거래 내역이 없습니다.';
       return;
     }
@@ -2991,7 +3216,7 @@ async function portLoadAnalysis() {
       </tr>`;
     }
     document.getElementById('anlYearTableBody').innerHTML = tbody;
-    _anlRenderAnnualTable(_anlMergeAnnualRows(results), spyPrices, qqqPrices, sgovPrices, today);
+    _anlRenderAnnualTable(_anlMergeAnnualRows(results), spyPrices, qqqPrices, sgovPrices, today, symbolFilter);
     const _annWarn = document.getElementById('anlAnnualWarn');
     if (_annWarn) {
       const unpriced = [...new Set(results.flatMap(r => r.annUnpriced))].sort();
@@ -3003,7 +3228,18 @@ async function portLoadAnalysis() {
     // Show "원금 설정" button only when a single account/portfolio is
     // selected — the override is account-specific and meaningless for "All".
     const principalBtn = document.getElementById('anlPrincipalSettingsBtn');
-    if (principalBtn) principalBtn.style.display = portActivePortfolioId ? '' : 'none';
+    if (principalBtn) principalBtn.style.display = (portActivePortfolioId && !symbolFilter) ? '' : 'none';
+    document.getElementById('anlYearTableTitle').textContent = symbolFilter ? `연도별 수익률 — ${symbolFilter}` : '연도별 수익률';
+    document.getElementById('anlGainChartTitle').textContent = symbolFilter ? `누적 손익 비교 (동일 자금흐름) — ${symbolFilter}` : '누적 손익 비교 (동일 자금흐름)';
+    const symHint = document.getElementById('anlSymbolHint');
+    if (symHint) {
+      symHint.style.display = symbolFilter ? '' : 'none';
+      symHint.textContent = symbolFilter
+        ? `${symbolFilter} 거래만으로 계산합니다. 매도 대금은 이후 매수에 재사용되며(신규 원금 아님), 계좌 단위 원금 설정(수동 원금 등)은 적용되지 않습니다.`
+        : '';
+    }
+    const pieCard = document.getElementById('anlPieCard');
+    if (pieCard) pieCard.style.display = symbolFilter ? 'none' : '';
 
     // ── Cumulative gain chart ──────────────────────────────────────────
     // {x, y} point objects with x = millisecond timestamp, not a shared
@@ -3048,6 +3284,10 @@ async function portLoadAnalysis() {
     _anlLastTlSorted = tlSorted;
     _anlLastIs401kView = is401kView;
 
+    _anlTradePoints = _anlBuildTradePoints(events, tlSorted);
+    _anlSyncTradeBtn();
+    _anlRegisterTradeInteraction();
+
     const ctx = document.getElementById('anlGainChart').getContext('2d');
     _anlChart = new Chart(ctx, {
       type: 'line',
@@ -3059,11 +3299,12 @@ async function portLoadAnalysis() {
           { label: 'SPY',          data: spyData,  borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'QQQ',          data: qqqData,  borderColor: '#c792ea', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'SGOV',         data: sgovData, borderColor: '#e8c84a', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          ...(_anlShowTrades ? _anlBuildTradeDatasets() : []),
         ],
       },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
-        interaction: { mode: 'index', intersect: false },
+        interaction: { mode: 'anlTradeOrIndex', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -3071,7 +3312,13 @@ async function portLoadAnalysis() {
             titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8,
             callbacks: {
               title: items => items.length ? new Date(items[0].parsed.x).toISOString().slice(0, 10) : '',
+              footer: () => (_anlChart && _anlChart._anlTradeOverflow > 0) ? `… 외 ${_anlChart._anlTradeOverflow}건` : '',
               label: item => {
+                if (item.dataset.type === 'scatter') {
+                  const t = item.raw;
+                  const fmt = (v, d) => v.toLocaleString(undefined, { maximumFractionDigits: d });
+                  return [`${t.sym} · ${t.side}`, `수량 ${fmt(t.shares, 4)} @ $${fmt(t.price, 2)}`, `금액 $${fmt(t.amount, 2)}`];
+                }
                 const v = item.parsed.y;
                 if (v == null) return null;
                 return `${item.dataset.label}: ${v >= 0 ? '+' : ''}$${Math.abs(v).toLocaleString(undefined, {maximumFractionDigits: 0})}`;
@@ -3101,7 +3348,7 @@ async function portLoadAnalysis() {
     const byPortfolioPies = resultsWithNames.length > 1
       ? resultsWithNames.map(r => ({ name: r.name, holdings: r.result.holdingsForPie }))
       : null;
-    _renderHoldingsPie(holdingsForPie, byPortfolioPies);
+    if (!symbolFilter) _renderHoldingsPie(holdingsForPie, byPortfolioPies);
 
     // ── Per-symbol return vs. S&P 500 ─────────────────────────────────
     // Compares each held symbol's own price return (its first buy date to
@@ -3152,12 +3399,16 @@ async function portLoadAnalysis() {
     const symReturns = symReturnEntries.filter(r => r.diff != null);
 
     // ── Coaching text ──────────────────────────────────────────────────
-    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, symReturns);
+    document.getElementById('anlCoachContent').innerHTML = _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyTotal, currentPriceMap, symReturns, symbolFilter);
 
     loadEl.style.display = 'none';
     contentEl.style.display = '';
+    contentEl.style.opacity = ''; contentEl.style.pointerEvents = '';
   } catch(e) {
     console.error('[Analysis]', e);
+    contentEl.style.opacity = ''; contentEl.style.pointerEvents = '';
+    if (soft) contentEl.style.display = 'none';
+    loadEl.style.display = '';
     loadEl.textContent = '분석 중 오류가 발생했습니다: ' + e.message;
   }
 }
@@ -3550,7 +3801,7 @@ function _anlHeatCell(val, colVals) {
            shadow: `inset 0 1px rgba(255,255,255,${0.05 + 0.1 * t}), inset 0 -1px rgba(0,0,0,${0.1 + 0.15 * t})` };
 }
 
-function _anlRenderAnnualTable(ann, spyPrices, qqqPrices, sgovPrices, today) {
+function _anlRenderAnnualTable(ann, spyPrices, qqqPrices, sgovPrices, today, mineLabel) {
   const head = document.getElementById('anlAnnualHead'), body = document.getElementById('anlAnnualBody');
   if (!head || !body) return;
   const curYear = today.slice(0, 4);
@@ -3558,7 +3809,7 @@ function _anlRenderAnnualTable(ann, spyPrices, qqqPrices, sgovPrices, today) {
   const rows = [
     { label: 'QQQ',    vals: years.map(y => _anlCalendarYearReturn(qqqPrices,  +y, today)) },
     { label: 'SPY',    vals: years.map(y => _anlCalendarYearReturn(spyPrices,  +y, today)) },
-    { label: '내 계좌', mine: true,
+    { label: mineLabel || '내 계좌', mine: true,
       vals: years.map(y => ann.rows[y] ? ann.rows[y].gain / ann.rows[y].base * 100 : null),
       partial: years.map(y => ann.rows[y]?.partialFrom || null) },
     { label: 'SGOV',   vals: years.map(y => _anlCalendarYearReturn(sgovPrices, +y, today)) },
@@ -3760,7 +4011,8 @@ async function anlSavePrincipalSettings() {
 function _isFundTicker(sym) { return /^[A-Z]{4,5}X$/.test(sym); }
 
 // ── Rule-based coaching text generator ─────────────────────────────
-function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices, symReturns) {
+function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct, currentPrices, symReturns, symbolFilter) {
+  const symMode = !!symbolFilter; // 단일 종목 보기: 분산·집중도 항목은 의미가 없어 제외
   const BUY_T  = new Set(['buy','drip','buy_to_cover']);
   const SELL_T = new Set(['sell','sell_short']);
   // USD=CASH "매수" rows represent cash arriving in the account (a deposit,
@@ -3849,7 +4101,10 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     else benchScore = 4;
   }
 
-  const totalScore = timingScore + consistencyScore + riskScore + exitScore + benchScore;
+  // 단일 종목 보기에서는 분산 점수를 빼고 나머지 4개 항목(80점 만점)을 100점으로 환산.
+  const totalScore = symMode
+    ? Math.round((timingScore + consistencyScore + exitScore + benchScore) / 80 * 100)
+    : timingScore + consistencyScore + riskScore + exitScore + benchScore;
 
   // ── 조언 생성 ────────────────────────────────────────────
   const advices = [];
@@ -3880,7 +4135,28 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     });
   }
 
-  if (!isFundStyle && numSymbols <= 2) {
+  if (symMode) {
+    const bought = buys.reduce((a, e) => { a.amt += e.amount; a.sh += e.shares; return a; }, { amt: 0, sh: 0 });
+    const avgCost = bought.sh > 0 ? bought.amt / bought.sh : null;
+    const curP = currentPrices ? currentPrices[symbolFilter] : null;
+    const sr = (symReturns || []).find(r => r.sym === symbolFilter);
+    const parts = [];
+    if (avgCost != null && curP != null) {
+      const d = (curP / avgCost - 1) * 100;
+      parts.push(`평균 매수 단가 $${avgCost.toFixed(2)} 대비 현재가 $${curP.toFixed(2)} (${d >= 0 ? '+' : ''}${d.toFixed(1)}%)`);
+    }
+    if (sr && sr.symRet != null && sr.spyRet != null) {
+      parts.push(`첫 매수일 이후 ${symbolFilter} ${sr.symRet >= 0 ? '+' : ''}${sr.symRet.toFixed(1)}% vs 같은 기간 S&P 500 ${sr.spyRet >= 0 ? '+' : ''}${sr.spyRet.toFixed(1)}%`);
+    }
+    if (parts.length) {
+      advices.push({
+        title: `📌 ${symbolFilter} 한눈에 보기`,
+        body: parts.join(' · ') + `. 위 수치는 이 종목의 거래만 따로 떼어 계산한 값이며, 계좌 전체의 분산·집중도 조언은 "전체 (All)"에서 확인할 수 있습니다.`,
+      });
+    }
+  }
+
+  if (!symMode && !isFundStyle && numSymbols <= 2) {
     advices.push({
       title: '🌐 후보 종목군 미리 확보',
       body: `현재 ${numSymbols}개 종목에 집중되어 있습니다. 매수 전에 관심 종목 3~5개를 위시리스트로 관리해두면, ` +
@@ -3888,7 +4164,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     });
   }
 
-  if (!isFundStyle && topSymPct > 60) {
+  if (!symMode && !isFundStyle && topSymPct > 60) {
     advices.push({
       title: `⚖️ ${topSym[0]} 비중 점검`,
       body: `${topSym[0]}가 전체 매수금액의 ${topSymPct.toFixed(0)}%를 차지합니다. ` +
@@ -3940,7 +4216,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
       <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:6px;">투자 성향 한 줄 정의</div>
       <p style="margin:0; font-size:0.9rem;">${styleLabel}입니다.</p>
       <p style="margin:6px 0 0; color:var(--text-muted); font-size:0.82rem;">
-        총 ${buys.length}회 매수 · 평균 매수금액 $${Math.round(avgBuyAmt).toLocaleString()} · 평균 매수 간격 ${Math.round(avgGap)}일 · ${numSymbols}개 종목
+        총 ${buys.length}회 매수 · 평균 매수금액 $${Math.round(avgBuyAmt).toLocaleString()} · 평균 매수 간격 ${Math.round(avgGap)}일 · ${symMode ? symbolFilter + ' 단일 종목' : numSymbols + '개 종목'}
       </p>
     </div>
 
@@ -3948,7 +4224,7 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
       <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px;">투자 점수</div>
       <div style="display:flex; align-items:center; gap:16px; margin-bottom:14px;">
         <div style="font-size:2.8rem; font-weight:800; color:${scoreColor}; line-height:1;">${totalScore}</div>
-        <div style="color:var(--text-muted); font-size:0.8rem;">/ 100점</div>
+        <div style="color:var(--text-muted); font-size:0.8rem;">/ 100점${symMode ? ' (분산 항목 제외 환산)' : ''}</div>
       </div>
       <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
         <tr style="border-bottom:1px solid var(--border);">
@@ -3959,10 +4235,10 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
           <td style="padding:6px 0; color:var(--text-secondary);">자금 관리 일관성</td>
           <td style="text-align:right; font-weight:600; color:${consistencyScore >= 15 ? '#3fb950' : consistencyScore >= 11 ? '#e8c84a' : '#f85149'};">${consistencyScore} / 20</td>
         </tr>
-        <tr style="border-bottom:1px solid var(--border);">
+        ${symMode ? '' : `<tr style="border-bottom:1px solid var(--border);">
           <td style="padding:6px 0; color:var(--text-secondary);">${isFundStyle ? '분산 (펀드 자체 분산도)' : '리스크 관리 (분산)'}</td>
           <td style="text-align:right; font-weight:600; color:${riskScore >= 14 ? '#3fb950' : riskScore >= 10 ? '#e8c84a' : '#f85149'};">${riskScore} / 20</td>
-        </tr>
+        </tr>`}
         <tr style="border-bottom:1px solid var(--border);">
           <td style="padding:6px 0; color:var(--text-secondary);">수익 실현 / 보유 판단</td>
           <td style="text-align:right; font-weight:600; color:${exitScore >= 12 ? '#3fb950' : exitScore >= 9 ? '#e8c84a' : '#f85149'};">${exitScore} / 15</td>
