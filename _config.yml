@@ -16,7 +16,7 @@ buttondown_username: "jaegun"
 # Kakao JavaScript key for the 수익률 공유 KakaoTalk button (_includes/return-share.html).
 # Public by design (domain-restricted in Kakao Developers → 플랫폼 → Web 사이트 도메인).
 # Unset → placeholder, and the button shows "앱키 미설정" instead of sharing.
-# kakao_js_key: "YOUR_KAKAO_JAVASCRIPT_KEY"
+kakao_js_key: "29c46537d08e79ac3806467ad3030669"
 
 # Google Drive Picker — injected via GitHub Secrets in CI (deploy.yml)
 # For local dev, create _config_local.yml with these values (gitignored)
