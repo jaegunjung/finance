@@ -1,0 +1,34 @@
+{%- comment -%}
+  Financial-term tooltips. Enabled on /stock/, /crypto/, /macro/, /portfolio/ (and sub-pages).
+  Override per page with front matter `tooltips: true` / `tooltips: false`.
+  CSS + JS are injected after window load during idle time, so they never block first paint.
+{%- endcomment -%}
+{%- assign _tt_on = false -%}
+{%- assign _tt_u = page.url | default: '' -%}
+{%- assign _tt_7 = _tt_u | slice: 0, 7 -%}
+{%- assign _tt_8 = _tt_u | slice: 0, 8 -%}
+{%- assign _tt_11 = _tt_u | slice: 0, 11 -%}
+{%- if _tt_7 == '/stock/' or _tt_7 == '/macro/' or _tt_8 == '/crypto/' or _tt_11 == '/portfolio/' -%}
+  {%- assign _tt_on = true -%}
+{%- endif -%}
+{%- if page.tooltips == true -%}{%- assign _tt_on = true -%}{%- endif -%}
+{%- if page.tooltips == false -%}{%- assign _tt_on = false -%}{%- endif -%}
+{%- if _tt_on %}
+<script>
+  (function () {
+    var v = '{{ site.time | date: "%s" }}';
+    function load() {
+      var l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = '/assets/css/tooltip.css?v=' + v;
+      document.head.appendChild(l);
+      var s = document.createElement('script');
+      s.src = '/assets/js/tooltip.js?v=' + v;
+      s.async = true;
+      document.body.appendChild(s);
+    }
+    function idle() { (window.requestIdleCallback || function (f) { setTimeout(f, 200); })(load, { timeout: 2000 }); }
+    if (document.readyState === 'complete') idle(); else window.addEventListener('load', idle);
+  })();
+</script>
+{%- endif %}

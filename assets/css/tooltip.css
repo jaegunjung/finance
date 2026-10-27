@@ -1,0 +1,68 @@
+/* Financial-term tooltips (see assets/js/tooltip.js) */
+.jj-term {
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: currentColor;
+  cursor: help;
+  border-radius: 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.jj-term:hover,
+.jj-term:focus-visible {
+  text-decoration-style: solid;
+  outline: none;
+  background: rgba(88, 166, 255, 0.12);
+}
+
+.jj-tip {
+  position: fixed;
+  z-index: 10000;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 9px 12px;
+  background: #1e2330;
+  color: #fff;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+}
+.jj-tip.below { transform: translateY(-4px); }
+.jj-tip.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.jj-tip-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 3px;
+  color: #fff;
+}
+.jj-tip-body { color: rgba(255, 255, 255, 0.88); }
+.jj-tip-arrow {
+  position: absolute;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: #1e2330;
+  transform: rotate(45deg);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.jj-tip.below .jj-tip-arrow {
+  bottom: auto;
+  top: -5px;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
