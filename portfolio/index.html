@@ -119,6 +119,7 @@ title: 포트폴리오
     <button id="portSetGroupBtn" onclick="portSetGroup()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="이 포트폴리오를 그룹에 포함 (예: 401k 계좌 여러 개를 하나로 묶어보기)">🏷 그룹</button>
     <button id="portDedupeBtn" onclick="portDeduplicateTxns()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(255,165,0,0.4); background:none; color:rgba(255,165,0,0.85); cursor:pointer; font-size:0.8rem;" title="중복 거래 삭제">⚡ 중복 제거</button>
     <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
+    <span style="margin-left:auto;">{% include return-share.html %}</span>
   </div>
 
   <!-- Add portfolio inline form -->
@@ -1182,6 +1183,7 @@ async function portLoadHoldings() {
   }
 
   if (!Object.keys(symbolMap).length) {
+    if (window.jjShare) window.jjShare.set(null);
     loadEl.innerHTML = `<div class="empty-state"><div style="font-size:2rem;margin-bottom:8px;">📭</div>
       <div class="en-only">No holdings yet.</div><div class="ko-only">보유 내역이 없습니다.</div></div>`;
     return;
@@ -1302,7 +1304,14 @@ async function portLoadHoldings() {
     }
     principalInfo = { principal, hasOverride };
   }
-  _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain, totalBoughtAll, ...principalInfo };
+  // Earliest trade in this selection — the start of the shared return's period.
+  let firstTradeDate = null;
+  for (const sym of symbols) {
+    for (const t of symbolMap[sym]) {
+      if (t.trade_date && (!firstTradeDate || t.trade_date < firstTradeDate)) firstTradeDate = t.trade_date;
+    }
+  }
+  _holdingsTotals = { totalValue, totalCostAll, totalUnrealGain, totalRealGain, totalBoughtAll, firstTradeDate, ...principalInfo };
 
   loadEl.style.display    = 'none';
   contentEl.style.display = '';
@@ -1628,6 +1637,22 @@ function portRenderHoldings() {
     </table></div></div>`;
 
   contentEl.innerHTML = html;
+  _portPublishShare(grandPct, principal);
+}
+
+// Feed the 수익률 공유 card (assets/js/share.js) with the 평가 합계 row's
+// primary 총 손익 % — the same grandPct shown above. Only the % and the
+// period go out; never dollar amounts, shares or prices.
+function _portPublishShare(grandPct, principal) {
+  if (!window.jjShare) return;
+  if (!(principal > 0) || !isFinite(grandPct)) { window.jjShare.set(null); return; }
+  const todayISO = new Date().toISOString().slice(0, 10);
+  window.jjShare.set(() => ({
+    label: document.documentElement.classList.contains('ko-mode') ? '포트폴리오' : 'Portfolio',
+    pct: grandPct,
+    start: _holdingsTotals.firstTradeDate,
+    end: _holdingsAsOfDate || todayISO,
+  }));
 }
 
 async function portLoadTxns() {

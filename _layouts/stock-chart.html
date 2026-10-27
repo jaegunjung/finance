@@ -220,6 +220,7 @@ layout: default
       transition:all 0.15s;">
       📊 <span class="en-only">Gain</span><span class="ko-only">거래내역</span>
     </button>
+    {% include return-share.html %}
   </div>
 
   <div id="tradePanelBody" style="display:none; margin-top:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:16px 18px;">
@@ -1754,15 +1755,8 @@ function renderGainPanel() {
   }
 
   // Summary stats
-  let unrealizedGain = 0, currentValue = 0;
-  if (currentPrice && remainingShares > 0) {
-    currentValue   = remainingShares * currentPrice;
-    unrealizedGain = currentValue - totalCost;
-  }
-  const allBought   = txns.filter(t => BUY_T.includes(t.type)).reduce((s,t) => s+Number(t.amount),0);
+  const { allBought, allTimeGain, allTimePct } = _stockAllTimeStats(txns, pnl, currentPrice);
   const allBuyShares= txns.filter(t => BUY_T.includes(t.type)).reduce((s,t) => s+Number(t.shares||0),0);
-  const allTimeGain = realizedGain + unrealizedGain;
-  const allTimePct  = allBought > 0 ? allTimeGain / allBought : 0;
   const realizedPct = allBought > 0 ? realizedGain / allBought : 0;
 
   h += `<div class="gp-sep"></div>
@@ -1793,12 +1787,43 @@ function renderGainPanel() {
   el.innerHTML = h;
 }
 
+// All-Time gain / % for this symbol — shared by the Gain panel and the
+// 수익률 공유 card so both always show the same number. pct is a fraction.
+function _stockAllTimeStats(txns, pnl, currentPrice) {
+  const BUY_T = ['buy','drip','buy_to_cover'];
+  const { remainingShares, totalCost, realizedGain } = pnl;
+  const unrealizedGain = (currentPrice && remainingShares > 0) ? remainingShares * currentPrice - totalCost : 0;
+  const allBought   = txns.filter(t => BUY_T.includes(t.type)).reduce((s,t) => s+Number(t.amount),0);
+  const allTimeGain = realizedGain + unrealizedGain;
+  const allTimePct  = allBought > 0 ? allTimeGain / allBought : 0;
+  return { allBought, allTimeGain, allTimePct };
+}
+
+// Feed the 수익률 공유 card (assets/js/share.js). Resolved lazily at click
+// time so it uses the latest price; only the %, ticker and period go out.
+function _stockPublishShare() {
+  if (!window.jjShare) return;
+  const txns = (window.chartTxns || []).filter(t =>
+    ['buy','drip','buy_to_cover','sell','sell_short'].includes(t.type));
+  if (!txns.length) { window.jjShare.set(null); return; }
+  window.jjShare.set(() => {
+    const currentPrice = prices && prices.length ? prices[prices.length - 1] : null;
+    if (!currentPrice) return null;
+    const pnl = window.txns.computePnL(txns);
+    const { allBought, allTimePct } = _stockAllTimeStats(txns, pnl, currentPrice);
+    if (!(allBought > 0)) return null;
+    const first = txns.reduce((m, t) => (!m || t.trade_date < m) ? t.trade_date : m, null);
+    return { label: SYMBOL, pct: allTimePct * 100, start: first, end: dates.length ? dates[dates.length - 1] : null };
+  });
+}
+
 // Show Gain button when trades exist; re-render if panel is open
 window._tpRedrawCallback = function() {
   const hasTrades = (window.chartTxns || []).some(t =>
     ['buy','drip','buy_to_cover','sell','sell_short'].includes(t.type));
   const btn = document.getElementById('gainPanelBtn');
   if (btn) btn.style.display = hasTrades ? 'flex' : 'none';
+  _stockPublishShare();
   if (_gainPanelOpen) renderGainPanel();
   _buildPortFilter();
 };

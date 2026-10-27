@@ -1,0 +1,17 @@
+{%- comment -%}
+  Return-share button (portfolio / stock pages). Separate from share-buttons.html,
+  which is the blog-post share bar.
+  The button stays hidden until the page calls window.jjShare.set({ label, pct, start, end }).
+  Kakao: set `kakao_js_key` in _config.yml (JavaScript key; register the site domain in Kakao Developers).
+{%- endcomment -%}
+<link rel="stylesheet" href="/assets/css/share.css?v={{ site.time | date: '%s' }}">
+<span id="jjReturnShare" class="jjs-wrap" hidden data-kakao-key="{{ site.kakao_js_key | default: 'YOUR_KAKAO_JAVASCRIPT_KEY' }}">
+  <button type="button" class="jjs-open" title="Share return">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    <span class="en-only">Share return</span><span class="ko-only">수익률 공유</span>
+  </button>
+</span>
+<script>
+  window.jjShare = window.jjShare || { set: function (d) { this._q = d; } };
+</script>
+<script src="/assets/js/share.js?v={{ site.time | date: '%s' }}" defer></script>

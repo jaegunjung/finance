@@ -10,6 +10,8 @@
 //   D      — git log 빈도 기반 동적 추가 검증
 //   E      — 연간 수익률 테이블 / 데이터 유효성
 //   F      — API 데이터 로드 상태 검증
+//   G      — 금융 용어 툴팁 (로드 범위 / hover / 모바일 탭 / 동적 콘텐츠)
+//   H      — 수익률 공유 카드 (포트폴리오 / 개별 종목, 개인정보 미포함)
 // ─────────────────────────────────────────────────────────────────────────────
 const { test, expect } = require("@playwright/test");
 const fs = require("fs");
@@ -651,5 +653,239 @@ test.describe("F. 데이터 로드 & 에러 상태 검증", () => {
     for (const sym of ["MU", "STX"]) {
       expect(body, `AI CapEx 페이지에 "${sym}" 심볼이 없습니다`).toContain(sym);
     }
+  });
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// G. 금융 용어 툴팁 (_includes/tooltip.html + assets/js/tooltip.js)
+//    tooltip.js는 load + idle 이후 지연 로드되므로 __jjTooltipInit 플래그를 기다린다.
+// ═══════════════════════════════════════════════════════════════════════════
+async function waitForTooltips(page, urlPath, { needTerms = true } = {}) {
+  await page.goto(BASE_URL + urlPath, { waitUntil: "load" });
+  await page.waitForFunction(
+    need => window.__jjTooltipInit && (!need || document.querySelector(".jj-term")),
+    needTerms,
+    { timeout: 15_000 }
+  );
+}
+
+// 현재 언어에서 화면에 보이는 첫 번째 용어
+function firstVisibleTerm(page) {
+  return page.locator(".jj-term:visible").first();
+}
+
+test.describe("G. 금융 용어 툴팁", () => {
+
+  // 툴팁이 켜져야 하는 페이지 (needTerms: 본문에 용어가 있어 밑줄이 최소 1개는 있어야 함)
+  const ENABLED = [
+    { path: "/macro/",     needTerms: true },
+    { path: "/stock/",     needTerms: true },
+    { path: "/crypto/",    needTerms: true },
+    { path: "/stock/aapl/", needTerms: false },
+    { path: "/crypto/eth/", needTerms: false },
+    { path: "/portfolio/", needTerms: false },
+  ];
+  for (const { path: p, needTerms } of ENABLED) {
+    test(`G-1. ${p} — tooltip.js 지연 로드${needTerms ? " + 용어 밑줄 존재" : ""}`, async ({ page }) => {
+      const errors = [];
+      page.on("pageerror", e => errors.push(e.message));
+      await waitForTooltips(page, p, { needTerms });
+      const fatal = errors.filter(e => /tooltip|jj-term/i.test(e));
+      expect(fatal, `툴팁 관련 JS 오류:\n${fatal.join("\n")}`).toHaveLength(0);
+    });
+  }
+
+  for (const p of ["/", "/blog/"]) {
+    test(`G-2. ${p} — 툴팁 스크립트를 로드하지 않음`, async ({ page }) => {
+      await page.goto(BASE_URL + p, { waitUntil: "load" });
+      await page.waitForTimeout(2500);  // idle 로더가 돌 시간을 준다
+      const loaded = await page.evaluate(() =>
+        !!window.__jjTooltipInit || !!document.querySelector('script[src*="tooltip.js"]'));
+      expect(loaded, `${p}에서 tooltip.js가 로드됨 — _includes/tooltip.html 경로 조건 확인`).toBe(false);
+    });
+  }
+
+  test("G-3. 마우스 hover → 툴팁 표시, 이탈/ESC → 닫힘 (EN)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("jj-lang", "en"));
+    await waitForTooltips(page, "/macro/");
+    const term = firstVisibleTerm(page);
+    await term.scrollIntoViewIfNeeded();
+    await term.hover();
+    const tip = page.locator("#jj-tip");
+    await expect(tip).toHaveClass(/\bopen\b/);
+    await expect(tip.locator(".jj-tip-title")).not.toBeEmpty();
+    // EN 모드에서는 영어 설명 (한글 없음)
+    const body = await tip.locator(".jj-tip-body").innerText();
+    expect(body, "EN 모드인데 툴팁 본문에 한글이 있음").not.toMatch(/[가-힣]/);
+    // 툴팁이 뷰포트 안에 있는지
+    const box = await tip.boundingBox();
+    const vp = page.viewportSize();
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+    await page.mouse.move(0, 0);
+    await expect(tip).not.toHaveClass(/\bopen\b/);
+    await term.hover();
+    await expect(tip).toHaveClass(/\bopen\b/);
+    await page.keyboard.press("Escape");
+    await expect(tip).not.toHaveClass(/\bopen\b/);
+  });
+
+  test("G-4. 동적 렌더링 콘텐츠도 감지, 버튼 안 텍스트는 제외", async ({ page }) => {
+    await waitForTooltips(page, "/portfolio/", { needTerms: false });
+    await page.evaluate(() => {
+      const d = document.createElement("div");
+      d.id = "jj-tt-probe";
+      d.innerHTML = "<p>CAGR 12% · YTD +4% · PBR 1.2</p><button>EPS</button>";
+      document.querySelector("main").appendChild(d);
+    });
+    await expect(page.locator("#jj-tt-probe p .jj-term")).toHaveCount(3);
+    await expect(page.locator("#jj-tt-probe button .jj-term")).toHaveCount(0);
+  });
+
+  test("G-5. 차트 오버레이(pointer-events:none) RSI 라벨은 밑줄 제외", async ({ page }) => {
+    await waitForTooltips(page, "/stock/aapl/", { needTerms: false });
+    await page.waitForTimeout(1500);  // RSI 라벨이 차트 렌더 후 갱신될 시간
+    await expect(page.locator("#rsiLabel .jj-term")).toHaveCount(0);
+  });
+
+  test.describe("모바일 (touch)", () => {
+    test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+
+    test("G-6. 탭 → 열림(KO 설명), 다시 탭/바깥 탭 → 닫힘", async ({ page }) => {
+      await page.addInitScript(() => localStorage.setItem("jj-lang", "ko"));
+      await waitForTooltips(page, "/crypto/");
+      const term = firstVisibleTerm(page);
+      await term.scrollIntoViewIfNeeded();
+      const tip = page.locator("#jj-tip");
+
+      await term.tap();
+      await expect(tip).toHaveClass(/\bopen\b/);
+      const body = await tip.locator(".jj-tip-body").innerText();
+      expect(body, "KO 모드인데 툴팁 본문에 한글이 없음").toMatch(/[가-힣]/);
+
+      await term.tap();  // 같은 용어 다시 탭 → 토글 닫힘
+      await expect(tip).not.toHaveClass(/\bopen\b/);
+
+      await term.tap();
+      await expect(tip).toHaveClass(/\bopen\b/);
+      // 바깥 탭: 스크롤 없이 좌측 여백(빈 공간)을 직접 탭 — 스크롤로 닫히는 경우와 구분
+      const tb = await term.boundingBox();
+      await page.touchscreen.tap(2, Math.min(tb.y + tb.height + 60, 800));
+      await expect(tip).not.toHaveClass(/\bopen\b/);
+    });
+  });
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// H. 수익률 공유 카드 (_includes/return-share.html + assets/js/share.js)
+//    실제 수익률 데이터는 로그인이 필요하므로, 페이지가 쓰는 것과 같은 공개 API
+//    window.jjShare.set(...)으로 모의 데이터를 주입해 검증한다.
+// ═══════════════════════════════════════════════════════════════════════════
+async function gotoShare(page, urlPath) {
+  await page.goto(BASE_URL + urlPath, { waitUntil: "load" });
+  await page.waitForFunction(() => window.jjShare && typeof window.jjShare._resolve === "function",
+    null, { timeout: 15_000 });
+}
+
+test.describe("H. 수익률 공유 카드", () => {
+
+  for (const p of ["/portfolio/", "/stock/nvda/"]) {
+    test(`H-1. ${p} — share.js 로드, 비로그인 시 공유 버튼 숨김`, async ({ page }) => {
+      const errors = [];
+      page.on("pageerror", e => errors.push(e.message));
+      await gotoShare(page, p);
+      await expect(page.locator("#jjReturnShare")).toBeHidden();
+      const fatal = errors.filter(e => /jjShare|share\.js/i.test(e));
+      expect(fatal, `공유 관련 JS 오류:\n${fatal.join("\n")}`).toHaveLength(0);
+    });
+  }
+
+  test("H-2. 카드 1200×630 생성 + 수익률만 표시 (매수가·수량·금액 미포함)", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("jj-lang", "ko"));
+    await gotoShare(page, "/stock/nvda/");
+    await page.evaluate(() => {
+      document.getElementById("tradePanelWrap").style.display = "";
+      // 호출자가 실수로 넘긴 민감 필드 — share.js가 반드시 버려야 함
+      window.jjShare.set({ label: "NVDA", pct: 12.345, start: "2024-01-02", end: "2026-10-20",
+        shares: 987, avgCost: 123.45, amount: 54321, price: 678.9 });
+    });
+    await expect(page.locator("#jjReturnShare")).toBeVisible();
+    await page.locator("#jjReturnShare .jjs-open").click();
+    await expect(page.locator("#jjShareModal")).toHaveClass(/\bopen\b/);
+
+    const info = await page.evaluate(async () => {
+      await window.jjShare._render();
+      const c = document.querySelector("#jjShareModal canvas");
+      const px = (x, y) => Array.from(c.getContext("2d").getImageData(x, y, 1, 1).data.slice(0, 3));
+      return { w: c.width, h: c.height, lines: window.jjShare._cardLines(),
+        bg: px(600, 600), bar: px(600, 3), data: window.jjShare._resolve() };
+    });
+    expect([info.w, info.h]).toEqual([1200, 630]);
+    expect(info.lines).toContain("NVDA");
+    expect(info.lines).toContain("+12.35%");
+    expect(info.lines).toContain("2024.01.02 – 2026.10.20");
+    expect(info.lines.some(l => l.includes("jjanalysis.com"))).toBe(true);
+    const joined = info.lines.join(" | ");
+    for (const bad of ["$", "987", "123.45", "54321", "54,321", "678.9"]) {
+      expect(joined, `카드에 민감 정보 "${bad}" 노출`).not.toContain(bad);
+    }
+    expect(Object.keys(info.data).sort()).toEqual(["end", "label", "pct", "start"]);
+    // 배경 #0d1117 근처, 양수 → 상단 바 초록 (#3fb950)
+    info.bg.forEach((v, i) => expect(Math.abs(v - [13, 17, 23][i])).toBeLessThan(25));
+    expect(info.bar).toEqual([63, 185, 80]);
+  });
+
+  test("H-3. 음수 수익률 → 빨강 + X Web Intent 텍스트", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("jj-lang", "ko"));
+    await gotoShare(page, "/stock/nvda/");
+    await page.evaluate(() => {
+      document.getElementById("tradePanelWrap").style.display = "";
+      window.jjShare.set(() => ({ label: "NVDA", pct: -7.5, start: "2025-03-01", end: "2026-10-20" }));
+    });
+    await page.locator("#jjReturnShare .jjs-open").click();
+    const bar = await page.evaluate(async () => {
+      await window.jjShare._render();
+      const c = document.querySelector("#jjShareModal canvas");
+      return Array.from(c.getContext("2d").getImageData(600, 3, 1, 1).data.slice(0, 3));
+    });
+    expect(bar).toEqual([248, 81, 73]);
+
+    const href = await page.locator("#jjShareModal .jjs-x").getAttribute("href");
+    const u = new URL(href);
+    expect(u.origin + u.pathname).toBe("https://twitter.com/intent/tweet");
+    expect(u.searchParams.get("text")).toBe("내 NVDA 수익률은 -7.50% 📉 #jjanalysis #주식");
+    expect(u.searchParams.get("url")).toBe("https://jjanalysis.com/stock/nvda/");
+  });
+
+  test("H-4. 링크 복사 → 클립보드에 페이지 URL", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE_URL });
+    await gotoShare(page, "/portfolio/");
+    // 비로그인 판정이 끝난 뒤(#portMain을 다시 숨기므로) 주입
+    await expect(page.locator("#portNotLoggedIn")).toBeVisible({ timeout: 15_000 });
+    await page.evaluate(() => {
+      document.getElementById("portMain").style.display = "";
+      window.jjShare.set({ label: "Portfolio", pct: 42, start: "2021-01-04", end: "2026-10-20" });
+    });
+    await page.locator("#jjReturnShare .jjs-open").click();
+    await page.locator("#jjShareModal .jjs-copy").click();
+    await expect(page.locator("#jjShareModal .jjs-toast")).toHaveClass(/\bshow\b/);
+    expect(await page.evaluate(() => navigator.clipboard.readText()))
+      .toBe("https://jjanalysis.com/portfolio/");
+    // 닫기
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#jjShareModal")).not.toHaveClass(/\bopen\b/);
+  });
+
+  test("H-5. 블로그 포스트는 기존 공유 바 유지, 수익률 공유 없음", async ({ page }) => {
+    await page.goto(BASE_URL + "/blog/", { waitUntil: "domcontentloaded" });
+    const href = await page.evaluate(() =>
+      [...document.querySelectorAll("a[href]")].map(a => a.getAttribute("href"))
+        .find(h => /\/\d{4}\/\d{2}\/\d{2}\/[^/]+\/?$/.test(h)));
+    test.skip(!href, "블로그 포스트 링크를 찾지 못함");
+    await page.goto(new URL(href, BASE_URL + "/").href, { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".share-section .share-buttons")).toHaveCount(1);
+    await expect(page.locator("#jjReturnShare")).toHaveCount(0);
   });
 });
