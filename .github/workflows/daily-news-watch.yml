@@ -98,6 +98,13 @@ jobs:
             Create a new file in _posts/ named YYYY-MM-DD-slug.md using today's date and a short
             kebab-case slug describing the news.
 
+            NEVER include `post_tag` or `deep_dive` in the front matter, even if the newest posts you
+            read have them. Those fields are reserved for posts the site owner writes by hand: they
+            render a bracketed title prefix ([뉴스]/[News], [매크로]/[Macro], [크립토]/[Crypto],
+            [심층 분석]/[Deep Dive]), and auto-generated posts must not carry any such tag. Likewise
+            never start title/title_en/title_ko with a bracketed tag like "[뉴스]" or "[News]".
+            Copy the other front matter fields' structure, but drop these two.
+
             Match the format of the most recent existing posts EXACTLY — front matter fields
             (title/title_en/title_ko/date/categories/tags/excerpt_en/excerpt_ko, and whatever else the
             newest posts use), and the bilingual body structure (currently two divs, English content

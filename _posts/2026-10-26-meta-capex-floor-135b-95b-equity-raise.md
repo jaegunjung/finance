@@ -1,6 +1,5 @@
 ---
 layout: post
-post_tag: news
 title: "Meta Lifts 2026 Capex Floor to $135B and Plans a $95B Equity Raise — While Tesla Trims $5B"
 title_en: "Meta Lifts 2026 Capex Floor to $135B and Plans a $95B Equity Raise — While Tesla Trims $5B"
 title_ko: "메타, 2026년 capex 하단 $1,350억으로 상향·최대 $950억 주식 발행 계획 — 테슬라는 $50억 삭감"

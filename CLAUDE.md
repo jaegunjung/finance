@@ -116,3 +116,6 @@
 - `daily-news-watch` 등 봇이 자동 생성하는 글에는 **절대 `deep_dive`를 넣지 말 것**
   (최근 글의 front matter를 복사하다가 이 필드를 따라 쓰지 않도록 주의).
 - 구분 기준: git 작성자가 `claude[bot]`이거나 커밋 메시지에 `[auto-news-watch]`가 있으면 자동 생성.
+- `post_tag: news|macro|crypto`(`_includes/post-tag.html` → `[뉴스]`/`[매크로]`/`[크립토]`)도 같은
+  규칙: 사용자가 직접 쓴 글 전용. 봇 글에는 넣지 말 것 (2026-10에 봇이 최신 글 front matter를
+  복사해 `[뉴스]`가 붙은 적 있음 → `daily-news-watch.yml` 프롬프트에 금지 규칙, `tests/integration.spec.js` I 섹션에서 검사).
