@@ -364,7 +364,14 @@ h3 { font-size: 1.1rem; margin-bottom: 8px; }
 /* Title prefix tags: front matter `post_tag: news | macro | crypto` (see _includes/post-tag.html).
    All amber for now; override a single class to give a category its own color. */
 .post-tag { font-weight: 700; margin-right: 0.35em; color: var(--accent-amber); }
-.post-tag-news   { color: var(--accent-amber); }
+.post-tag-news   { background: #FFD700; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 0.85em; }
+/* Blog list category filter (blog/index.html) */
+.post-filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.post-filter button {
+  background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border, #30363d);
+  border-radius: 999px; padding: 4px 12px; font-size: 0.85rem; cursor: pointer;
+}
+.post-filter button.active { background: var(--accent-amber); color: #000; border-color: var(--accent-amber); font-weight: 700; }
 .post-tag-macro  { color: var(--accent-amber); }
 .post-tag-crypto { color: var(--accent-amber); }
 .post-item a { text-decoration: none; }

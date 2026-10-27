@@ -15,9 +15,19 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
   </p>
 </div>
 
+<div class="post-filter" role="group" aria-label="Category filter">
+  <button type="button" class="active" data-filter="all"><span class="en-only">All</span><span class="ko-only">전체</span></button>
+  <button type="button" data-filter="news"><span class="en-only">News</span><span class="ko-only">뉴스</span></button>
+  <button type="button" data-filter="macro"><span class="en-only">Macro</span><span class="ko-only">매크로</span></button>
+  <button type="button" data-filter="crypto"><span class="en-only">Crypto</span><span class="ko-only">크립토</span></button>
+  <button type="button" data-filter="deep-dive"><span class="en-only">Deep Dive</span><span class="ko-only">심층 분석</span></button>
+</div>
+
 <ul class="post-list">
   {% for post in site.posts %}
-  <li class="post-item{% if post.deep_dive %} deep-dive{% endif %}">
+  {%- assign is_news = false -%}
+  {%- if post.post_tag == "news" or post.categories contains "뉴스" or post.categories contains "news" -%}{%- assign is_news = true -%}{%- endif -%}
+  <li class="post-item{% if post.deep_dive %} deep-dive{% endif %}" data-tags="{% if is_news %}news {% endif %}{% if post.post_tag and post.post_tag != 'news' %}{{ post.post_tag }} {% endif %}{% if post.deep_dive %}deep-dive{% endif %}">
     <a href="{{ post.url | relative_url }}">
       <div class="post-meta">
         <span>{{ post.date | date: "%Y-%m-%d" }}</span>
@@ -46,3 +56,25 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
   </li>
   {% endfor %}
 </ul>
+
+<script>
+(function () {
+  var buttons = document.querySelectorAll('.post-filter button');
+  var items = document.querySelectorAll('.post-list .post-item');
+  function apply(filter) {
+    buttons.forEach(function (b) { b.classList.toggle('active', b.dataset.filter === filter); });
+    items.forEach(function (li) {
+      var tags = (li.dataset.tags || '').split(/\s+/);
+      li.style.display = (filter === 'all' || tags.indexOf(filter) !== -1) ? '' : 'none';
+    });
+  }
+  buttons.forEach(function (b) {
+    b.addEventListener('click', function () {
+      apply(b.dataset.filter);
+      try { history.replaceState(null, '', b.dataset.filter === 'all' ? location.pathname : '#' + b.dataset.filter); } catch (e) {}
+    });
+  });
+  var initial = location.hash.slice(1);
+  if (initial && document.querySelector('.post-filter button[data-filter="' + initial + '"]')) apply(initial);
+})();
+</script>
