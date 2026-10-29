@@ -2,6 +2,11 @@ title: JJ Financial Analysis
 description: S&P 500, Bitcoin & Market Analysis
 baseurl: ""
 url: "https://jjanalysis.com"
+
+# Default link-preview image (og:image / twitter:image). Posts override with front matter `image:`.
+# Must be PNG/JPG — LinkedIn, KakaoTalk and X ignore SVG. Regenerate: python scripts/generate_og_images.py
+og_image: /assets/images/jj-og-default.png
+og_image_alt: "JJ International Financial Analysis"
 permalink: /:categories/:year/:month/:day/:title/
 markdown: kramdown
 theme: null

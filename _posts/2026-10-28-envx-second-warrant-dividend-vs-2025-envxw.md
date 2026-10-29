@@ -6,6 +6,8 @@ title_ko: "에노빅스(ENVX) 두 번째 워런트 배당, 작년 ENVXW와 무�
 title_en: "Enovix (ENVX) Second Warrant Dividend: How It Differs From Last Year's ENVXW, and When to Sell"
 date: 2026-10-28
 categories: strategy
+image: /assets/images/og/envx-second-warrant-2026.png
+image_alt: "에노빅스(ENVX) 2차 워런트 배당 — 행사가 $8.75→$3.00, 트리거 $10.50→$3.30, 만기 2026-10→2028-04"
 tags: [ENVX, ENVXW, 에노빅스, 워런트배당, 조기만료, 전환사채, 미국소형주, 2차전지]
 excerpt: "행사가 $3.00, 조기만료 트리거 $3.30. 주가가 트리거 바로 옆에 있다는 점이 작년 ENVXW와 가장 큰 차이다. 조건 비교, 작년 붕괴 과정, D+X 타임라인과 시나리오별 고려사항을 정리했다."
 excerpt_ko: "행사가 $3.00, 조기만료 트리거 $3.30. 주가가 트리거 바로 옆에 있다는 점이 작년 ENVXW와 가장 큰 차이다. 조건 비교, 작년 붕괴 과정, D+X 타임라인과 시나리오별 고려사항을 정리했다."

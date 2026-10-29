@@ -956,3 +956,49 @@ test.describe("I. 자동 생성 글 — 제목 태그 금지", () => {
     expect(bad, `태그가 붙어 보이는 자동 생성 글: ${bad.join(", ")}`).toEqual([]);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// J. 링크 미리보기 메타태그 (og:image는 PNG 절대 URL — LinkedIn/카카오톡/X는 SVG 미지원)
+// ═══════════════════════════════════════════════════════════════════════════
+test.describe("J. 링크 미리보기 메타태그", () => {
+  const SITE = "https://jjanalysis.com";
+  const ONCE = [
+    'meta[property="og:type"]', 'meta[property="og:image"]',
+    'meta[property="og:image:width"]', 'meta[property="og:image:height"]',
+    'meta[property="og:image:type"]', 'meta[property="og:image:alt"]',
+    'meta[name="twitter:card"]', 'meta[name="twitter:image"]',
+  ];
+  const readMeta = (page) => page.evaluate((sels) => {
+    const out = {};
+    for (const s of sels) {
+      const els = document.head.querySelectorAll(s);
+      out[s] = { n: els.length, v: els[0]?.getAttribute("content") || "" };
+    }
+    return out;
+  }, ONCE);
+
+  const CASES = [
+    { path: "/", type: "website", image: `${SITE}/assets/images/jj-og-default.png` },
+    { path: "/strategy/2026/10/28/envx-second-warrant-dividend-vs-2025-envxw/",
+      type: "article", image: `${SITE}/assets/images/og/envx-second-warrant-2026.png` },
+  ];
+  for (const c of CASES) {
+    test(`J. ${c.path} — 태그 1회씩, og:type=${c.type}, PNG 이미지`, async ({ page }) => {
+      const res = await page.goto(BASE_URL + c.path, { waitUntil: "domcontentloaded" });
+      expect(res?.status()).toBe(200);
+      const m = await readMeta(page);
+      for (const s of ONCE) expect(m[s].n, `${s} 개수`).toBe(1);
+      expect(m['meta[property="og:type"]'].v).toBe(c.type);
+      expect(m['meta[property="og:image"]'].v).toBe(c.image);
+      expect(m['meta[name="twitter:image"]'].v).toBe(c.image);
+      expect(m['meta[name="twitter:card"]'].v).toBe("summary_large_image");
+      expect(m['meta[property="og:image:width"]'].v).toBe("1200");
+      expect(m['meta[property="og:image:height"]'].v).toBe("630");
+      expect(m['meta[property="og:image:type"]'].v).toBe("image/png");
+      expect(m['meta[property="og:image:alt"]'].v).not.toBe("");
+      // 이미지 파일 자체도 빌드에 포함돼야 함
+      const img = await page.request.get(BASE_URL + new URL(c.image).pathname);
+      expect(img.status()).toBe(200);
+    });
+  }
+});
