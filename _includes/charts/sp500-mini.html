@@ -83,6 +83,8 @@
           if (!cp) return;
           const svg = document.getElementById('miniChannelSvg');
           const ca = ch.chartArea, xS = ch.scales.x, yS = ch.scales.y;
+          // Zero-size chart (hidden tab / rotation) → NaN scales → SVG errors; skip until next resize.
+          if (ca.right - ca.left < 2 || ca.bottom - ca.top < 2) { svg.innerHTML = ''; return; }
           const mn0 = xS.getValueForPixel(ca.left), mn1 = xS.getValueForPixel(ca.right);
           const x0 = ca.left, x1 = ca.right;
           const c = (int, mn) => Math.exp(int + cp.slope * mn);

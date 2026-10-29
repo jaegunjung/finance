@@ -293,6 +293,9 @@ function updateInversionOverlay(ch) {
   if (!ch?.chartArea) { svg.innerHTML=''; return; }
   if (!showLayer.inv) { svg.innerHTML=''; return; }
   const ca = ch.chartArea, xS = ch.scales.x, yS = ch.scales.y;
+  // Chart collapsed to zero size (hidden tab, rotation, fullscreen switch): the scales return
+  // NaN, which the browser logs as SVG attribute errors. Skip; the next resize redraws it.
+  if (ca.right - ca.left < 2 || ca.bottom - ca.top < 2) { svg.innerHTML = ''; return; }
   const ds1 = ch.data.datasets[1].data;
   const ds2 = ch.data.datasets[2].data;
 
