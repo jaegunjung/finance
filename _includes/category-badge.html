@@ -1,0 +1,2 @@
+{%- assign _cl = site.data.category_labels[include.cat] -%}
+<span class="badge badge-{{ include.cat }}">{%- if _cl -%}<span class="en-only">{{ _cl.en }}</span><span class="ko-only">{{ _cl.ko }}</span>{%- else -%}{{ include.cat }}{%- endif -%}</span>

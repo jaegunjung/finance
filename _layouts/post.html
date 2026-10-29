@@ -6,7 +6,7 @@ layout: default
     <div class="post-meta" style="display:block; margin-bottom:10px; line-height:1.8;">
       {% if page.categories %}
         {% for cat in page.categories %}
-          <span class="badge badge-{{ cat }}">{{ cat }}</span>
+          {% include category-badge.html cat=cat %}
         {% endfor %}
       {% endif %}
       <span style="color:var(--text-muted); font-size:0.82rem; margin-left:4px;">

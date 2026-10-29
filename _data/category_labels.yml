@@ -1,0 +1,6 @@
+# Display labels for post categories, per language.
+# Categories are part of post permalinks (/:categories/...), so a Korean category name
+# can't be renamed without breaking URLs — map it to an English label here instead.
+뉴스:
+  en: news
+  ko: 뉴스

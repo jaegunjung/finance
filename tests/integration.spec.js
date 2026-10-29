@@ -1002,3 +1002,41 @@ test.describe("J. 링크 미리보기 메타태그", () => {
     });
   }
 });
+
+// ────────────────────────────────────────────────────────────
+// K. EN 모드 — 화면에 한글 노출 없음
+//    i18n 규칙: 정적 텍스트는 .en-only/.ko-only, 속성은 data-<attr>-en/-ko,
+//    JS 문자열은 jjT()/jjTT() (_layouts/default.html). 이 규칙을 빠뜨린
+//    하드코딩 한글이 EN 모드에서 보이면 실패한다. 로그인 전용 화면(포트폴리오
+//    내부, 모달 열린 상태)은 여기서 못 보므로 정적 HTML의 숨은 영역도 함께 검사.
+// ────────────────────────────────────────────────────────────
+test.describe("K. EN 모드 — 한글 노출 없음", () => {
+  const PAGES = ["/", "/stock/", "/stock/envx/", "/stock/ai-capex/", "/crypto/", "/crypto/eth/",
+                 "/macro/", "/rates/", "/portfolio/", "/blog/", "/about/", "/privacy/"];
+  for (const p of PAGES) {
+    test(`K. ${p} — EN 모드에서 보이는 한글/한글 속성 없음`, async ({ page }) => {
+      await page.addInitScript(() => { try { localStorage.setItem("jj-lang", "en"); } catch (e) {} });
+      await page.goto(BASE_URL + p, { waitUntil: "networkidle", timeout: 45_000 });
+      const leaks = await page.evaluate(() => {
+        const H = /[가-힣]/, out = [];
+        const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        let n;
+        while ((n = w.nextNode())) {
+          const t = n.nodeValue.trim(), el = n.parentElement;
+          if (!t || !H.test(t) || !el || el.closest("script,style,noscript,#langToggleBtn")) continue;
+          if (el.checkVisibility && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) out.push(t.slice(0, 60));
+        }
+        // 숨은 모달/로그인 전용 영역 포함: ko-only 밖의 한글 속성(placeholder/title 등)
+        document.querySelectorAll("[placeholder],[title],[aria-label],[alt]").forEach(el => {
+          if (el.closest(".ko-only,.lang-ko")) return;
+          for (const a of ["placeholder", "title", "aria-label", "alt"]) {
+            const v = el.getAttribute(a);
+            if (v && H.test(v)) out.push(`@${a}: ${v.slice(0, 60)}`);
+          }
+        });
+        return out;
+      });
+      expect(leaks, `EN 모드에서 보이는 한글:\n${leaks.join("\n")}`).toEqual([]);
+    });
+  }
+});

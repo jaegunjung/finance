@@ -53,7 +53,7 @@ permalink: /privacy/
 
     <h2>AI-Assisted Analysis</h2>
     <p>
-      The "코치 조언" (coaching) feature in the Portfolio tool currently runs entirely as rule-based
+      The "Coach Advice" feature in the Portfolio tool currently runs entirely as rule-based
       logic in your browser — it does not send your data to any third-party AI service. We're planning
       an optional AI-assisted analysis feature (built on Anthropic's Claude API) for a future release.
       When that launches, this section will be updated to describe exactly what's sent, and the feature

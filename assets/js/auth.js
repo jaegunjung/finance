@@ -160,7 +160,7 @@
         const email = emailInput.value.trim();
         if (!email) { emailInput.focus(); return; }
         magicBtn.disabled = true;
-        magicBtn.textContent = '전송 중…';
+        magicBtn.textContent = window.jjT ? jjT('Sending…', '전송 중…') : 'Sending…';
         const { error } = await sb.auth.signInWithOtp({
           email,
           options: { emailRedirectTo: window.location.href }
@@ -172,7 +172,7 @@
           magicBtn.disabled = false;
           magicBtn.innerHTML = '<span class="en-only">Send link</span><span class="ko-only">링크 전송</span>';
         } else {
-          msg.textContent = `${email} 로 링크를 보냈습니다. 이메일을 확인하세요!`;
+          msg.textContent = window.jjT ? jjT(`Link sent to ${email}. Check your inbox!`, `${email} 로 링크를 보냈습니다. 이메일을 확인하세요!`) : `Link sent to ${email}. Check your inbox!`;
           msg.style.color = 'var(--accent-green, #3fb950)';
         }
         msg.style.display = 'block';

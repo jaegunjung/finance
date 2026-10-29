@@ -100,7 +100,7 @@
     $('comment-form-container').innerHTML = `
       <div class="cmt-form">
         <textarea id="cmt-input" class="cmt-textarea"
-          placeholder="댓글을 입력하세요… / Write a comment…" rows="3"></textarea>
+          placeholder="${jjT('Write a comment…', '댓글을 입력하세요…')}" data-placeholder-en="Write a comment…" data-placeholder-ko="댓글을 입력하세요…" rows="3"></textarea>
         <div class="cmt-form-footer">
           <span id="cmt-char" class="cmt-char">0 / 500</span>
           <button class="cmt-btn cmt-btn-submit" id="btn-submit">
@@ -134,7 +134,7 @@
     if (!email) { $('magic-email').focus(); return; }
     const btn = $('btn-magic');
     btn.disabled = true;
-    btn.textContent = '전송 중…';
+    btn.textContent = jjT('Sending…', '전송 중…');
     const { error } = await sb.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.href }
@@ -146,7 +146,7 @@
       btn.disabled = false;
       btn.innerHTML = '<span class="ko-only">이메일로 로그인</span>';
     } else {
-      msg.textContent = `${email} 로 링크를 보냈습니다. 이메일을 확인하세요!`;
+      msg.textContent = jjT(`Link sent to ${email}. Check your inbox!`, `${email} 로 링크를 보냈습니다. 이메일을 확인하세요!`);
       msg.style.color = 'var(--accent-green)';
     }
     msg.style.display = 'block';
@@ -164,7 +164,7 @@
     errEl.style.display = 'none';
     if (!content) { input.focus(); return; }
     if (content.length > 500) {
-      errEl.textContent = '댓글은 500자 이하로 입력해주세요.';
+      errEl.textContent = jjT('Comments must be 500 characters or fewer.', '댓글은 500자 이하로 입력해주세요.');
       errEl.style.display = 'block'; return;
     }
     const btn = $('btn-submit');
@@ -188,7 +188,7 @@
   }
 
   async function deleteComment(id) {
-    if (!confirm('댓글을 삭제하시겠습니까?')) return;
+    if (!confirm(jjT('Delete this comment?', '댓글을 삭제하시겠습니까?'))) return;
     const { error } = await sb.from('comments').delete().eq('id', id);
     if (!error) await loadComments();
     else alert(error.message);
@@ -197,7 +197,7 @@
 
   async function loadComments() {
     const listEl = $('comments-list');
-    listEl.innerHTML = '<p class="cmt-loading">로딩 중…</p>';
+    listEl.innerHTML = '<p class="cmt-loading">' + jjTT('Loading…', '로딩 중…') + '</p>';
 
     const [{ data: comments, error }, { data: { session } }] = await Promise.all([
       sb.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: false }),
@@ -224,7 +224,7 @@
           <span class="cmt-avatar">${initial(c.user_name, c.user_email)}</span>
           <span class="cmt-item-author">${esc(c.user_name || c.user_email)}</span>
           <span class="cmt-item-date">${fmtDate(c.created_at)}</span>
-          ${uid === c.user_id ? `<button class="cmt-btn cmt-btn-delete" onclick="window._cmtDelete('${c.id}')">삭제</button>` : ''}
+          ${uid === c.user_id ? `<button class="cmt-btn cmt-btn-delete" onclick="window._cmtDelete('${c.id}')">${jjTT('Delete', '삭제')}</button>` : ''}
         </div>
         <div class="cmt-item-body">${esc(c.content)}</div>
       </div>`).join('');

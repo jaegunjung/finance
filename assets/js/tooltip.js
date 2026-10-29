@@ -11,65 +11,75 @@
   window.__jjTooltipInit = true;
 
   // ── Glossary ───────────────────────────────────────────────
-  // re: regex source (case-sensitive). ko is the main description; en is shown in EN mode.
+  // re: regex source (case-sensitive). title/ko are shown in KO mode; titleEn/en in EN mode.
   var TERMS = {
     PER: {
       re: '\\bPER\\b|\\bP\\/E\\b|주가수익비율',
       title: 'PER (주가수익비율)',
+      titleEn: 'P/E (Price-to-Earnings)',
       ko: '주가를 주당순이익(EPS)으로 나눈 값. 낮을수록 이익 대비 저평가.',
       en: 'Price-to-Earnings ratio: share price ÷ EPS. Lower means cheaper relative to earnings.'
     },
     PBR: {
       re: '\\bPBR\\b|\\bP\\/B\\b|주가순자산비율',
       title: 'PBR (주가순자산비율)',
+      titleEn: 'P/B (Price-to-Book)',
       ko: '주가를 주당순자산(BPS)으로 나눈 값. 1 미만이면 장부가치보다 싸게 거래되는 중.',
       en: 'Price-to-Book ratio: share price ÷ book value per share. Below 1 = trading under book value.'
     },
     EPS: {
       re: '\\bEPS\\b|주당순이익',
       title: 'EPS (주당순이익)',
+      titleEn: 'EPS (Earnings Per Share)',
       ko: '기업의 순이익을 발행 주식수로 나눈 값.',
       en: 'Earnings Per Share: net income ÷ shares outstanding.'
     },
     YTD: {
       re: '\\bYTD\\b|연초\\s?대비',
       title: 'YTD (연초대비수익률)',
+      titleEn: 'YTD (Year-to-Date)',
       ko: 'Year-to-Date. 올해 1월 1일 대비 수익률.',
       en: 'Year-to-Date: return since January 1 of the current year.'
     },
     CAGR: {
       re: '\\bCAGR\\b|연평균\\s?성장률',
       title: 'CAGR (연평균성장률)',
+      titleEn: 'CAGR (Compound Annual Growth Rate)',
       ko: 'Compound Annual Growth Rate. 복리 기준으로 매년 평균 몇 % 성장했는지 나타낸 값.',
       en: 'Compound Annual Growth Rate: the steady yearly rate that gets you from start to end value.'
     },
     MCAP: {
       re: '시가총액|\\b[Mm]arket [Cc]ap(?:italization)?\\b',
       title: '시가총액 (Market Cap)',
+      titleEn: 'Market Cap',
       ko: '주가 × 발행 주식수. 시장이 매기는 기업 전체의 가치.',
       en: 'Share price × shares outstanding: the market value of the whole company.'
     },
     VOL: {
       re: '변동성|\\b[Vv]olatility\\b',
       title: '변동성 (Volatility)',
+      titleEn: 'Volatility',
       ko: '가격의 등락폭. 클수록 리스크가 높음.',
       en: 'How widely the price swings. Higher volatility = higher risk.'
     },
     MACRO: {
       re: '매크로|\\b[Mm]acro\\b',
       title: '매크로 (Macro)',
+      titleEn: 'Macro',
       ko: '금리, 물가, 실업률 등 거시경제 지표.',
       en: 'Macroeconomics: economy-wide indicators such as interest rates, inflation and unemployment.'
     },
     ETF: {
       re: '\\bETFs?\\b',
       title: 'ETF (상장지수펀드)',
+      titleEn: 'ETF (Exchange-Traded Fund)',
       ko: '여러 종목을 묶어 거래소에서 주식처럼 거래하는 펀드.',
       en: 'Exchange-Traded Fund: a basket of securities that trades on an exchange like a stock.'
     },
     RSI: {
       re: '\\bRSI\\b',
       title: 'RSI (상대강도지수)',
+      titleEn: 'RSI (Relative Strength Index)',
       ko: '최근 상승폭과 하락폭을 비교한 모멘텀 지표. 70 이상 과매수, 30 이하 과매도.',
       en: 'Relative Strength Index: momentum gauge. Above 70 = overbought, below 30 = oversold.'
     }
@@ -160,7 +170,7 @@
     var def = TERMS[el.getAttribute('data-term')];
     if (!def) return;
     var ko = document.documentElement.classList.contains('ko-mode');
-    tipTitle.textContent = def.title;
+    tipTitle.textContent = ko ? def.title : (def.titleEn || def.title);
     tipBody.textContent = ko ? def.ko : (def.en || def.ko);
     if (current && current !== el) current.removeAttribute('aria-describedby');
     current = el;

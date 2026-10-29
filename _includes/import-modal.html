@@ -73,7 +73,7 @@
       ">
         <div style="font-size:2rem; margin-bottom:8px;">☁️</div>
         <div style="color:var(--text-secondary); font-size:0.88rem; margin-bottom:14px;">
-          Google Drive에서 CSV 파일을 선택하세요
+          <span class="en-only">Pick a CSV file from Google Drive</span><span class="ko-only">Google Drive에서 CSV 파일을 선택하세요</span>
         </div>
         <button onclick="importGdriveOpen()" style="
           padding:9px 22px; border-radius:8px; border:none;
@@ -88,7 +88,7 @@
             <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
             <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
           </svg>
-          Google Drive에서 선택
+          <span class="en-only">Choose from Google Drive</span><span class="ko-only">Google Drive에서 선택</span>
         </button>
         <div id="importGdriveStatus" style="margin-top:10px; font-size:0.78rem; color:var(--text-muted);"></div>
       </div>
@@ -108,7 +108,7 @@
       <!-- Portfolio filter checkboxes (shown when CSV has Portfolio column) -->
       <div id="importPortfolioFilter" style="display:none; margin-bottom:12px;">
         <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-muted); margin-bottom:8px;">
-          가져올 포트폴리오 선택
+          <span class="en-only">Portfolios to import</span><span class="ko-only">가져올 포트폴리오 선택</span>
         </div>
         <div id="importPortfolioCheckboxes" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
         <div style="margin-top:6px; font-size:0.76rem; color:var(--text-muted);">
@@ -143,7 +143,7 @@
     <!-- Action buttons -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
     <label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; color:var(--text-secondary); cursor:pointer;">
-      <input type="checkbox" id="importSkipDedup"> 첫 import (중복 체크 생략)
+      <input type="checkbox" id="importSkipDedup"> <span class="en-only">First import (skip duplicate check)</span><span class="ko-only">첫 import (중복 체크 생략)</span>
     </label>
     <div style="display:flex; gap:10px;">
       <button onclick="importModalClose()" style="
@@ -207,10 +207,10 @@ function importGdriveLoadScripts(cb) {
 function importGdriveOpen() {
   const cfg = window._GDRIVE_CONFIG;
   if (!cfg || !cfg.apiKey || !cfg.clientId) {
-    importGdriveSetStatus('⚠️ Google Drive 설정이 없습니다. 관리자에게 문의하세요.');
+    importGdriveSetStatus(jjT('⚠️ Google Drive is not configured. Please contact the admin.', '⚠️ Google Drive 설정이 없습니다. 관리자에게 문의하세요.'));
     return;
   }
-  importGdriveSetStatus('Google 라이브러리 로딩 중…');
+  importGdriveSetStatus(jjT('Loading Google libraries…', 'Google 라이브러리 로딩 중…'));
   importGdriveLoadScripts(() => {
     if (_gdriveAccessToken) {
       importGdriveShowPicker(cfg);
@@ -219,19 +219,19 @@ function importGdriveOpen() {
         client_id: cfg.clientId,
         scope: _GDRIVE_SCOPE,
         callback: (resp) => {
-          if (resp.error) { importGdriveSetStatus('❌ Google 인증 실패: ' + resp.error); return; }
+          if (resp.error) { importGdriveSetStatus(jjT('❌ Google sign-in failed: ', '❌ Google 인증 실패: ') + resp.error); return; }
           _gdriveAccessToken = resp.access_token;
           importGdriveShowPicker(cfg);
         },
       });
-      importGdriveSetStatus('Google 계정 로그인 중…');
+      importGdriveSetStatus(jjT('Signing in to Google…', 'Google 계정 로그인 중…'));
       _gdriveTokenClient.requestAccessToken({ prompt: 'consent' });
     }
   });
 }
 
 function importGdriveShowPicker(cfg) {
-  importGdriveSetStatus('Google Drive 파일 선택기 열기…');
+  importGdriveSetStatus(jjT('Opening Google Drive picker…', 'Google Drive 파일 선택기 열기…'));
   const view = new google.picker.DocsView()
     .setSelectFolderEnabled(false)
     .setIncludeFolders(true)
@@ -258,18 +258,18 @@ function importGdrivePickerCallback(data) {
   if (data.action !== google.picker.Action.PICKED) return;
   const file = data.docs?.[0];
   if (!file) return;
-  importGdriveSetStatus(`📥 다운로드 중: ${file.name}…`);
+  importGdriveSetStatus(`📥 ${jjT('Downloading', '다운로드 중')}: ${file.name}…`);
   fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
     headers: { Authorization: 'Bearer ' + _gdriveAccessToken },
   })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(text => {
-      importGdriveSetStatus(`✓ ${file.name} 로드 완료`);
+      importGdriveSetStatus(`✓ ${file.name} ${jjT('loaded', '로드 완료')}`);
       if (!window.txns) { importShowStatus('error', 'Transaction module not loaded.'); return; }
       _importParsed = window.txns.parseMspCsv(text);
       importRenderPreview(_importParsed);
     })
-    .catch(e => importGdriveSetStatus('❌ 다운로드 실패: ' + e.message));
+    .catch(e => importGdriveSetStatus(jjT('❌ Download failed: ', '❌ 다운로드 실패: ') + e.message));
 }
 
 function importGdriveSetStatus(msg) {
@@ -402,18 +402,18 @@ function importRenderPreview({ rows, format }) {
           <input type="checkbox" checked class="import-port-cb" data-port-name="${name.replace(/"/g,'&quot;')}"
             onchange="importPortFilterChange()" style="accent-color:var(--accent-blue);cursor:pointer;">
           <span style="font-weight:600;font-size:0.85rem;">${name}</span>
-          <span style="color:var(--text-muted);font-size:0.75rem;">(${count}건)</span>
+          <span style="color:var(--text-muted);font-size:0.75rem;">(${count}${jjTT(' rows', '건')})</span>
         </label>
         <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text-muted);">
-          <span>→ 매핑:</span>
+          <span>→ ${jjTT('Map to', '매핑')}:</span>
           <select class="import-port-map" data-port-name="${name.replace(/"/g,'&quot;')}"
             onchange="importPortFilterChange()" style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);padding:3px 8px;font-size:0.8rem;">
-            <option value="new" ${!matched ? 'selected' : ''}>(신규 생성: "${name}")</option>
+            <option value="new" ${!matched ? 'selected' : ''}>(${jjT('create new', '신규 생성')}: "${name}")</option>
             ${existingOpts}
           </select>
         </div>
         <span class="import-port-badge" style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:${matched ? 'rgba(63,185,80,0.12)' : 'rgba(88,166,255,0.12)'};color:${matched ? 'rgba(63,185,80,0.9)' : 'rgba(88,166,255,0.9)'};white-space:nowrap;">
-          ${matched ? '✓ 매핑됨' : '+ 신규'}
+          ${matched ? '✓ ' + jjT('Mapped', '매핑됨') : '+ ' + jjT('New', '신규')}
         </span>
       `;
       cbWrap.appendChild(row);
@@ -471,13 +471,13 @@ function importPortFilterChange() {
     const badge = sel.closest('div').parentElement.querySelector('.import-port-badge');
     if (!badge) return;
     const isNew = sel.value === 'new';
-    badge.textContent = isNew ? '+ 신규' : '✓ 매핑됨';
+    badge.textContent = isNew ? '+ ' + jjT('New', '신규') : '✓ ' + jjT('Mapped', '매핑됨');
     badge.style.background = isNew ? 'rgba(88,166,255,0.12)' : 'rgba(63,185,80,0.12)';
     badge.style.color = isNew ? 'rgba(88,166,255,0.9)' : 'rgba(63,185,80,0.9)';
   });
   const filtered = _importParsed.rows.filter(r => !r.portfolio_name || checked.has(r.portfolio_name));
   const countEl = document.getElementById('importPortfolioFilterCount');
-  if (countEl) countEl.textContent = `선택된 행: ${filtered.length} / ${_importParsed.rows.length}`;
+  if (countEl) countEl.textContent = `${jjT('Selected rows', '선택된 행')}: ${filtered.length} / ${_importParsed.rows.length}`;
   importUpdateSubmitBtn(filtered.length);
 }
 
@@ -550,11 +550,11 @@ async function importSubmit() {
         `<tr><td>${r.trade_date||''}</td><td>${r.symbol||''}</td><td>${r.type||''}</td>` +
         `<td>${r.shares != null ? r.shares : '—'}</td><td>${r.price != null ? r.price : '—'}</td>` +
         `<td>${r.amount != null ? r.amount : '—'}</td>` +
-        `<td style="color:var(--text-muted);font-size:0.8em">${r._reason === 'db' ? 'DB중복' : 'CSV중복'}</td></tr>`
+        `<td style="color:var(--text-muted);font-size:0.8em">${r._reason === 'db' ? jjTT('Dup in DB', 'DB중복') : jjTT('Dup in CSV', 'CSV중복')}</td></tr>`
       ).join('');
       skipMsg = ` <span style="cursor:pointer;text-decoration:underline;color:var(--accent)" onclick="this.closest('.import-skip-detail').querySelector('.import-skip-table').style.display=this.closest('.import-skip-detail').querySelector('.import-skip-table').style.display==='none'?'':'none'">${skipped} duplicate${skipped!==1?'s':''} skipped${detail} ▾</span>` +
         `<div class="import-skip-detail"><table class="import-skip-table" style="display:none;margin-top:6px;width:100%;font-size:0.8em;border-collapse:collapse">` +
-        `<thead><tr style="color:var(--text-muted)"><th>Date</th><th>Symbol</th><th>Type</th><th>Shares</th><th>Price</th><th>Amount</th><th>이유</th></tr></thead>` +
+        `<thead><tr style="color:var(--text-muted)"><th>Date</th><th>Symbol</th><th>Type</th><th>Shares</th><th>Price</th><th>Amount</th><th>${jjTT('Reason', '이유')}</th></tr></thead>` +
         `<tbody>${tableRows}</tbody></table></div>`;
     }
     importShowStatus('success', `✓ Successfully imported ${imported} transaction${imported !== 1 ? 's' : ''}.${skipMsg}`);
@@ -606,17 +606,17 @@ function importShowNewSymbolBanner(unknownSyms, allRows) {
   const banner = document.createElement('div');
   banner.style.cssText = 'margin-top:14px;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,165,0,0.4);background:rgba(255,165,0,0.08);font-size:0.83rem;color:var(--text-primary);';
   banner.innerHTML = `
-    <div style="font-weight:700;margin-bottom:8px;">⚠️ 미지원 심볼 감지 — 가격 데이터 없음</div>
-    <div style="color:var(--text-secondary);margin-bottom:8px;">아래 종목의 CSV 데이터가 없습니다. GitHub Actions에서 데이터를 수집하세요:</div>
+    <div style="font-weight:700;margin-bottom:8px;">⚠️ ${jjTT('Unsupported symbols detected — no price data', '미지원 심볼 감지 — 가격 데이터 없음')}</div>
+    <div style="color:var(--text-secondary);margin-bottom:8px;">${jjTT('There is no CSV data for the symbols below. Collect it with GitHub Actions:', '아래 종목의 CSV 데이터가 없습니다. GitHub Actions에서 데이터를 수집하세요:')}</div>
     <ul style="margin:0 0 10px 16px;padding:0;">${lines}</ul>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
       <a href="${repoUrl}" target="_blank" rel="noopener" style="
         display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:6px;
         background:var(--accent-blue);color:#fff;text-decoration:none;font-size:0.8rem;font-weight:600;">
-        ▶ GitHub Actions에서 실행
+        ▶ ${jjTT('Run in GitHub Actions', 'GitHub Actions에서 실행')}
       </a>
       <span style="font-size:0.76rem;color:var(--text-muted);align-self:center;">
-        또는: <code style="font-size:0.9em;">python scripts/fetch_new_symbol.py ${unknownSyms[0]}</code>
+        ${jjTT('or', '또는')}: <code style="font-size:0.9em;">python scripts/fetch_new_symbol.py ${unknownSyms[0]}</code>
       </span>
     </div>`;
   document.getElementById('importModalBox').appendChild(banner);

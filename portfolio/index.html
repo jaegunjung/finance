@@ -1,6 +1,7 @@
 ---
 layout: default
-title: 포트폴리오
+title: Portfolio
+title_ko: 포트폴리오
 ---
 <style>
 /* Portfolio / filter tabs */
@@ -115,9 +116,9 @@ title: 포트폴리오
       background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px;
       color:var(--text-primary); padding:6px 12px; font-size:0.85rem; cursor:pointer; min-width:160px;
     "></select>
-    <button id="portDeletePortfolioBtn" onclick="portDeletePortfolio()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(248,81,73,0.35); background:none; color:rgba(248,81,73,0.7); cursor:pointer; font-size:0.8rem;" title="이 포트폴리오 삭제">🗑 삭제</button>
-    <button id="portSetGroupBtn" onclick="portSetGroup()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="이 포트폴리오를 그룹에 포함 (예: 401k 계좌 여러 개를 하나로 묶어보기)">🏷 그룹</button>
-    <button id="portDedupeBtn" onclick="portDeduplicateTxns()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(255,165,0,0.4); background:none; color:rgba(255,165,0,0.85); cursor:pointer; font-size:0.8rem;" title="중복 거래 삭제">⚡ 중복 제거</button>
+    <button id="portDeletePortfolioBtn" onclick="portDeletePortfolio()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(248,81,73,0.35); background:none; color:rgba(248,81,73,0.7); cursor:pointer; font-size:0.8rem;" title="Delete this portfolio" data-title-en="Delete this portfolio" data-title-ko="이 포트폴리오 삭제">🗑 <span class="en-only">Delete</span><span class="ko-only">삭제</span></button>
+    <button id="portSetGroupBtn" onclick="portSetGroup()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Add this portfolio to a group (e.g. combine several 401k accounts)" data-title-en="Add this portfolio to a group (e.g. combine several 401k accounts)" data-title-ko="이 포트폴리오를 그룹에 포함 (예: 401k 계좌 여러 개를 하나로 묶어보기)">🏷 <span class="en-only">Group</span><span class="ko-only">그룹</span></button>
+    <button id="portDedupeBtn" onclick="portDeduplicateTxns()" style="display:none; padding:5px 12px; border-radius:6px; border:1px solid rgba(255,165,0,0.4); background:none; color:rgba(255,165,0,0.85); cursor:pointer; font-size:0.8rem;" title="Delete duplicate trades" data-title-en="Delete duplicate trades" data-title-ko="중복 거래 삭제">⚡ <span class="en-only">Remove duplicates</span><span class="ko-only">중복 제거</span></button>
     <button class="port-add-btn" onclick="portShowAddPortfolio()">＋ <span class="en-only">Add Portfolio</span><span class="ko-only">포트폴리오 추가</span></button>
     <span style="margin-left:auto;">{% include return-share.html %}</span>
   </div>
@@ -125,7 +126,7 @@ title: 포트폴리오
   <!-- Add portfolio inline form -->
   <div id="portAddPortfolioForm" style="display:none; margin-bottom:16px; gap:8px; align-items:center; flex-wrap:wrap;">
     <input id="portNewPortName" type="text" placeholder="Portfolio name" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:220px;">
-    <input id="portNewPortGroup" type="text" placeholder="그룹 (선택, 예: 401k)" title="같은 그룹명을 여러 포트폴리오에 지정하면 나중에 합쳐서 볼 수 있습니다" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:160px;">
+    <input id="portNewPortGroup" type="text" placeholder="Group (optional, e.g. 401k)" data-placeholder-en="Group (optional, e.g. 401k)" data-placeholder-ko="그룹 (선택, 예: 401k)" title="Give several portfolios the same group name to view them combined later" data-title-en="Give several portfolios the same group name to view them combined later" data-title-ko="같은 그룹명을 여러 포트폴리오에 지정하면 나중에 합쳐서 볼 수 있습니다" style="background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 12px; font-size:0.85rem; width:160px;">
     <button onclick="portCreatePortfolio()" style="padding:6px 16px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem;">Create</button>
     <button onclick="document.getElementById('portAddPortfolioForm').style.display='none';" style="padding:6px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
   </div>
@@ -192,7 +193,7 @@ title: 포트폴리오
           <button onclick="importModalOpen()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Import CSV">📥 Import</button>
           <button onclick="portExportCsv()" style="padding:5px 14px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;" title="Export current view to CSV">📤 Export</button>
           <button id="portBulkDelBtn" onclick="portBulkDelete()" style="display:none; padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.4); background:rgba(248,81,73,0.08); color:rgba(248,81,73,0.9); cursor:pointer; font-size:0.8rem;" title="Delete selected">🗑 <span id="portBulkDelCount"></span></button>
-          <button id="portDeleteAllBtn" onclick="portDeleteAll()" style="padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.25); background:none; color:rgba(248,81,73,0.6); cursor:pointer; font-size:0.8rem;" title="Delete all transactions in current filter">🗑 전체삭제</button>
+          <button id="portDeleteAllBtn" onclick="portDeleteAll()" style="padding:5px 14px; border-radius:6px; border:1px solid rgba(248,81,73,0.25); background:none; color:rgba(248,81,73,0.6); cursor:pointer; font-size:0.8rem;" title="Delete all transactions in current filter">🗑 <span class="en-only">Delete all</span><span class="ko-only">전체삭제</span></button>
         </div>
       </div>
       <div id="portSummaryRow" style="display:none; padding:0 18px 12px; gap:24px; flex-wrap:wrap;">
@@ -212,18 +213,18 @@ title: 포트폴리오
               <th class="sortable" style="text-align:right;" onclick="txnSortBy('shares')">Shares<span class="sort-icon" id="si_shares"></span></th>
               <th class="sortable" style="text-align:right;" onclick="txnSortBy('price')">Price<span class="sort-icon" id="si_price"></span></th>
               <th class="sortable" style="text-align:right;" onclick="txnSortBy('amount')">Amount<span class="sort-icon" id="si_amount"></span></th>
-              <th style="text-align:center;" title="이 거래를 투입 원금 계산에 포함할지 수동으로 지정합니다. 기본값(—)은 포트폴리오의 '연도별 $0 처리' 설정을 따릅니다.">원금</th>
+              <th style="text-align:center;" title="Manually set whether this trade counts toward contributed principal. Default (—) follows the portfolio's $0-from-date setting." data-title-en="Manually set whether this trade counts toward contributed principal. Default (—) follows the portfolio's $0-from-date setting." data-title-ko="이 거래를 투입 원금 계산에 포함할지 수동으로 지정합니다. 기본값(—)은 포트폴리오의 '연도별 $0 처리' 설정을 따릅니다."><span class="en-only">Principal</span><span class="ko-only">원금</span></th>
               <th style="text-align:right;">Commission</th>
               <th>Notes</th><th>Source</th><th></th>
             </tr>
             <tr class="filter-row">
               <td></td>
-              <td><input class="col-filter" id="cf_date" placeholder="날짜 필터" oninput="txnApplyFilter()"></td>
-              <td id="tdPortfolioFilter" style="display:none;"><input class="col-filter" id="cf_portfolio" placeholder="포트폴리오" oninput="txnApplyFilter()"></td>
-              <td><input class="col-filter" id="cf_symbol" placeholder="종목" oninput="txnApplyFilter()"></td>
+              <td><input class="col-filter" id="cf_date" placeholder="Filter date" data-placeholder-en="Filter date" data-placeholder-ko="날짜 필터" oninput="txnApplyFilter()"></td>
+              <td id="tdPortfolioFilter" style="display:none;"><input class="col-filter" id="cf_portfolio" placeholder="Portfolio" data-placeholder-en="Portfolio" data-placeholder-ko="포트폴리오" oninput="txnApplyFilter()"></td>
+              <td><input class="col-filter" id="cf_symbol" placeholder="Symbol" data-placeholder-en="Symbol" data-placeholder-ko="종목" oninput="txnApplyFilter()"></td>
               <td>
                 <select class="col-filter" id="cf_type" onchange="txnApplyFilter()" style="padding:3px 4px;">
-                  <option value="">전체</option>
+                  <option value="">All</option>
                   <option value="buy">Buy</option>
                   <option value="sell">Sell</option>
                   <option value="dividend">Dividend</option>
@@ -234,10 +235,10 @@ title: 포트폴리오
                 </select>
               </td>
               <td></td><td></td>
-              <td><input class="col-filter" id="cf_amount" placeholder="금액 필터" oninput="txnApplyFilter()" style="text-align:right;"></td>
+              <td><input class="col-filter" id="cf_amount" placeholder="Filter amount" data-placeholder-en="Filter amount" data-placeholder-ko="금액 필터" oninput="txnApplyFilter()" style="text-align:right;"></td>
               <td></td>
               <td></td>
-              <td><input class="col-filter" id="cf_notes" placeholder="노트 검색" oninput="txnApplyFilter()"></td>
+              <td><input class="col-filter" id="cf_notes" placeholder="Search notes" data-placeholder-en="Search notes" data-placeholder-ko="노트 검색" oninput="txnApplyFilter()"></td>
               <td></td><td></td>
             </tr>
           </thead>
@@ -264,7 +265,7 @@ title: 포트폴리오
 
       <!-- Symbol filter: populated from the current selection's trades (see anlRenderSymbolFilter) -->
       <div id="anlSymbolBar" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
-        <div class="port-section-label" style="margin-bottom:0;">종목</div>
+        <div class="port-section-label" style="margin-bottom:0;"><span class="en-only">Symbol</span><span class="ko-only">종목</span></div>
         <select id="anlSymbolSelect" onchange="anlSymbolChange(this.value)" style="
           background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px;
           color:var(--text-primary); padding:6px 12px; font-size:0.85rem; cursor:pointer; min-width:140px;
@@ -275,26 +276,26 @@ title: 포트폴리오
       <!-- Year-by-year table -->
       <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
         <div style="padding:16px 18px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div class="port-section-label" style="margin-bottom:0;" id="anlYearTableTitle">연도별 수익률</div>
+          <div class="port-section-label" style="margin-bottom:0;" id="anlYearTableTitle"><span class="en-only">Returns by Year</span><span class="ko-only">연도별 수익률</span></div>
           <button id="anlPrincipalSettingsBtn" onclick="anlOpenPrincipalModal()" style="
             display:none; padding:5px 12px; border-radius:20px; border:1px solid var(--border);
             background:none; color:var(--text-secondary); font-size:0.76rem; cursor:pointer;">
-            ⚙️ 원금 설정
+            ⚙️ <span class="en-only">Principal settings</span><span class="ko-only">원금 설정</span>
           </button>
         </div>
         <div style="overflow-x:auto;">
           <table class="txn-table" id="anlYearTable">
             <thead>
               <tr>
-                <th>연도</th>
-                <th style="text-align:right;cursor:pointer;text-decoration:underline dotted;" title="해당 연도 말(당해 연도는 오늘)까지 누적으로 투입된 순 원금입니다. 클릭하면 계산 방법 자세히 보기" onclick="_showPrincipalInfo()">누적 투입 원금 ($)</th>
-                <th style="text-align:right;cursor:help;" title="해당 연도 말(당해 연도는 오늘) 기준, 보유 중인 자산의 시가 평가액입니다 (매도한 자산은 제외).">보유 현황 ($)</th>
-                <th style="text-align:right;cursor:help;" title="해당 연도 말(당해 연도는 오늘)까지의 누적 손익입니다 (실현 + 평가/미실현 포함).">누적 손익 ($)</th>
-                <th style="text-align:right;cursor:help;" title="누적 손익 ÷ 누적 투입 원금. 연도별 신규 납입액이 아닌, 그 시점까지의 전체 원금 기준입니다.">수익률 (%)</th>
-                <th style="text-align:right;cursor:help;" title="같은 날 같은 금액을 SPY에 투자했다면의 누적 수익률(동일 자금흐름 기준)입니다.">S&amp;P 500 (%)</th>
-                <th style="text-align:right;cursor:help;" title="Alpha = 수익률(%) − S&amp;P 500(%)&#10;시장(S&amp;P 500) 대비 초과 수익률입니다.">Alpha (%)</th>
-                <th style="text-align:right;cursor:help;" title="같은 날 같은 금액을 SGOV(0~3개월 미국 단기국채 ETF, 현금성 자산)에 투자했다면의 누적 수익률입니다. SGOV 실제 연도별 총수익률(배당 재투자 기준)을 매일 균등 복리로 환산해 계산합니다 — 2026년은 YTD 수익률(연 환산 아님) 기준이라 시간이 지나면 실제 수치와 다소 차이가 날 수 있습니다.">SGOV (%)</th>
-                <th style="text-align:right;cursor:help;" title="BETA = 수익률(%) − SGOV(%)&#10;현금성 자산(SGOV) 대비 초과 수익률입니다. SGOV는 변동성이 거의 없어, 통계적 베타(민감도) 계수가 아니라 Alpha와 같은 방식의 '초과 수익률'입니다.">BETA (%)</th>
+                <th><span class="en-only">Year</span><span class="ko-only">연도</span></th>
+                <th style="text-align:right;cursor:pointer;text-decoration:underline dotted;" title="Net principal contributed through year-end (today for the current year). Click for how it is calculated." data-title-en="Net principal contributed through year-end (today for the current year). Click for how it is calculated." data-title-ko="해당 연도 말(당해 연도는 오늘)까지 누적으로 투입된 순 원금입니다. 클릭하면 계산 방법 자세히 보기" onclick="_showPrincipalInfo()"><span class="en-only">Contributed Principal ($)</span><span class="ko-only">누적 투입 원금 ($)</span></th>
+                <th style="text-align:right;cursor:help;" title="Market value of assets held at year-end (today for the current year); sold assets excluded." data-title-en="Market value of assets held at year-end (today for the current year); sold assets excluded." data-title-ko="해당 연도 말(당해 연도는 오늘) 기준, 보유 중인 자산의 시가 평가액입니다 (매도한 자산은 제외)."><span class="en-only">Holdings ($)</span><span class="ko-only">보유 현황 ($)</span></th>
+                <th style="text-align:right;cursor:help;" title="Cumulative gain/loss through year-end (today for the current year), realized + unrealized." data-title-en="Cumulative gain/loss through year-end (today for the current year), realized + unrealized." data-title-ko="해당 연도 말(당해 연도는 오늘)까지의 누적 손익입니다 (실현 + 평가/미실현 포함)."><span class="en-only">Cumulative Gain ($)</span><span class="ko-only">누적 손익 ($)</span></th>
+                <th style="text-align:right;cursor:help;" title="Cumulative gain ÷ contributed principal — based on all principal to date, not that year's new contributions." data-title-en="Cumulative gain ÷ contributed principal — based on all principal to date, not that year's new contributions." data-title-ko="누적 손익 ÷ 누적 투입 원금. 연도별 신규 납입액이 아닌, 그 시점까지의 전체 원금 기준입니다."><span class="en-only">Return (%)</span><span class="ko-only">수익률 (%)</span></th>
+                <th style="text-align:right;cursor:help;" title="Cumulative return if the same amounts had gone into SPY on the same days (same cash flows)." data-title-en="Cumulative return if the same amounts had gone into SPY on the same days (same cash flows)." data-title-ko="같은 날 같은 금액을 SPY에 투자했다면의 누적 수익률(동일 자금흐름 기준)입니다.">S&amp;P 500 (%)</th>
+                <th style="text-align:right;cursor:help;" title="Alpha = Return(%) − S&amp;P 500(%)&#10;Excess return over the market (S&amp;P 500)." data-title-en="Alpha = Return(%) − S&amp;P 500(%)&#10;Excess return over the market (S&amp;P 500)." data-title-ko="Alpha = 수익률(%) − S&amp;P 500(%)&#10;시장(S&amp;P 500) 대비 초과 수익률입니다.">Alpha (%)</th>
+                <th style="text-align:right;cursor:help;" title="Cumulative return if the same amounts had gone into SGOV (0–3 month US T-bill ETF, cash-like) on the same days. Uses SGOV's actual yearly total return (dividends reinvested) compounded evenly per day — 2026 uses the YTD return (not annualized), so it may drift slightly from the final figure." data-title-en="Cumulative return if the same amounts had gone into SGOV (0–3 month US T-bill ETF, cash-like) on the same days. Uses SGOV's actual yearly total return (dividends reinvested) compounded evenly per day — 2026 uses the YTD return (not annualized), so it may drift slightly from the final figure." data-title-ko="같은 날 같은 금액을 SGOV(0~3개월 미국 단기국채 ETF, 현금성 자산)에 투자했다면의 누적 수익률입니다. SGOV 실제 연도별 총수익률(배당 재투자 기준)을 매일 균등 복리로 환산해 계산합니다 — 2026년은 YTD 수익률(연 환산 아님) 기준이라 시간이 지나면 실제 수치와 다소 차이가 날 수 있습니다.">SGOV (%)</th>
+                <th style="text-align:right;cursor:help;" title="BETA = Return(%) − SGOV(%)&#10;Excess return over a cash-like asset (SGOV). SGOV barely moves, so this is an excess return like Alpha, not a statistical beta (sensitivity) coefficient." data-title-en="BETA = Return(%) − SGOV(%)&#10;Excess return over a cash-like asset (SGOV). SGOV barely moves, so this is an excess return like Alpha, not a statistical beta (sensitivity) coefficient." data-title-ko="BETA = 수익률(%) − SGOV(%)&#10;현금성 자산(SGOV) 대비 초과 수익률입니다. SGOV는 변동성이 거의 없어, 통계적 베타(민감도) 계수가 아니라 Alpha와 같은 방식의 '초과 수익률'입니다.">BETA (%)</th>
               </tr>
             </thead>
             <tbody id="anlYearTableBody"></tbody>
@@ -305,7 +306,7 @@ title: 포트폴리오
       <!-- Annual (single-year, NOT cumulative) returns vs QQQ / SPY / SGOV -->
       <div class="card" style="margin-bottom:20px; padding:0; overflow:hidden;">
         <div style="padding:16px 18px 12px; border-bottom:1px solid var(--border);">
-          <div class="port-section-label" style="margin-bottom:0;">연간 수익률 비교 (%) — 그 해만, 누적 아님</div>
+          <div class="port-section-label" style="margin-bottom:0;"><span class="en-only">Annual Return Comparison (%) — single year, not cumulative</span><span class="ko-only">연간 수익률 비교 (%) — 그 해만, 누적 아님</span></div>
         </div>
         <div style="overflow-x:auto;">
           <table id="anlAnnualTable" style="width:100%; border-collapse:collapse; font-size:0.78rem; min-width:520px;">
@@ -314,10 +315,17 @@ title: 포트폴리오
           </table>
         </div>
         <p style="color:var(--text-muted); font-size:0.72rem; margin:0; padding:10px 18px 14px;">
+          <span class="en-only">
+          Each cell is that year's return only, 1/1–12/31 (through today for the current year) — not cumulative. QQQ·SPY (adjusted close) and SGOV (actual yearly total return, dividends reinvested) are computed the same way as the annual-returns table on the home page and shown next to your account.
+          <b>My account</b> = that year's gain on holdings ÷ (start-of-year value + time-weighted net buys during the year) — the Modified Dietz method, which accounts for when buys/sells happen and is unaffected by principal classification or lot method.
+          <sup>*</sup> marks a partial year that started mid-year (from the first trade or the principal-settings as-of date), so its period differs from the benchmarks (from 1/1).
+          Cash dividends received are not included (DRIP reinvestments are).
+          </span><span class="ko-only">
           각 칸은 해당 연도 1/1~12/31(올해는 오늘까지)의 수익률만입니다 — 연도별로 누적되지 않습니다. 메인 페이지의 연간 수익률 표와 같은 방식으로 계산한 QQQ·SPY(수정 종가)와 SGOV(실제 연도별 총수익률, 배당 재투자)를 내 계좌와 나란히 비교합니다.
           <b>내 계좌</b> = 그 해 보유 종목의 손익 ÷ (연초 평가액 + 그 해 순매수액의 기간 가중) — 연중 매수·매도 시점을 반영한 Modified Dietz 방식이며, 거래 시점·원금 분류·로트 방식에는 영향을 받지 않습니다.
           <sup>*</sup> 표시는 연중에 시작한 기간(첫 거래일 또는 원금 설정 기준일부터)의 수익률이라 같은 해 벤치마크(1/1 기준)와 기간이 다릅니다.
           현금 배당 수령분은 포함되지 않습니다(DRIP 재투자분은 포함).
+          </span>
           <span id="anlAnnualWarn"></span>
         </p>
       </div>
@@ -325,15 +333,15 @@ title: 포트폴리오
       <!-- Cumulative gain chart -->
       <div class="card" style="margin-bottom:20px;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-          <div class="port-section-label" style="margin-bottom:0;" id="anlGainChartTitle">누적 손익 비교 (동일 자금흐름)</div>
+          <div class="port-section-label" style="margin-bottom:0;" id="anlGainChartTitle"><span class="en-only">Cumulative Gain Comparison (same cash flows)</span><span class="ko-only">누적 손익 비교 (동일 자금흐름)</span></div>
           <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
             <label id="anlSgovSpyToggleWrap" style="display:none; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted); cursor:pointer;">
               <input type="checkbox" id="anlSgovSpyToggle" onchange="anlToggleSgovSpyBlend(this.checked)" style="cursor:pointer; accent-color:var(--accent-blue);">
-              SGOV/SPY 혼합 보조선
+              <span class="en-only">SGOV/SPY blend guide</span><span class="ko-only">SGOV/SPY 혼합 보조선</span>
             </label>
             <button id="anlTradeToggleBtn" type="button" onclick="anlToggleTrades()" aria-pressed="true" style="
               padding:4px 12px; border-radius:20px; font-size:0.76rem; cursor:pointer; font-weight:600;
-              border:1px solid var(--border); background:none; color:var(--text-secondary);">거래 표시 ON</button>
+              border:1px solid var(--border); background:none; color:var(--text-secondary);"><span class="en-only">Trades ON</span><span class="ko-only">거래 표시 ON</span></button>
           </div>
         </div>
         <div style="position:relative; width:100%; height:360px;">
@@ -341,38 +349,45 @@ title: 포트폴리오
         </div>
         <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:10px; font-size:0.78rem;">
           <span style="display:flex; align-items:center; gap:6px;">
-            <span style="display:inline-block; width:20px; height:3px; background:#3fb950; border-radius:2px;"></span>내 포트폴리오
+            <span style="display:inline-block; width:20px; height:3px; background:#3fb950; border-radius:2px;"></span><span class="en-only">My portfolio</span><span class="ko-only">내 포트폴리오</span>
           </span>
           <span style="display:flex; align-items:center; gap:6px;">
-            <span style="display:inline-block; width:20px; height:0; border-top:2px dashed #3fb950;"></span>실현 손익
+            <span style="display:inline-block; width:20px; height:0; border-top:2px dashed #3fb950;"></span><span class="en-only">Realized gain</span><span class="ko-only">실현 손익</span>
           </span>
           <span style="display:flex; align-items:center; gap:6px;">
-            <span style="display:inline-block; width:20px; height:3px; background:#58a6ff; border-radius:2px;"></span>SPY (동일 투자)
+            <span style="display:inline-block; width:20px; height:3px; background:#58a6ff; border-radius:2px;"></span>SPY <span class="en-only">(same flows)</span><span class="ko-only">(동일 투자)</span>
           </span>
           <span style="display:flex; align-items:center; gap:6px;">
-            <span style="display:inline-block; width:20px; height:3px; background:#c792ea; border-radius:2px;"></span>QQQ (동일 투자)
+            <span style="display:inline-block; width:20px; height:3px; background:#c792ea; border-radius:2px;"></span>QQQ <span class="en-only">(same flows)</span><span class="ko-only">(동일 투자)</span>
           </span>
           <span style="display:flex; align-items:center; gap:6px;">
-            <span style="display:inline-block; width:20px; height:3px; background:#e8c84a; border-radius:2px;"></span>SGOV (동일 투자)
+            <span style="display:inline-block; width:20px; height:3px; background:#e8c84a; border-radius:2px;"></span>SGOV <span class="en-only">(same flows)</span><span class="ko-only">(동일 투자)</span>
           </span>
           <span id="anlTradeLegend" style="display:flex; align-items:center; gap:10px;">
-            <span style="display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(63,185,80,0.55); border:1.5px solid #3fb950;"></span>매수</span>
-            <span style="display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(248,81,73,0.55); border:1.5px solid #f85149;"></span>매도</span>
-            <span style="color:var(--text-muted);">(원 크기 ∝ 거래금액)</span>
+            <span style="display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(63,185,80,0.55); border:1.5px solid #3fb950;"></span><span class="en-only">Buy</span><span class="ko-only">매수</span></span>
+            <span style="display:flex; align-items:center; gap:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(248,81,73,0.55); border:1.5px solid #f85149;"></span><span class="en-only">Sell</span><span class="ko-only">매도</span></span>
+            <span style="color:var(--text-muted);"><span class="en-only">(circle size ∝ trade amount)</span><span class="ko-only">(원 크기 ∝ 거래금액)</span></span>
           </span>
         </div>
         <p style="color:var(--text-muted); font-size:0.73rem; margin-top:8px;">
+          <span class="en-only">
+          Compared with the hypothetical gain if the same amounts had gone into SPY / QQQ / SGOV (0–3 month US T-bill ETF, cash-like) on the same days.
+          SGOV barely moves in price and pays out most of its return as dividends, so it uses a synthetic index built from its actual yearly total return (dividends reinvested), compounded evenly per day.
+          The dashed line (realized gain) accumulates only gains locked in through sales and dividends, independent of swings in the remaining holdings —
+          if you take profits near a peak and the remaining position then falls, the solid line (my portfolio) drops but the dashed line stays put.
+          </span><span class="ko-only">
           같은 날 같은 금액을 SPY / QQQ / SGOV(0~3개월 미국 단기국채 ETF, 현금성 자산)에 투자했다면의 가상 손익과 비교.
           SGOV는 가격 변동이 거의 없고 수익 대부분이 배당으로 나가는 상품이라, 실제 연도별 총수익률(배당 재투자 기준)을 매일 균등 복리로 환산한 가상 지수를 사용합니다.
           점선(실현 손익)은 매도·배당으로 실제로 확정된 손익만 누적한 값으로, 남은 보유분의 평가액 등락과 무관합니다 —
           고점 근처에서 매도해 이익을 실현한 뒤 남은 포지션의 평가액이 떨어지면 실선(내 포트폴리오)은 하락해도 점선은 그대로 유지됩니다.
-          <span onclick="_showSpySimInfo()" style="cursor:pointer; color:var(--accent-blue); text-decoration:underline dotted;">자세히…</span>
+          </span>
+          <span onclick="_showSpySimInfo()" style="cursor:pointer; color:var(--accent-blue); text-decoration:underline dotted;"><span class="en-only">Details…</span><span class="ko-only">자세히…</span></span>
         </p>
       </div>
 
       <!-- Current holdings pie chart -->
       <div class="card" style="margin-bottom:20px;" id="anlPieCard">
-        <div class="port-section-label" style="margin-bottom:12px;">현재 보유 비중</div>
+        <div class="port-section-label" style="margin-bottom:12px;"><span class="en-only">Current Allocation</span><span class="ko-only">현재 보유 비중</span></div>
         <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
           <div style="position:relative; width:100%; max-width:420px; height:340px; flex-shrink:0;">
             <canvas id="anlHoldingsPie"></canvas>
@@ -384,7 +399,7 @@ title: 포트폴리오
 
       <!-- Coaching section -->
       <div class="card" style="margin-bottom:20px;" id="anlCoachCard">
-        <div class="port-section-label" style="margin-bottom:16px;">투자 성향 분석 &amp; 코치 조언</div>
+        <div class="port-section-label" style="margin-bottom:16px;"><span class="en-only">Investing Style &amp; Coach Advice</span><span class="ko-only">투자 성향 분석 &amp; 코치 조언</span></div>
         <div id="anlCoachContent" style="color:var(--text-secondary); font-size:0.88rem; line-height:1.8;"></div>
       </div>
 
@@ -481,16 +496,16 @@ title: 포트폴리오
 <!-- Group Modal: pick which groups a portfolio belongs to (multi-select) -->
 <div id="groupModal" onclick="groupModalBgClick(event)" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
   <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px 26px; min-width:300px; max-width:420px; width:90vw;">
-    <div style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:4px;">그룹 설정</div>
+    <div style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:4px;"><span class="en-only">Group Settings</span><span class="ko-only">그룹 설정</span></div>
     <div id="groupModalPortName" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px;"></div>
     <div id="groupModalList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px; max-height:240px; overflow-y:auto;"></div>
     <div style="display:flex; gap:6px; margin-bottom:16px;">
-      <input id="groupModalNewInput" type="text" placeholder="새 그룹 이름" style="flex:1; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem;">
-      <button onclick="groupModalAddNew()" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;">추가</button>
+      <input id="groupModalNewInput" type="text" placeholder="New group name" data-placeholder-en="New group name" data-placeholder-ko="새 그룹 이름" style="flex:1; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); padding:6px 10px; font-size:0.82rem;">
+      <button onclick="groupModalAddNew()" style="padding:6px 12px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.8rem;"><span class="en-only">Add</span><span class="ko-only">추가</span></button>
     </div>
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button onclick="groupModalClose()" style="padding:7px 18px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">Cancel</button>
-      <button id="groupModalSaveBtn" onclick="groupModalSave()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;">저장</button>
+      <button id="groupModalSaveBtn" onclick="groupModalSave()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;"><span class="en-only">Save</span><span class="ko-only">저장</span></button>
     </div>
   </div>
 </div>
@@ -512,33 +527,46 @@ title: 포트폴리오
 <!-- Principal Settings Modal (Coach tab — 원금 설정) -->
 <div id="principalModal" onclick="anlPrincipalModalBgClick(event)" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.65); align-items:center; justify-content:center;">
   <div id="principalModalBox" style="background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:24px 26px; min-width:340px; max-width:520px; width:90vw; max-height:90vh; overflow-y:auto;">
-    <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:6px;">원금 설정</div>
+    <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:6px;"><span class="en-only">Principal Settings</span><span class="ko-only">원금 설정</span></div>
     <div id="principalModalAccountName" style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:14px;"></div>
     <p style="color:var(--text-muted); font-size:0.8rem; line-height:1.6; margin:0 0 18px;">
+      <span class="en-only">
+      For accounts where the trade history alone can't tell the real contributed principal, such as a 401k → IRA rollover.
+      Applies to this account (portfolio) only. If any BUY row in the <b>Transactions</b> tab has been marked with its "Principal" button,
+      the "$0 from date" / manual settings below are <b>ignored entirely</b> and only
+      the amounts marked "✓ Principal" on individual trades are summed.
+      </span><span class="ko-only">
       401k → IRA 이체처럼 거래내역만으로는 실제 투입 원금을 정확히 알 수 없는 계좌를 위한 설정입니다.
       이 계좌(포트폴리오)에만 적용됩니다. <b>거래내역</b> 탭에서 개별 BUY 행에 "원금" 버튼으로 직접
       지정한 거래가 하나라도 있으면, 아래의 연도별 $0 처리 / 수동 입력 설정은 <b>완전히 무시</b>되고
       개별 거래에서 "✓ 원금"으로 지정한 금액만 합산됩니다.
+      </span>
     </p>
     <p id="pmExplicitOverrideNotice" style="display:none; color:var(--accent-orange, #d29922); font-size:0.78rem; line-height:1.5; margin:0 0 18px; padding:8px 10px; background:rgba(210,153,34,0.1); border-radius:6px;">
-      ⚠️ 이 계좌는 현재 개별 거래 원금 지정을 사용 중입니다. 아래 설정은 지금 적용되지 않습니다.
+      ⚠️ <span class="en-only">This account currently uses per-trade principal marks. The settings below do not apply right now.</span><span class="ko-only">이 계좌는 현재 개별 거래 원금 지정을 사용 중입니다. 아래 설정은 지금 적용되지 않습니다.</span>
     </p>
 
     <div id="pmZeroFromDateSection" style="margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border); transition:opacity 0.15s;">
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
         <input type="checkbox" id="pmZeroFromDateEnabled" onchange="pmToggleZeroFromDate()" style="cursor:pointer; accent-color:var(--accent-blue);">
-        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;">특정 날짜 이후 투입 원금을 $0으로 처리</span>
+        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;"><span class="en-only">Treat contributed principal as $0 after a date</span><span class="ko-only">특정 날짜 이후 투입 원금을 $0으로 처리</span></span>
       </label>
       <p style="color:var(--text-muted); font-size:0.76rem; line-height:1.5; margin:0 0 8px 26px;">
+        <span class="en-only">
+        E.g. you rolled a 401k into this Traditional IRA, or regular contributions stopped after leaving a job — buys recorded after that date
+        aren't new principal, so they're excluded. The SPY/QQQ/SGOV comparison also stops new investment from the same date,
+        so both sides are compared on the same basis — gains from actually managing the account afterward still show on both.
+        </span><span class="ko-only">
         예: 401k에서 이 Traditional IRA로 이체했거나, 퇴사 등으로 정기 납입이 끊긴 경우 — 그 날짜 이후 기록된 매수는
         새 원금이 아니므로 원금 계산에서 제외합니다. SPY/QQQ/SGOV 비교 시뮬레이션도 같은 날짜부터 신규 투자를
         멈춰서 두 쪽 다 같은 기준으로 비교됩니다 — 이후 실제로 운용해서 낸 손익은 양쪽 모두에 그대로 반영됩니다.
+        </span>
       </p>
       <p id="pmZeroFromDateInactiveNotice" style="display:none; color:var(--accent-orange, #d29922); font-size:0.74rem; line-height:1.5; margin:0 0 8px 26px;">
-        ⚠️ 아래 "전체 투입 원금 직접 입력"이 켜져 있으면 이 설정은 무시됩니다 — 수동 입력이 우선 적용됩니다.
+        ⚠️ <span class="en-only">If "Enter total contributed principal" below is on, this setting is ignored — the manual entry takes priority.</span><span class="ko-only">아래 "전체 투입 원금 직접 입력"이 켜져 있으면 이 설정은 무시됩니다 — 수동 입력이 우선 적용됩니다.</span>
       </p>
       <div id="pmZeroFromDateRow" style="display:none; margin-left:26px;">
-        <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">날짜부터 $0 처리</label>
+        <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;"><span class="en-only">$0 starting from</span><span class="ko-only">날짜부터 $0 처리</span></label>
         <input type="date" id="pmZeroFromDate" class="modal-input" style="max-width:160px;">
       </div>
     </div>
@@ -546,27 +574,32 @@ title: 포트폴리오
     <div>
       <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
         <input type="checkbox" id="pmManualEnabled" onchange="pmToggleManual()" style="cursor:pointer; accent-color:var(--accent-blue);">
-        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;">전체 투입 원금을 직접 입력 (수동 입력)</span>
+        <span style="font-size:0.85rem; color:var(--text-primary); font-weight:600;"><span class="en-only">Enter total contributed principal (manual)</span><span class="ko-only">전체 투입 원금을 직접 입력 (수동 입력)</span></span>
       </label>
       <p style="color:var(--text-muted); font-size:0.76rem; line-height:1.5; margin:0 0 8px 26px;">
+        <span class="en-only">
+        If the trade history can't produce an accurate principal, enter the principal you know as of a given date.
+        Every row of the returns-by-year table uses this as the contributed principal (one fixed amount, not a per-year value).
+        </span><span class="ko-only">
         거래내역으로 원금을 정확히 산출하기 어려운 경우, 알고 있는 시점의 원금을 직접 입력하세요.
         연도별 수익률 표의 모든 행에서 이 값을 투입 원금으로 사용해 수익률을 계산합니다 (연도마다 달라지는 값이 아닌, 고정된 하나의 원금 기준).
+        </span>
       </p>
       <div id="pmManualRow" style="display:none; margin-left:26px; gap:12px; flex-wrap:wrap;">
         <div>
-          <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">원금 ($)</label>
-          <input type="number" id="pmManualAmount" class="modal-input" placeholder="예: 170000" min="0" step="any" style="max-width:160px;">
+          <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;"><span class="en-only">Principal ($)</span><span class="ko-only">원금 ($)</span></label>
+          <input type="number" id="pmManualAmount" class="modal-input" placeholder="e.g. 170000" data-placeholder-en="e.g. 170000" data-placeholder-ko="예: 170000" min="0" step="any" style="max-width:160px;">
         </div>
         <div>
-          <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;">기준일</label>
+          <label style="font-size:0.76rem; color:var(--text-muted); display:block; margin-bottom:4px;"><span class="en-only">As of</span><span class="ko-only">기준일</span></label>
           <input type="date" id="pmManualAsOf" class="modal-input" style="max-width:160px;">
         </div>
       </div>
     </div>
 
     <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
-      <button onclick="anlClosePrincipalModal()" style="padding:7px 18px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;">취소</button>
-      <button onclick="anlSavePrincipalSettings()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;" id="pmSaveBtn">저장</button>
+      <button onclick="anlClosePrincipalModal()" style="padding:7px 18px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--text-secondary); cursor:pointer; font-size:0.85rem;"><span class="en-only">Cancel</span><span class="ko-only">취소</span></button>
+      <button onclick="anlSavePrincipalSettings()" style="padding:7px 18px; border-radius:6px; border:none; background:var(--accent-blue); color:#fff; cursor:pointer; font-size:0.85rem; font-weight:600;" id="pmSaveBtn"><span class="en-only">Save</span><span class="ko-only">저장</span></button>
     </div>
     <div id="pmStatus" style="display:none; margin-top:10px; padding:7px 12px; border-radius:6px; font-size:0.82rem;"></div>
   </div>
@@ -664,7 +697,7 @@ function portRenderTabs() {
   for (const g of groupNames) {
     const opt = document.createElement('option');
     opt.value = 'group:' + g;
-    opt.textContent = `📁 ${g} (그룹)`;
+    opt.textContent = `📁 ${g} (${jjT('group', '그룹')})`;
     sel.appendChild(opt);
   }
 
@@ -703,10 +736,10 @@ function portDropdownChange() {
 
 async function portDeduplicateTxns() {
   if (!portActivePortfolioId) return;
-  if (!confirm('현재 포트폴리오의 중복 거래를 삭제합니다.\n(날짜·종목·타입·주식수·가격·금액이 동일한 거래 중 나중에 생성된 것을 제거합니다)\n\n계속하시겠습니까?')) return;
+  if (!confirm(jjT('Delete duplicate trades in this portfolio.\n(Among trades with the same date, symbol, type, shares, price and amount, the later-created ones are removed.)\n\nContinue?', '현재 포트폴리오의 중복 거래를 삭제합니다.\n(날짜·종목·타입·주식수·가격·금액이 동일한 거래 중 나중에 생성된 것을 제거합니다)\n\n계속하시겠습니까?'))) return;
 
   const btn = document.getElementById('portDedupeBtn');
-  btn.disabled = true; btn.textContent = '⏳ 처리 중…';
+  btn.disabled = true; btn.textContent = '⏳ ' + jjT('Working…', '처리 중…');
 
   try {
     const all = await window.txns.getTransactions(null, portQuerySelector());
@@ -724,32 +757,32 @@ async function portDeduplicateTxns() {
     }
 
     if (!toDelete.length) {
-      btn.textContent = '✓ 중복 없음';
-      setTimeout(() => { btn.textContent = '⚡ 중복 제거'; btn.disabled = false; }, 2500);
+      btn.textContent = '✓ ' + jjT('No duplicates', '중복 없음');
+      setTimeout(() => { btn.innerHTML = '⚡ ' + jjTT('Remove duplicates', '중복 제거'); btn.disabled = false; }, 2500);
       return;
     }
 
     await window.txns.deleteTransactions(toDelete);
-    btn.textContent = `✓ ${toDelete.length}건 삭제됨`;
+    btn.textContent = `✓ ${toDelete.length} ${jjT('deleted', '건 삭제됨')}`;
     btn.style.color = 'rgba(63,185,80,0.9)';
     setTimeout(() => {
-      btn.textContent = '⚡ 중복 제거'; btn.disabled = false;
+      btn.innerHTML = '⚡ ' + jjTT('Remove duplicates', '중복 제거'); btn.disabled = false;
       btn.style.color = '';
     }, 3000);
     portSwitchView(portActiveView);
   } catch(e) {
-    alert('오류: ' + e.message);
-    btn.textContent = '⚡ 중복 제거'; btn.disabled = false;
+    alert(jjT('Error: ', '오류: ') + e.message);
+    btn.innerHTML = '⚡ ' + jjTT('Remove duplicates', '중복 제거'); btn.disabled = false;
   }
 }
 
 async function portDeletePortfolio() {
   if (!portActivePortfolioId) return;
-  const name = portPortfolios.find(p => p.id === portActivePortfolioId)?.name || '선택된 포트폴리오';
-  if (!confirm(`"${name}" 포트폴리오를 삭제하시겠습니까?\n\n포트폴리오만 삭제되고 거래내역은 유지됩니다.`)) return;
+  const name = portPortfolios.find(p => p.id === portActivePortfolioId)?.name || jjT('the selected portfolio', '선택된 포트폴리오');
+  if (!confirm(jjT(`Delete portfolio "${name}"?\n\nOnly the portfolio is deleted; its trades are kept.`, `"${name}" 포트폴리오를 삭제하시겠습니까?\n\n포트폴리오만 삭제되고 거래내역은 유지됩니다.`))) return;
 
   const btn = document.getElementById('portDeletePortfolioBtn');
-  btn.textContent = '삭제 중…'; btn.disabled = true;
+  btn.textContent = jjT('Deleting…', '삭제 중…'); btn.disabled = true;
   try {
     await window.txns.deletePortfolio(portActivePortfolioId);
     portActivePortfolioId = null;
@@ -757,8 +790,8 @@ async function portDeletePortfolio() {
     document.getElementById('portDeletePortfolioBtn').style.display = 'none';
     portSwitchView(portActiveView);
   } catch(e) {
-    alert('삭제 실패: ' + e.message);
-    btn.textContent = '🗑 삭제'; btn.disabled = false;
+    alert(jjT('Delete failed: ', '삭제 실패: ') + e.message);
+    btn.innerHTML = '🗑 ' + jjTT('Delete', '삭제'); btn.disabled = false;
   }
 }
 
@@ -790,7 +823,7 @@ function _renderGroupModalList() {
   const list = document.getElementById('groupModalList');
   const groups = _allKnownGroups();
   if (!groups.length) {
-    list.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem;">아직 만들어진 그룹이 없습니다. 아래에서 새로 만들어보세요.</div>`;
+    list.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem;">${jjTT('No groups yet. Create one below.', '아직 만들어진 그룹이 없습니다. 아래에서 새로 만들어보세요.')}</div>`;
     return;
   }
   // Built via DOM APIs + addEventListener (not inline onchange="...") so a
@@ -846,7 +879,7 @@ async function groupModalSave() {
     groupModalClose();
     portRenderTabs();
   } catch(e) {
-    alert('그룹 설정 실패: ' + e.message);
+    alert(jjT('Failed to set group: ', '그룹 설정 실패: ') + e.message);
   } finally {
     btn.disabled = false;
   }
@@ -1337,9 +1370,12 @@ async function portFetchSymbol(sym, start, btn) {
   let pat = localStorage.getItem(_GH_PAT_KEY);
   if (!pat) {
     pat = prompt(
-      'GitHub Personal Access Token (PAT)을 입력하세요.\n' +
-      '권한: Actions (write), Contents (write)\n' +
-      '(한 번 저장되면 다음부터 자동으로 사용됩니다)'
+      jjT('Enter a GitHub Personal Access Token (PAT).\n' +
+          'Permissions: Actions (write), Contents (write)\n' +
+          '(Once saved, it is used automatically next time.)',
+          'GitHub Personal Access Token (PAT)을 입력하세요.\n' +
+          '권한: Actions (write), Contents (write)\n' +
+          '(한 번 저장되면 다음부터 자동으로 사용됩니다)')
     );
     if (!pat) return;
     localStorage.setItem(_GH_PAT_KEY, pat.trim());
@@ -1360,23 +1396,23 @@ async function portFetchSymbol(sym, start, btn) {
       }
     );
     if (res.status === 204) {
-      btn.textContent = '✓ 실행됨';
+      btn.textContent = '✓ ' + jjT('Started', '실행됨');
       btn.style.background = 'rgba(63,185,80,0.8)';
     } else if (res.status === 401) {
       localStorage.removeItem(_GH_PAT_KEY);
-      btn.textContent = '❌ 인증 실패';
+      btn.textContent = '❌ ' + jjT('Auth failed', '인증 실패');
       btn.style.background = 'rgba(248,81,73,0.7)';
-      alert('PAT 인증 실패. 토큰을 확인하세요. (저장된 토큰 삭제됨)');
+      alert(jjT('PAT authentication failed. Check your token. (Saved token removed.)', 'PAT 인증 실패. 토큰을 확인하세요. (저장된 토큰 삭제됨)'));
     } else {
       const body = await res.json().catch(() => ({}));
-      btn.textContent = '❌ 오류';
+      btn.textContent = '❌ ' + jjT('Error', '오류');
       btn.style.background = 'rgba(248,81,73,0.7)';
-      alert(`GitHub API 오류 ${res.status}: ${body.message || '알 수 없음'}`);
+      alert(`${jjT('GitHub API error', 'GitHub API 오류')} ${res.status}: ${body.message || jjT('unknown', '알 수 없음')}`);
     }
   } catch(e) {
-    btn.textContent = '❌ 실패';
+    btn.textContent = '❌ ' + jjT('Failed', '실패');
     btn.style.background = 'rgba(248,81,73,0.7)';
-    alert('네트워크 오류: ' + e.message);
+    alert(jjT('Network error: ', '네트워크 오류: ') + e.message);
   } finally {
     btn.disabled = false;
     if (!btn.textContent.startsWith('✓')) setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 3000);
@@ -1414,14 +1450,14 @@ function portRenderMissingDataBanner(missing) {
 
   const titleEl = document.createElement('div');
   titleEl.style.cssText = 'font-weight:700;flex:1;';
-  titleEl.textContent = '⚠️ 가격 데이터 없는 보유 종목 — 평가손익 계산 불가';
+  titleEl.innerHTML = '⚠️ ' + jjTT('Holdings without price data — unrealized P&amp;L unavailable', '가격 데이터 없는 보유 종목 — 평가손익 계산 불가');
 
   const fetchAllBtn = document.createElement('button');
-  fetchAllBtn.textContent = '▶ 전체 Fetch';
+  fetchAllBtn.innerHTML = '▶ ' + jjTT('Fetch all', '전체 Fetch');
   fetchAllBtn.style.cssText = 'font-size:0.78rem;padding:4px 14px;border-radius:10px;background:#f0a500;color:#000;border:none;cursor:pointer;font-weight:700;white-space:nowrap;';
   fetchAllBtn.onclick = async () => {
     fetchAllBtn.disabled = true;
-    fetchAllBtn.textContent = '⏳ 실행 중…';
+    fetchAllBtn.textContent = '⏳ ' + jjT('Running…', '실행 중…');
     let ok = 0, fail = 0;
     const btns = ul.querySelectorAll('button');
     for (let i = 0; i < missing.length; i++) {
@@ -1431,7 +1467,7 @@ function portRenderMissingDataBanner(missing) {
       if (rowBtn.textContent.startsWith('✓')) ok++; else fail++;
       await new Promise(r => setTimeout(r, 400)); // brief gap between calls
     }
-    fetchAllBtn.textContent = `✓ ${ok}개 완료${fail ? ' / ❌ ' + fail + '개 실패' : ''}`;
+    fetchAllBtn.textContent = `✓ ${ok} ${jjT('done', '개 완료')}${fail ? ' / ❌ ' + fail + ' ' + jjT('failed', '개 실패') : ''}`;
     fetchAllBtn.style.background = fail ? 'rgba(248,81,73,0.7)' : 'rgba(63,185,80,0.8)';
     fetchAllBtn.style.color = '#fff';
   };
@@ -1441,7 +1477,7 @@ function portRenderMissingDataBanner(missing) {
 
   const hint = document.createElement('div');
   hint.style.cssText = 'font-size:0.76rem;color:var(--text-muted);margin-top:6px;';
-  hint.innerHTML = 'Fetch 버튼 클릭 시 GitHub Actions가 자동 실행됩니다. PAT은 브라우저에 저장됩니다. <button onclick="localStorage.removeItem(\'jj_gh_pat\');this.textContent=\'삭제됨\';" style="font-size:0.72rem;border:none;background:none;color:var(--accent-blue);cursor:pointer;text-decoration:underline;">PAT 삭제</button>';
+  hint.innerHTML = jjTT('Clicking Fetch runs GitHub Actions automatically. Your PAT is stored in this browser.', 'Fetch 버튼 클릭 시 GitHub Actions가 자동 실행됩니다. PAT은 브라우저에 저장됩니다.') + ' <button onclick="localStorage.removeItem(\'jj_gh_pat\');this.textContent=jjT(\'Removed\', \'삭제됨\');" style="font-size:0.72rem;border:none;background:none;color:var(--accent-blue);cursor:pointer;text-decoration:underline;">' + jjTT('Remove PAT', 'PAT 삭제') + '</button>';
 
   banner.appendChild(titleRow);
   banner.appendChild(ul);
@@ -1537,7 +1573,7 @@ function portRenderHoldings() {
       : remainingShares > 0.0001 ? `<div class="h-shares">${fN(remainingShares)} sh @ ${fA(avgCost)}</div>` : '';
     return `<tr>
       <td>
-        <div class="h-ticker">${_AVAILABLE_SYMS.has(sym) ? `<a href="${_CRYPTO_SYMS.includes(sym) ? _CRYPTO_URL : _STOCK_URL + sym + '/'}" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='inherit'">${dispSym}</a>` : `<span title="데이터 준비 중">${dispSym}</span>`}</div>
+        <div class="h-ticker">${_AVAILABLE_SYMS.has(sym) ? `<a href="${_CRYPTO_SYMS.includes(sym) ? _CRYPTO_URL : _STOCK_URL + sym + '/'}" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='inherit'">${dispSym}</a>` : `<span title="${jjT('Data not available yet', '데이터 준비 중')}">${dispSym}</span>`}</div>
         <div class="h-price">${isCashSym ? '' : priceStr}</div>
         ${sharesLine}
       </td>
@@ -1555,7 +1591,7 @@ function portRenderHoldings() {
   let html = `<div class="card" style="padding:0;overflow:hidden;">
     <div style="padding:12px 14px 8px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">
       <span style="font-size:0.7rem;color:var(--text-muted);">🔍</span>
-      <input type="text" placeholder="종목 검색…" value="${_holdingsFilter}"
+      <input type="text" placeholder="${jjT('Search symbol…', '종목 검색…')}" value="${_holdingsFilter}"
         oninput="holdingsApplyFilter(this.value)"
         style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:0.78rem;padding:4px 8px;width:140px;">
     </div>
@@ -1572,7 +1608,7 @@ function portRenderHoldings() {
       <tbody>`;
 
   if (openRows.length) html += openRows.map(buildRow).join('');
-  else html += `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem;">검색 결과 없음</td></tr>`;
+  else html += `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.82rem;">${jjTT('No results', '검색 결과 없음')}</td></tr>`;
 
   if (closedRows.length) {
     html += `<tr><td colspan="6" style="padding:6px 12px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-blue);background:var(--bg-secondary);">
@@ -1612,7 +1648,7 @@ function portRenderHoldings() {
   const principalGain = (hasOverride && principal > 0 && totalValue > 0) ? totalValue - principal : null;
   const principalPct  = principalGain != null ? principalGain / principal * 100 : null;
   const principalLine = principalPct != null
-    ? `<div class="h-sub" style="color:var(--accent-blue);">원금 ${fA(principal, 0)} · <span class="${cls(principalGain)}">${fS(principalGain)}</span> (${fP(principalPct)})</div>`
+    ? `<div class="h-sub" style="color:var(--accent-blue);">${jjTT('Principal', '원금')} ${fA(principal, 0)} · <span class="${cls(principalGain)}">${fS(principalGain)}</span> (${fP(principalPct)})</div>`
     : '';
   html += `</tbody>
     <tfoot>
@@ -1624,14 +1660,14 @@ function portRenderHoldings() {
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
         <td>${totalRealGain !== 0
-          ? `<div class="${cls(totalRealGain)}">${fS(totalRealGain)}</div>${principal > 0 ? `<div class="${cls(totalRealGain)} h-sub">${fP(totalRealGain / principal * 100)}</div>` : ''}${totalBoughtAll > 0 ? `<div class="h-sub" style="opacity:0.65;cursor:pointer;text-decoration:underline dotted;" title="총매수 대비 (MSP 방식 참고용) — 클릭하면 자세히" onclick="_showPrincipalInfo()">${fP(totalRealGain / totalBoughtAll * 100)} <span style="font-size:0.85em;">(총매수 대비)</span></div>` : ''}`
+          ? `<div class="${cls(totalRealGain)}">${fS(totalRealGain)}</div>${principal > 0 ? `<div class="${cls(totalRealGain)} h-sub">${fP(totalRealGain / principal * 100)}</div>` : ''}${totalBoughtAll > 0 ? `<div class="h-sub" style="opacity:0.65;cursor:pointer;text-decoration:underline dotted;" title="${jjT('vs. total bought (MSP-style, for reference) — click for details', '총매수 대비 (MSP 방식 참고용) — 클릭하면 자세히')}" onclick="_showPrincipalInfo()">${fP(totalRealGain / totalBoughtAll * 100)} <span style="font-size:0.85em;">(${jjTT('vs. total bought', '총매수 대비')})</span></div>` : ''}`
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
         <td>${totalUnrealGain !== 0
           ? `<div class="${cls(totalUnrealGain)}">${fS(totalUnrealGain)}</div><div class="${cls(totalUnrealGain)} h-sub">${fP(totalCostAll > 0 ? totalUnrealGain / totalCostAll * 100 : 0)}</div>`
           : `<div style="color:var(--text-muted);">—</div>`}
         </td>
-        <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>${totalBoughtAll > 0 ? `<div class="h-sub" style="opacity:0.65;cursor:pointer;text-decoration:underline dotted;" title="총매수 대비 (MSP 방식 참고용) — 클릭하면 자세히" onclick="_showPrincipalInfo()">${fP(grandPctGross)} <span style="font-size:0.85em;">(총매수 대비)</span></div>` : ''}${principalLine}</td>
+        <td><div class="${cls(grandTotal)}">${fS(grandTotal)}</div><div class="${cls(grandPct)} h-sub">${fP(grandPct)}</div>${totalBoughtAll > 0 ? `<div class="h-sub" style="opacity:0.65;cursor:pointer;text-decoration:underline dotted;" title="${jjT('vs. total bought (MSP-style, for reference) — click for details', '총매수 대비 (MSP 방식 참고용) — 클릭하면 자세히')}" onclick="_showPrincipalInfo()">${fP(grandPctGross)} <span style="font-size:0.85em;">(${jjTT('vs. total bought', '총매수 대비')})</span></div>` : ''}${principalLine}</td>
       </tr>
     </tfoot>
     </table></div></div>`;
@@ -1805,11 +1841,11 @@ function portRenderTxnRows() {
     if (PRINCIPAL_ELIGIBLE_TYPES.has(t.type)) {
       const v = t.count_as_principal;
       if (v === true) {
-        principalCell = `<button onclick="portTogglePrincipal('${t.id}')" title="원금으로 계산됨 (클릭하여 변경)" style="font-size:0.68rem;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid #3fb950;background:rgba(63,185,80,0.1);color:#3fb950;">✓ 원금</button>`;
+        principalCell = `<button onclick="portTogglePrincipal('${t.id}')" title="${jjT('Counted as principal (click to change)', '원금으로 계산됨 (클릭하여 변경)')}" style="font-size:0.68rem;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid #3fb950;background:rgba(63,185,80,0.1);color:#3fb950;">✓ ${jjTT('Principal', '원금')}</button>`;
       } else if (v === false) {
-        principalCell = `<button onclick="portTogglePrincipal('${t.id}')" title="원금에서 제외됨 (클릭하여 변경)" style="font-size:0.68rem;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);text-decoration:line-through;">제외</button>`;
+        principalCell = `<button onclick="portTogglePrincipal('${t.id}')" title="${jjT('Excluded from principal (click to change)', '원금에서 제외됨 (클릭하여 변경)')}" style="font-size:0.68rem;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);text-decoration:line-through;">${jjTT('Excluded', '제외')}</button>`;
       } else {
-        principalCell = `<button onclick="portTogglePrincipal('${t.id}')" title="기본값 (포트폴리오의 연도별 설정을 따름) — 클릭하여 원금으로 지정" style="font-size:0.68rem;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px dashed var(--border);background:transparent;color:var(--text-muted);">—</button>`;
+        principalCell = `<button onclick="portTogglePrincipal('${t.id}')" title="${jjT('Default (follows the portfolio setting) — click to mark as principal', '기본값 (포트폴리오의 연도별 설정을 따름) — 클릭하여 원금으로 지정')}" style="font-size:0.68rem;padding:2px 8px;border-radius:10px;cursor:pointer;border:1px dashed var(--border);background:transparent;color:var(--text-muted);">—</button>`;
       }
     }
     tr.dataset.id = t.id;
@@ -1956,7 +1992,7 @@ async function portTogglePrincipal(id) {
     t.count_as_principal = next;
     portRenderTxnRows();
   } catch (e) {
-    alert('업데이트 실패: ' + e.message);
+    alert(jjT('Update failed: ', '업데이트 실패: ') + e.message);
   }
 }
 
@@ -2004,10 +2040,10 @@ function portToggleSelectAll(chk) {
 async function portBulkDelete() {
   const checked = [...document.querySelectorAll('.txn-cb:checked')];
   if (!checked.length) return;
-  if (!confirm(`선택한 ${checked.length}건을 삭제하시겠습니까?`)) return;
+  if (!confirm(jjT(`Delete ${checked.length} selected transaction(s)?`, `선택한 ${checked.length}건을 삭제하시겠습니까?`))) return;
 
   const btn = document.getElementById('portBulkDelBtn');
-  btn.textContent = '삭제 중…'; btn.disabled = true;
+  btn.textContent = jjT('Deleting…', '삭제 중…'); btn.disabled = true;
 
   const ids = checked.map(c => c.dataset.id);
   try {
@@ -2015,7 +2051,7 @@ async function portBulkDelete() {
     await window.txns.deleteTransactions(ids);
     portLoadTxns();
   } catch(e) {
-    alert('삭제 실패: ' + e.message);
+    alert(jjT('Delete failed: ', '삭제 실패: ') + e.message);
     btn.disabled = false;
     portCbChange();
   }
@@ -2024,22 +2060,22 @@ async function portBulkDelete() {
 async function portDeleteAll() {
   const symbolFilter = document.getElementById('portSymbolFilter').value || null;
   const scope = [
-    portActivePortfolioId ? `현재 포트폴리오` : `전체 포트폴리오`,
+    portActivePortfolioId ? jjT('this portfolio', '현재 포트폴리오') : jjT('all portfolios', '전체 포트폴리오'),
     symbolFilter ? `(${symbolFilter})` : '',
   ].join(' ').trim();
-  if (!confirm(`${scope}의 거래내역을 전부 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  if (!confirm(jjT(`Delete ALL transactions in ${scope}?\nThis cannot be undone.`, `${scope}의 거래내역을 전부 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`))) return;
 
   const btn = document.getElementById('portDeleteAllBtn');
-  btn.textContent = '삭제 중…'; btn.disabled = true;
+  btn.textContent = jjT('Deleting…', '삭제 중…'); btn.disabled = true;
   try {
     const n = await window.txns.deleteAllTransactions(portActivePortfolioId, symbolFilter);
     window._importSuggestSkipDedup = true; // next import modal open: pre-check "skip dedup"
-    alert(`${n}건 삭제 완료.`);
+    alert(jjT(`Deleted ${n} transaction(s).`, `${n}건 삭제 완료.`));
     portLoadTxns();
   } catch(e) {
-    alert('삭제 실패: ' + e.message);
+    alert(jjT('Delete failed: ', '삭제 실패: ') + e.message);
   } finally {
-    btn.textContent = '🗑 전체삭제'; btn.disabled = false;
+    btn.innerHTML = '🗑 ' + jjTT('Delete all', '전체삭제'); btn.disabled = false;
   }
 }
 
@@ -2141,7 +2177,7 @@ function editModalOpen(id) {
 // panel needed).
 function addModalOpen() {
   if (!portPortfolios.length) {
-    alert('먼저 포트폴리오를 하나 만들어주세요.');
+    alert(jjT('Please create a portfolio first.', '먼저 포트폴리오를 하나 만들어주세요.'));
     return;
   }
   _editModalMode = 'add';
@@ -2261,7 +2297,61 @@ const _PRINCIPAL_METHOD_HTML = `
   <p><b>(총매수 대비) — 참고용</b><br>
   재투자인지 신규인지 구분하지 않고 지금까지의 모든 매수 금액을 그냥 더한 값입니다. MSP 앱의 "All-Time" 방식과 같은 개념이라 참고용으로 같이 표시합니다. 회전매매가 많은 계좌일수록 순 투입원금보다 훨씬 크게 나올 수 있습니다 (같은 돈이 여러 번 재투자될 때마다 다시 더해지기 때문).</p>
 `;
-function _showPrincipalInfo() { showInfoPanel('투입 원금 계산 방법', _PRINCIPAL_METHOD_HTML); }
+const _PRINCIPAL_METHOD_HTML_EN = `
+  <p><b>Net contributed principal (the default figure)</b><br>
+  Trades are grouped by day, and each day's opposite-direction cash flows decide whether money is "truly new" or "reinvested":</p>
+  <ul style="margin:6px 0 14px 18px; padding:0;">
+    <li style="margin-bottom:6px;">A <b>buy</b> with no matching cash outflow that day → treated as shares received without spending cash (RSUs, stock options) and <b>counted as principal</b>.</li>
+    <li style="margin-bottom:6px;">A <b>cash deposit</b> with no matching sale that day → treated as a real deposit from outside the account and <b>counted as principal</b>.</li>
+    <li style="margin-bottom:6px;"><b>Sale proceeds used the same day to buy something else</b> (including fund-to-fund swaps with no cash rows in between) → <b>treated as reinvestment and excluded</b>. This keeps the same money from being counted as new principal every time it moves.</li>
+    <li>Buys created by <b>dividend reinvestment (DRIP)</b> → treated as <b>returns already earned being reinvested</b>, not principal, and excluded.</li>
+  </ul>
+  <p style="font-weight:600; color:var(--text-primary); margin-bottom:8px;">Examples (judged per day)</p>
+  <div style="border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:14px;">
+    <table style="width:100%; border-collapse:collapse; font-size:0.76rem;">
+      <thead>
+        <tr style="background:var(--bg-secondary);">
+          <th style="text-align:left; padding:6px 8px; color:var(--text-muted); font-weight:600;">Date</th>
+          <th style="text-align:left; padding:6px 8px; color:var(--text-muted); font-weight:600;">Trades that day</th>
+          <th style="text-align:left; padding:6px 8px; color:var(--text-muted); font-weight:600;">Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-top:1px solid var(--border);">
+          <td style="padding:6px 8px; color:var(--text-secondary);">1/15</td>
+          <td style="padding:6px 8px; color:var(--text-secondary);">RSU buy $2,000 (no cash outflow)</td>
+          <td style="padding:6px 8px;" class="pnl-pos">Principal</td>
+        </tr>
+        <tr style="border-top:1px solid var(--border);">
+          <td style="padding:6px 8px; color:var(--text-secondary);">3/02</td>
+          <td style="padding:6px 8px; color:var(--text-secondary);">Deposit $5,000 → buy SPY $5,000</td>
+          <td style="padding:6px 8px;" class="pnl-pos">Principal</td>
+        </tr>
+        <tr style="border-top:1px solid var(--border);">
+          <td style="padding:6px 8px; color:var(--text-secondary);">7/18</td>
+          <td style="padding:6px 8px; color:var(--text-secondary);">Sell FXAIX $4,235 → buy OGGYX $4,235 same day (no cash row)</td>
+          <td style="padding:6px 8px;" class="pnl-neg">Reinvested (excluded)</td>
+        </tr>
+        <tr style="border-top:1px solid var(--border);">
+          <td style="padding:6px 8px; color:var(--text-secondary);">9/30</td>
+          <td style="padding:6px 8px; color:var(--text-secondary);">Dividend (DRIP) $40 reinvested</td>
+          <td style="padding:6px 8px;" class="pnl-neg">Reinvested (excluded)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="color:var(--text-muted); font-size:0.78rem; margin-bottom:14px;">
+    For accounts where the trade history can't separate new money from reinvestment (such as a 401k → IRA rollover), you can turn on
+    <b>⚙️ Principal settings</b> per account ($0 after a date / enter principal manually) instead of this automatic rule — see the end of
+    "How the SPY/QQQ/SGOV comparison works" for details.
+  </p>
+  <p><b>(vs. total bought) — for reference</b><br>
+  The plain sum of every buy so far, without separating reinvestment from new money. It matches the MSP app's "All-Time" approach and is shown for reference. In accounts with a lot of turnover it can be far larger than net principal (the same money is added again every time it is reinvested).</p>
+`;
+function _showPrincipalInfo() {
+  showInfoPanel(jjT('How contributed principal is calculated', '투입 원금 계산 방법'),
+                jjIsKo() ? _PRINCIPAL_METHOD_HTML : _PRINCIPAL_METHOD_HTML_EN);
+}
 
 const _SPY_SIM_METHOD_HTML = `
   <p>SPY/QQQ/SGOV 각각을 "내가 투입한 원금을 그냥 여기 넣고 계속 들고만 있었다면?" 기준으로 계산하는 buy-and-hold 시뮬레이션입니다:</p>
@@ -2312,7 +2402,59 @@ const _SPY_SIM_METHOD_HTML = `
     기준일부터는 입력한 원금을 네 선의 공통 출발점으로 삼아 각자 다시 계산합니다.
   </p>
 `;
-function _showSpySimInfo() { showInfoPanel('SPY/QQQ/SGOV 비교 계산 방법', _SPY_SIM_METHOD_HTML); }
+const _SPY_SIM_METHOD_HTML_EN = `
+  <p>A buy-and-hold simulation of SPY/QQQ/SGOV that asks, "What if the principal I put in had gone here and just stayed put?":</p>
+  <ul style="margin:6px 0 14px 18px; padding:0;">
+    <li style="margin-bottom:6px;">Each time <b>new principal</b> arrives (same rule as the "contributed principal" calculation above — deposits, or buys with no cash movement such as RSUs), that amount of the benchmark is bought at that day's price and held.</li>
+    <li style="margin-bottom:6px;">Trades that <b>swap holdings</b> in the real account (sell A to buy B, using cash already in the account) don't touch the benchmark position at all — that money was already "invested" in the benchmark when it first arrived, so no matter how many times you switch holdings, the benchmark side just keeps holding.</li>
+    <li>Only an actual <b>withdrawal</b> (cash leaving the account) sells that amount of the benchmark at that day's price.</li>
+  </ul>
+  <p>So even if you switch holdings often, the benchmark side stays fully invested from the day principal arrives until it is withdrawn.</p>
+
+  <p style="font-weight:600; color:var(--text-primary); margin:18px 0 8px;">For accounts with ⚙️ Principal settings turned on</p>
+
+  <p style="margin-bottom:6px;"><b>$0 after a date</b> — from that date the benchmark stops new buys too (so both sides are compared on the same basis):</p>
+  <div style="display:flex; align-items:flex-start; gap:0; margin:14px 0 6px; font-size:0.72rem;">
+    <div style="flex:1; text-align:left;">
+      <div style="width:8px; height:8px; border-radius:50%; background:var(--accent-green);"></div>
+      <div style="color:var(--text-secondary); margin-top:4px;">Deposits · RSUs</div>
+      <div style="color:var(--text-muted);">Principal ✓ · Benchmark buy ✓</div>
+    </div>
+    <div style="flex:2; height:2px; background:var(--border); position:relative; margin-top:4px;">
+      <div style="position:absolute; left:50%; top:-22px; transform:translateX(-50%); font-size:0.68rem; color:var(--accent-orange, #d29922); white-space:nowrap;">▲ Freeze date</div>
+    </div>
+    <div style="flex:1; text-align:right;">
+      <div style="width:8px; height:8px; border-radius:50%; background:var(--accent-blue); margin-left:auto;"></div>
+      <div style="color:var(--text-secondary); margin-top:4px;">Later buys</div>
+      <div style="color:var(--text-muted);">Principal ✗ · Benchmark buy ✗</div>
+    </div>
+  </div>
+  <p style="color:var(--text-muted); font-size:0.78rem; margin-bottom:16px;">
+    Gains from continuing to manage the account after the freeze date (trading gains, dividends, etc.) <b>still show on the "My portfolio" line</b> —
+    only "new principal coming in" and "new benchmark buys" are blocked; actual performance after that is not hidden.
+    Withdrawals after the freeze date still count as usual (the benchmark sells the same amount).
+  </p>
+
+  <p style="margin-bottom:6px;"><b>Enter total contributed principal (manual)</b> — before the as-of date, none of the four lines ("My portfolio" · SPY · QQQ · SGOV) are drawn. The trade history alone can't tell the real balance at that point, and splicing on one side with a different method (e.g. cost basis) would make the lines bend artificially at the boundary:</p>
+  <div style="display:flex; align-items:flex-start; gap:0; margin:14px 0 6px; font-size:0.72rem;">
+    <div style="flex:1; text-align:left; color:var(--text-muted); padding-top:2px;">
+      No lines (can't be calculated)
+    </div>
+    <div style="flex:2; height:2px; background:var(--border); position:relative; margin-top:4px;">
+      <div style="position:absolute; left:50%; top:-22px; transform:translateX(-50%); font-size:0.68rem; color:var(--accent-blue); white-space:nowrap;">● As-of date (principal $X entered)</div>
+    </div>
+    <div style="flex:1; text-align:right; color:var(--text-secondary); padding-top:2px;">
+      All four lines start here
+    </div>
+  </div>
+  <p style="color:var(--text-muted); font-size:0.78rem;">
+    From the as-of date, the principal you entered becomes the common starting point for all four lines, each recalculated from there.
+  </p>
+`;
+function _showSpySimInfo() {
+  showInfoPanel(jjT('How the SPY/QQQ/SGOV comparison works', 'SPY/QQQ/SGOV 비교 계산 방법'),
+                jjIsKo() ? _SPY_SIM_METHOD_HTML : _SPY_SIM_METHOD_HTML_EN);
+}
 
 async function editSave() {
   const btn = document.getElementById('editSaveBtn');
@@ -2331,12 +2473,12 @@ async function editSave() {
       lot_method:  document.getElementById('editLotMethod').value || null,
       notes:       document.getElementById('editNotes').value.trim() || null,
     };
-    if (!fields.trade_date) throw new Error('날짜를 입력해주세요.');
-    if (!Number.isFinite(fields.amount)) throw new Error('금액을 입력해주세요.');
+    if (!fields.trade_date) throw new Error(jjT('Please enter a date.', '날짜를 입력해주세요.'));
+    if (!Number.isFinite(fields.amount)) throw new Error(jjT('Please enter an amount.', '금액을 입력해주세요.'));
 
     if (_editModalMode === 'add') {
       const symbol = document.getElementById('editSymbol').value.trim().toUpperCase();
-      if (!symbol) throw new Error('종목(Symbol)을 입력해주세요.');
+      if (!symbol) throw new Error(jjT('Please enter a symbol.', '종목(Symbol)을 입력해주세요.'));
       fields.symbol = symbol;
       fields.portfolio_id = document.getElementById('editPortfolio').value || null;
       await window.txns.addTransaction(fields);
@@ -2430,7 +2572,7 @@ function _anlBuildTradeDatasets() {
     pointHoverRadius: ctx => _anlTradeRadius(ctx.raw?.amount || 0) + 2,
     pointHitRadius: 2,
   });
-  return [mk('매수', 'BUY', '63,185,80'), mk('매도', 'SELL', '248,81,73')];
+  return [mk(jjT('Buy', '매수'), 'BUY', '63,185,80'), mk(jjT('Sell', '매도'), 'SELL', '248,81,73')];
 }
 
 function _anlSyncTradeBtn() {
@@ -2438,7 +2580,7 @@ function _anlSyncTradeBtn() {
   const legend = document.getElementById('anlTradeLegend');
   if (legend) legend.style.display = _anlShowTrades ? 'flex' : 'none';
   if (!btn) return;
-  btn.textContent = _anlShowTrades ? '거래 표시 ON' : '거래 표시 OFF';
+  btn.innerHTML = _anlShowTrades ? jjTT('Trades ON', '거래 표시 ON') : jjTT('Trades OFF', '거래 표시 OFF');
   btn.setAttribute('aria-pressed', _anlShowTrades ? 'true' : 'false');
   btn.style.background = _anlShowTrades ? 'rgba(63,185,80,0.85)' : 'var(--bg-secondary)';
   btn.style.color = _anlShowTrades ? '#fff' : 'var(--text-muted)';
@@ -2498,7 +2640,7 @@ function anlRenderSymbolFilter(symbols) {
   if (!sel) return;
   sel.innerHTML = '';
   const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
-  add('', '전체 (All)');
+  add('', jjT('All', '전체 (All)'));
   for (const s of symbols) add(s, s);
   sel.value = _anlSymbolFilter || '';
   const bar = document.getElementById('anlSymbolBar');
@@ -3186,7 +3328,7 @@ async function portLoadAnalysis(opts) {
       contentEl.style.opacity = ''; contentEl.style.pointerEvents = '';
       contentEl.style.display = 'none';
       loadEl.style.display = '';
-      loadEl.textContent = '거래 내역이 없습니다.';
+      loadEl.textContent = jjT('No transactions yet.', '거래 내역이 없습니다.');
       return;
     }
     _anlHasExplicitPrincipalOverrides = portActivePortfolioId ? !!results[0]?.hasExplicitPrincipalOverrides : false; // stash for the settings modal
@@ -3246,7 +3388,7 @@ async function portLoadAnalysis(opts) {
     if (_annWarn) {
       const unpriced = [...new Set(results.flatMap(r => r.annUnpriced))].sort();
       _annWarn.textContent = unpriced.length
-        ? `가격 데이터가 없는 보유 종목(${unpriced.join(', ')})은 원가로 평가되어 미실현 손익이 반영되지 않습니다.`
+        ? jjT(`Holdings without price data (${unpriced.join(', ')}) are valued at cost, so their unrealized gain is not reflected.`, `가격 데이터가 없는 보유 종목(${unpriced.join(', ')})은 원가로 평가되어 미실현 손익이 반영되지 않습니다.`)
         : '';
     }
 
@@ -3254,13 +3396,13 @@ async function portLoadAnalysis(opts) {
     // selected — the override is account-specific and meaningless for "All".
     const principalBtn = document.getElementById('anlPrincipalSettingsBtn');
     if (principalBtn) principalBtn.style.display = (portActivePortfolioId && !symbolFilter) ? '' : 'none';
-    document.getElementById('anlYearTableTitle').textContent = symbolFilter ? `연도별 수익률 — ${symbolFilter}` : '연도별 수익률';
-    document.getElementById('anlGainChartTitle').textContent = symbolFilter ? `누적 손익 비교 (동일 자금흐름) — ${symbolFilter}` : '누적 손익 비교 (동일 자금흐름)';
+    document.getElementById('anlYearTableTitle').innerHTML = jjTT('Returns by Year', '연도별 수익률') + (symbolFilter ? ` — ${symbolFilter}` : '');
+    document.getElementById('anlGainChartTitle').innerHTML = jjTT('Cumulative Gain Comparison (same cash flows)', '누적 손익 비교 (동일 자금흐름)') + (symbolFilter ? ` — ${symbolFilter}` : '');
     const symHint = document.getElementById('anlSymbolHint');
     if (symHint) {
       symHint.style.display = symbolFilter ? '' : 'none';
       symHint.textContent = symbolFilter
-        ? `${symbolFilter} 거래만으로 계산합니다. 매도 대금은 이후 매수에 재사용되며(신규 원금 아님), 계좌 단위 원금 설정(수동 원금 등)은 적용되지 않습니다.`
+        ? jjT(`Calculated from ${symbolFilter} trades only. Sale proceeds are reused for later buys (not new principal), and account-level principal settings (manual principal, etc.) do not apply.`, `${symbolFilter} 거래만으로 계산합니다. 매도 대금은 이후 매수에 재사용되며(신규 원금 아님), 계좌 단위 원금 설정(수동 원금 등)은 적용되지 않습니다.`)
         : '';
     }
     const pieCard = document.getElementById('anlPieCard');
@@ -3318,8 +3460,8 @@ async function portLoadAnalysis(opts) {
       type: 'line',
       data: {
         datasets: [
-          { label: '내 포트폴리오', data: portData, borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
-          { label: '실현 손익',    data: portRealizedData, borderColor: '#3fb950', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          { label: jjT('My portfolio', '내 포트폴리오'), data: portData, borderColor: '#3fb950', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
+          { label: jjT('Realized gain', '실현 손익'), data: portRealizedData, borderColor: '#3fb950', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           ...blendDatasets,
           { label: 'SPY',          data: spyData,  borderColor: '#58a6ff', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
           { label: 'QQQ',          data: qqqData,  borderColor: '#c792ea', borderWidth: 1.5, pointRadius: 0, tension: 0.2, fill: false, spanGaps: true },
@@ -3337,12 +3479,12 @@ async function portLoadAnalysis(opts) {
             titleColor: '#e6edf3', bodyColor: '#8b949e', padding: 8,
             callbacks: {
               title: items => items.length ? new Date(items[0].parsed.x).toISOString().slice(0, 10) : '',
-              footer: () => (_anlChart && _anlChart._anlTradeOverflow > 0) ? `… 외 ${_anlChart._anlTradeOverflow}건` : '',
+              footer: () => (_anlChart && _anlChart._anlTradeOverflow > 0) ? jjT(`… and ${_anlChart._anlTradeOverflow} more`, `… 외 ${_anlChart._anlTradeOverflow}건`) : '',
               label: item => {
                 if (item.dataset.type === 'scatter') {
                   const t = item.raw;
                   const fmt = (v, d) => v.toLocaleString(undefined, { maximumFractionDigits: d });
-                  return [`${t.sym} · ${t.side}`, `수량 ${fmt(t.shares, 4)} @ $${fmt(t.price, 2)}`, `금액 $${fmt(t.amount, 2)}`];
+                  return [`${t.sym} · ${t.side}`, `${jjT('Shares', '수량')} ${fmt(t.shares, 4)} @ $${fmt(t.price, 2)}`, `${jjT('Amount', '금액')} $${fmt(t.amount, 2)}`];
                 }
                 const v = item.parsed.y;
                 if (v == null) return null;
@@ -3434,7 +3576,7 @@ async function portLoadAnalysis(opts) {
     contentEl.style.opacity = ''; contentEl.style.pointerEvents = '';
     if (soft) contentEl.style.display = 'none';
     loadEl.style.display = '';
-    loadEl.textContent = '분석 중 오류가 발생했습니다: ' + e.message;
+    loadEl.textContent = jjT('Analysis failed: ', '분석 중 오류가 발생했습니다: ') + e.message;
   }
 }
 
@@ -3717,7 +3859,7 @@ function _renderHoldingsPie(holdings, byPortfolio) {
     const portfolioSplit = byPortfolio
       .map(pf => ({ sym: pf.name, value: pf.holdings.reduce((s, h) => s + h.value, 0) }))
       .filter(p => p.value > 0);
-    _anlAppendPieTile(byPfContainer, '포트폴리오별 비중', portfolioSplit);
+    _anlAppendPieTile(byPfContainer, jjT('Allocation by portfolio', '포트폴리오별 비중'), portfolioSplit);
     for (const pf of byPortfolio) {
       _anlAppendPieTile(byPfContainer, pf.name, pf.holdings);
     }
@@ -3834,20 +3976,20 @@ function _anlRenderAnnualTable(ann, spyPrices, qqqPrices, sgovPrices, today, min
   const rows = [
     { label: 'QQQ',    vals: years.map(y => _anlCalendarYearReturn(qqqPrices,  +y, today)) },
     { label: 'SPY',    vals: years.map(y => _anlCalendarYearReturn(spyPrices,  +y, today)) },
-    { label: mineLabel || '내 계좌', mine: true,
+    { label: mineLabel || jjT('My account', '내 계좌'), mine: true,
       vals: years.map(y => ann.rows[y] ? ann.rows[y].gain / ann.rows[y].base * 100 : null),
       partial: years.map(y => ann.rows[y]?.partialFrom || null) },
     { label: 'SGOV',   vals: years.map(y => _anlCalendarYearReturn(sgovPrices, +y, today)) },
   ];
   const thBase = 'padding:8px 8px; color:var(--text-secondary); font-weight:600; text-align:right; white-space:nowrap;';
-  head.innerHTML = `<th style="text-align:left; padding:8px 10px; color:var(--text-secondary); font-weight:600; min-width:110px; position:sticky; left:0; background:var(--bg-secondary); z-index:1;">종목</th>`
+  head.innerHTML = `<th style="text-align:left; padding:8px 10px; color:var(--text-secondary); font-weight:600; min-width:110px; position:sticky; left:0; background:var(--bg-secondary); z-index:1;">${jjTT('Symbol', '종목')}</th>`
     + years.map(y => `<th style="${thBase}">${y}${y === curYear ? ' <span style="font-size:0.7em;color:var(--accent-blue);">YTD</span>' : ''}</th>`).join('');
   const colVals = years.map((_, ci) => rows.map(r => r.vals[ci]).filter(v => v != null));
   body.innerHTML = rows.map(r => {
     const td0 = `<td style="padding:5px 10px; color:var(--text-primary); font-weight:${r.mine ? 700 : 500}; white-space:nowrap; position:sticky; left:0; background:var(--bg-card); z-index:1; border-bottom:1px solid var(--border);${r.mine ? ' border-left:3px solid var(--accent-amber);' : ''}">${r.label}</td>`;
     const cells = r.vals.map((v, ci) => {
       const { bg, color, shadow } = _anlHeatCell(v, colVals[ci]);
-      const star = (r.mine && r.partial[ci] && v != null) ? `<sup title="${r.partial[ci]}부터의 기간 수익률 (연중 시작)" style="cursor:help;">*</sup>` : '';
+      const star = (r.mine && r.partial[ci] && v != null) ? `<sup title="${jjT(`Return for the period from ${r.partial[ci]} (started mid-year)`, `${r.partial[ci]}부터의 기간 수익률 (연중 시작)`)}" style="cursor:help;">*</sup>` : '';
       return `<td style="padding:5px 8px; text-align:right; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; background:${bg}; color:${color}; box-shadow:${shadow};${r.mine ? ' font-weight:600;' : ''}">${v != null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—'}${star}</td>`;
     }).join('');
     return `<tr>${td0}${cells}</tr>`;
@@ -3938,7 +4080,7 @@ function anlOpenPrincipalModal() {
   // stuck "저장 중…" from the last save even though it already succeeded.
   const saveBtn = document.getElementById('pmSaveBtn');
   saveBtn.disabled = false;
-  saveBtn.textContent = '저장';
+  saveBtn.innerHTML = jjTT('Save', '저장');
 
   document.getElementById('pmStatus').style.display = 'none';
   document.getElementById('pmExplicitOverrideNotice').style.display = _anlHasExplicitPrincipalOverrides ? '' : 'none';
@@ -3980,7 +4122,7 @@ async function anlSavePrincipalSettings() {
   if (!portActivePortfolioId || !window.txns) return;
   const btn = document.getElementById('pmSaveBtn');
   const statusEl = document.getElementById('pmStatus');
-  btn.disabled = true; btn.textContent = '저장 중…';
+  btn.disabled = true; btn.textContent = jjT('Saving…', '저장 중…');
 
   const zeroEnabled = document.getElementById('pmZeroFromDateEnabled').checked;
   const zeroDateVal = document.getElementById('pmZeroFromDate').value || null;
@@ -3991,14 +4133,14 @@ async function anlSavePrincipalSettings() {
   if (zeroEnabled && !zeroDateVal) {
     statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
     statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
-    statusEl.textContent = '날짜를 입력하세요.';
-    btn.disabled = false; btn.textContent = '저장'; return;
+    statusEl.textContent = jjT('Please enter a date.', '날짜를 입력하세요.');
+    btn.disabled = false; btn.innerHTML = jjTT('Save', '저장'); return;
   }
   if (manualEnabled && (isNaN(manualAmtVal) || manualAmtVal <= 0)) {
     statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
     statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
-    statusEl.textContent = '원금을 올바르게 입력하세요.';
-    btn.disabled = false; btn.textContent = '저장'; return;
+    statusEl.textContent = jjT('Please enter a valid principal.', '원금을 올바르게 입력하세요.');
+    btn.disabled = false; btn.innerHTML = jjTT('Save', '저장'); return;
   }
 
   try {
@@ -4017,9 +4159,9 @@ async function anlSavePrincipalSettings() {
   } catch(e) {
     statusEl.style.display = 'block'; statusEl.style.background = 'rgba(248,81,73,0.12)';
     statusEl.style.color = 'rgba(248,81,73,0.95)'; statusEl.style.border = '1px solid rgba(248,81,73,0.3)';
-    statusEl.textContent = '저장 실패: ' + e.message;
+    statusEl.textContent = jjT('Save failed: ', '저장 실패: ') + e.message;
   } finally {
-    btn.disabled = false; btn.textContent = '저장';
+    btn.disabled = false; btn.innerHTML = jjTT('Save', '저장');
   }
 }
 
@@ -4085,10 +4227,10 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
 
   // ── 투자 성향 한 줄 정의 ────────────────────────────────
   let styleLabel = '';
-  if (isFundStyle)          styleLabel = '급여공제 등으로 정기 자동 납입되는 <strong style="color:var(--text-primary)">적립식 펀드 투자자</strong>';
-  else if (isDca && isSmallFreq) styleLabel = '저점 판단 후 소액을 자주 분할매수하는 <strong style="color:var(--text-primary)">능동형 DCA 투자자</strong>';
-  else if (isBigLump)       styleLabel = '판단 시점에 큰 금액을 한 번에 투입하는 <strong style="color:var(--text-primary)">집중 매수형 투자자</strong>';
-  else                      styleLabel = '분할매수와 집중매수를 병행하는 <strong style="color:var(--text-primary)">유연형 투자자</strong>';
+  if (isFundStyle)          styleLabel = jjT('a <strong style="color:var(--text-primary)">regular-contribution fund investor</strong> who invests automatically, e.g. via payroll deduction', '급여공제 등으로 정기 자동 납입되는 <strong style="color:var(--text-primary)">적립식 펀드 투자자</strong>');
+  else if (isDca && isSmallFreq) styleLabel = jjT('an <strong style="color:var(--text-primary)">active DCA investor</strong> who buys small amounts often after judging a dip', '저점 판단 후 소액을 자주 분할매수하는 <strong style="color:var(--text-primary)">능동형 DCA 투자자</strong>');
+  else if (isBigLump)       styleLabel = jjT('a <strong style="color:var(--text-primary)">lump-sum investor</strong> who puts in large amounts at once when the moment looks right', '판단 시점에 큰 금액을 한 번에 투입하는 <strong style="color:var(--text-primary)">집중 매수형 투자자</strong>');
+  else                      styleLabel = jjT('a <strong style="color:var(--text-primary)">flexible investor</strong> who mixes split buys and lump-sum buys', '분할매수와 집중매수를 병행하는 <strong style="color:var(--text-primary)">유연형 투자자</strong>');
 
   // ── 점수 계산 ────────────────────────────────────────────
   // (1) 시장 대비 성과 /30 — 펀드 적립식 계좌는 매수 시점을 직접
@@ -4141,22 +4283,32 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     const worst = symReturns.reduce((a, b) => (a.diff < b.diff ? a : b));
     if (worst.diff < -3) {
       advices.push({
-        title: '📉 S&P 500 대비 저조한 이유',
-        body: `현재 S&P 500 대비 ${alpha >= 0 ? '+' : ''}${alpha.toFixed(1)}%p입니다. 보유 종목 중 <b>${worst.sym}</b>가 매수 시작일 이후 ` +
+        title: jjT('📉 Why you trail the S&P 500', '📉 S&P 500 대비 저조한 이유'),
+        body: jjT(
+          `You are ${alpha >= 0 ? '+' : ''}${alpha.toFixed(1)}%p vs. the S&P 500. Among your holdings, <b>${worst.sym}</b> returned ` +
+          `${worst.symRet >= 0 ? '+' : ''}${worst.symRet.toFixed(1)}% since you started buying, ${Math.abs(worst.diff).toFixed(1)}%p below the S&P 500 over the same period ` +
+          `(${worst.spyRet >= 0 ? '+' : ''}${worst.spyRet.toFixed(1)}%) — much of the account's alpha comes from this holding. ` +
+          `If ${worst.sym} is a non-equity asset such as a bond or balanced fund, this is a natural result of asset allocation (diversifying risk) ` +
+          `and may not mean "underperformance." If you're unsure whether the allocation fits your goal, check the fund's asset class.`,
+          `현재 S&P 500 대비 ${alpha >= 0 ? '+' : ''}${alpha.toFixed(1)}%p입니다. 보유 종목 중 <b>${worst.sym}</b>가 매수 시작일 이후 ` +
           `${worst.symRet >= 0 ? '+' : ''}${worst.symRet.toFixed(1)}%로, 같은 기간 S&P 500(${worst.spyRet >= 0 ? '+' : ''}${worst.spyRet.toFixed(1)}%)보다 ` +
           `${Math.abs(worst.diff).toFixed(1)}%p 낮았습니다 — 계좌 전체 알파의 상당 부분이 이 종목에서 비롯됩니다. ` +
           `${worst.sym}가 채권형/혼합형 등 주식형이 아닌 자산군이라면, 이는 자산배분(리스크 분산)의 자연스러운 결과이지 ` +
-          `"저조한 성과"를 의미하지 않을 수 있습니다. 보유 목적에 맞는 배분인지 궁금하다면 해당 펀드의 자산군을 확인해보세요.`,
+          `"저조한 성과"를 의미하지 않을 수 있습니다. 보유 목적에 맞는 배분인지 궁금하다면 해당 펀드의 자산군을 확인해보세요.`),
       });
     }
   }
 
   if (!isFundStyle && sizeVariance > 0.6) {
     advices.push({
-      title: '📏 매수 단위 규칙화',
-      body: `매수 금액이 $${Math.round(minBuyAmt).toLocaleString()}~$${Math.round(maxBuyAmt).toLocaleString()}으로 편차가 큽니다. ` +
+      title: jjT('📏 Standardize your buy size', '📏 매수 단위 규칙화'),
+      body: jjT(
+        `Your buy amounts vary widely, from $${Math.round(minBuyAmt).toLocaleString()} to $${Math.round(maxBuyAmt).toLocaleString()}. ` +
+        `Setting a rule in advance, e.g. "buy a fixed $${Math.round(avgBuyAmt / 500) * 500} on a 10% drop," reduces emotional decisions and improves consistency. ` +
+        `It lets you buy dips — the core of this style — more systematically.`,
+        `매수 금액이 $${Math.round(minBuyAmt).toLocaleString()}~$${Math.round(maxBuyAmt).toLocaleString()}으로 편차가 큽니다. ` +
         `예를 들어 "10% 하락 시 $${Math.round(avgBuyAmt / 500) * 500} 고정 매수"처럼 규칙을 미리 정해두면 감정적 판단을 줄이고 일관성이 높아집니다. ` +
-        `이 스타일의 핵심인 저점 매수를 더 체계적으로 실행할 수 있습니다.`,
+        `이 스타일의 핵심인 저점 매수를 더 체계적으로 실행할 수 있습니다.`),
     });
   }
 
@@ -4168,69 +4320,94 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
     const parts = [];
     if (avgCost != null && curP != null) {
       const d = (curP / avgCost - 1) * 100;
-      parts.push(`평균 매수 단가 $${avgCost.toFixed(2)} 대비 현재가 $${curP.toFixed(2)} (${d >= 0 ? '+' : ''}${d.toFixed(1)}%)`);
+      parts.push(jjT(`Current price $${curP.toFixed(2)} vs. average cost $${avgCost.toFixed(2)} (${d >= 0 ? '+' : ''}${d.toFixed(1)}%)`, `평균 매수 단가 $${avgCost.toFixed(2)} 대비 현재가 $${curP.toFixed(2)} (${d >= 0 ? '+' : ''}${d.toFixed(1)}%)`));
     }
     if (sr && sr.symRet != null && sr.spyRet != null) {
-      parts.push(`첫 매수일 이후 ${symbolFilter} ${sr.symRet >= 0 ? '+' : ''}${sr.symRet.toFixed(1)}% vs 같은 기간 S&P 500 ${sr.spyRet >= 0 ? '+' : ''}${sr.spyRet.toFixed(1)}%`);
+      parts.push(jjT(`Since first buy: ${symbolFilter} ${sr.symRet >= 0 ? '+' : ''}${sr.symRet.toFixed(1)}% vs. S&P 500 ${sr.spyRet >= 0 ? '+' : ''}${sr.spyRet.toFixed(1)}% over the same period`, `첫 매수일 이후 ${symbolFilter} ${sr.symRet >= 0 ? '+' : ''}${sr.symRet.toFixed(1)}% vs 같은 기간 S&P 500 ${sr.spyRet >= 0 ? '+' : ''}${sr.spyRet.toFixed(1)}%`));
     }
     if (parts.length) {
       advices.push({
-        title: `📌 ${symbolFilter} 한눈에 보기`,
-        body: parts.join(' · ') + `. 위 수치는 이 종목의 거래만 따로 떼어 계산한 값이며, 계좌 전체의 분산·집중도 조언은 "전체 (All)"에서 확인할 수 있습니다.`,
+        title: jjT(`📌 ${symbolFilter} at a glance`, `📌 ${symbolFilter} 한눈에 보기`),
+        body: parts.join(' · ') + jjT(`. These figures use only this symbol's trades; see "All" for account-wide diversification/concentration advice.`, `. 위 수치는 이 종목의 거래만 따로 떼어 계산한 값이며, 계좌 전체의 분산·집중도 조언은 "전체 (All)"에서 확인할 수 있습니다.`),
       });
     }
   }
 
   if (!symMode && !isFundStyle && numSymbols <= 2) {
     advices.push({
-      title: '🌐 후보 종목군 미리 확보',
-      body: `현재 ${numSymbols}개 종목에 집중되어 있습니다. 매수 전에 관심 종목 3~5개를 위시리스트로 관리해두면, ` +
-        `시장 하락 시 어디에 분할매수할지 즉시 판단할 수 있어 분산 효과도 함께 얻을 수 있습니다.`,
+      title: jjT('🌐 Keep a watchlist ready', '🌐 후보 종목군 미리 확보'),
+      body: jjT(
+        `You're concentrated in ${numSymbols} symbol(s). Keeping a watchlist of 3–5 candidates before buying ` +
+        `lets you decide instantly where to split-buy when the market drops, and adds diversification too.`,
+        `현재 ${numSymbols}개 종목에 집중되어 있습니다. 매수 전에 관심 종목 3~5개를 위시리스트로 관리해두면, ` +
+        `시장 하락 시 어디에 분할매수할지 즉시 판단할 수 있어 분산 효과도 함께 얻을 수 있습니다.`),
     });
   }
 
   if (!symMode && !isFundStyle && topSymPct > 60) {
     advices.push({
-      title: `⚖️ ${topSym[0]} 비중 점검`,
-      body: `${topSym[0]}가 전체 매수금액의 ${topSymPct.toFixed(0)}%를 차지합니다. ` +
+      title: jjT(`⚖️ Check your ${topSym[0]} weight`, `⚖️ ${topSym[0]} 비중 점검`),
+      body: jjT(
+        `${topSym[0]} makes up ${topSymPct.toFixed(0)}% of everything you've bought. ` +
+        `The more concentrated you are, the more exposed you are to company-specific news. Consider a rule of favoring symbols other than ${topSym[0]} for new buys. ` +
+        `It helps keep overall portfolio performance steady.`,
+        `${topSym[0]}가 전체 매수금액의 ${topSymPct.toFixed(0)}%를 차지합니다. ` +
         `집중도가 높을수록 개별 이슈에 취약해집니다. 새 매수 시 ${topSym[0]} 이외 종목을 우선 고려하는 원칙을 세워보세요. ` +
-        `포트폴리오 전체 성과를 안정적으로 지키는 데 도움이 됩니다.`,
+        `포트폴리오 전체 성과를 안정적으로 지키는 데 도움이 됩니다.`),
     });
   }
 
   if (!isFundStyle && sells.length === 0) {
     advices.push({
-      title: '🎯 익절 기준 사전 설정',
-      body: `아직 매도 거래가 없습니다. "목표 수익률 +30% 도달 시 절반 매도" 같은 익절 룰을 미리 설정해두면, ` +
+      title: jjT('🎯 Set profit-taking rules in advance', '🎯 익절 기준 사전 설정'),
+      body: jjT(
+        `You have no sells yet. A profit-taking rule set in advance, such as "sell half at +30%," ` +
+        `lets you lock in gains during rallies and keep cash for the next dip. ` +
+        `It's the key step that completes this style's cycle.`,
+        `아직 매도 거래가 없습니다. "목표 수익률 +30% 도달 시 절반 매도" 같은 익절 룰을 미리 설정해두면, ` +
         `상승장에서 수익을 실현하고 현금을 확보해 다음 저점 매수 기회에 재투입할 수 있습니다. ` +
-        `이 스타일의 사이클을 완성하는 핵심 단계입니다.`,
+        `이 스타일의 사이클을 완성하는 핵심 단계입니다.`),
     });
   } else if (!isFundStyle && avgGap < 10 && buys.length > 10) {
     advices.push({
-      title: '⏸️ 매수 간격 점검',
-      body: `평균 매수 간격이 약 ${Math.round(avgGap)}일로 짧습니다. ` +
+      title: jjT('⏸️ Check your buy spacing', '⏸️ 매수 간격 점검'),
+      body: jjT(
+        `Your average gap between buys is short, about ${Math.round(avgGap)} days. ` +
+        `Rapid split-buying lowers your average cost, but you may run out of cash right before a rebound. ` +
+        `A waiting rule such as "after the first buy, wait for another 5% drop" gives you more chances to buy lower.`,
+        `평균 매수 간격이 약 ${Math.round(avgGap)}일로 짧습니다. ` +
         `빠른 분할매수는 평균 단가를 낮추는 데 효과적이지만, 반등 직전에 현금이 소진될 수 있습니다. ` +
-        `"1차 매수 후 추가 하락 5% 대기" 같은 대기 조건을 두면 더 낮은 가격에 살 기회를 늘릴 수 있습니다.`,
+        `"1차 매수 후 추가 하락 5% 대기" 같은 대기 조건을 두면 더 낮은 가격에 살 기회를 늘릴 수 있습니다.`),
     });
   }
 
   if (isFundStyle) {
     advices.push({
-      title: '📈 적립식 펀드 계좌 안내',
-      body: `이 계좌는 정기 자동 납입 방식이라 매수 시점을 직접 고르지 않는 구조입니다. 이런 계좌는 ` +
+      title: jjT('📈 About regular-contribution fund accounts', '📈 적립식 펀드 계좌 안내'),
+      body: jjT(
+        `This account invests automatically on a schedule, so you don't pick when to buy. For accounts like this, ` +
+        `<b>keeping contributions steady</b> matters more than market timing or fund picking. ` +
+        (alpha != null
+          ? `You are currently ${alpha >= 0 ? 'ahead of' : 'behind'} the S&P 500 by ${alpha >= 0 ? '+' : ''}${alpha.toFixed(1)}%p — ` +
+            `short-term gaps vs. a benchmark are normal noise, not a signal to change the account.`
+          : ``),
+        `이 계좌는 정기 자동 납입 방식이라 매수 시점을 직접 고르지 않는 구조입니다. 이런 계좌는 ` +
         `시장 타이밍이나 종목 선택보다 <b>납입을 꾸준히 유지하는 것</b>이 핵심입니다. ` +
         (alpha != null
           ? `현재 S&P 500 대비 ${alpha >= 0 ? '+' : ''}${alpha.toFixed(1)}%p ${alpha >= 0 ? '앞서고' : '뒤처져'} 있습니다 — ` +
             `단기간의 벤치마크 차이는 자연스러운 변동이며, 계좌를 조정해야 한다는 신호는 아닙니다.`
-          : ``),
+          : ``)),
     });
   }
 
   if (advices.length === 0) {
     advices.push({
-      title: '✅ 현재 스타일 유지',
-      body: `분석된 패턴에서 큰 개선 포인트가 발견되지 않았습니다. 현재 스타일을 유지하면서 ` +
-        `매수 원칙을 문서화(투자 일지)해두면 향후 시장 급변 시 감정적 결정을 막는 데 도움이 됩니다.`,
+      title: jjT('✅ Keep your current style', '✅ 현재 스타일 유지'),
+      body: jjT(
+        `No major improvement points were found in your patterns. Keep your current style, and ` +
+        `writing down your buying rules (an investment journal) will help prevent emotional decisions when markets swing.`,
+        `분석된 패턴에서 큰 개선 포인트가 발견되지 않았습니다. 현재 스타일을 유지하면서 ` +
+        `매수 원칙을 문서화(투자 일지)해두면 향후 시장 급변 시 감정적 결정을 막는 데 도움이 됩니다.`),
     });
   }
 
@@ -4238,45 +4415,45 @@ function _anlGenerateCoaching(events, totalGain, totalInvested, totalPct, spyPct
   const scoreColor = totalScore >= 75 ? '#3fb950' : totalScore >= 55 ? '#e8c84a' : '#f85149';
   return `
     <div style="margin-bottom:20px;">
-      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:6px;">투자 성향 한 줄 정의</div>
-      <p style="margin:0; font-size:0.9rem;">${styleLabel}입니다.</p>
+      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:6px;">${jjTT('Your style in one line', '투자 성향 한 줄 정의')}</div>
+      <p style="margin:0; font-size:0.9rem;">${jjT('You are ' + styleLabel + '.', styleLabel + '입니다.')}</p>
       <p style="margin:6px 0 0; color:var(--text-muted); font-size:0.82rem;">
-        총 ${buys.length}회 매수 · 평균 매수금액 $${Math.round(avgBuyAmt).toLocaleString()} · 평균 매수 간격 ${Math.round(avgGap)}일 · ${symMode ? symbolFilter + ' 단일 종목' : numSymbols + '개 종목'}
+        ${jjT(`${buys.length} buys · avg buy $${Math.round(avgBuyAmt).toLocaleString()} · avg gap ${Math.round(avgGap)} days · ${symMode ? symbolFilter + ' only' : numSymbols + ' symbols'}`, `총 ${buys.length}회 매수 · 평균 매수금액 $${Math.round(avgBuyAmt).toLocaleString()} · 평균 매수 간격 ${Math.round(avgGap)}일 · ${symMode ? symbolFilter + ' 단일 종목' : numSymbols + '개 종목'}`)}
       </p>
     </div>
 
     <div style="margin-bottom:20px;">
-      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px;">투자 점수</div>
+      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:10px;">${jjTT('Investing score', '투자 점수')}</div>
       <div style="display:flex; align-items:center; gap:16px; margin-bottom:14px;">
         <div style="font-size:2.8rem; font-weight:800; color:${scoreColor}; line-height:1;">${totalScore}</div>
-        <div style="color:var(--text-muted); font-size:0.8rem;">/ 100점${symMode ? ' (분산 항목 제외 환산)' : ''}</div>
+        <div style="color:var(--text-muted); font-size:0.8rem;">/ 100${jjT('', '점')}${symMode ? jjT(' (scaled, diversification excluded)', ' (분산 항목 제외 환산)') : ''}</div>
       </div>
       <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:6px 0; color:var(--text-secondary);">${isFundStyle ? '시장 대비 성과' : '진입 타이밍 정확도'}</td>
+          <td style="padding:6px 0; color:var(--text-secondary);">${isFundStyle ? jjT('Performance vs. market', '시장 대비 성과') : jjT('Entry timing accuracy', '진입 타이밍 정확도')}</td>
           <td style="text-align:right; font-weight:600; color:${timingScore >= 22 ? '#3fb950' : timingScore >= 15 ? '#e8c84a' : '#f85149'};">${timingScore} / 30</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:6px 0; color:var(--text-secondary);">자금 관리 일관성</td>
+          <td style="padding:6px 0; color:var(--text-secondary);">${jjTT('Money-management consistency', '자금 관리 일관성')}</td>
           <td style="text-align:right; font-weight:600; color:${consistencyScore >= 15 ? '#3fb950' : consistencyScore >= 11 ? '#e8c84a' : '#f85149'};">${consistencyScore} / 20</td>
         </tr>
         ${symMode ? '' : `<tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:6px 0; color:var(--text-secondary);">${isFundStyle ? '분산 (펀드 자체 분산도)' : '리스크 관리 (분산)'}</td>
+          <td style="padding:6px 0; color:var(--text-secondary);">${isFundStyle ? jjT('Diversification (fund-level)', '분산 (펀드 자체 분산도)') : jjT('Risk management (diversification)', '리스크 관리 (분산)')}</td>
           <td style="text-align:right; font-weight:600; color:${riskScore >= 14 ? '#3fb950' : riskScore >= 10 ? '#e8c84a' : '#f85149'};">${riskScore} / 20</td>
         </tr>`}
         <tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:6px 0; color:var(--text-secondary);">수익 실현 / 보유 판단</td>
+          <td style="padding:6px 0; color:var(--text-secondary);">${jjTT('Profit-taking / holding decisions', '수익 실현 / 보유 판단')}</td>
           <td style="text-align:right; font-weight:600; color:${exitScore >= 12 ? '#3fb950' : exitScore >= 9 ? '#e8c84a' : '#f85149'};">${exitScore} / 15</td>
         </tr>
         <tr>
-          <td style="padding:6px 0; color:var(--text-secondary);">벤치마크(S&P500) 대비</td>
+          <td style="padding:6px 0; color:var(--text-secondary);">${jjTT('vs. benchmark (S&amp;P 500)', '벤치마크(S&P500) 대비')}</td>
           <td style="text-align:right; font-weight:600; color:${benchScore >= 12 ? '#3fb950' : benchScore >= 8 ? '#e8c84a' : '#f85149'};">${benchScore} / 15</td>
         </tr>
       </table>
     </div>
 
     <div>
-      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:12px;">코치 조언 (현재 스타일 유지 전제)</div>
+      <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-blue); margin-bottom:12px;">${jjTT('Coach Advice (assuming you keep your current style)', '코치 조언 (현재 스타일 유지 전제)')}</div>
       ${advices.map(a => `
         <div style="margin-bottom:14px; padding:12px 14px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; border-left:3px solid var(--accent-blue);">
           <div style="font-weight:600; font-size:0.85rem; color:var(--text-primary); margin-bottom:5px;">${a.title}</div>
@@ -4305,4 +4482,13 @@ function portWaitTxns() {
   }
 }
 portWaitTxns();
+
+// Re-render JS-built text (jjT strings, chart labels) when the language is toggled.
+document.addEventListener('jj:langchange', () => {
+  if (!window._jjUser || document.getElementById('portMain').style.display === 'none') return;
+  portRenderTabs();
+  if (portActiveView === 'analysis') portLoadAnalysis({ soft: true });
+  else if (portActiveView === 'transactions') portRenderTxnRows();
+  else if (portActiveView === 'holdings') portRenderHoldings();
+});
 </script>

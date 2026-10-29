@@ -566,7 +566,7 @@ function _buildPortFilter() {
   }
   if (ports.length <= 1) { row.style.display = 'none'; return; }
 
-  let html = `<span style="font-size:0.72rem;color:var(--text-muted);margin-right:4px;">포트폴리오:</span>`;
+  let html = `<span style="font-size:0.72rem;color:var(--text-muted);margin-right:4px;">${jjTT('Portfolio', '포트폴리오')}:</span>`;
   const allActive = _activePortFilter === null;
   html += `<button class="pf-btn${allActive ? ' active' : ''}" onclick="_setPortFilter(null)" style="${allActive ? 'background:var(--accent-blue);border-color:var(--accent-blue);' : ''}">All</button>`;
   for (const p of ports) {
@@ -575,7 +575,7 @@ function _buildPortFilter() {
     const isActive = _activePortFilter === p;
     html += `<button class="pf-btn${isActive ? ' active' : ''}" onclick="_setPortFilter('${p.replace(/'/g,"\\'")}')"`
       + ` style="${isActive ? `background:${col};border-color:${col};` : `color:${col};border-color:${col};`}">`
-      + `${p}</button>`;
+      + `${p === '(없음)' ? jjTT('(none)', '(없음)') : p}</button>`;
   }
   row.innerHTML = html;
   row.style.display = 'flex';

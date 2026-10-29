@@ -39,16 +39,39 @@
   <meta name="twitter:image" content="{{ og_image }}">
   <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}?v={{ site.time | date: '%s' }}">
   <script>
-    // Apply saved language before first paint to avoid flash
+    // i18n: language lives in localStorage('jj-lang'), default 'en'; <html class="ko-mode"> drives CSS.
+    //  - Static markup: <span class="en-only">…</span><span class="ko-only">…</span>
+    //  - Attributes:    data-title-en/-ko, data-placeholder-en/-ko, data-aria-label-en/-ko
+    //                   (applied on load and on every toggle by jjApplyI18nAttrs)
+    //  - JS strings:    jjT('English', '한국어') for textContent/alert/confirm,
+    //                   jjTT('English', '한국어') for innerHTML (emits both spans, so it re-toggles live)
+    //  - Re-render:     listen for the 'jj:langchange' event on document
     (function() {
-      const lang = localStorage.getItem('jj-lang') || 'en';
+      var lang = 'en';
+      try { lang = localStorage.getItem('jj-lang') || 'en'; } catch (e) {}
       if (lang === 'ko') document.documentElement.classList.add('ko-mode');
+      document.documentElement.lang = lang === 'ko' ? 'ko' : 'en';
+      window.jjIsKo = function() { return document.documentElement.classList.contains('ko-mode'); };
+      window.jjT = function(en, ko) { return window.jjIsKo() ? ko : en; };
+      window.jjTT = function(en, ko) { return '<span class="en-only">' + en + '</span><span class="ko-only">' + ko + '</span>'; };
+      window.jjApplyI18nAttrs = function(root) {
+        var ko = window.jjIsKo();
+        ['title', 'placeholder', 'aria-label'].forEach(function(a) {
+          (root || document).querySelectorAll('[data-' + a + '-en]').forEach(function(el) {
+            var v = el.getAttribute('data-' + a + (ko ? '-ko' : '-en'));
+            if (v != null) el.setAttribute(a, v);
+          });
+        });
+      };
       window.setLang = function(l) {
-        localStorage.setItem('jj-lang', l);
+        try { localStorage.setItem('jj-lang', l); } catch (e) {}
         document.documentElement.classList.toggle('ko-mode', l === 'ko');
+        document.documentElement.lang = l === 'ko' ? 'ko' : 'en';
         // Single toggle button: show opposite language as the label
         var btn = document.getElementById('langToggleBtn');
         if (btn) btn.textContent = l === 'ko' ? 'EN' : '한';
+        window.jjApplyI18nAttrs();
+        document.dispatchEvent(new CustomEvent('jj:langchange', { detail: l }));
       };
     window.toggleLang = function() {
         var current = localStorage.getItem('jj-lang') || 'en';
@@ -82,6 +105,7 @@
       const lang = localStorage.getItem('jj-lang') || 'en';
       var btn = document.getElementById('langToggleBtn');
       if (btn) btn.textContent = lang === 'ko' ? 'EN' : '한';
+      window.jjApplyI18nAttrs();
     });
   </script>
 </body>

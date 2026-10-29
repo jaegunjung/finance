@@ -196,7 +196,7 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
         <span class="ko-only">사이클 저점일</span>
       </p>
       <div class="summary-value">Jan 2023</div>
-      <p class="summary-sub">QQQ ≈ 263 (신한 기준)</p>
+      <p class="summary-sub"><span class="en-only">QQQ ≈ 263 (Shinhan basis)</span><span class="ko-only">QQQ ≈ 263 (신한 기준)</span></p>
     </div>
     <div class="summary-card">
       <p class="summary-label">
@@ -329,12 +329,15 @@ description: Live tracker of where the AI bull market stands in the bubble cycle
   </div>
 
   <p class="source-note">
-    신한투자증권 2025-08-19 프레임워크 기반 · Based on Shinhan Securities 2025-08-19 framework<br>
-    참조선: NASDAQ Composite 월간 실제 데이터 · Reference lines: NASDAQ Composite actual monthly data<br>
-    현재 AI 사이클: QQQ 일별 수정 종가 (2023.01~) · Current AI cycle: QQQ daily adj. close (Jan 2023~)
+    <span class="en-only">Based on Shinhan Securities 2025-08-19 framework<br>
+    Reference lines: NASDAQ Composite actual monthly data<br>
+    Current AI cycle: QQQ daily adj. close (Jan 2023~)</span>
+    <span class="ko-only">신한투자증권 2025-08-19 프레임워크 기반<br>
+    참조선: NASDAQ Composite 월간 실제 데이터<br>
+    현재 AI 사이클: QQQ 일별 수정 종가 (2023.01~)</span>
   </p>
   <div class="capex-disclaimer">
-    개인 분석, 투자 권유 아님 · Personal analysis, not investment advice.
+    <span class="en-only">Personal analysis, not investment advice.</span><span class="ko-only">개인 분석, 투자 권유 아님.</span>
   </div>
 
 </div>
@@ -517,7 +520,7 @@ function buildChart1(aiData) {
       ctx.fillStyle = 'rgba(255,193,7,0.7)';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Peak Zone · 고점 구간', (x1 + x2) / 2, chartArea.top + 12);
+      ctx.fillText(jjT('Peak Zone', '고점 구간'), (x1 + x2) / 2, chartArea.top + 12);
       ctx.restore();
     }
   };
@@ -627,7 +630,7 @@ function buildChart1(aiData) {
             title(items) {
               const x = +items[0].parsed.x;
               const aiDate = xToAIDate(x);
-              return `T+${x.toFixed(2)}yr  ·  AI사이클 ${aiDate}`;
+              return `T+${x.toFixed(2)}yr  ·  ${jjT('AI cycle', 'AI사이클')} ${aiDate}`;
             },
             label(item) {
               return `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`;
@@ -742,7 +745,7 @@ function buildChart2(lastCutMonthly) {
           callbacks: {
             title(items) {
               const m = +items[0].parsed.x;
-              return `Month ${Math.round(m)}  ·  AI사이클 ${mToFedDate(m)}`;
+              return `${jjT('Month', '개월')} ${Math.round(m)}  ·  ${jjT('AI cycle', 'AI사이클')} ${mToFedDate(m)}`;
             },
             label: item => `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`
           }
@@ -777,7 +780,7 @@ function updateSummaryCards(latestPrice, latestDate) {
   if (el) {
     el.querySelector('.summary-value').textContent = fmtYM(peakLowDate) + '–' + fmtYM(peakHighDate);
     el.querySelector('.summary-sub').textContent =
-      `VFIAX ~${peakVFIAX_low}–${peakVFIAX_high}  (FANG~×3.1 / DotCom~×6.7 사이)`;
+      `VFIAX ~${peakVFIAX_low}–${peakVFIAX_high}  (${jjT('between FANG ~×3.1 / DotCom ~×6.7', 'FANG~×3.1 / DotCom~×6.7 사이')})`;
   }
 }
 

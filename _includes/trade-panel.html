@@ -260,10 +260,10 @@ window.tpShowNewSymbolWarning = function(sym, startDate) {
     document.getElementById('tradePanelBody').appendChild(el);
   }
   el.style.display = '';
-  el.innerHTML = `<span style="font-weight:700;">⚠️ <code style="background:rgba(88,166,255,0.15);padding:1px 5px;border-radius:4px;">${sym}</code> 가격 데이터 없음</span>
-    <div style="margin-top:6px;color:var(--text-secondary);">보유 현황 및 손익 계산을 위해 데이터를 수집해야 합니다.</div>
+  el.innerHTML = `<span style="font-weight:700;">⚠️ <code style="background:rgba(88,166,255,0.15);padding:1px 5px;border-radius:4px;">${sym}</code> ${jjTT('No price data', '가격 데이터 없음')}</span>
+    <div style="margin-top:6px;color:var(--text-secondary);">${jjTT('Price data must be collected to compute holdings and P&amp;L.', '보유 현황 및 손익 계산을 위해 데이터를 수집해야 합니다.')}</div>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <a href="${repoUrl}" target="_blank" rel="noopener" style="padding:5px 12px;border-radius:6px;background:var(--accent-blue);color:#fff;text-decoration:none;font-size:0.77rem;font-weight:600;">▶ GitHub Actions 실행</a>
+      <a href="${repoUrl}" target="_blank" rel="noopener" style="padding:5px 12px;border-radius:6px;background:var(--accent-blue);color:#fff;text-decoration:none;font-size:0.77rem;font-weight:600;">▶ ${jjTT('Run GitHub Actions', 'GitHub Actions 실행')}</a>
       <code style="font-size:0.76rem;color:var(--text-muted);">python scripts/fetch_new_symbol.py ${sym}${startDate ? ' ' + startDate : ''}</code>
     </div>`;
 };

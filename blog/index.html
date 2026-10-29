@@ -32,7 +32,7 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
       <div class="post-meta">
         <span>{{ post.date | date: "%Y-%m-%d" }}</span>
         {% for cat in post.categories %}
-          <span class="badge badge-{{ cat }}">{{ cat }}</span>
+          {% include category-badge.html cat=cat %}
         {% endfor %}
       </div>
       <h3>
