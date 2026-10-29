@@ -8,6 +8,8 @@
 {%- endcomment -%}
 {%- assign org_id = '/#organization' | absolute_url -%}
 {%- assign logo_url = '/assets/images/jj-logo.png' | absolute_url -%}
+{%- comment -%} Built with capture: a literal "{" or "}" inside {{ … }} ends the tag early in Ruby Liquid. {%- endcomment -%}
+{%- capture search_tpl -%}{{ '/blog/' | absolute_url }}?q={search_term_string}{%- endcapture -%}
 {%- if page.url == '/' %}
   <script type="application/ld+json">
   {
@@ -36,7 +38,7 @@
           "@type": "SearchAction",
           "target": {
             "@type": "EntryPoint",
-            "urlTemplate": {{ '/blog/' | absolute_url | append: '?q={search_term_string}' | jsonify }}
+            "urlTemplate": {{ search_tpl | jsonify }}
           },
           "query-input": "required name=search_term_string"
         }
