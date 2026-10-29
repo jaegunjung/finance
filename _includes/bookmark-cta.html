@@ -1,6 +1,7 @@
-<!-- Bookmark CTA. Usage:
+<!-- Bookmark CTA. Usage (kept in a raw block: Liquid runs tags even inside HTML comments,
+     and an include of this file inside itself recurses until Jekyll aborts the build):{% raw %}
        {% include bookmark-cta.html variant="hero" %}  — home hero, small link button
-       {% include bookmark-cta.html variant="post" %}  — bottom of posts, dark banner
+       {% include bookmark-cta.html variant="post" %}  — bottom of posts, dark banner{% endraw %}
      Browsers don't allow JS to add bookmarks, so the button shows how to do it on the
      current device (Ctrl+D / ⌘D, mobile browser menu, or "open in browser" inside the
      LinkedIn/Facebook/KakaoTalk in-app browsers). Clicks go to GA as `bookmark_cta_click`. -->
