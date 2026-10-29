@@ -1,5 +1,7 @@
 title: JJ Financial Analysis
 description: S&P 500, Bitcoin & Market Analysis
+# Suffix for <title> / og:title ("<page> | JJ Analysis") — see _includes/seo.html
+seo_brand: "JJ Analysis"
 baseurl: ""
 url: "https://jjanalysis.com"
 
@@ -25,3 +27,28 @@ kakao_js_key: "29c46537d08e79ac3806467ad3030669"
 
 # Google Drive Picker — injected via GitHub Secrets in CI (deploy.yml)
 # For local dev, create _config_local.yml with these values (gitignored)
+
+# Front matter defaults.
+#  - lastmod_from_build: chart pages whose content is the daily-updated data in assets/data,
+#    so sitemap <lastmod> = build time (deploys are triggered by the data-update workflows).
+#    Everything else gets <lastmod> from git history (_plugins/last_modified.rb).
+#  - Login-only and iframe-only pages: excluded from sitemap.xml and marked noindex.
+defaults:
+  - scope: { path: "index.html" }
+    values: { lastmod_from_build: true }
+  - scope: { path: "stock" }
+    values: { lastmod_from_build: true }
+  - scope: { path: "crypto" }
+    values: { lastmod_from_build: true }
+  - scope: { path: "macro" }
+    values: { lastmod_from_build: true }
+  - scope: { path: "rates" }
+    values: { lastmod_from_build: true }
+  - scope: { path: "portfolio" }
+    values: { sitemap: false, noindex: true }
+  - scope: { path: "profile" }
+    values: { sitemap: false, noindex: true }
+  - scope: { path: "crypto/embed-chart.html" }
+    values: { sitemap: false }
+  - scope: { path: "crypto/btc-mini-chart.html" }
+    values: { sitemap: false }

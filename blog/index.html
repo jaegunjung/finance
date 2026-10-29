@@ -1,6 +1,7 @@
 ---
 layout: default
 title: Blog
+seo_title: "Market Analysis Blog — S&P 500, Bitcoin, Macro"
 description: "In-depth financial analysis articles on S&P 500, Bitcoin, crypto markets, and macro economics. Quantitative insights for long-term investors."
 description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 심층 금융 분석 아티클. 장기 투자자를 위한 정량적 인사이트."
 ---
@@ -21,6 +22,12 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
   <button type="button" data-filter="macro"><span class="en-only">Macro</span><span class="ko-only">매크로</span></button>
   <button type="button" data-filter="crypto"><span class="en-only">Crypto</span><span class="ko-only">크립토</span></button>
   <button type="button" data-filter="deep-dive"><span class="en-only">Deep Dive</span><span class="ko-only">심층 분석</span></button>
+</div>
+<div class="post-search">
+  <input type="search" id="postSearch" autocomplete="off"
+    placeholder="Search posts…" data-placeholder-en="Search posts…" data-placeholder-ko="글 검색…"
+    aria-label="Search posts" data-aria-label-en="Search posts" data-aria-label-ko="글 검색">
+  <span id="postSearchEmpty" class="post-search-empty" style="display:none;"><span class="en-only">No posts match.</span><span class="ko-only">검색 결과가 없습니다.</span></span>
 </div>
 
 <ul class="post-list">
@@ -61,20 +68,42 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
 (function () {
   var buttons = document.querySelectorAll('.post-filter button');
   var items = document.querySelectorAll('.post-list .post-item');
+  // Text search (?q=…) — also the target of the WebSite SearchAction in _includes/structured-data.html.
+  var search = document.getElementById('postSearch');
+  var empty = document.getElementById('postSearchEmpty');
+  var currentFilter = 'all';
   function apply(filter) {
+    currentFilter = filter;
+    var q = (search && search.value || '').trim().toLowerCase();
+    var shown = 0;
     buttons.forEach(function (b) { b.classList.toggle('active', b.dataset.filter === filter); });
     items.forEach(function (li) {
       var tags = (li.dataset.tags || '').split(/\s+/);
-      li.style.display = (filter === 'all' || tags.indexOf(filter) !== -1) ? '' : 'none';
+      var ok = (filter === 'all' || tags.indexOf(filter) !== -1) && (!q || li.textContent.toLowerCase().indexOf(q) !== -1);
+      li.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    if (empty) empty.style.display = shown ? 'none' : '';
+  }
+  if (search) {
+    try { search.value = new URLSearchParams(location.search).get('q') || ''; } catch (e) {}
+    search.addEventListener('input', function () {
+      apply(currentFilter);
+      try {
+        var url = new URL(location.href);
+        if (search.value.trim()) url.searchParams.set('q', search.value.trim()); else url.searchParams.delete('q');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+      } catch (e) {}
     });
   }
   buttons.forEach(function (b) {
     b.addEventListener('click', function () {
       apply(b.dataset.filter);
-      try { history.replaceState(null, '', b.dataset.filter === 'all' ? location.pathname : '#' + b.dataset.filter); } catch (e) {}
+      try { history.replaceState(null, '', location.pathname + location.search + (b.dataset.filter === 'all' ? '' : '#' + b.dataset.filter)); } catch (e) {}
     });
   });
   var initial = location.hash.slice(1);
   if (initial && document.querySelector('.post-filter button[data-filter="' + initial + '"]')) apply(initial);
+  else if (search && search.value) apply('all');
 })();
 </script>

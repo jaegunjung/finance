@@ -11,32 +11,8 @@
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
-  <meta name="description" content="{% if page.description %}{{ page.description }}{% elsif page.excerpt %}{{ page.excerpt | strip_html | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
+  {% include seo.html %}
   <link rel="icon" type="image/png" href="{{ '/assets/images/jj-logo.png' | relative_url }}">
-  <!-- Open Graph / Share preview -->
-  {%- comment -%}
-    og:image: front matter `image:` (site path or full URL) if set, else site.og_image (PNG —
-    LinkedIn/KakaoTalk/X don't render SVG). Custom images are assumed 1200x630 unless
-    image_width/image_height are given.
-  {%- endcomment -%}
-  {%- assign og_image = page.image | default: site.og_image -%}
-  {%- unless og_image contains '://' -%}{%- assign og_image = og_image | absolute_url -%}{%- endunless -%}
-  {%- assign og_image_ext = og_image | split: '?' | first | split: '.' | last | downcase -%}
-  {%- if og_image_ext == 'jpg' or og_image_ext == 'jpeg' -%}{%- assign og_image_type = 'image/jpeg' -%}{%- else -%}{%- assign og_image_type = 'image/png' -%}{%- endif -%}
-  {%- if page.collection == 'posts' -%}{%- assign og_type = 'article' -%}{%- else -%}{%- assign og_type = 'website' -%}{%- endif %}
-  <meta property="og:type"        content="{{ og_type }}">
-  <meta property="og:site_name"   content="{{ site.title }}">
-  <meta property="og:title"       content="{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}">
-  <meta property="og:description" content="{% if page.description %}{{ page.description }}{% elsif page.excerpt %}{{ page.excerpt | strip_html | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
-  <meta property="og:url"         content="{{ page.url | absolute_url }}">
-  <meta property="og:image"        content="{{ og_image }}">
-  <meta property="og:image:width"  content="{{ page.image_width | default: 1200 }}">
-  <meta property="og:image:height" content="{{ page.image_height | default: 630 }}">
-  <meta property="og:image:type"   content="{{ og_image_type }}">
-  <meta property="og:image:alt"    content="{{ page.image_alt | default: page.title | default: site.og_image_alt | escape }}">
-  <meta name="twitter:card"  content="summary_large_image">
-  <meta name="twitter:image" content="{{ og_image }}">
   <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}?v={{ site.time | date: '%s' }}">
   <script>
     // i18n: language lives in localStorage('jj-lang'), default 'en'; <html class="ko-mode"> drives CSS.
@@ -86,6 +62,7 @@
   {% include nav.html %}
   <main>
     {{ content }}
+    {% include next-reads.html %}
   </main>
   {% include footer.html %}
   {% include import-modal.html %}

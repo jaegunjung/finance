@@ -1,0 +1,62 @@
+{%- comment -%}
+  Three related posts under a blog post (included from _layouts/post.html).
+  Priority: same category → same post_tag → most recent posts. Never the current post.
+  site.categories[cat] is newest-first, so each tier picks the most recent matches.
+{%- endcomment -%}
+{%- assign related = '' | split: '' -%}
+{%- capture seen -%}|{{ page.url }}|{%- endcapture -%}
+
+{%- for cat in page.categories -%}
+  {%- for p in site.categories[cat] -%}
+    {%- if related.size >= 3 -%}{%- break -%}{%- endif -%}
+    {%- capture key -%}|{{ p.url }}|{%- endcapture -%}
+    {%- unless seen contains key -%}
+      {%- assign related = related | push: p -%}
+      {%- assign seen = seen | append: key -%}
+    {%- endunless -%}
+  {%- endfor -%}
+{%- endfor -%}
+
+{%- if related.size < 3 and page.post_tag -%}
+  {%- assign tagged = site.posts | where: 'post_tag', page.post_tag -%}
+  {%- for p in tagged -%}
+    {%- if related.size >= 3 -%}{%- break -%}{%- endif -%}
+    {%- capture key -%}|{{ p.url }}|{%- endcapture -%}
+    {%- unless seen contains key -%}
+      {%- assign related = related | push: p -%}
+      {%- assign seen = seen | append: key -%}
+    {%- endunless -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- if related.size < 3 -%}
+  {%- for p in site.posts -%}
+    {%- if related.size >= 3 -%}{%- break -%}{%- endif -%}
+    {%- capture key -%}|{{ p.url }}|{%- endcapture -%}
+    {%- unless seen contains key -%}
+      {%- assign related = related | push: p -%}
+      {%- assign seen = seen | append: key -%}
+    {%- endunless -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- if related.size > 0 %}
+<section class="related-posts" aria-labelledby="relatedPostsTitle">
+  <h2 id="relatedPostsTitle"><span class="en-only">Related posts</span><span class="ko-only">관련 글</span></h2>
+  <div class="related-grid">
+    {%- for p in related %}
+    <a class="related-card" href="{{ p.url | relative_url }}">
+      <div class="related-card-date">{{ p.date | date: "%Y-%m-%d" }}</div>
+      <div class="related-card-title">
+        {%- if p.deep_dive %}{% include deep-dive-badge.html %} {% endif -%}
+        {%- if p.title_en or p.title_ko -%}
+          <span class="en-only">{{ p.title_en | default: p.title }}</span><span class="ko-only">{{ p.title_ko | default: p.title }}</span>
+        {%- else -%}
+          {{ p.title }}
+        {%- endif -%}
+      </div>
+    </a>
+    {%- endfor %}
+  </div>
+</section>
+{%- endif %}

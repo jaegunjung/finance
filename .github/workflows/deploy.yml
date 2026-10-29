@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history: _plugins/last_modified.rb reads git dates for sitemap <lastmod>
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1

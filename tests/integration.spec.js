@@ -1040,3 +1040,130 @@ test.describe("K. EN 모드 — 한글 노출 없음", () => {
     });
   }
 });
+
+// ────────────────────────────────────────────────────────────
+// L. SEO 메타태그 · 구조화 데이터 · sitemap · 재방문 유도 UI
+//    _includes/seo.html (title ≤60 / description ≤155 / canonical / noindex),
+//    _includes/structured-data.html (JSON-LD), _plugins/last_modified.rb (sitemap lastmod),
+//    bookmark-banner / related-posts / next-reads.
+// ────────────────────────────────────────────────────────────
+test.describe("L. SEO & 재방문 유도", () => {
+  const SITE = "https://jjanalysis.com";
+  const POST = "/strategy/2026/10/28/envx-second-warrant-dividend-vs-2025-envxw/";
+  const PAGES = ["/", "/stock/", "/stock/aapl/", "/stock/mu/", "/crypto/", "/crypto/eth/",
+                 "/macro/", "/rates/", "/blog/", "/about/", POST];
+
+  const seo = page => page.evaluate(() => ({
+    title: document.title,
+    desc: document.querySelector('meta[name="description"]')?.content || "",
+    canonical: [...document.querySelectorAll('link[rel="canonical"]')].map(l => l.href),
+    ogUrl: document.querySelector('meta[property="og:url"]')?.content || "",
+    ogTitle: document.querySelector('meta[property="og:title"]')?.content || "",
+    robots: document.querySelector('meta[name="robots"]')?.content || "",
+    ld: [...document.querySelectorAll('script[type="application/ld+json"]')].map(s => s.textContent),
+  }));
+
+  const seen = { title: new Map(), desc: new Map() };
+  for (const p of PAGES) {
+    test(`L-1. ${p} — title ≤60 · description ≤155 · canonical 1개 = og:url`, async ({ page }) => {
+      await page.goto(BASE_URL + p, { waitUntil: "domcontentloaded" });
+      const m = await seo(page);
+      expect(m.title.length, m.title).toBeLessThanOrEqual(60);
+      expect(m.desc.length, m.desc).toBeGreaterThan(30);
+      expect(m.desc.length, m.desc).toBeLessThanOrEqual(155);
+      expect(m.canonical).toEqual([SITE + p]);
+      expect(m.ogUrl).toBe(SITE + p);
+      expect(m.ogTitle).toBe(m.title);
+      expect(m.robots).not.toContain("noindex");
+      for (const s of m.ld) expect(() => JSON.parse(s), "JSON-LD 파싱").not.toThrow();
+      // 페이지별 고유 title/description (같은 worker 안에서 비교)
+      for (const k of ["title", "desc"]) {
+        const prev = seen[k].get(m[k]);
+        expect(prev, `${k} 중복: ${p} vs ${prev}`).toBeUndefined();
+        seen[k].set(m[k], p);
+      }
+    });
+  }
+
+  test("L-2. 홈 JSON-LD — Organization + WebSite(SearchAction → /blog/?q=)", async ({ page }) => {
+    await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    const graph = JSON.parse((await seo(page)).ld[0])["@graph"];
+    const types = graph.map(g => g["@type"]);
+    expect(types).toEqual(expect.arrayContaining(["Organization", "WebSite"]));
+    const ws = graph.find(g => g["@type"] === "WebSite");
+    expect(ws.potentialAction.target.urlTemplate).toBe(`${SITE}/blog/?q={search_term_string}`);
+  });
+
+  test("L-3. 포스트 JSON-LD — BlogPosting (author · datePublished · dateModified)", async ({ page }) => {
+    await page.goto(BASE_URL + POST, { waitUntil: "domcontentloaded" });
+    const ld = (await seo(page)).ld.map(s => JSON.parse(s)).find(j => j["@type"] === "BlogPosting");
+    expect(ld).toBeTruthy();
+    expect(ld.author?.name).toBeTruthy();
+    expect(ld.datePublished).toMatch(/^2026-10-28/);
+    expect(new Date(ld.dateModified).getTime()).toBeGreaterThanOrEqual(new Date(ld.datePublished).getTime());
+  });
+
+  test("L-4. 로그인 전용 페이지는 noindex", async ({ page }) => {
+    for (const p of ["/portfolio/", "/profile/"]) {
+      await page.goto(BASE_URL + p, { waitUntil: "domcontentloaded" });
+      expect((await seo(page)).robots, p).toContain("noindex");
+    }
+  });
+
+  test("L-5. sitemap.xml — 주요 페이지 포함 · 비공개/임베드 제외 · lastmod 존재 · robots.txt", async ({ page }) => {
+    const xml = await (await page.request.get(BASE_URL + "/sitemap.xml")).text();
+    const urls = [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].map(m => ({
+      loc: (m[1].match(/<loc>([^<]*)<\/loc>/) || [])[1], lastmod: (m[1].match(/<lastmod>([^<]*)<\/lastmod>/) || [])[1],
+    }));
+    const locs = urls.map(u => u.loc.replace(/^https?:\/\/[^/]+/, ""));
+    for (const p of ["/", "/stock/", "/crypto/", "/macro/", "/rates/", "/blog/", "/about/", "/stock/aapl/", POST])
+      expect(locs, `sitemap에 ${p}`).toContain(p);
+    for (const p of ["/portfolio/", "/profile/", "/crypto/embed-chart.html", "/crypto/btc-mini-chart.html"])
+      expect(locs, `sitemap에서 제외: ${p}`).not.toContain(p);
+    const missing = urls.filter(u => !u.lastmod).map(u => u.loc);
+    expect(missing, "lastmod 없는 URL").toEqual([]);
+    const now = Date.now();
+    for (const u of urls) expect(new Date(u.lastmod).getTime(), `미래 lastmod: ${u.loc}`).toBeLessThanOrEqual(now + 86_400_000);
+    const robots = await (await page.request.get(BASE_URL + "/robots.txt")).text();
+    expect(robots).toMatch(/Sitemap:\s*\S+\/sitemap\.xml/);
+  });
+
+  test("L-6. 홈 북마크 배너 — 닫으면 새로고침 후에도 안 보임", async ({ page }) => {
+    await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => { try { localStorage.removeItem("jj-bookmark-banner-dismissed"); } catch (e) {} });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#bookmarkBanner")).toBeVisible();
+    await page.locator("#bookmarkBanner .bookmark-banner-close").click();
+    await expect(page.locator("#bookmarkBanner")).toHaveCount(0);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#bookmarkBanner")).toHaveCount(0);
+  });
+
+  test("L-7. 포스트 하단 관련 글 3개 (현재 글 제외)", async ({ page }) => {
+    await page.goto(BASE_URL + POST, { waitUntil: "domcontentloaded" });
+    const hrefs = await page.locator(".related-posts .related-card").evaluateAll(as => as.map(a => a.getAttribute("href")));
+    expect(hrefs).toHaveLength(3);
+    expect(hrefs).not.toContain(POST);
+    expect(new Set(hrefs).size).toBe(3);
+  });
+
+  test("L-8. 다음에 볼 만한 페이지 — 주식→매크로, 코인→BTC 장기추세, 블로그→포트폴리오", async ({ page }) => {
+    const cases = [["/stock/aapl/", "/macro/"], ["/crypto/eth/", "/crypto/"], ["/stock/doge-usd/", "/crypto/"],
+                   ["/blog/", "/portfolio/"], [POST, "/portfolio/"]];
+    for (const [p, target] of cases) {
+      await page.goto(BASE_URL + p, { waitUntil: "domcontentloaded" });
+      const hrefs = await page.locator(".next-reads .next-read-card").evaluateAll(as => as.map(a => a.getAttribute("href")));
+      expect(hrefs, p).toContain(target);
+    }
+    await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".next-reads")).toHaveCount(0);
+  });
+
+  test("L-9. 블로그 검색 ?q= — 일치하는 글만 표시", async ({ page }) => {
+    await page.goto(BASE_URL + "/blog/?q=ENVX", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#postSearch")).toHaveValue("ENVX");
+    const vis = await page.locator(".post-list .post-item").evaluateAll(li => li.filter(x => x.style.display !== "none").map(x => x.textContent));
+    expect(vis.length).toBeGreaterThan(0);
+    for (const t of vis) expect(t.toLowerCase()).toContain("envx");
+  });
+});

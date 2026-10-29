@@ -1,0 +1,73 @@
+{%- comment -%}
+  "What to read next" internal links at the bottom of a page (included from _layouts/default.html).
+  Picks cards by page type:
+    stock pages          → macro indicators, interest rates
+    crypto pages / -USD  → Bitcoin long-term trend (or ETH + crypto posts when already on BTC)
+    blog list / posts    → portfolio tracker, S&P 500 chart
+    macro / rates        → each other + S&P 500 chart
+  Nothing on home, portfolio, profile, about, privacy, or redirect stubs.
+  Note: post permalinks start with their category (/crypto/2026/…, /macro/2026/…), so posts
+  are matched first by collection, not by URL prefix.
+{%- endcomment -%}
+{%- assign u = page.url -%}
+{%- assign group = '' -%}
+{%- if page.redirect_to -%}
+{%- elsif page.collection == 'posts' or u == '/blog/' -%}{%- assign group = 'blog' -%}
+{%- elsif page.layout == 'stock-chart' and page.symbol contains '-USD' -%}{%- assign group = 'crypto' -%}
+{%- elsif u == '/crypto/' -%}{%- assign group = 'btc' -%}
+{%- elsif u contains '/crypto/' -%}{%- assign group = 'crypto' -%}
+{%- elsif u contains '/stock/' -%}{%- assign group = 'stock' -%}
+{%- elsif u == '/macro/' -%}{%- assign group = 'macro' -%}
+{%- elsif u == '/rates/' -%}{%- assign group = 'rates' -%}
+{%- endif -%}
+
+{%- if group != '' %}
+<section class="next-reads" aria-labelledby="nextReadsTitle">
+  <h2 id="nextReadsTitle"><span class="en-only">Worth a look next</span><span class="ko-only">다음에 볼 만한 페이지</span></h2>
+  <div class="next-reads-grid">
+  {%- if group == 'stock' %}
+    {% include next-read-card.html url="/macro/" en="Macro Indicators" ko="거시경제 지표"
+       den="Shiller CAPE, Buffett Indicator and more — is the whole market cheap or expensive?"
+       dko="Shiller CAPE·버핏지수 등 — 시장 전체가 싼지 비싼지 확인하기" %}
+    {% include next-read-card.html url="/rates/" en="Interest Rates vs S&amp;P 500" ko="금리 vs S&amp;P 500"
+       den="Fed funds rate and 10Y Treasury yield against the S&amp;P 500 over decades."
+       dko="연준 기준금리·10년물 금리와 S&amp;P 500의 장기 비교" %}
+  {%- elsif group == 'crypto' %}
+    {% include next-read-card.html url="/crypto/" en="Bitcoin Long-Term Trend" ko="비트코인 장기 추세"
+       den="Log-scale regression channel and halving cycles — where BTC sits in its long-term trend."
+       dko="로그 회귀 채널과 반감기 사이클 — BTC가 장기 추세의 어디쯤인지" %}
+    {% include next-read-card.html url="/macro/" en="Macro Indicators" ko="거시경제 지표"
+       den="The macro backdrop behind risk assets: valuation, liquidity and the economy."
+       dko="위험자산 뒤의 거시 환경: 밸류에이션, 유동성, 경기" %}
+  {%- elsif group == 'btc' %}
+    {% include next-read-card.html url="/crypto/eth/" en="Ethereum Long-Term Trend" ko="이더리움 장기 추세"
+       den="ETH on the same log-scale trend framework, and how it moves against BTC."
+       dko="같은 로그 스케일 추세 분석으로 본 ETH, 그리고 BTC 대비 흐름" %}
+    {% include next-read-card.html url="/blog/#crypto" en="Crypto Analysis Posts" ko="크립토 분석 글"
+       den="Halving cycles, on-chain bottom signals, regulation and more."
+       dko="반감기 사이클, 온체인 바닥 신호, 규제 등" %}
+  {%- elsif group == 'blog' %}
+    {% include next-read-card.html url="/portfolio/" en="Portfolio Tracker" ko="포트폴리오 트래커"
+       den="Import your trades and see how your returns compare with SPY, QQQ and SGOV."
+       dko="거래내역을 가져와 내 수익률을 SPY·QQQ·SGOV와 비교해 보기" %}
+    {% include next-read-card.html url="/stock/" en="S&amp;P 500 Long-Term Chart" ko="S&amp;P 500 장기 차트"
+       den="100 years of the S&amp;P 500 on a log scale with its trend channel."
+       dko="로그 스케일과 추세 채널로 본 S&amp;P 500 100년" %}
+  {%- elsif group == 'macro' %}
+    {% include next-read-card.html url="/rates/" en="Interest Rates vs S&amp;P 500" ko="금리 vs S&amp;P 500"
+       den="Fed funds rate and 10Y Treasury yield against the S&amp;P 500 over decades."
+       dko="연준 기준금리·10년물 금리와 S&amp;P 500의 장기 비교" %}
+    {% include next-read-card.html url="/stock/" en="S&amp;P 500 Long-Term Chart" ko="S&amp;P 500 장기 차트"
+       den="100 years of the S&amp;P 500 on a log scale with its trend channel."
+       dko="로그 스케일과 추세 채널로 본 S&amp;P 500 100년" %}
+  {%- elsif group == 'rates' %}
+    {% include next-read-card.html url="/macro/" en="Macro Indicators" ko="거시경제 지표"
+       den="Shiller CAPE, Buffett Indicator and more — is the whole market cheap or expensive?"
+       dko="Shiller CAPE·버핏지수 등 — 시장 전체가 싼지 비싼지 확인하기" %}
+    {% include next-read-card.html url="/stock/" en="S&amp;P 500 Long-Term Chart" ko="S&amp;P 500 장기 차트"
+       den="100 years of the S&amp;P 500 on a log scale with its trend channel."
+       dko="로그 스케일과 추세 채널로 본 S&amp;P 500 100년" %}
+  {%- endif %}
+  </div>
+</section>
+{%- endif %}

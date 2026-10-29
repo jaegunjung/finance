@@ -1,6 +1,7 @@
 ---
 layout: default
 title: Privacy Policy
+description: "Privacy policy for JJ Analysis: what data is collected (Google Analytics, sign-in), how portfolio data is stored in Supabase, and the choices you have."
 permalink: /privacy/
 ---
 <style>
