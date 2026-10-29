@@ -724,26 +724,25 @@ html.ko-mode .lang-en { display: none; }
   .share-btn.native-share { display: inline-flex; }
 }
 
-/* BOOKMARK BANNER (home) */
-.bookmark-banner {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin: 14px 0 0; padding: 8px 12px 8px 14px;
-  background: var(--bg-secondary); border: 1px solid var(--border);
-  border-left: 3px solid var(--accent-amber); border-radius: 8px;
-  font-size: 0.84rem; color: var(--text-secondary);
+/* BOOKMARK CTA (_includes/bookmark-cta.html) */
+.bookmark-cta-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 10px 18px;
+  border-radius: 999px; cursor: pointer; font: inherit; font-size: 0.92rem; font-weight: 600;
 }
-.bookmark-banner-text { flex: 1; min-width: 0; }
-.bookmark-banner-key {
-  margin-left: 6px; padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px;
-  font-family: inherit; font-size: 0.74rem; color: var(--text-muted); background: var(--bg-card);
+.bookmark-cta-hero { margin: 18px 0 14px; }
+.bookmark-cta-hero .bookmark-cta-btn {
+  background: transparent; color: var(--accent-amber); border: 1px solid var(--accent-amber);
 }
-.bookmark-banner-link { color: var(--accent-blue); text-decoration: none; font-size: 0.8rem; white-space: nowrap; }
-.bookmark-banner-link:hover { text-decoration: underline; }
-.bookmark-banner-close {
-  background: none; border: none; color: var(--text-muted); cursor: pointer;
-  font-size: 0.95rem; line-height: 1; padding: 4px 6px; border-radius: 4px;
+.bookmark-cta-hero .bookmark-cta-btn:hover { background: rgba(210,153,34,0.12); }
+.bookmark-cta-post {
+  margin: 32px 0 0; padding: 22px 20px; text-align: center;
+  background: #1e2330; color: #fff; border-radius: 12px;
 }
-.bookmark-banner-close:hover { color: var(--text-primary); background: var(--bg-card); }
+.bookmark-cta-title { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; color: #fff; }
+.bookmark-cta-post .bookmark-cta-btn { background: #fff; color: #1e2330; border: none; }
+.bookmark-cta-post .bookmark-cta-btn:hover { background: #e6edf3; }
+.bookmark-cta-hint { margin-top: 10px; font-size: 0.88rem; line-height: 1.5; color: var(--text-secondary); }
+.bookmark-cta-post .bookmark-cta-hint { color: #c9d1d9; }
 
 /* RELATED POSTS + NEXT READS */
 .related-posts, .next-reads { margin: 40px 0 0; }
@@ -761,3 +760,32 @@ html.ko-mode .lang-en { display: none; }
 .related-card-title { font-size: 0.9rem; font-weight: 600; line-height: 1.45; }
 .next-read-card-title { font-size: 0.92rem; font-weight: 600; margin-bottom: 4px; }
 .next-read-card-desc { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+/* MOBILE / TOUCH (2026-10, LinkedIn mobile traffic bounced instantly on chart pages)
+   chartjs-plugin-zoom's Hammer.js sets touch-action:none on every zoomable canvas, so on a
+   phone a vertical swipe that starts on the chart (most of the first screen) can't scroll
+   the page. pan-y gives vertical swipes back to the browser; horizontal pan and pinch-zoom
+   still reach the chart. */
+@media (pointer: coarse) {
+  canvas { touch-action: pan-y !important; }
+  /* Chart control pills stay compact visually but get a ≥44px tap area */
+  .range-btn, .ctrl-btn, .sym-btn, .pf-btn { position: relative; min-height: 36px; }
+  .range-btn::after, .ctrl-btn::after, .sym-btn::after, .pf-btn::after {
+    content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px;
+  }
+}
+@media (max-width: 640px) {
+  .stock-notes { font-size: 1rem !important; }
+  .stock-notes table { font-size: 0.88rem !important; }
+}
+
+/* Spinner on chart loading overlays (text alone looked like a blank chart on slow networks) */
+/* :has(> span) = still showing the original "Loading…" spans; error text replaces them,
+   which stops the spinner. */
+#chartLoading:has(> span)::before, #btcChartLoading:has(> span)::before, #ethLoading:has(> span)::before,
+#ratesLoading:has(> span)::before, #inflLoading:has(> span)::before, #cmpLoading:has(> span)::before {
+  content: ''; width: 18px; height: 18px; margin-right: 10px; flex-shrink: 0;
+  border: 2px solid var(--border); border-top-color: var(--accent-blue); border-radius: 50%;
+  animation: jj-spin 0.8s linear infinite;
+}
+@keyframes jj-spin { to { transform: rotate(360deg); } }

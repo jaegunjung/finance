@@ -290,6 +290,10 @@ function initEthChart() {
 
   ethChart = new Chart(document.getElementById('ethChart').getContext('2d'), {
     type: 'line',
+    // Per-chart plugin: ethTxnPlugin is scoped to initEthChart, so it can't be
+    // Chart.register()'d from loadEthData (that threw a ReferenceError and left
+    // the "Loading…" overlay stuck over the chart).
+    plugins: [ethTxnPlugin],
     data: {
       datasets: [
         { data: ethPrices.map((p,i)=>({x:i,y:p})), label:'ETH', borderColor:'rgba(98,126,234,0.9)', borderWidth:1.5, pointRadius:0, tension:0, fill:false, parsing:false },
@@ -443,7 +447,6 @@ async function loadEthData() {
   initEthChart();
   initEthRsiChart();
   // Register txn circle plugin & trade panel globals
-  Chart.register(ethTxnPlugin);
   window._tpSymbol = 'ETH';
   window._tpDates  = ethDates;
   window._tpPrices = ethPrices;

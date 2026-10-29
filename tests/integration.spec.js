@@ -1128,15 +1128,34 @@ test.describe("L. SEO & 재방문 유도", () => {
     expect(robots).toMatch(/Sitemap:\s*\S+\/sitemap\.xml/);
   });
 
-  test("L-6. 홈 북마크 배너 — 닫으면 새로고침 후에도 안 보임", async ({ page }) => {
+  test("L-6. 북마크 CTA — 홈 히어로 + 포스트 하단, 클릭 시 안내 문구 표시", async ({ page }) => {
     await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => { try { localStorage.removeItem("jj-bookmark-banner-dismissed"); } catch (e) {} });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("#bookmarkBanner")).toBeVisible();
-    await page.locator("#bookmarkBanner .bookmark-banner-close").click();
-    await expect(page.locator("#bookmarkBanner")).toHaveCount(0);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("#bookmarkBanner")).toHaveCount(0);
+    const hero = page.locator(".hero .bookmark-cta-hero .bookmark-cta-btn");
+    await expect(hero).toBeVisible();
+    await hero.click();
+    await expect(page.locator(".bookmark-cta-hero .bookmark-cta-hint")).toBeVisible();
+    await page.goto(BASE_URL + POST, { waitUntil: "domcontentloaded" });
+    const post = page.locator(".bookmark-cta-post");
+    await expect(post).toBeVisible();
+    expect(await post.evaluate(el => getComputedStyle(el).backgroundColor)).toBe("rgb(30, 35, 48)");
+    await post.locator(".bookmark-cta-btn").click();
+    await expect(post.locator(".bookmark-cta-hint")).not.toBeEmpty();
+  });
+
+  test("L-6b. 모바일 — 차트 위에서 세로 스와이프로 페이지 스크롤 가능 (touch-action)", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on("pageerror", e => errors.push(e.message));
+    for (const p of ["/stock/envx/", "/rates/", "/crypto/eth/", "/stock/aicapex-stocks/", "/crypto/"]) {
+      await page.goto(BASE_URL + p, { waitUntil: "networkidle" });
+      const bad = await page.evaluate(() => [...document.querySelectorAll("canvas")]
+        .filter(c => c.clientHeight > 150 && getComputedStyle(c).touchAction === "none").map(c => c.id));
+      expect(bad, `${p} touch-action:none 캔버스`).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), `${p} 가로 스크롤`).toBeLessThanOrEqual(375);
+    }
+    expect(errors, "JS 에러").toEqual([]);
+    await ctx.close();
   });
 
   test("L-7. 포스트 하단 관련 글 3개 (현재 글 제외)", async ({ page }) => {

@@ -1,0 +1,49 @@
+<!-- Bookmark CTA. Usage:
+       {% include bookmark-cta.html variant="hero" %}  — home hero, small link button
+       {% include bookmark-cta.html variant="post" %}  — bottom of posts, dark banner
+     Browsers don't allow JS to add bookmarks, so the button shows how to do it on the
+     current device (Ctrl+D / ⌘D, mobile browser menu, or "open in browser" inside the
+     LinkedIn/Facebook/KakaoTalk in-app browsers). Clicks go to GA as `bookmark_cta_click`. -->
+{% assign v = include.variant | default: "post" %}
+{% if v == "hero" %}
+<div class="bookmark-cta bookmark-cta-hero">
+  <button type="button" class="bookmark-cta-btn" data-cta="hero" onclick="jjBookmarkHint(this)">
+    ⭐ <span class="en-only">Bookmark it &amp; check the market daily</span><span class="ko-only">즐겨찾기 추가하고 매일 시장 체크</span>
+  </button>
+  <div class="bookmark-cta-hint" role="status" aria-live="polite" hidden></div>
+</div>
+{% else %}
+<aside class="bookmark-cta bookmark-cta-post" aria-label="Bookmark jjanalysis.com">
+  <p class="bookmark-cta-title">
+    📊 <span class="en-only">Get weekly market analysis updates</span><span class="ko-only">매주 시장 분석 업데이트 받기</span>
+  </p>
+  <button type="button" class="bookmark-cta-btn" data-cta="post" onclick="jjBookmarkHint(this)">
+    <span class="en-only">Bookmark jjanalysis.com</span><span class="ko-only">jjanalysis.com 북마크 추가</span>
+  </button>
+  <div class="bookmark-cta-hint" role="status" aria-live="polite" hidden></div>
+</aside>
+{% endif %}
+<script>
+  window.jjBookmarkHint = window.jjBookmarkHint || function (btn) {
+    var ua = navigator.userAgent || '';
+    var T = window.jjT || function (en) { return en; };
+    var msg;
+    if (/LinkedInApp|FBAN|FBAV|Instagram|KAKAOTALK|Line\//i.test(ua)) {
+      msg = T('You\'re in an in-app browser. Tap ⋯ (top right) → "Open in browser", then bookmark from there.',
+              '앱 내 브라우저에서는 북마크가 안 됩니다. 오른쪽 위 ⋯ → "브라우저에서 열기" 후 북마크해 주세요.');
+    } else if (/iPhone|iPad|iPod/.test(ua)) {
+      msg = T('Tap the Share button (□↑) → "Add Bookmark" or "Add to Home Screen".',
+              '공유 버튼(□↑) → "북마크 추가" 또는 "홈 화면에 추가"를 누르세요.');
+    } else if (/Android/.test(ua)) {
+      msg = T('Tap ⋮ (top right) → ☆ to bookmark, or "Add to Home screen".',
+              '오른쪽 위 ⋮ → ☆ 을 누르거나 "홈 화면에 추가"를 선택하세요.');
+    } else {
+      var mac = /Mac/.test(navigator.platform || ua);
+      msg = T('Press ' + (mac ? '⌘D' : 'Ctrl+D') + ' to bookmark this site.',
+              (mac ? '⌘D' : 'Ctrl+D') + ' 를 누르면 즐겨찾기에 추가됩니다.');
+    }
+    var hint = btn.parentNode.querySelector('.bookmark-cta-hint');
+    if (hint) { hint.textContent = msg; hint.hidden = false; }
+    try { if (window.gtag) gtag('event', 'bookmark_cta_click', { cta_location: btn.getAttribute('data-cta') }); } catch (e) {}
+  };
+</script>
