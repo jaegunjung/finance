@@ -2,7 +2,7 @@
 layout: default
 title: About
 description: "Who is behind JJ Analysis: a data engineer applying quantitative methods — log-scale regression, trend channels, cycle analysis — to long-term markets."
-seo_title: "About JJ Analysis"
+seo_title: "About the Analyst"
 ---
 <style>
 .about-content ul + h2 { margin-top: 1.25em; }
