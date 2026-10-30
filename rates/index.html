@@ -461,6 +461,10 @@ function initRatesChart(dates, sp500Vals, fedVals, dgsVals) {
           ticks:{color:'#58a6ff', font:{size:10},
             callback(v) {
               if (!v || v <= 0) return undefined;
+              // Log axis labels every 1..9×10ⁿ, which piles up into an unreadable column on
+              // phones — label only 1/2/5×10ⁿ (gridlines stay).
+              const m = v / Math.pow(10, Math.floor(Math.log10(v) + 1e-9));
+              if (![1, 2, 5].some(k => Math.abs(m - k) < 1e-6)) return '';
               return '$' + Math.round(v).toLocaleString();
             }
           }

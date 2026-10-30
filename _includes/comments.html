@@ -219,5 +219,5 @@
   <div id="comments-list"></div>
 </section>
 
-<!-- Supabase SDK loaded in default.html; comments.js uses window._jjSb -->
-<script src="{{ '/assets/js/comments.js' | relative_url }}"></script>
+<!-- Supabase SDK loaded (deferred) in default.html; comments.js must stay deferred too so it runs after it -->
+<script defer src="{{ '/assets/js/comments.js' | relative_url }}"></script>

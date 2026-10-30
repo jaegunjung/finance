@@ -1,0 +1,39 @@
+---
+layout: default
+title: Page not found
+permalink: /404.html
+sitemap: false
+noindex: true
+legacy_finance_redirect: true
+---
+{%- comment -%}
+  GitHub Pages serves this for every unknown path on jjanalysis.com.
+  Until 2026-08 the site lived under /finance/ (baseurl), so old shared links (LinkedIn posts,
+  bookmarks, search results) look like jjanalysis.com/finance/crypto/. Only the github.io domain
+  301-redirects those; on the custom domain they hit GitHub's bare 404 (no nav, no GA).
+  The redirect itself runs in <head> (default.html, `legacy_finance_redirect`) so it fires before
+  anything renders; this body is only seen for paths that are truly missing.
+{%- endcomment -%}
+<div style="padding: 96px 0 48px; text-align: center;">
+  <p style="font-size: 3rem; margin: 0 0 8px;">🔍</p>
+  <h1 style="margin-bottom: 12px;">
+    <span class="en-only">Page not found</span><span class="ko-only">페이지를 찾을 수 없습니다</span>
+  </h1>
+  <p style="color: var(--text-secondary); font-size: 1rem; line-height: 1.7; margin: 0 auto 28px; max-width: 520px;">
+    <span class="en-only">The page may have moved. Try one of these instead:</span>
+    <span class="ko-only">페이지 주소가 바뀌었을 수 있어요. 아래에서 찾아보세요:</span>
+  </p>
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+    <a class="bookmark-cta-btn" style="background: var(--accent-blue); color: #fff; text-decoration: none;" href="/">
+      <span class="en-only">Home</span><span class="ko-only">홈</span>
+    </a>
+    <a class="bookmark-cta-btn" style="border: 1px solid var(--border); color: var(--text-primary); text-decoration: none;" href="/stock/">S&amp;P 500</a>
+    <a class="bookmark-cta-btn" style="border: 1px solid var(--border); color: var(--text-primary); text-decoration: none;" href="/crypto/">Bitcoin</a>
+    <a class="bookmark-cta-btn" style="border: 1px solid var(--border); color: var(--text-primary); text-decoration: none;" href="/blog/">
+      <span class="en-only">Blog</span><span class="ko-only">블로그</span>
+    </a>
+  </div>
+</div>
+<script>
+  try { if (window.gtag) gtag('event', 'page_not_found', { missing_path: location.pathname, referrer: document.referrer }); } catch (e) {}
+</script>

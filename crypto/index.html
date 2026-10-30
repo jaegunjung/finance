@@ -2067,6 +2067,9 @@ function _computeBtcScoreInner() {
 function makeOnchainChart(canvasId, labels, data, color, yLabel, dangerHigh, safeHigh, safeLow) {
   const ctx = document.getElementById(canvasId)?.getContext('2d');
   if (!ctx) return;
+  // _btcScoreReady runs twice (immediately + 800ms retry) → replace instead of
+  // throwing "Canvas is already in use" on the second pass.
+  Chart.getChart(canvasId)?.destroy();
   // zone annotations as horizontal fill datasets
   const datasets = [
     { data, label: yLabel, borderColor: color, borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false }

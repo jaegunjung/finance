@@ -1158,6 +1158,50 @@ test.describe("L. SEO & 재방문 유도", () => {
     await ctx.close();
   });
 
+  test("L-6c. 첫 화면 렌더 차단 스크립트 없음 — Supabase SDK·의존 스크립트 defer, 댓글/로그인 정상", async ({ page }) => {
+    const logs = [];
+    page.on("console", m => { if (m.type() === "error") logs.push(m.text()); });
+    await page.goto(BASE_URL + POST, { waitUntil: "networkidle" });
+    // body 맨 위의 218KB SDK가 동기 로드되면 모바일에서 nav까지 전부 안 그려진 채 대기 (2026-10)
+    const blocking = await page.evaluate(() => [...document.querySelectorAll("body script[src]")]
+      .filter(s => /supabase-js|\/assets\/js\/(auth|transactions|comments)\.js/.test(s.src) && !s.defer && !s.async)
+      .map(s => s.src));
+    expect(blocking, "defer 없는 스크립트").toEqual([]);
+    expect(await page.evaluate(() => !!(window.supabase && window._jjSb)), "Supabase 클라이언트 생성").toBe(true);
+    expect(logs.filter(t => /Supabase SDK not loaded/.test(t))).toEqual([]);
+  });
+
+  test("L-6d. 모바일 — 입력창 16px(iOS 자동 확대 방지) · 차트 페이지 본문 16px · 로그 축 라벨 과밀 없음", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+    const page = await ctx.newPage();
+    await page.goto(BASE_URL + "/crypto/", { waitUntil: "networkidle" });
+    const m = await page.evaluate(() => ({
+      inputs: [...document.querySelectorAll("input[type=date], input[type=email], select")]
+        .map(e => parseFloat(getComputedStyle(e).fontSize)).filter(f => f < 16),
+      prose: [...document.querySelectorAll(".card > .en-only > p")].filter(p => p.offsetParent)
+        .map(p => parseFloat(getComputedStyle(p).fontSize)).filter(f => f < 16),
+    }));
+    expect(m.inputs, "16px 미만 입력창").toEqual([]);
+    expect(m.prose, "16px 미만 본문").toEqual([]);
+    await page.goto(BASE_URL + "/rates/", { waitUntil: "networkidle" });
+    const labels = await page.evaluate(() => {
+      const c = Chart.getChart("ratesChart");
+      return c.scales.yLeft.ticks.filter(t => t.label !== "").length;
+    });
+    expect(labels, "rates S&P 축 라벨 수").toBeLessThanOrEqual(14);
+    await ctx.close();
+  });
+
+  test("L-6e. 옛 /finance/ 경로 → 접두사 제거 후 이동 (UTM 쿼리 유지)", async ({ page }) => {
+    // 2026-08 이전 baseurl(/finance) 링크 — 커스텀 도메인에선 GitHub 기본 404였음
+    await page.goto(BASE_URL + "/finance/crypto/eth/?utm_source=linkedin#x", { waitUntil: "domcontentloaded" });
+    if (!/\/crypto\/eth\//.test(new URL(page.url()).pathname) && !/not found/i.test(await page.title()))
+      test.skip(true, "로컬 서버가 404.html을 서빙하지 않음 (GitHub Pages에서만 동작)");
+    await page.waitForURL(/\/crypto\/eth\/\?utm_source=linkedin#x$/);
+    const res = await page.request.get(BASE_URL + "/404.html");
+    expect(await res.text()).toContain("^\\/finance(");
+  });
+
   test("L-7. 포스트 하단 관련 글 3개 (현재 글 제외)", async ({ page }) => {
     await page.goto(BASE_URL + POST, { waitUntil: "domcontentloaded" });
     const hrefs = await page.locator(".related-posts .related-card").evaluateAll(as => as.map(a => a.getAttribute("href")));

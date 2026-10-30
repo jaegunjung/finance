@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  {%- if page.legacy_finance_redirect %}
+  <script>
+    // 404.html only: pre-2026-08 links used the /finance/ prefix (jjanalysis.com/finance/crypto/).
+    // Strip it and keep query/hash (UTM tags). The landing page reports it to GA (below).
+    (function () {
+      var p = location.pathname;
+      if (/^\/finance(\/|$)/.test(p)) {
+        try { sessionStorage.setItem('jj-legacy-from', p); } catch (e) {}
+        location.replace((p.replace(/^\/finance/, '') || '/') + location.search + location.hash);
+      }
+    })();
+  </script>
+  {%- endif %}
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-891NY0LEMR"></script>
   <script>
@@ -8,6 +21,20 @@
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
     gtag('config', 'G-891NY0LEMR');
+    (function () {
+      try {
+        var from = sessionStorage.getItem('jj-legacy-from');
+        if (from) { sessionStorage.removeItem('jj-legacy-from'); gtag('event', 'legacy_finance_redirect', { from_path: from }); }
+      } catch (e) {}
+      // GA4 counts engagement time only when it gets a user_engagement hit on page hide, which
+      // in-app browsers (LinkedIn, KakaoTalk) often never send when the user closes the webview —
+      // so real reads can show up as 0s. These timers give a signal that doesn't depend on that.
+      [10, 30].forEach(function (s) {
+        setTimeout(function () {
+          if (document.visibilityState === 'visible') gtag('event', 'time_on_page', { seconds: s });
+        }, s * 1000);
+      });
+    })();
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,8 +84,12 @@
   </script>
 </head>
 <body>
-  <!-- Supabase SDK loads here so comments.js (in post pages) can use window.supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Supabase SDK (218KB). `defer` so it no longer blocks first paint of every page — it was
+       parser-blocking at the top of <body>, so on a phone over cellular nothing (not even the nav)
+       rendered until it downloaded. Deferred scripts run in document order before DOMContentLoaded,
+       so its consumers (comments.js, auth.js, transactions.js) are deferred too and still run after
+       it. Pinned to the version @2 resolved to (2026-10) so the CDN serves it with a 1-year cache. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
   {% include nav.html %}
   <main>
     {{ content }}
@@ -74,8 +105,8 @@
       clientId: "{{ site.gdrive_client_id }}"
     };
   </script>
-  <script src="{{ '/assets/js/auth.js' | relative_url }}"></script>
-  <script src="{{ '/assets/js/transactions.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>
+  <script defer src="{{ '/assets/js/auth.js' | relative_url }}"></script>
+  <script defer src="{{ '/assets/js/transactions.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>
   <script>
     // Sync lang buttons after DOM is ready
     document.addEventListener('DOMContentLoaded', function() {

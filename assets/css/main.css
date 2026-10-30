@@ -777,6 +777,16 @@ html.ko-mode .lang-en { display: none; }
 @media (max-width: 640px) {
   .stock-notes { font-size: 1rem !important; }
   .stock-notes table { font-size: 0.88rem !important; }
+  /* Narrative prose on chart pages (/crypto/, /crypto/eth/, …) is inline-styled 0.9rem = 14.4px;
+     bring it to 16px on phones. !important because the size is set in style="" attributes. */
+  .card > .en-only > p, .card > .ko-only > p { font-size: 1rem !important; line-height: 1.7 !important; }
+  .post-content { font-size: 1rem; }
+}
+/* iOS Safari zooms the whole page when a form field under 16px gets focus (date pickers on
+   every chart's "Custom" range, trade panel, login email) and leaves it zoomed — the layout
+   then looks broken until the user pinches back. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
 }
 
 /* Spinner on chart loading overlays (text alone looked like a blank chart on slow networks) */
