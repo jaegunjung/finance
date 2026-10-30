@@ -1230,3 +1230,52 @@ test.describe("L. SEO & 재방문 유도", () => {
     for (const t of vis) expect(t.toLowerCase()).toContain("envx");
   });
 });
+
+// ── M. 공유 링크 UTM & UTM 랜딩 웰컴 배너 ────────────────────────────────────
+// SNS 유입을 GA에서 네트워크별로 구분하려고 공유 링크에 UTM을 붙임 (2026-10).
+// share-buttons.html(LinkedIn/X/Reddit href는 Liquid, 복사/카카오는 utm-handler.js) +
+// UTM으로 들어온 방문자에게 1회성 배너(닫으면 localStorage에 기억).
+test.describe("M. 공유 링크 UTM & 웰컴 배너", () => {
+  const POST = "/strategy/2026/10/28/envx-second-warrant-dividend-vs-2025-envxw/";
+  const utm = (src, path) => `https://jjanalysis.com${path}?utm_source=${src}&utm_medium=social&utm_campaign=share`;
+
+  test("M-1. 포스트·주요 페이지 공유 버튼 URL에 UTM 포함", async ({ page }) => {
+    for (const path of [POST, "/", "/finance/", "/crypto/", "/macro/", "/rates/"]) {
+      await page.goto(BASE_URL + path, { waitUntil: "domcontentloaded" });
+      await expect(page.locator(".share-section .share-buttons"), path).toHaveCount(1);
+      const li = new URL(await page.locator(".share-btn.linkedin").getAttribute("href"));
+      expect(li.searchParams.get("url"), path).toBe(utm("linkedin", path));
+      const x = new URL(await page.locator(".share-btn.x").getAttribute("href"));
+      expect(x.searchParams.get("url"), path).toBe(utm("twitter", path));
+      await expect(page.locator(".share-btn.copy-link"), path).toHaveCount(1);
+      await expect(page.locator(".share-btn.kakao"), path).toHaveCount(1);
+    }
+  });
+
+  test("M-2. 링크 복사 → UTM 포함 URL", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE_URL });
+    await page.goto(BASE_URL + POST, { waitUntil: "domcontentloaded" });
+    await page.locator(".share-btn.copy-link").click();
+    await expect(page.locator(".share-section .share-toast")).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(utm("copy_link", POST));
+  });
+
+  test("M-3. UTM 랜딩 배너 — 소스별 문구, 닫으면 재방문 시 안 보임", async ({ page }) => {
+    await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#utmBanner")).toHaveCount(0);            // UTM 없으면 배너 없음
+
+    await page.goto(BASE_URL + "/?utm_source=linkedin&utm_medium=social", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => window.setLang("ko"));
+    const banner = page.locator("#utmBanner");
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText("링크드인에서 오셨군요!");
+    await expect(banner).toContainText("즐겨찾기 추가하고 매일 시장 업데이트 받아보세요");
+
+    await banner.locator(".utm-banner-close").click();
+    await expect(banner).toHaveCount(0);
+    await page.goto(BASE_URL + "/?utm_source=twitter", { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => !!window.jjUtm);
+    await expect(page.locator("#utmBanner")).toHaveCount(0);
+    await page.evaluate(() => window.setLang("en"));
+  });
+});

@@ -718,6 +718,39 @@ html.ko-mode .lang-en { display: none; }
 .share-btn.reddit:hover  { color: #ff4500; border-color: #ff4500; }
 .share-btn.kakao:hover   { color: #fee500; border-color: #fee500; }
 .share-btn.linkedin:hover    { color: #0a66c2; border-color: #0a66c2; }
+.share-toast {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+/* UTM WELCOME BANNER (assets/js/utm-handler.js) — first child of <main>, right under the nav */
+.utm-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 6px 8px 6px 14px;
+  border: 1px solid rgba(88,166,255,0.35);
+  border-radius: 8px;
+  background: rgba(88,166,255,0.10);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.utm-banner-text { flex: 1; margin: 0; }
+.utm-banner-close {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border: 0; border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.utm-banner-close:hover { color: var(--text-primary); background: rgba(255,255,255,0.06); }
+
 /* Native share button: hidden on desktop (mouse), visible on touch devices only */
 .share-btn.native-share { display: none; }
 @media (hover: none) and (pointer: coarse) {
