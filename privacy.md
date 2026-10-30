@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Privacy Policy
-description: "Privacy policy for JJ Analysis: what data is collected (Google Analytics, sign-in), how portfolio data is stored in Supabase, and the choices you have."
+description: "Privacy policy for JJ Analysis: what data is collected (Google Analytics, sign-in), cookies and advertising (Google AdSense), how portfolio data is stored in Supabase, and the choices you have."
 permalink: /privacy/
 ---
 <style>
@@ -15,7 +15,7 @@ permalink: /privacy/
 
   <div class="en-only">
 
-    <p style="color: var(--text-muted); font-size: 0.85rem;">Last updated: August 23, 2026</p>
+    <p style="color: var(--text-muted); font-size: 0.85rem;">Last updated: October 29, 2026</p>
 
     <h2>Overview</h2>
     <p>
@@ -34,8 +34,40 @@ permalink: /privacy/
       <li><strong>Newsletter</strong> — if you subscribe, your email is collected and managed by Buttondown, a separate third-party service, only after you opt in.</li>
     </ul>
     <p>
-      We only collect what's needed to run the features above. We don't run ad-tracking pixels or sell
-      any data to data brokers.
+      We only collect what's needed to run the features above. We never sell your data to data brokers.
+    </p>
+
+    <h2>Cookies</h2>
+    <p>
+      A cookie is a small text file a website stores in your browser. This site uses:
+    </p>
+    <ul>
+      <li><strong>Google Analytics cookies</strong> (e.g. <code>_ga</code>, <code>_ga_*</code>) — distinguish visitors and sessions so we can count page views and see which content is useful. The data is aggregated and not used to identify you personally.</li>
+      <li><strong>Sign-in session storage</strong> — if you sign in, Supabase keeps your login session in your browser so you stay signed in.</li>
+      <li><strong>Advertising cookies</strong> — once Google AdSense is enabled (see below), Google and its partners may set cookies to serve and measure ads.</li>
+    </ul>
+    <p>
+      You can block or delete cookies in your browser settings at any time. The site's articles and charts
+      still work without them; only sign-in and personalized ads depend on them. You can also opt out of
+      Google Analytics with the
+      <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Google Analytics Opt-out Browser Add-on</a>.
+    </p>
+
+    <h2>Advertising (Google AdSense)</h2>
+    <p>
+      We plan to show ads through <strong>Google AdSense</strong> to help cover the cost of running the site.
+      When ads are enabled:
+    </p>
+    <ul>
+      <li>Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website or other websites.</li>
+      <li>Google's use of advertising cookies enables it and its partners to serve ads to you based on your visits to this site and/or other sites on the Internet.</li>
+      <li>You may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Google Ads Settings</a>. You can also opt out of some third-party vendors' use of cookies for personalized advertising at <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener">www.aboutads.info</a>.</li>
+      <li>Visitors in the EEA, UK, and Switzerland will be asked for consent before personalized ads or advertising cookies are used, via a Google-certified consent message.</li>
+    </ul>
+    <p>
+      For more detail, see <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">How Google uses information from sites or apps that use its services</a>.
+      Ads never have access to your portfolio data — portfolio pages are protected by sign-in and
+      Row Level Security as described below.
     </p>
 
     <h2>How Your Data Is Protected</h2>
@@ -65,12 +97,21 @@ permalink: /privacy/
     <p>We use a small number of third-party services to run the site, each only for its specific purpose:</p>
     <ul>
       <li><strong>Supabase</strong> — database, authentication, and file storage</li>
-      <li><strong>Google</strong> — OAuth sign-in, Google Drive Picker (only when you choose to import a file from Drive), and Google Analytics</li>
+      <li><strong>Google</strong> — OAuth sign-in, Google Drive Picker (only when you choose to import a file from Drive), Google Analytics, and Google AdSense (advertising, once enabled)</li>
       <li><strong>Buttondown</strong> — newsletter delivery, only for subscribers</li>
       <li><strong>GitHub Pages</strong> — static site hosting for the pages you're browsing</li>
     </ul>
     <p>
       We don't sell your data or share it with anyone beyond these operational providers.
+    </p>
+
+    <h2>Korean Summary (한국어 요약)</h2>
+    <p>
+      Google Analytics 쿠키로 방문 통계를 수집하고, 로그인(Supabase) 시 이메일을 받으며, 포트폴리오
+      데이터는 본인만 접근 가능하도록 보호됩니다. 향후 Google AdSense 광고가 게재되며, 이때 Google 및
+      제3자가 쿠키를 사용할 수 있습니다. 맞춤 광고는 <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Google 광고 설정</a>에서
+      끌 수 있습니다. 데이터는 판매하지 않습니다. 문의: <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a>
+      (전체 한국어 버전은 상단 언어 전환에서 KO를 선택하세요.)
     </p>
 
     <h2>Your Choices</h2>
@@ -96,7 +137,7 @@ permalink: /privacy/
 
   <div class="ko-only">
 
-    <p style="color: var(--text-muted); font-size: 0.85rem;">최종 업데이트: 2026년 8월 23일</p>
+    <p style="color: var(--text-muted); font-size: 0.85rem;">최종 업데이트: 2026년 10월 29일</p>
 
     <h2>개요</h2>
     <p>
@@ -114,8 +155,33 @@ permalink: /privacy/
       <li><strong>뉴스레터</strong> — 구독 시, 이메일 주소가 별도 서비스인 Buttondown에서 수집·관리됩니다 (동의 후에만).</li>
     </ul>
     <p>
-      위 기능 운영에 필요한 최소한의 정보만 수집합니다. 광고 추적 픽셀을 쓰지 않고, 어떤 데이터도 데이터
-      브로커에 판매하지 않습니다.
+      위 기능 운영에 필요한 최소한의 정보만 수집하며, 어떤 데이터도 데이터 브로커에 판매하지 않습니다.
+    </p>
+
+    <h2>쿠키 사용</h2>
+    <p>쿠키는 웹사이트가 브라우저에 저장하는 작은 텍스트 파일입니다. 이 사이트는 다음을 사용합니다:</p>
+    <ul>
+      <li><strong>Google Analytics 쿠키</strong>(<code>_ga</code>, <code>_ga_*</code> 등) — 방문자·세션을 구분해 페이지뷰와 인기 콘텐츠를 집계합니다. 집계 데이터이며 개인 식별에 쓰이지 않습니다.</li>
+      <li><strong>로그인 세션 저장</strong> — 로그인 시 Supabase가 로그인 상태 유지를 위해 세션을 브라우저에 저장합니다.</li>
+      <li><strong>광고 쿠키</strong> — Google AdSense가 활성화되면(아래 참조) Google 및 파트너가 광고 게재·측정을 위해 쿠키를 설정할 수 있습니다.</li>
+    </ul>
+    <p>
+      브라우저 설정에서 언제든 쿠키를 차단·삭제할 수 있습니다. 글과 차트는 쿠키 없이도 동작하며, 로그인과
+      맞춤 광고만 영향을 받습니다. Google Analytics는
+      <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Google Analytics 차단 브라우저 부가기능</a>으로 거부할 수 있습니다.
+    </p>
+
+    <h2>광고 (Google AdSense)</h2>
+    <p>사이트 운영비 충당을 위해 <strong>Google AdSense</strong> 광고 게재를 계획하고 있습니다. 광고가 활성화되면:</p>
+    <ul>
+      <li>Google을 포함한 제3자 공급업체가 쿠키를 사용해 이 사이트 또는 다른 사이트 방문 기록을 바탕으로 광고를 게재합니다.</li>
+      <li>Google은 광고 쿠키를 통해 이 사이트 및 인터넷의 다른 사이트 방문 기록을 바탕으로 사용자에게 광고를 게재할 수 있습니다.</li>
+      <li><a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Google 광고 설정</a>에서 맞춤 광고를 해제할 수 있으며, <a href="https://www.aboutads.info/choices/" target="_blank" rel="noopener">www.aboutads.info</a>에서 일부 제3자 공급업체의 맞춤 광고용 쿠키 사용도 거부할 수 있습니다.</li>
+      <li>EEA·영국·스위스 방문자에게는 맞춤 광고 또는 광고 쿠키 사용 전에 Google 인증 동의 메시지로 동의를 요청합니다.</li>
+    </ul>
+    <p>
+      자세한 내용은 <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Google 서비스를 사용하는 사이트의 정보 사용 방식</a>을 참고하세요.
+      광고는 포트폴리오 데이터에 접근할 수 없습니다 — 포트폴리오는 아래 설명대로 로그인과 Row Level Security로 보호됩니다.
     </p>
 
     <h2>데이터 보호 방식</h2>
@@ -144,7 +210,7 @@ permalink: /privacy/
     <p>사이트 운영을 위해 각각 고유 목적으로만 사용하는 소수의 제3자 서비스를 이용합니다:</p>
     <ul>
       <li><strong>Supabase</strong> — 데이터베이스, 인증, 파일 저장</li>
-      <li><strong>Google</strong> — OAuth 로그인, Google Drive Picker(사용자가 Drive에서 파일을 가져오기로 선택한 경우에만), Google Analytics</li>
+      <li><strong>Google</strong> — OAuth 로그인, Google Drive Picker(사용자가 Drive에서 파일을 가져오기로 선택한 경우에만), Google Analytics, Google AdSense(광고, 활성화 시)</li>
       <li><strong>Buttondown</strong> — 뉴스레터 발송 (구독자에 한함)</li>
       <li><strong>GitHub Pages</strong> — 지금 보고 계신 페이지의 정적 호스팅</li>
     </ul>

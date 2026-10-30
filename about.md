@@ -128,6 +128,13 @@ seo_title: "About the Analyst"
       Use this site as a reference lens — one of many inputs in your own decision-making process.
       Question the charts, verify the data, and always size risk appropriately for your own situation.
     </p>
+    <h2>Contact</h2>
+    <ul>
+      <li><strong>Email</strong> — <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a> (questions, corrections, data requests, or feedback on any article)</li>
+      <li><strong>Operator</strong> — JJ (Jaegun Jung), independent analyst; site published as JJ International Financial Analysis</li>
+      <li><strong>Personal site</strong> — <a href="https://jaegunjung.github.io/" target="_blank" rel="noopener">jaegunjung.github.io</a></li>
+      <li><strong>Privacy</strong> — see the <a href="/privacy/">Privacy Policy</a> for what data this site collects and how it's used</li>
+    </ul>
     <p style="margin-top:24px; color: var(--muted);">
       <em>All content represents personal research and opinion. Nothing here constitutes investment advice.
       Always consult a qualified financial professional before making investment decisions.</em>
@@ -248,6 +255,13 @@ seo_title: "About the Analyst"
       여러 인풋 중 하나로. 차트에 의문을 품고, 데이터를 직접 확인하고, 항상 본인 상황에 맞는
       리스크 관리를 하세요.
     </p>
+    <h2>연락처</h2>
+    <ul>
+      <li><strong>이메일</strong> — <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a> (질문, 오류 제보, 데이터 요청, 글에 대한 피드백)</li>
+      <li><strong>운영자</strong> — JJ (Jaegun Jung), 독립 분석가 · JJ International Financial Analysis 발행</li>
+      <li><strong>개인 사이트</strong> — <a href="https://jaegunjung.github.io/" target="_blank" rel="noopener">jaegunjung.github.io</a></li>
+      <li><strong>개인정보</strong> — 수집 정보와 이용 방식은 <a href="/privacy/">개인정보처리방침</a>을 참고하세요</li>
+    </ul>
     <p style="margin-top:24px; color: var(--muted);">
       <em>모든 콘텐츠는 개인적인 리서치와 의견을 담고 있습니다. 투자 권유가 아닙니다.
       투자 결정 전에는 반드시 공인 금융 전문가와 상담하십시오.</em>
