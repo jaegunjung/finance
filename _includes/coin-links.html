@@ -1,0 +1,41 @@
+{%- comment -%}
+  Individual coin pages + latest crypto posts, at the bottom of /crypto/ (keeps BTC readers on-site).
+{%- endcomment -%}
+<section class="next-reads" aria-labelledby="coinLinksTitle">
+  <h2 id="coinLinksTitle"><span class="en-only">Explore individual coins</span><span class="ko-only">개별 코인 분석 더 알아보기</span></h2>
+  <div class="next-reads-grid">
+    {% include next-read-card.html url="/crypto/eth/" en="Ethereum (ETH)" ko="이더리움 (ETH)"
+       den="Log-scale trend channel and the ETH/BTC ratio." dko="로그 스케일 추세 채널과 ETH/BTC 비율" %}
+    {% include next-read-card.html url="/crypto/pepe/" en="PEPE" ko="PEPE"
+       den="Meme-coin chart since 2023 with 12/24/48 moving averages." dko="2023년 이후 밈코인 차트 · 12/24/48 이동평균" %}
+    {% include next-read-card.html url="/stock/btc-usd/" en="Bitcoin daily chart" ko="비트코인 일간 차트"
+       den="Daily chart with trend channel and your own trade markers." dko="일간 차트 · 추세 채널 · 내 매매 기록 표시" %}
+    {% include next-read-card.html url="/stock/doge-usd/" en="Dogecoin (DOGE)" ko="도지코인 (DOGE)"
+       den="Daily log-scale chart with trend channel." dko="로그 스케일 일간 차트 · 추세 채널" %}
+    {% include next-read-card.html url="/stock/ondo-usd/" en="Ondo (ONDO)" ko="온도 (ONDO)"
+       den="Real-world-asset token on a daily log chart." dko="RWA(실물자산) 토큰 일간 로그 차트" %}
+    {% include next-read-card.html url="/stock/fet-usd/" en="Fetch.ai (FET)" ko="페치 (FET)"
+       den="AI-themed token on a daily log chart." dko="AI 테마 토큰 일간 로그 차트" %}
+  </div>
+</section>
+
+{%- assign _crypto_posts = site.categories.crypto | slice: 0, 3 -%}
+{%- if _crypto_posts.size > 0 %}
+<section class="related-posts" aria-labelledby="cryptoPostsTitle">
+  <h2 id="cryptoPostsTitle"><span class="en-only">Latest crypto analysis</span><span class="ko-only">최신 크립토 분석 글</span></h2>
+  <div class="related-grid">
+    {%- for p in _crypto_posts %}
+    <a class="related-card" href="{{ p.url | relative_url }}">
+      <div class="related-card-meta"><span class="related-card-date">{{ p.date | date: "%Y-%m-%d" }}</span></div>
+      <div class="related-card-title">
+        {%- if p.deep_dive %}{% include deep-dive-badge.html %} {% endif -%}
+        {%- if p.title_en or p.title_ko -%}
+          <span class="en-only">{{ p.title_en | default: p.title }}</span><span class="ko-only">{{ p.title_ko | default: p.title }}</span>
+        {%- else -%}{{ p.title }}{%- endif -%}
+      </div>
+    </a>
+    {%- endfor %}
+  </div>
+  <p style="margin-top:10px; font-size:0.85rem;"><a href="{{ '/blog/#crypto' | relative_url }}" style="color:var(--accent-blue);"><span class="en-only">All crypto posts →</span><span class="ko-only">크립토 글 전체 보기 →</span></a></p>
+</section>
+{%- endif %}

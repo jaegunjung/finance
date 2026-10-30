@@ -112,4 +112,21 @@ source_ko: "데이터: Alpha Vantage (수정 주가) · 평일 자동 업데이�
     </p>
   </div>
 
+  {% include ticker-posts.html ticker="ENVX" %}
+
+  <section class="next-reads" aria-labelledby="envxSimilarTitle">
+    <h2 id="envxSimilarTitle"><span class="en-only">Compare with similar stocks</span><span class="ko-only">비슷한 종목 비교해 보기</span></h2>
+    <div class="next-reads-grid">
+      {% include next-read-card.html url="/stock/aicapex-stocks/" en="AI CapEx stocks comparison" ko="AI CapEx 수혜주 비교"
+         den="Memory, storage and semiconductor-equipment names on one normalized chart."
+         dko="메모리·스토리지·반도체 장비주를 0% 기준 정규화 차트로 한눈에 비교" %}
+      {% include next-read-card.html url="/stock/envxw/" en="ENVXW warrant chart" ko="ENVXW 워런트 차트"
+         den="How last year's warrant traded from listing to early expiration."
+         dko="작년 워런트의 상장부터 조기만료까지 가격 흐름" %}
+      {% include next-read-card.html url="/stock/" en="S&amp;P 500 long-term chart" ko="S&amp;P 500 장기 차트"
+         den="Put a small-cap's swings in context against 100 years of the market."
+         dko="소형주 변동성을 시장 100년 흐름과 비교해 보기" %}
+    </div>
+  </section>
+
 </div>

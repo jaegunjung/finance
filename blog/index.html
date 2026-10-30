@@ -19,6 +19,7 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
 <div class="post-filter" role="group" aria-label="Category filter">
   <button type="button" class="active" data-filter="all"><span class="en-only">All</span><span class="ko-only">전체</span></button>
   <button type="button" data-filter="news"><span class="en-only">News</span><span class="ko-only">뉴스</span></button>
+  <button type="button" data-filter="analysis"><span class="en-only">Analysis</span><span class="ko-only">분석</span></button>
   <button type="button" data-filter="macro"><span class="en-only">Macro</span><span class="ko-only">매크로</span></button>
   <button type="button" data-filter="crypto"><span class="en-only">Crypto</span><span class="ko-only">크립토</span></button>
   <button type="button" data-filter="deep-dive"><span class="en-only">Deep Dive</span><span class="ko-only">심층 분석</span></button>
@@ -34,13 +35,19 @@ description_ko: "S&P 500·비트코인·크립토·매크로 경제에 관한 �
   {% for post in site.posts %}
   {%- assign is_news = false -%}
   {%- if post.post_tag == "news" or post.categories contains "뉴스" or post.categories contains "news" -%}{%- assign is_news = true -%}{%- endif -%}
-  <li class="post-item{% if post.deep_dive %} deep-dive{% endif %}" data-tags="{% if is_news %}news {% endif %}{% if post.post_tag and post.post_tag != 'news' %}{{ post.post_tag }} {% endif %}{% if post.deep_dive %}deep-dive{% endif %}">
+  {%- comment -%} Filter tags: post_tag OR category. "analysis" = S&P 500 / strategy / finance analysis posts. {%- endcomment -%}
+  {%- assign is_analysis = false -%}
+  {%- if post.categories contains "sp500" or post.categories contains "strategy" or post.categories contains "finance" -%}{%- assign is_analysis = true -%}{%- endif -%}
+  {%- assign is_macro = false -%}{%- if post.post_tag == "macro" or post.categories contains "macro" -%}{%- assign is_macro = true -%}{%- endif -%}
+  {%- assign is_crypto = false -%}{%- if post.post_tag == "crypto" or post.categories contains "crypto" -%}{%- assign is_crypto = true -%}{%- endif -%}
+  <li class="post-item{% if post.deep_dive %} deep-dive{% endif %}" data-tags="{% if is_news %}news {% endif %}{% if is_analysis %}analysis {% endif %}{% if is_macro %}macro {% endif %}{% if is_crypto %}crypto {% endif %}{% if post.deep_dive %}deep-dive{% endif %}">
     <a href="{{ post.url | relative_url }}">
       <div class="post-meta">
         <span>{{ post.date | date: "%Y-%m-%d" }}</span>
         {% for cat in post.categories %}
           {% include category-badge.html cat=cat %}
         {% endfor %}
+        <span class="post-readtime">· {% include read-time.html content=post.content %}</span>
       </div>
       <h3>
         {% if post.deep_dive %}{% include deep-dive-badge.html %}{% endif %}{% if post.post_tag %}{% include post-tag.html tag=post.post_tag %}{% endif %}

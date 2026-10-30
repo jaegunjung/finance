@@ -1,0 +1,8 @@
+{%- comment -%}
+  "N min read" / "N분 읽기" — same formula on the post page and the blog list so the numbers match.
+  Usage: {% include read-time.html content=post.content %}
+{%- endcomment -%}
+{%- assign _rt_words = include.content | strip_html | number_of_words -%}
+{%- assign _rt_mins = _rt_words | divided_by: 200 -%}
+{%- if _rt_mins < 1 -%}{%- assign _rt_mins = 1 -%}{%- endif -%}
+<span class="en-only">{{ _rt_mins }} min read</span><span class="ko-only">{{ _rt_mins }}분 읽기</span>

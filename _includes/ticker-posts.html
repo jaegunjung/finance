@@ -1,0 +1,33 @@
+{%- comment -%}
+  Blog posts about one ticker, matched case-insensitively on front matter `tags`.
+  Usage: {% include ticker-posts.html ticker="ENVX" %}  — renders nothing when no post matches.
+{%- endcomment -%}
+{%- assign _tk = include.ticker | downcase -%}
+{%- assign _tk_posts = '' | split: '' -%}
+{%- for p in site.posts -%}
+  {%- for t in p.tags -%}
+    {%- assign _t = t | downcase -%}
+    {%- if _t == _tk -%}{%- assign _tk_posts = _tk_posts | push: p -%}{%- break -%}{%- endif -%}
+  {%- endfor -%}
+{%- endfor -%}
+{%- if _tk_posts.size > 0 %}
+<section class="related-posts" aria-labelledby="tickerPostsTitle">
+  <h2 id="tickerPostsTitle"><span class="en-only">{{ include.ticker }} blog posts</span><span class="ko-only">{{ include.ticker }} 관련 블로그 글</span></h2>
+  <div class="related-grid">
+    {%- for p in _tk_posts limit:6 %}
+    <a class="related-card" href="{{ p.url | relative_url }}">
+      <div class="related-card-meta">
+        <span class="related-card-date">{{ p.date | date: "%Y-%m-%d" }}</span>
+        {%- for cat in p.categories limit:1 %} {% include category-badge.html cat=cat %}{% endfor %}
+      </div>
+      <div class="related-card-title">
+        {%- if p.deep_dive %}{% include deep-dive-badge.html %} {% endif -%}
+        {%- if p.title_en or p.title_ko -%}
+          <span class="en-only">{{ p.title_en | default: p.title }}</span><span class="ko-only">{{ p.title_ko | default: p.title }}</span>
+        {%- else -%}{{ p.title }}{%- endif -%}
+      </div>
+    </a>
+    {%- endfor %}
+  </div>
+</section>
+{%- endif %}

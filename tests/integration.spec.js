@@ -1229,6 +1229,51 @@ test.describe("L. SEO & 재방문 유도", () => {
     expect(vis.length).toBeGreaterThan(0);
     for (const t of vis) expect(t.toLowerCase()).toContain("envx");
   });
+
+  // 인기 페이지 체류시간/전환 개선 (2026-10, Analytics 상위 페이지 기준)
+  test("L-10. 홈 '지금 인기 있는 분석' 2x2 카드 — 히어로 바로 아래", async ({ page }) => {
+    await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    const hrefs = await page.locator(".popular-grid .popular-card").evaluateAll(as => as.map(a => a.getAttribute("href")));
+    expect(hrefs).toEqual(["/crypto/", "/stock/envx/", "/rates/", "/portfolio/"]);
+    const afterHero = await page.evaluate(() => {
+      const F = Node.DOCUMENT_POSITION_FOLLOWING;
+      const hero = document.querySelector(".hero"), grid = document.querySelector(".popular-grid");
+      const firstFeature = document.querySelector(".feature-card");
+      return !!(hero.compareDocumentPosition(grid) & F) && !!(grid.compareDocumentPosition(firstFeature) & F);
+    });
+    expect(afterHero).toBe(true);
+  });
+
+  test("L-11. /crypto/ — 오늘의 크립토 요약(가격·코멘트) + 개별 코인 링크", async ({ page }) => {
+    await page.goto(BASE_URL + "/crypto/", { waitUntil: "networkidle" });
+    await expect(page.locator("#csBtcPrice")).toHaveText(/^\$[\d,]+/);
+    await expect(page.locator("#csEthPrice")).toHaveText(/^\$[\d,.]+/);
+    await expect(page.locator("#csNote")).toContainText("200");
+    const hrefs = await page.locator(".next-reads .next-read-card").evaluateAll(as => as.map(a => a.getAttribute("href")));
+    expect(hrefs).toContain("/crypto/eth/");
+    expect(hrefs).toContain("/crypto/pepe/");
+    expect(new Set(hrefs).size, "중복 카드").toBe(hrefs.length);
+  });
+
+  test("L-12. ENVX 관련 글(tags 대소문자 무시) + 비슷한 종목 / rates → macro CTA", async ({ page }) => {
+    await page.goto(BASE_URL + "/stock/envx/", { waitUntil: "domcontentloaded" });
+    const posts = await page.locator("#tickerPostsTitle + .related-grid .related-card").evaluateAll(as => as.map(a => a.getAttribute("href")));
+    expect(posts).toContain("/strategy/2026/10/28/envx-second-warrant-dividend-vs-2025-envxw/");
+    await expect(page.locator('.next-read-card[href="/stock/aicapex-stocks/"]')).toHaveCount(1);
+    await page.goto(BASE_URL + "/rates/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator('.page-cta a[href="/macro/"]')).toBeVisible();
+  });
+
+  test("L-13. 블로그 — 분석/매크로 필터는 카테고리 기준, 카드마다 읽기 시간", async ({ page }) => {
+    await page.goto(BASE_URL + "/blog/#macro", { waitUntil: "domcontentloaded" });
+    const macro = await page.locator(".post-list .post-item").evaluateAll(li => li.filter(x => x.style.display !== "none").length);
+    expect(macro, "macro 카테고리 글").toBeGreaterThanOrEqual(5);
+    await page.locator('.post-filter button[data-filter="analysis"]').click();
+    const analysis = await page.locator(".post-list .post-item").evaluateAll(li => li.filter(x => x.style.display !== "none").length);
+    expect(analysis).toBeGreaterThan(0);
+    const items = await page.locator(".post-list .post-item").count();
+    expect(await page.locator(".post-list .post-item .post-readtime").count()).toBe(items);
+  });
 });
 
 // ── M. 공유 링크 UTM & UTM 랜딩 웰컴 배너 ────────────────────────────────────
