@@ -19,16 +19,23 @@ jobs:
         with:
           fetch-depth: 0  # need git history to find posts added in the last 24h
 
-      # Deterministic gate: list posts added to _posts/ in the last 24 hours.
-      # A 24h window on a daily cron means each post is picked up exactly once,
-      # even if it was pushed a few minutes after the previous run.
-      - name: Detect new blog posts
+      # Deterministic gate: list deep-dive posts added to _posts/ in the last 24 hours.
+      # Only posts with `deep_dive: true` in front matter (written by the site owner) are
+      # emailed — bot-generated daily-news-watch posts never set it. A 24h window on a
+      # daily cron means each post is picked up exactly once.
+      - name: Detect new deep-dive posts
         id: posts
         run: |
           files=$(git log --since="24 hours ago" --diff-filter=A --name-only --pretty=format: -- '_posts/*.md' \
-            | sort -u | while read -r f; do [ -n "$f" ] && [ -f "$f" ] && echo "$f"; done)
+            | sort -u | while read -r f; do
+                [ -n "$f" ] && [ -f "$f" ] || continue
+                # look only inside the front matter block (between the first two '---' lines)
+                if awk '/^---[[:space:]]*$/{n++; next} n==1' "$f" | grep -qE '^deep_dive:[[:space:]]*true[[:space:]]*$'; then
+                  echo "$f"
+                fi
+              done)
           if [ -z "$files" ]; then
-            echo "No new posts in the last 24h — skipping newsletter."
+            echo "No new deep-dive posts in the last 24h — skipping newsletter."
             echo "has_posts=false" >> "$GITHUB_OUTPUT"
           else
             echo "New posts:"; echo "$files"
@@ -45,7 +52,7 @@ jobs:
             --allowedTools "Bash"
           prompt: |
             You are running a scheduled, unattended job that emails subscribers of this finance
-            blog (https://jjanalysis.com) about blog posts published in the last 24 hours.
+            blog (https://jjanalysis.com) about deep-dive blog posts published in the last 24 hours.
 
             ## Step 1 — Read the new posts
             These post files were added to _posts/ in the last 24 hours (already detected for you —
