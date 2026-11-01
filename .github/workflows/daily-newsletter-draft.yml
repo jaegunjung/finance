@@ -59,6 +59,17 @@ jobs:
             kitchen-sink dump. If a category has nothing notable today, skip it rather than padding
             with filler. It is fine for the newsletter to be short on quiet days.
 
+            ### Draft threshold (hard gate)
+            Only create a draft if at least ONE of the following conditions is met:
+            - Major central bank decision (Fed, ECB, BOJ rate decision)
+            - Crypto market move >5% in 24h
+            - S&P 500 move >2% in a day
+            - Major company earnings surprise (>10% stock move)
+            - Significant geopolitical event affecting markets
+            - Major hack or security breach affecting crypto/finance
+
+            If none of these conditions are met, do NOT create a draft and exit silently.
+
             ## Step 2 — Check what's already covered
             Read the most recent 1-2 files in _posts/ (highest date in filename) so the newsletter
             doesn't just restate what a blog post already covered in depth — the newsletter should
@@ -97,8 +108,8 @@ jobs:
             - States clearly that this is a DRAFT and nothing has been sent — the site owner must
               review and press send themselves in Buttondown
 
-            If Step 1 finds nothing significant enough for even a short digest, skip Steps 3-5
-            entirely, create no draft, open no issue, and exit quietly.
+            If none of the Draft threshold conditions in Step 1 are met, skip Steps 2-5 entirely,
+            create no draft, open no issue, and exit silently.
 
             Do not modify, commit, or push any files in this repository. This job only calls the
             Buttondown API and opens a GitHub issue.
