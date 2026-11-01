@@ -1285,7 +1285,8 @@ test.describe("M. 공유 링크 UTM & 웰컴 배너", () => {
   const utm = (src, path) => `https://jjanalysis.com${path}?utm_source=${src}&utm_medium=social&utm_campaign=share`;
 
   test("M-1. 포스트·주요 페이지 공유 버튼 URL에 UTM 포함", async ({ page }) => {
-    for (const path of [POST, "/", "/finance/", "/crypto/", "/macro/", "/rates/"]) {
+    // /finance/ is a redirect stub to /stock/ (jekyll-redirect-from), so the S&P chart is checked at /stock/.
+    for (const path of [POST, "/", "/stock/", "/crypto/", "/macro/", "/rates/"]) {
       await page.goto(BASE_URL + path, { waitUntil: "domcontentloaded" });
       await expect(page.locator(".share-section .share-buttons"), path).toHaveCount(1);
       const li = new URL(await page.locator(".share-btn.linkedin").getAttribute("href"));

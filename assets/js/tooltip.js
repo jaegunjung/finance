@@ -203,7 +203,13 @@
   function termFrom(e) { return e.target.closest ? e.target.closest('.jj-term') : null; }
 
   var lastPointer = 'mouse';
-  document.addEventListener('pointerdown', function (e) { lastPointer = e.pointerType || 'mouse'; }, true);
+  // Terms are focusable, so a tap fires focusin (which opens the tip) before click.
+  // Remember whether this term was already open *before* the tap, so click toggles correctly.
+  var openBeforeTap = null;
+  document.addEventListener('pointerdown', function (e) {
+    lastPointer = e.pointerType || 'mouse';
+    openBeforeTap = current;
+  }, true);
 
   document.addEventListener('pointerover', function (e) {
     if (e.pointerType !== 'mouse') return;
@@ -220,7 +226,8 @@
   document.addEventListener('click', function (e) {
     var t = termFrom(e);
     if (t) {
-      if (lastPointer !== 'mouse' && t === current) hide(); else show(t);
+      if (lastPointer !== 'mouse' && t === openBeforeTap) hide(); else show(t);
+      openBeforeTap = null;
       return;
     }
     if (current && !tip.contains(e.target)) hide();

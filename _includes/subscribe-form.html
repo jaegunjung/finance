@@ -10,18 +10,19 @@
   style="background:#1a1a2e;color:#ffffff;border:1px solid #333;border-radius:8px;padding:16px;max-width:480px;margin:16px auto 0;text-align:left;"
 >
   <label for="bd-email-{{ sf_id }}" style="display:block;font-weight:600;margin-bottom:8px;color:#ffffff;">
-    주요 시장 분석 알림 받기 / Get Market Insights
+    <span class="en-only">Get market insight alerts</span><span class="ko-only">주요 시장 분석 알림 받기</span>
   </label>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <input type="email" name="email" id="bd-email-{{ sf_id }}" required
-      placeholder="이메일 주소를 입력하세요"
+      placeholder="Enter your email"
+      data-placeholder-en="Enter your email" data-placeholder-ko="이메일 주소를 입력하세요"
       style="flex:1 1 200px;min-width:0;background:#2a2a3e;color:#ffffff;border:1px solid #333;border-radius:6px;padding:10px 12px;font-size:14px;" />
     <input type="hidden" value="1" name="embed" />
-    <input type="submit" value="구독하기 / Subscribe"
-      style="background:#f5a623;color:#1a1a2e;border:none;border-radius:6px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;" />
+    <button type="submit"
+      style="background:#f5a623;color:#1a1a2e;border:none;border-radius:6px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;"><span class="en-only">Subscribe</span><span class="ko-only">구독하기</span></button>
   </div>
   <p style="font-size: 11px; color: #888; margin-top: 4px;">
-    중요한 분석이 올라올 때만 발송됩니다. 언제든 구독 취소 가능.
+    <span class="en-only">Sent only when a major analysis is published. Unsubscribe anytime.</span><span class="ko-only">중요한 분석이 올라올 때만 발송됩니다. 언제든 구독 취소 가능.</span>
   </p>
   <p style="margin:8px 0 0;font-size:12px;">
     <a href="https://buttondown.com/refer/{{ site.buttondown_username | default: 'jaegun' }}" target="_blank" rel="noopener" style="color:#a1a1aa;">

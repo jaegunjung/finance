@@ -105,14 +105,6 @@ permalink: /privacy/
       We don't sell your data or share it with anyone beyond these operational providers.
     </p>
 
-    <h2>Korean Summary (한국어 요약)</h2>
-    <p>
-      Google Analytics 쿠키로 방문 통계를 수집하고, 로그인(Supabase) 시 이메일을 받으며, 포트폴리오
-      데이터는 본인만 접근 가능하도록 보호됩니다. 향후 Google AdSense 광고가 게재되며, 이때 Google 및
-      제3자가 쿠키를 사용할 수 있습니다. 맞춤 광고는 <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener">Google 광고 설정</a>에서
-      끌 수 있습니다. 데이터는 판매하지 않습니다. 문의: <a href="mailto:admin@jjanalysis.com">admin@jjanalysis.com</a>
-      (전체 한국어 버전은 상단 언어 전환에서 KO를 선택하세요.)
-    </p>
 
     <h2>Your Choices</h2>
     <p>
