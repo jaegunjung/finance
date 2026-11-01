@@ -16,103 +16,85 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need git history to find posts added in the last 24h
 
-      - name: Draft today's newsletter with Claude Code
+      # Deterministic gate: list posts added to _posts/ in the last 24 hours.
+      # A 24h window on a daily cron means each post is picked up exactly once,
+      # even if it was pushed a few minutes after the previous run.
+      - name: Detect new blog posts
+        id: posts
+        run: |
+          files=$(git log --since="24 hours ago" --diff-filter=A --name-only --pretty=format: -- '_posts/*.md' \
+            | sort -u | while read -r f; do [ -n "$f" ] && [ -f "$f" ] && echo "$f"; done)
+          if [ -z "$files" ]; then
+            echo "No new posts in the last 24h — skipping newsletter."
+            echo "has_posts=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New posts:"; echo "$files"
+            echo "has_posts=true" >> "$GITHUB_OUTPUT"
+            { echo "files<<EOF_FILES"; echo "$files"; echo "EOF_FILES"; } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send newsletter for new posts with Claude Code
+        if: steps.posts.outputs.has_posts == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --allowedTools "Bash"
           prompt: |
-            You are running a scheduled, unattended job that prepares a DRAFT of a daily market
-            newsletter for this finance blog. You must NEVER send the email to subscribers — you only
-            create a draft in Buttondown and notify the site owner so a human can review and send it
-            themselves. Sending real email to real subscribers without a human clicking "send" is not
-            allowed under any circumstance.
+            You are running a scheduled, unattended job that emails subscribers of this finance
+            blog (https://jjanalysis.com) about blog posts published in the last 24 hours.
 
-            ## Step 1 — Research today's major market news
-            IMPORTANT: The WebSearch and WebFetch tools are NOT available in this environment (a known
-            claude-code-action limitation — they are force-disabled regardless of any tool permission
-            settings). Do not attempt to use them. Instead, use the Bash tool with curl against Google
-            News' public RSS search feed, which needs no API key:
+            ## Step 1 — Read the new posts
+            These post files were added to _posts/ in the last 24 hours (already detected for you —
+            do not look for others, and do not use Google News or any outside news source):
 
-              curl -s "https://news.google.com/rss/search?q=<url-encoded query>&hl=en-US&gl=US&ceid=US:en"
+            ${{ steps.posts.outputs.files }}
 
-            This returns an XML feed of recent <item> entries, each with <title>, <link>, <pubDate>, and
-            a <source>. Run one query per topic below, read the titles/dates/sources to judge what's
-            actually significant today, and only curl an individual article <link> if you need more
-            detail than the headline gives you (many publishers will block or paywall the fetch — that's
-            fine, fall back to corroborating the story across multiple headlines/sources instead).
-            Topics to cover:
-            - Fed policy: rate decisions, FOMC minutes/commentary, Fed officials' remarks that moved
-              markets
-            - Oil / energy prices and the reason for any notable move
-            - Geopolitical events: war, major conflict escalation/de-escalation, sanctions — anything
-              that moved markets
-            - Public health: pandemic or major health-crisis news with market relevance
-            - S&P 500: the day's move and the specific reason financial media attributes it to
-            - Hyperscaler / big-tech earnings: any quarterly results or guidance released today or
-              this week
-            - Crypto: any major Bitcoin/Ethereum or regulatory news of the day
+            Read each file. Use its front matter (title_ko / title_en / title, excerpt_ko /
+            excerpt_en, categories, permalink) and its body.
 
-            Only include items that are genuinely significant — this is a daily digest, not a
-            kitchen-sink dump. If a category has nothing notable today, skip it rather than padding
-            with filler. It is fine for the newsletter to be short on quiet days.
+            ## Step 2 — Build each post's URL
+            The site permalink pattern is /:categories/:year/:month/:day/:title/ where :title is the
+            filename slug after the date (e.g. _posts/2026-11-01-foo-bar.md with categories: macro →
+            https://jjanalysis.com/macro/2026/11/01/foo-bar/). Multiple categories become nested
+            path segments in order. If the post sets its own `permalink:`, use that instead.
+            Verify each URL with `curl -s -o /dev/null -w "%{http_code}" <url>`. If it is not 200,
+            use https://jjanalysis.com/blog/ as the link for that post instead.
 
-            ### Draft threshold (hard gate)
-            Only create a draft if at least ONE of the following conditions is met:
-            - Major central bank decision (Fed, ECB, BOJ rate decision)
-            - Crypto market move >5% in 24h
-            - S&P 500 move >2% in a day
-            - Major company earnings surprise (>10% stock move)
-            - Significant geopolitical event affecting markets
-            - Major hack or security breach affecting crypto/finance
-
-            If none of these conditions are met, do NOT create a draft and exit silently.
-
-            ## Step 2 — Check what's already covered
-            Read the most recent 1-2 files in _posts/ (highest date in filename) so the newsletter
-            doesn't just restate what a blog post already covered in depth — the newsletter should
-            complement the blog, summarizing the day's news broadly, not duplicate a deep-dive post
-            word for word.
-
-            ## Step 3 — Write the newsletter draft
-            Write a concise, scannable market digest:
-            - A short subject line (specific, not generic — reference the day's actual biggest story)
-            - Bulleted or short-paragraph sections per topic that had real news today (Fed, oil,
-              geopolitics, health, S&P 500, big tech earnings, crypto)
-            - Include both an English section and a Korean section, in that order, matching this
-              site's bilingual tone (data-driven, cites where the information came from)
-            - End with the same disclaimer style used on the blog: informational only, not investment
+            ## Step 3 — Write the email
+            - Subject: Korean title of the post (if several posts, the most substantial one's
+              Korean title plus " 외 N편")
+            - Korean section FIRST: for each post, its Korean title, a 3-5 sentence Korean summary
+              of the post's main points, and its jjanalysis.com link
+            - English section SECOND: the same for each post in English
+            - End with a short disclaimer in both languages: informational only, not investment
               advice
-            - Do NOT fabricate figures or events — only include what you found in Step 1 with a source
+            - Summarize only what the post actually says — do not add facts, figures, or news that
+              are not in the post
 
-            ## Step 4 — Create a DRAFT (never send) in Buttondown
-            Call the Buttondown API to create the email as a draft:
+            ## Step 4 — Send via Buttondown
+            Write the JSON payload to a file with a tool that handles escaping correctly (e.g.
+            python3 -c with json.dump), then:
 
             curl -s -X POST https://api.buttondown.email/v1/emails \
               -H "Authorization: Token $BUTTONDOWN_API_KEY" \
               -H "Content-Type: application/json" \
-              -d '{"subject": "<subject>", "body": "<markdown body>", "status": "draft"}'
+              -d @payload.json
 
-            The BUTTONDOWN_API_KEY environment variable is provided below. status MUST be "draft".
-            Never use "about_to_send" or any status that triggers delivery. Capture the returned
-            email id/URL from the response.
+            with payload {"subject": "<subject>", "body": "<markdown body>", "status": "about_to_send"}.
+            The BUTTONDOWN_API_KEY environment variable is provided below. Send exactly ONE email
+            per run, even if there are several posts. If the API call fails, do not retry more
+            than once.
 
-            ## Step 5 — Notify the site owner via a GitHub issue
-            Open a new GitHub issue (using the gh CLI, which is pre-authenticated in this environment)
-            titled "Newsletter draft ready — <today's date>" with a body that:
-            - Summarizes in 2-3 bullets what today's draft covers
-            - Links to the Buttondown draft (https://buttondown.email/emails or the specific draft
-              URL/id returned in Step 4)
-            - States clearly that this is a DRAFT and nothing has been sent — the site owner must
-              review and press send themselves in Buttondown
+            ## Step 5 — Log via a GitHub issue
+            Open a GitHub issue (gh CLI is pre-authenticated) titled
+            "Newsletter sent — <today's date>" listing the subject, the posts included with their
+            links, and the Buttondown API response status (or the error if sending failed).
 
-            If none of the Draft threshold conditions in Step 1 are met, skip Steps 2-5 entirely,
-            create no draft, open no issue, and exit silently.
-
-            Do not modify, commit, or push any files in this repository. This job only calls the
-            Buttondown API and opens a GitHub issue.
+            Do not modify, commit, or push any files in this repository.
         env:
           BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
           GH_TOKEN: ${{ github.token }}
