@@ -1,0 +1,42 @@
+{% comment %}
+  Inline subscribe banner (amber, dark theme) placed mid-article on high-traffic pages.
+  Usage: {% include subscribe-inline.html id="eth" %}  — id keeps input ids unique per page.
+  Language switches via the site-wide .en-only / .ko-only classes and data-placeholder-en/-ko.
+{% endcomment %}
+{% assign si_id = include.id | default: page.slug | default: "inline" %}
+{% assign si_user = site.buttondown_username | default: 'jaegun' %}
+<style>
+.jj-sub-inline { margin:28px 0; padding:20px 22px; border-radius:10px;
+  background:linear-gradient(135deg, #2b2210 0%, #1f1a10 100%);
+  border:1px solid rgba(210,153,34,0.45); border-left:4px solid #f5a623; }
+.jj-sub-inline .jj-si-title { margin:0 0 4px; font-size:1.02rem; font-weight:700; color:#ffd27a; line-height:1.4; }
+.jj-sub-inline .jj-si-sub { margin:0 0 14px; font-size:0.82rem; color:#c9b88f; line-height:1.5; }
+.jj-sub-inline form { display:flex; gap:8px; flex-wrap:wrap; margin:0; }
+.jj-sub-inline input[type=email] { flex:1 1 220px; min-width:0; background:#14110a; color:#fff;
+  border:1px solid #5a4a24; border-radius:6px; padding:10px 12px; font-size:14px; }
+.jj-sub-inline input[type=email]:focus { outline:none; border-color:#f5a623; }
+.jj-sub-inline button { background:#f5a623; color:#1a1a2e; border:none; border-radius:6px;
+  padding:10px 18px; font-weight:700; font-size:14px; cursor:pointer; white-space:nowrap; }
+.jj-sub-inline button:hover { background:#ffb83d; }
+@media (max-width:520px) {
+  .jj-sub-inline { padding:16px; }
+  .jj-sub-inline input[type=email], .jj-sub-inline button { flex:1 1 100%; }
+}
+</style>
+<aside class="jj-sub-inline" aria-label="Newsletter">
+  <p class="jj-si-title">
+    <span class="en-only">📬 Found this useful? Get the next analysis in your inbox</span><span class="ko-only">📬 이 분석이 도움됐나요? 다음 분석을 이메일로 받아보세요</span>
+  </p>
+  <p class="jj-si-sub">
+    <span class="en-only">Sent only when a major analysis is published. Unsubscribe anytime.</span><span class="ko-only">중요한 분석이 올라올 때만 발송됩니다. 언제든 구독 취소 가능.</span>
+  </p>
+  <form action="https://buttondown.com/api/emails/embed-subscribe/{{ si_user }}" method="post"
+        class="embeddable-buttondown-form" data-sub-source="inline-{{ si_id }}">
+    <label for="bd-email-inline-{{ si_id }}" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Email</label>
+    <input type="email" name="email" id="bd-email-inline-{{ si_id }}" required
+      placeholder="Enter your email"
+      data-placeholder-en="Enter your email" data-placeholder-ko="이메일 주소를 입력하세요" />
+    <input type="hidden" value="1" name="embed" />
+    <button type="submit"><span class="en-only">Subscribe</span><span class="ko-only">구독하기</span></button>
+  </form>
+</aside>
