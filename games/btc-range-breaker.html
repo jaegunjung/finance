@@ -1,0 +1,1102 @@
+---
+layout: default
+title: "BTC Range Breaker — 비트코인 박스권 예측 게임"
+permalink: /games/btc-range-breaker/
+description: "실제 역사적 비트코인 박스권 데이터로 방향과 목표가를 예측하는 게임"
+lang: ko
+---
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+/* BTC Range Breaker — styles scoped to #btc-game so they don't leak into the site theme */
+#btc-game {
+  --bg: #0d0f14;
+  --surface: #141720;
+  --surface2: #1c2030;
+  --border: #252a38;
+  --fg: #e8ecf4;
+  --muted: #7a8099;
+  --accent: #f7931a;       
+  --accent-dim: #a05e0e;
+  --green: #22c55e;
+  --red: #ef4444;
+  --green-dim: #14532d;
+  --red-dim: #450a0a;
+  --candle-up: #22c55e;
+  --candle-dn: #ef4444;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  color-scheme: dark;
+}#btc-game *, #btc-game *::before, #btc-game *::after { box-sizing: border-box; }
+#btc-game {
+   
+  
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}#btc-game .shell {
+  max-width: 860px;
+  margin: 0 auto;
+  padding-block: 24px 40px;
+}
+#btc-game .hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+#btc-game .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#btc-game .logo-icon {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+#btc-game .logo-text {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+#btc-game .logo-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+#btc-game .score-bar {
+  display: flex;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+#btc-game .score-item { display: flex; flex-direction: column; align-items: flex-end; }
+#btc-game .score-label { color: var(--muted); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; }
+#btc-game .score-val { font-size: 18px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+#btc-game .round-info {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+#btc-game .round-pips { display: flex; gap: 4px; }
+#btc-game .round-pip {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border);
+  transition: background 0.3s;
+}
+#btc-game .round-pip.done { background: var(--accent-dim); }
+#btc-game .round-pip.active { background: var(--accent); }
+#btc-game .chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+#btc-game .chart-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 12px;
+  flex-wrap: wrap; gap: 8px;
+}
+#btc-game .chart-pair {
+  font-weight: 700; font-size: 14px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+#btc-game .chart-meta {
+  font-size: 11px; color: var(--muted);
+  font-family: var(--font-mono);
+}
+#btc-game .chart-meta strong { color: var(--fg); }
+#btc-game canvas#chart {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+#btc-game .range-strip {
+  display: flex; gap: 12px; margin-top: 12px;
+  font-family: var(--font-mono); font-size: 12px;
+  flex-wrap: wrap;
+}
+#btc-game .range-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  display: flex; flex-direction: column;
+}
+#btc-game .range-item .rl { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; }
+#btc-game .range-item .rv { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#btc-game .context-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+#btc-game .ctx-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+#btc-game .ctx-card .ct { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
+#btc-game .ctx-card .cv { font-size: 13px; font-weight: 500; line-height: 1.4; }
+#btc-game .ctx-card .cv.pos { color: var(--green); }
+#btc-game .ctx-card .cv.neg { color: var(--red); }
+#btc-game .ctx-card .cv.neu { color: var(--accent); }
+#btc-game .hist-clue {
+  background: var(--surface2);
+  border: 1px solid var(--accent-dim);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+#btc-game .hist-clue .hc-label {
+  font-size: 10px; color: var(--accent); font-family: var(--font-mono);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;
+}
+#btc-game .predict-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+#btc-game .predict-panel h3 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+#btc-game .dir-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+#btc-game .dir-btn {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 8px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: all 0.18s;
+}
+#btc-game .dir-btn .di { font-size: 22px; }
+#btc-game .dir-btn:hover { border-color: var(--fg); color: var(--fg); }
+#btc-game .dir-btn.sel-up { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+#btc-game .dir-btn.sel-dn { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+#btc-game .dir-btn.sel-side { background: #1a1a2e; border-color: #6366f1; color: #818cf8; }
+#btc-game .price-row {
+  margin-bottom: 16px;
+}
+#btc-game .price-row label {
+  display: block;
+  font-size: 12px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.7px;
+  margin-bottom: 8px;
+}
+#btc-game .price-input-wrap {
+  display: flex; gap: 8px; align-items: center;
+  flex-wrap: wrap;
+}
+#btc-game .price-input-wrap span {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--muted);
+}
+#btc-game input#price-guess {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--fg);
+  width: 180px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.18s;
+}
+#btc-game input#price-guess:focus { border-color: var(--accent); }
+#btc-game .price-hints {
+  display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+}
+#btc-game .hint-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#btc-game .hint-btn:hover { border-color: var(--accent); color: var(--accent); }
+#btc-game .horizon-row {
+  margin-bottom: 20px;
+}
+#btc-game .horizon-row label {
+  display: block; font-size: 12px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px;
+}
+#btc-game .horizon-opts {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+#btc-game .hor-btn {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+#btc-game .hor-btn:hover { border-color: var(--fg); color: var(--fg); }
+#btc-game .hor-btn.sel { background: #1a1020; border-color: var(--accent); color: var(--accent); }
+#btc-game .submit-btn {
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: #000;
+  cursor: pointer;
+  transition: opacity 0.18s, transform 0.1s;
+  letter-spacing: 0.3px;
+}
+#btc-game .submit-btn:hover { opacity: 0.9; }
+#btc-game .submit-btn:active { transform: scale(0.99); }
+#btc-game .submit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+#btc-game .result-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+  display: none;
+}
+#btc-game .result-panel.show { display: block; }
+#btc-game .result-header {
+  font-size: 24px; font-weight: 700;
+  margin-bottom: 4px;
+  display: flex; align-items: center; gap: 10px;
+}
+#btc-game .result-header.win { color: var(--green); }
+#btc-game .result-header.lose { color: var(--red); }
+#btc-game .result-header.partial { color: var(--accent); }
+#btc-game .result-detail {
+  font-size: 13px; color: var(--muted); margin-bottom: 20px;
+}
+#btc-game .result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+#btc-game .rg-item {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 12px;
+}
+#btc-game .rg-item .rl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
+#btc-game .rg-item .rv { font-size: 15px; font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#btc-game .rg-item .rv.good { color: var(--green); }
+#btc-game .rg-item .rv.bad { color: var(--red); }
+#btc-game .analogy-box {
+  background: var(--surface2);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+#btc-game .analogy-box .al { font-size: 10px; color: var(--accent); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
+#btc-game .next-btn {
+  background: var(--surface2);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+#btc-game .next-btn:hover { background: var(--accent); color: #000; }
+#btc-game .final-screen {
+  display: none;
+  text-align: center;
+  padding: 40px 20px;
+}
+#btc-game .final-screen.show { display: block; }
+#btc-game .final-grade {
+  font-size: 72px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+#btc-game .final-grade.s { color: var(--green); }
+#btc-game .final-grade.a { color: var(--accent); }
+#btc-game .final-grade.b { color: #eab308; }
+#btc-game .final-grade.c { color: var(--muted); }
+#btc-game .final-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+#btc-game .final-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; max-width: 380px; margin-inline: auto; }
+#btc-game .final-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 400px;
+  margin: 0 auto 32px;
+}
+#btc-game .fs-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+#btc-game .fs-item .fl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 4px; }
+#btc-game .fs-item .fv { font-size: 22px; font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+#btc-game .restart-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 40px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: #000;
+  cursor: pointer;
+  transition: opacity 0.18s;
+}
+#btc-game .restart-btn:hover { opacity: 0.85; }
+#btc-game .scoring-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+#btc-game .scoring-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  width: 0%;
+}
+#btc-game { border-radius: 14px; padding: 0 16px; margin: 24px 0; }
+</style>
+
+<div id="btc-game">
+<div class="shell">
+  <!-- Header -->
+  <div class="hdr">
+    <div class="logo">
+      <div class="logo-icon">₿</div>
+      <div>
+        <div class="logo-text">BTC Range Breaker</div>
+        <div class="logo-sub">Historical Pattern Game</div>
+      </div>
+    </div>
+    <div class="score-bar">
+      <div class="score-item">
+        <span class="score-label">Score</span>
+        <span class="score-val" id="score-disp">0</span>
+      </div>
+      <div class="score-item">
+        <span class="score-label">Streak</span>
+        <span class="score-val" id="streak-disp">0🔥</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="scoring-bar"><div class="scoring-fill" id="prog-fill"></div></div>
+
+  <!-- Round indicator -->
+  <div class="round-info">
+    <span id="round-label">Round 1 of 5</span>
+    <div class="round-pips" id="round-pips"></div>
+  </div>
+
+  <!-- Game panel (question phase) -->
+  <div id="game-panel">
+    <!-- Chart -->
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <div>
+          <div class="chart-pair">BTC/USD</div>
+          <div class="chart-meta" id="chart-period">Loading...</div>
+        </div>
+        <div class="chart-meta" id="chart-price">Current price: loading</div>
+      </div>
+      <canvas id="chart"></canvas>
+      <div class="range-strip">
+        <div class="range-item">
+          <span class="rl">Support</span>
+          <span class="rv" id="range-low">—</span>
+        </div>
+        <div class="range-item">
+          <span class="rl">Resistance</span>
+          <span class="rv" id="range-high">—</span>
+        </div>
+        <div class="range-item">
+          <span class="rl">Range Width</span>
+          <span class="rv" id="range-width">—</span>
+        </div>
+        <div class="range-item">
+          <span class="rl">Days in Range</span>
+          <span class="rv" id="range-days">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context cards -->
+    <div class="context-grid" id="context-grid"></div>
+
+    <!-- Historical clue -->
+    <div class="hist-clue" id="hist-clue">
+      <div class="hc-label">📊 Historical Pattern Clue</div>
+      <div id="hist-clue-text">Loading pattern data...</div>
+    </div>
+
+    <!-- Prediction -->
+    <div class="predict-panel">
+      <h3>Your Prediction</h3>
+
+      <div class="dir-btns">
+        <button class="dir-btn" id="btn-up" onclick="btcRB.selectDir('up')">
+          <span class="di">🚀</span>
+          <span>Breakout UP</span>
+        </button>
+        <button class="dir-btn" id="btn-side" onclick="btcRB.selectDir('side')">
+          <span class="di">↔️</span>
+          <span>Stay Range</span>
+        </button>
+        <button class="dir-btn" id="btn-dn" onclick="btcRB.selectDir('down')">
+          <span class="di">📉</span>
+          <span>Break DOWN</span>
+        </button>
+      </div>
+
+      <div class="price-row" id="price-row" style="display:none">
+        <label>Target Price After Breakout ($)</label>
+        <div class="price-input-wrap">
+          <span>$</span>
+          <input type="number" id="price-guess" placeholder="0" min="1000" max="500000" step="100">
+        </div>
+        <div class="price-hints" id="price-hints"></div>
+      </div>
+
+      <div class="horizon-row">
+        <label>Timeframe for this move</label>
+        <div class="horizon-opts">
+          <button class="hor-btn" onclick="btcRB.selectHorizon('1w')">1 Week</button>
+          <button class="hor-btn" onclick="btcRB.selectHorizon('2w')">2 Weeks</button>
+          <button class="hor-btn" onclick="btcRB.selectHorizon('1m')">1 Month</button>
+          <button class="hor-btn" onclick="btcRB.selectHorizon('3m')">3 Months</button>
+        </div>
+      </div>
+
+      <button class="submit-btn" id="submit-btn" onclick="btcRB.submitPrediction()" disabled>
+        Submit Prediction →
+      </button>
+    </div>
+  </div>
+
+  <!-- Result panel -->
+  <div class="result-panel" id="result-panel">
+    <div class="result-header" id="result-header">Loading...</div>
+    <div class="result-detail" id="result-detail"></div>
+    <div class="result-grid" id="result-grid"></div>
+    <div class="analogy-box" id="analogy-box">
+      <div class="al">📈 What Actually Happened</div>
+      <div id="analogy-text"></div>
+    </div>
+    <button class="next-btn" id="next-btn" onclick="btcRB.nextRound()">
+      Next Round →
+    </button>
+  </div>
+
+  <!-- Final screen -->
+  <div class="final-screen" id="final-screen">
+    <div class="final-grade" id="final-grade">S</div>
+    <div class="final-title" id="final-title">Bitcoin Analyst</div>
+    <div class="final-sub" id="final-sub">Your prediction on Bitcoin range breaks.</div>
+    <div class="final-stats">
+      <div class="fs-item">
+        <div class="fl">Total Score</div>
+        <div class="fv" id="f-score">0</div>
+      </div>
+      <div class="fs-item">
+        <div class="fl">Direction Acc</div>
+        <div class="fv" id="f-dir">0%</div>
+      </div>
+      <div class="fs-item">
+        <div class="fl">Best Round</div>
+        <div class="fv" id="f-best">0</div>
+      </div>
+    </div>
+    <button class="restart-btn" onclick="btcRB.restartGame()">Play Again</button>
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+
+// ── Historical BTC range scenarios ───────────────────────────────────────────
+const SCENARIOS = [
+  {
+    id: 1,
+    period: "Oct 2020 – Dec 2020",
+    label: "Pre-Halving Accumulation → Bull Run",
+    entryPrice: 10800,
+    rangeHigh: 13200,
+    rangeLow: 9800,
+    daysInRange: 52,
+    macroContext: [
+      { label: "US Election", value: "Biden victory uncertainty", tone: "neg" },
+      { label: "DeFi Season", value: "TVL hit $12B, then retreating", tone: "neg" },
+      { label: "Halving", value: "8 months post (May 2020)", tone: "pos" },
+      { label: "Institutional", value: "MicroStrategy bought $425M", tone: "pos" },
+    ],
+    historicalClue: "In every post-halving cycle (2012, 2016), BTC consolidated 5–8 months before breaking upper resistance. Supply shock + institutional demand created asymmetric pressure. 84% of similar ranges resolved UP within 2 months.",
+    outcome: "up",
+    outcomePrice: 29000,
+    outcomeTimeframe: "2m",
+    outcomeStory: "Bitcoin broke $13,200 in late October 2020, then accelerated through $20K ATH in December. The move was driven by PayPal enabling crypto for 346M users + Grayscale absorbing more BTC than was being mined. By year-end, BTC reached $29,000.",
+    scoringGuides: [29000, 23000, 19500, 14000]
+  },
+  {
+    id: 2,
+    period: "May 2021 – Jun 2021",
+    label: "China Mining Ban + Market Correction",
+    entryPrice: 37000,
+    rangeHigh: 42000,
+    rangeLow: 30000,
+    daysInRange: 28,
+    macroContext: [
+      { label: "China Policy", value: "PBoC banned crypto payments", tone: "neg" },
+      { label: "Hash Rate", value: "Mining difficulty -28% (miners offline)", tone: "neg" },
+      { label: "Elon Factor", value: "Tesla reversed BTC payments", tone: "neg" },
+      { label: "Exchange", value: "Binance under regulatory scrutiny", tone: "neg" },
+    ],
+    historicalClue: "When 3+ negative macro factors converge, BTC has historically broken DOWN in 67% of cases. The 2018 bear started similarly — range formed after -50% drop, then broke lower. However, 'buy the dip' institutional flows provided support around $30K.",
+    outcome: "down",
+    outcomePrice: 29000,
+    outcomeTimeframe: "1w",
+    outcomeStory: "BTC broke below $30,000 support in late June 2021, touching $28,893 briefly. However, the down move was absorbed — this became the bottom before recovery to $69K ATH in November. The range broke down, but the true bear came later.",
+    scoringGuides: [29000, 26000, 24000, 35000]
+  },
+  {
+    id: 3,
+    period: "Jan 2022 – Mar 2022",
+    label: "Fed Rate Hike Anticipation",
+    entryPrice: 41000,
+    rangeHigh: 48000,
+    rangeLow: 33000,
+    daysInRange: 60,
+    macroContext: [
+      { label: "Fed Policy", value: "First rate hike since 2018 signaled", tone: "neg" },
+      { label: "Russia-Ukraine", value: "Conflict escalation, risk-off sentiment", tone: "neg" },
+      { label: "BTC Adoption", value: "El Salvador legal tender (6 months in)", tone: "pos" },
+      { label: "Nasdaq Corr.", value: "Tech stocks -15%, BTC correlation 0.82", tone: "neg" },
+    ],
+    historicalClue: "BTC-Nasdaq correlation hit 0.82 in early 2022 — highest on record. Historically when BTC's 60-day correlation with equities exceeds 0.75, BTC underperforms in rate tightening cycles. 2018 showed -80% from ATH during rate hikes.",
+    outcome: "down",
+    outcomePrice: 17600,
+    outcomeTimeframe: "3m",
+    outcomeStory: "BTC broke below $33K in June 2022 following the Luna/UST collapse ($60B wiped), Three Arrows Capital bankruptcy, and Celsius pause on withdrawals. Price reached $17,600 — a 74% drawdown from $69K ATH. Correlation with risk assets stayed elevated throughout.",
+    scoringGuides: [17600, 22000, 28000, 38000]
+  },
+  {
+    id: 4,
+    period: "Jan 2023 – Mar 2023",
+    label: "Post-FTX Recovery Consolidation",
+    entryPrice: 17500,
+    rangeHigh: 25000,
+    rangeLow: 16500,
+    daysInRange: 45,
+    macroContext: [
+      { label: "FTX Aftermath", value: "Sam Bankman-Fried arrested, industry crisis", tone: "neg" },
+      { label: "Inflation", value: "CPI falling: 7.1% → 6.4% YoY", tone: "pos" },
+      { label: "Fed Pivot Hope", value: "Rate hike pace slowing speculation", tone: "pos" },
+      { label: "Silvergate Bank", value: "Crypto-friendly bank under pressure", tone: "neg" },
+    ],
+    historicalClue: "Post-capitulation ranges (where price dropped 70%+ from ATH) have historically resolved upward in 71% of cases within 3 months. The 2019 recovery from $3,200 bottom followed a similar accumulation pattern at this range width.",
+    outcome: "up",
+    outcomePrice: 30000,
+    outcomeTimeframe: "3m",
+    outcomeStory: "Bitcoin broke above $25,000 in January 2023 — the first significant recovery after FTX collapse. By March 2023, BTC reached $29,000, driven by banking sector stress (SVB, Silvergate, Signature collapses) that paradoxically boosted BTC's 'digital gold' narrative. April brought $31K.",
+    scoringGuides: [30000, 27000, 24000, 21000]
+  },
+  {
+    id: 5,
+    period: "Aug 2023 – Oct 2023",
+    label: "ETF Speculation + SEC Battles",
+    entryPrice: 26000,
+    rangeHigh: 31500,
+    rangeLow: 25000,
+    daysInRange: 70,
+    macroContext: [
+      { label: "ETF Filings", value: "BlackRock, Fidelity spot ETF pending", tone: "pos" },
+      { label: "SEC vs Binance", value: "Major exchange sued, regulatory fear", tone: "neg" },
+      { label: "Halving", value: "4 months away (Apr 2024 expected)", tone: "pos" },
+      { label: "Macro", value: "US 10Y yield hit 5% — 16-year high", tone: "neg" },
+    ],
+    historicalClue: "ETF approval cycles historically create 'sell the news' dynamics, BUT pre-approval anticipation rallies average +45% over 60 days. In 2021, Canadian BTC ETF approval preceded a $64K run. Halving proximity adds structural demand pressure.",
+    outcome: "up",
+    outcomePrice: 69000,
+    outcomeTimeframe: "3m",
+    outcomeStory: "The $25K–$31K range resolved violently upward. BlackRock's spot ETF approval in January 2024 triggered massive institutional inflows — $10B+ in first 60 days. Combined with the April 2024 halving, BTC broke above $73K ATH by March 2024. The range was the calm before the storm.",
+    scoringGuides: [69000, 52000, 40000, 35000]
+  }
+];
+
+// ── Game state ────────────────────────────────────────────────────────────────
+let state = {
+  round: 0,
+  score: 0,
+  streak: 0,
+  maxStreak: 0,
+  roundScores: [],
+  selectedDir: null,
+  selectedHorizon: null,
+  totalRounds: 5
+};
+
+function fmt(n) {
+  return n >= 1000 ? '$' + n.toLocaleString('en-US') : '$' + n;
+}
+function fmtK(n) {
+  return n >= 1000 ? '$' + (n/1000).toFixed(1) + 'K' : '$' + n;
+}
+
+// ── Draw candlestick chart ────────────────────────────────────────────────────
+function drawChart(scenario) {
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.offsetWidth, h = 220;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const { entryPrice, rangeHigh, rangeLow, daysInRange } = scenario;
+
+  // Generate synthetic candle data
+  const candles = [];
+  let price = rangeLow + (rangeHigh - rangeLow) * 0.4;
+  const spread = rangeHigh - rangeLow;
+  const rng = (s) => (Math.sin(s * 127.3) * 0.5 + 0.5);
+
+  for (let i = 0; i < daysInRange; i++) {
+    const bias = Math.sin(i * 0.18) * 0.3;
+    const change = (rng(i * 3.7) - 0.5 + bias * 0.1) * spread * 0.06;
+    const open = price;
+    price = Math.max(rangeLow * 0.97, Math.min(rangeHigh * 1.02, price + change));
+    const close = price;
+    const hi = Math.max(open, close) + rng(i * 1.9) * spread * 0.025;
+    const lo = Math.min(open, close) - rng(i * 2.3) * spread * 0.025;
+    candles.push({ o: open, c: close, h: Math.min(hi, rangeHigh * 1.03), l: Math.max(lo, rangeLow * 0.97) });
+  }
+  // Clamp last candle to entryPrice
+  const last = candles[candles.length - 1];
+  last.c = entryPrice; last.h = Math.max(last.h, entryPrice); last.l = Math.min(last.l, entryPrice);
+
+  const pad = { t: 14, r: 14, b: 24, l: 56 };
+  const cw = (w - pad.l - pad.r) / candles.length;
+  const allPrices = candles.flatMap(c => [c.h, c.l]);
+  const minP = Math.min(...allPrices) * 0.995;
+  const maxP = Math.max(...allPrices) * 1.005;
+  const py = p => pad.t + (maxP - p) / (maxP - minP) * (h - pad.t - pad.b);
+
+  // Grid + labels
+  ctx.strokeStyle = '#252a38';
+  ctx.lineWidth = 0.5;
+  const gridCount = 4;
+  for (let i = 0; i <= gridCount; i++) {
+    const p = minP + (maxP - minP) * i / gridCount;
+    const y = py(p);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#7a8099';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmtK(Math.round(p)), pad.l - 4, y + 3.5);
+  }
+
+  // Range band
+  const ryHi = py(rangeHigh), ryLo = py(rangeLow);
+  ctx.fillStyle = 'rgba(247,147,26,0.07)';
+  ctx.fillRect(pad.l, ryHi, w - pad.l - pad.r, ryLo - ryHi);
+  ctx.strokeStyle = 'rgba(247,147,26,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(pad.l, ryHi); ctx.lineTo(w - pad.r, ryHi); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(pad.l, ryLo); ctx.lineTo(w - pad.r, ryLo); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Candles
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    const x = pad.l + i * cw + cw / 2;
+    const up = c.c >= c.o;
+    const col = up ? '#22c55e' : '#ef4444';
+    const body = Math.max(1.5, Math.abs(py(c.c) - py(c.o)));
+    const bY = Math.min(py(c.o), py(c.c));
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(x, py(c.h)); ctx.lineTo(x, bY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, bY + body); ctx.lineTo(x, py(c.l)); ctx.stroke();
+    ctx.fillStyle = col;
+    const bW = Math.max(1, cw * 0.65);
+    ctx.fillRect(x - bW / 2, bY, bW, body);
+  }
+
+  // Current price line
+  const cpY = py(entryPrice);
+  ctx.strokeStyle = '#f7931a';
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(pad.l, cpY); ctx.lineTo(w - pad.r, cpY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // "NOW" marker
+  const lx = pad.l + (candles.length - 1) * cw + cw / 2;
+  ctx.fillStyle = '#f7931a';
+  ctx.beginPath(); ctx.arc(lx, cpY, 4, 0, Math.PI * 2); ctx.fill();
+
+  // "? What happens next?" label
+  ctx.fillStyle = 'rgba(13,15,20,0.85)';
+  ctx.fillRect(lx + 8, cpY - 14, 120, 20);
+  ctx.fillStyle = '#f7931a';
+  ctx.font = 'bold 11px Space Grotesk, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('? What happens next', lx + 12, cpY + 1);
+}
+
+// ── Load a round ──────────────────────────────────────────────────────────────
+function loadRound(idx) {
+  const sc = SCENARIOS[idx];
+  state.selectedDir = null;
+  state.selectedHorizon = null;
+
+  // Reset UI
+  document.getElementById('game-panel').style.display = 'block';
+  document.getElementById('result-panel').classList.remove('show');
+  document.getElementById('final-screen').classList.remove('show');
+  ['btn-up','btn-side','btn-dn'].forEach(id => {
+    document.getElementById(id).className = 'dir-btn';
+  });
+  document.getElementById('price-row').style.display = 'none';
+  document.getElementById('price-guess').value = '';
+  document.querySelectorAll('.hor-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('submit-btn').disabled = true;
+
+  // Header
+  document.getElementById('chart-period').innerHTML = `<strong>${sc.period}</strong> · ${sc.label}`;
+  document.getElementById('chart-price').innerHTML = `Now: <strong>${fmt(sc.entryPrice)}</strong>`;
+  document.getElementById('range-low').textContent = fmt(sc.rangeLow);
+  document.getElementById('range-high').textContent = fmt(sc.rangeHigh);
+  const pct = (((sc.rangeHigh - sc.rangeLow) / sc.rangeLow) * 100).toFixed(1);
+  document.getElementById('range-width').textContent = pct + '%';
+  document.getElementById('range-days').textContent = sc.daysInRange + 'd';
+
+  // Context cards
+  const cg = document.getElementById('context-grid');
+  cg.innerHTML = sc.macroContext.map(c => `
+    <div class="ctx-card">
+      <div class="ct">${c.label}</div>
+      <div class="cv ${c.tone}">${c.value}</div>
+    </div>`).join('');
+
+  // Clue
+  document.getElementById('hist-clue-text').textContent = sc.historicalClue;
+
+  // Price hints
+  const hintPrices = sc.scoringGuides;
+  document.getElementById('price-hints').innerHTML = hintPrices.map(p =>
+    `<button class="hint-btn" onclick="btcRB.setPrice(${p})">${fmt(p)}</button>`
+  ).join('');
+
+  // Round pips
+  buildPips();
+  document.getElementById('round-label').textContent = `Round ${idx + 1} of ${state.totalRounds}`;
+
+  // Draw
+  setTimeout(() => drawChart(sc), 50);
+}
+
+function buildPips() {
+  const el = document.getElementById('round-pips');
+  el.innerHTML = '';
+  for (let i = 0; i < state.totalRounds; i++) {
+    const d = document.createElement('div');
+    d.className = 'round-pip' + (i < state.round ? ' done' : i === state.round ? ' active' : '');
+    el.appendChild(d);
+  }
+}
+
+function setPrice(p) {
+  document.getElementById('price-guess').value = p;
+  checkSubmit();
+}
+
+function selectDir(dir) {
+  state.selectedDir = dir;
+  ['btn-up','btn-side','btn-dn'].forEach(id => document.getElementById(id).className = 'dir-btn');
+  const map = { up: 'btn-up', side: 'btn-side', down: 'btn-dn' };
+  const cls = { up: 'sel-up', side: 'sel-side', down: 'sel-dn' };
+  document.getElementById(map[dir]).classList.add(cls[dir]);
+
+  const pr = document.getElementById('price-row');
+  if (dir !== 'side') {
+    pr.style.display = 'block';
+    pr.querySelector('label').textContent =
+      dir === 'up' ? 'Target Price After Breakout ($)' : 'Expected Bottom Price ($)';
+  } else {
+    pr.style.display = 'none';
+  }
+  checkSubmit();
+}
+
+function selectHorizon(h) {
+  state.selectedHorizon = h;
+  document.querySelectorAll('.hor-btn').forEach(b => {
+    b.classList.toggle('sel', b.textContent.toLowerCase().replace(' ','').startsWith(h.replace('w','w').replace('m','m')));
+  });
+  // Better matching
+  const map = { '1w': '1 Week', '2w': '2 Weeks', '1m': '1 Month', '3m': '3 Months' };
+  document.querySelectorAll('.hor-btn').forEach(b => {
+    b.classList.toggle('sel', b.textContent === map[h]);
+  });
+  checkSubmit();
+}
+
+function checkSubmit() {
+  const dirOk = !!state.selectedDir;
+  const horOk = !!state.selectedHorizon;
+  const priceOk = state.selectedDir === 'side' || (parseInt(document.getElementById('price-guess').value) > 0);
+  document.getElementById('submit-btn').disabled = !(dirOk && horOk && priceOk);
+}
+document.getElementById('price-guess').addEventListener('input', checkSubmit);
+
+// ── Scoring ───────────────────────────────────────────────────────────────────
+function scorePrediction(sc) {
+  const dir = state.selectedDir;
+  const priceGuess = parseInt(document.getElementById('price-guess').value) || 0;
+  const horizon = state.selectedHorizon;
+  let pts = 0;
+  let dirCorrect = false;
+
+  // Direction (50 pts)
+  if (dir === sc.outcome) { pts += 50; dirCorrect = true; }
+  else if (dir === 'side' && sc.outcome !== 'side') { /* miss */ }
+
+  // Price accuracy (up to 40 pts) — only if direction correct and not side
+  let pricePts = 0;
+  if (dirCorrect && dir !== 'side' && priceGuess > 0) {
+    const err = Math.abs(priceGuess - sc.outcomePrice) / sc.outcomePrice;
+    if (err <= 0.05) pricePts = 40;
+    else if (err <= 0.1) pricePts = 30;
+    else if (err <= 0.2) pricePts = 20;
+    else if (err <= 0.35) pricePts = 10;
+    else pricePts = 3;
+    pts += pricePts;
+  }
+
+  // Horizon accuracy (10 pts)
+  const horizonMap = { '1w': 1, '2w': 2, '1m': 4, '3m': 12 };
+  const hGuess = horizonMap[horizon];
+  const hActual = horizonMap[sc.outcomeTimeframe] || 4;
+  const hDiff = Math.abs(hGuess - hActual);
+  const horizonPts = hDiff === 0 ? 10 : hDiff === 1 ? 6 : hDiff <= 2 ? 3 : 1;
+  pts += horizonPts;
+
+  return { pts, dirCorrect, pricePts, horizonPts, priceGuess };
+}
+
+function submitPrediction() {
+  const sc = SCENARIOS[state.round];
+  const { pts, dirCorrect, pricePts, horizonPts, priceGuess } = scorePrediction(sc);
+
+  // Update state
+  state.score += pts;
+  if (dirCorrect) { state.streak++; state.maxStreak = Math.max(state.maxStreak, state.streak); }
+  else state.streak = 0;
+  state.roundScores.push(pts);
+
+  // Update UI counters
+  document.getElementById('score-disp').textContent = state.score;
+  document.getElementById('streak-disp').textContent = state.streak + (state.streak >= 3 ? '🔥' : '');
+  document.getElementById('prog-fill').style.width = ((state.round + 1) / state.totalRounds * 100) + '%';
+
+  // Build result
+  const rp = document.getElementById('result-panel');
+  const rh = document.getElementById('result-header');
+  const rd = document.getElementById('result-detail');
+
+  const outcomeLabel = { up: '🚀 Broke UP', down: '📉 Broke DOWN', side: '↔️ Stayed in Range' };
+  const isWin = pts >= 70;
+  const isPartial = pts >= 40 && !isWin;
+
+  if (isWin) {
+    rh.className = 'result-header win';
+    rh.innerHTML = '✅ Excellent! +' + pts + ' pts';
+  } else if (isPartial) {
+    rh.className = 'result-header partial';
+    rh.innerHTML = '⚡ Partial! +' + pts + ' pts';
+  } else {
+    rh.className = 'result-header lose';
+    rh.innerHTML = '❌ Missed · +' + pts + ' pts';
+  }
+
+  const dirLabel = { up: '🚀 UP', side: '↔️ RANGE', down: '📉 DOWN' };
+  rd.innerHTML = `You predicted: <strong>${dirLabel[state.selectedDir]}</strong> · Actual: <strong>${outcomeLabel[sc.outcome]}</strong>`;
+
+  document.getElementById('result-grid').innerHTML = `
+    <div class="rg-item">
+      <div class="rl">Direction</div>
+      <div class="rv ${dirCorrect ? 'good' : 'bad'}">${dirCorrect ? '+50 pts ✓' : '+0 pts ✗'}</div>
+    </div>
+    <div class="rg-item">
+      <div class="rl">Price Call</div>
+      <div class="rv ${pricePts >= 20 ? 'good' : pricePts > 0 ? '' : 'bad'}">
+        ${pricePts > 0 ? '+' + pricePts + ' pts' : state.selectedDir === 'side' ? 'N/A' : '+0 pts ✗'}
+      </div>
+    </div>
+    <div class="rg-item">
+      <div class="rl">Actual Price</div>
+      <div class="rv">${fmt(sc.outcomePrice)}</div>
+    </div>
+    <div class="rg-item">
+      <div class="rl">Your Guess</div>
+      <div class="rv ${state.selectedDir !== 'side' && priceGuess > 0 ? (Math.abs(priceGuess - sc.outcomePrice)/sc.outcomePrice < 0.15 ? 'good' : 'bad') : ''}">${state.selectedDir !== 'side' && priceGuess > 0 ? fmt(priceGuess) : '—'}</div>
+    </div>
+    <div class="rg-item">
+      <div class="rl">Horizon</div>
+      <div class="rv ${horizonPts >= 8 ? 'good' : ''}">${horizonPts > 0 ? '+' + horizonPts + ' pts' : '+0 pts'}</div>
+    </div>
+    <div class="rg-item">
+      <div class="rl">Round Total</div>
+      <div class="rv ${pts >= 70 ? 'good' : pts >= 40 ? '' : 'bad'}">${pts} / 100</div>
+    </div>
+  `;
+
+  document.getElementById('analogy-text').textContent = sc.outcomeStory;
+
+  document.getElementById('game-panel').style.display = 'none';
+  rp.classList.add('show');
+
+  const nextBtn = document.getElementById('next-btn');
+  if (state.round >= state.totalRounds - 1) {
+    nextBtn.textContent = 'See Final Score →';
+  } else {
+    nextBtn.textContent = 'Next Round →';
+  }
+}
+
+function nextRound() {
+  if (state.round >= state.totalRounds - 1) {
+    showFinal();
+    return;
+  }
+  state.round++;
+  loadRound(state.round);
+}
+
+function showFinal() {
+  document.getElementById('result-panel').classList.remove('show');
+  const fs = document.getElementById('final-screen');
+  fs.classList.add('show');
+
+  const total = state.score;
+  const maxPossible = state.totalRounds * 100;
+  const pct = total / maxPossible;
+
+  let grade, gradeClass, title, sub;
+  if (pct >= 0.85) {
+    grade = 'S'; gradeClass = 's'; title = 'Bitcoin Oracle';
+    sub = 'Legendary accuracy. You read BTC patterns with almost uncanny precision.';
+  } else if (pct >= 0.7) {
+    grade = 'A'; gradeClass = 'a'; title = 'Crypto Analyst';
+    sub = 'Strong fundamentals reading. A few price calls away from legendary status.';
+  } else if (pct >= 0.5) {
+    grade = 'B'; gradeClass = 'b'; title = 'Range Trader';
+    sub = 'Solid direction sense. Price target accuracy needs work.';
+  } else {
+    grade = 'C'; gradeClass = 'c'; title = 'Hodler';
+    sub = 'Macro patterns are tricky. Bitcoin loves surprises. Try again?';
+  }
+
+  document.getElementById('final-grade').textContent = grade;
+  document.getElementById('final-grade').className = 'final-grade ' + gradeClass;
+  document.getElementById('final-title').textContent = title;
+  document.getElementById('final-sub').textContent = sub;
+  document.getElementById('f-score').textContent = total;
+
+  const dirCorrects = state.roundScores.filter((_, i) => SCENARIOS[i] /* crude, but ok */).length;
+  // Direction accuracy: count wins
+  let dirAcc = 0;
+  // Recalculate from scores; assume > 50 means dir was right (50pts for direction)
+  // Actually re-check via outcomes vs recorded — use best approximation from scores
+  const highScores = state.roundScores.filter(s => s >= 51).length;
+  dirAcc = Math.round(highScores / state.totalRounds * 100);
+  document.getElementById('f-dir').textContent = dirAcc + '%';
+  document.getElementById('f-best').textContent = Math.max(...state.roundScores);
+}
+
+function restartGame() {
+  state = { round: 0, score: 0, streak: 0, maxStreak: 0, roundScores: [], selectedDir: null, selectedHorizon: null, totalRounds: 5 };
+  document.getElementById('score-disp').textContent = '0';
+  document.getElementById('streak-disp').textContent = '0';
+  document.getElementById('prog-fill').style.width = '0%';
+  document.getElementById('final-screen').classList.remove('show');
+  loadRound(0);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadRound(0);
+
+// Redraw chart on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => drawChart(SCENARIOS[state.round]), 120);
+});
+
+window.btcRB = { selectDir, selectHorizon, submitPrediction, nextRound, restartGame, setPrice };
+})();
+</script>

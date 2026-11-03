@@ -53,6 +53,7 @@
         <li><a href="{{ '/macro/' | relative_url }}"><span class="en-only">Economic Indicators</span><span class="ko-only">경기지표</span></a></li>
       </ul>
     </li>
+    <li><a href="{{ '/games/btc-range-breaker/' | relative_url }}" {% if page.url contains '/games' %}class="active"{% endif %}><span class="en-only">BTC Game</span><span class="ko-only">BTC 게임</span></a></li>
     <li><a href="{{ '/about/' | relative_url }}" {% if page.url == '/about/' %}class="active"{% endif %}>About</a></li>
     <li class="lang-toggle-item">
       <button id="langToggleBtn" class="lang-btn" onclick="toggleLang()">한</button>
