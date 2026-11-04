@@ -302,6 +302,21 @@
           '<button type="button" class="jjs-btn jjs-copy">' + ICONS.link + '<span><span class="en-only">Copy link</span><span class="ko-only">링크 복사</span></span></button>' +
           '<button type="button" class="jjs-btn jjs-save">' + ICONS.save + '<span><span class="en-only">Save image</span><span class="ko-only">이미지 저장</span></span></button>' +
         '</div>' +
+        '<div class="jjs-guide" hidden>' +
+          '<div class="jjs-guide-title">' + ICONS.linkedin +
+            '<span class="en-only">Card image saved — attach it in LinkedIn</span>' +
+            '<span class="ko-only">카드 이미지를 저장했어요 — 링크드인에 첨부하세요</span></div>' +
+          '<ol>' +
+            '<li><span class="en-only">Click <b>Open LinkedIn</b> — the text and link are filled in.</span>' +
+              '<span class="ko-only"><b>링크드인 열기</b>를 누르면 글과 링크가 자동으로 채워집니다.</span></li>' +
+            '<li><span class="en-only">In the post box, click the <b>photo</b> icon 🖼 (or drag the file in).</span>' +
+              '<span class="ko-only">글쓰기 창 아래 <b>사진</b> 아이콘 🖼 클릭 (또는 파일을 끌어다 놓기)</span></li>' +
+            '<li><span class="en-only">Pick </span><span class="ko-only">다운로드 폴더의 </span>' +
+              '<code class="jjs-guide-file"></code><span class="en-only"> from Downloads.</span><span class="ko-only"> 선택</span></li>' +
+          '</ol>' +
+          '<a class="jjs-guide-open" target="_blank" rel="noopener">' +
+            '<span class="en-only">Open LinkedIn</span><span class="ko-only">링크드인 열기</span> ↗</a>' +
+        '</div>' +
         '<div class="jjs-toast" role="status" aria-live="polite"></div>' +
       '</div>';
     document.body.appendChild(modal);
@@ -331,6 +346,7 @@
     build();
     modal.querySelector('.jjs-x').href = xIntentUrl(d);
     modal.querySelector('.jjs-li').href = linkedinUrl(d);
+    modal.querySelector('.jjs-guide').hidden = true;
     modal.classList.add('open');
     document.documentElement.classList.add('jjs-lock');
     render();
@@ -367,11 +383,11 @@
   }
 
   // LinkedIn's share URL only takes text — a site can't attach an image to
-  // the post. So the card goes along another way:
+  // the post, and LinkedIn's web composer ignores pasted images. So:
   //   mobile  → native share sheet with the PNG (pick LinkedIn there)
-  //   desktop → copy the PNG to the clipboard, then open the LinkedIn composer
-  //             with the text prefilled; the user pastes the image (Ctrl+V).
-  //             If the clipboard refuses, the PNG is downloaded instead.
+  //   desktop → save the PNG, then show a short guide in the card with an
+  //             "Open LinkedIn" link (text prefilled); the user attaches the
+  //             saved file with LinkedIn's photo button.
   function shareLinkedIn(e) {
     var d = resolve();
     if (!d) return;
@@ -379,8 +395,6 @@
     a.href = linkedinUrl(d);
     if (!canvas) return;   // let the plain link work
     e.preventDefault();
-    var ko = isKo();
-    var openLi = function () { window.open(a.href, '_blank', 'noopener'); };
 
     if (cardBlob && window.matchMedia('(pointer: coarse)').matches) {
       try {
@@ -388,31 +402,23 @@
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           navigator.share({ files: [file], text: linkedinText(d) + '\n' + shareUrl(d) +
             '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share' })
-            .catch(function (err) { if (err && err.name !== 'AbortError') openLi(); });
+            .catch(function (err) { if (err && err.name !== 'AbortError') showLiGuide(d); });
           return;
         }
       } catch (err) { /* fall through */ }
     }
 
-    var paste = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘V' : 'Ctrl+V';
-    var blobP = cardBlob ? Promise.resolve(cardBlob) : toBlob();
-    var copied;
-    try {
-      copied = (navigator.clipboard && window.ClipboardItem)
-        ? navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
-        : Promise.reject(new Error('no clipboard'));
-    } catch (err) { copied = Promise.reject(err); }
+    (cardBlob ? Promise.resolve(cardBlob) : toBlob()).then(function (blob) {
+      if (blob) downloadBlob(blob);
+      showLiGuide(d);
+    });
+  }
 
-    copied.then(function () {
-      toast(ko ? '카드 이미지를 복사했어요 — 링크드인 글쓰기 창에서 ' + paste + '로 붙여넣으세요'
-               : 'Card image copied — paste it (' + paste + ') into the LinkedIn post', 6000);
-    }, function () {
-      return blobP.then(function (blob) {
-        if (blob) downloadBlob(blob);
-        toast(ko ? '카드 이미지를 저장했어요 — 링크드인 글에 사진으로 첨부하세요'
-                 : 'Card image saved — attach it to the LinkedIn post as a photo', 6000);
-      });
-    }).then(function () { setTimeout(openLi, 900); });   // let the toast be seen first
+  function showLiGuide(d) {
+    var g = modal.querySelector('.jjs-guide');
+    g.querySelector('.jjs-guide-file').textContent = fileName();
+    g.querySelector('.jjs-guide-open').href = linkedinUrl(d);
+    g.hidden = false;
   }
 
   function downloadBlob(blob) {

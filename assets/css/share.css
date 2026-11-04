@@ -72,6 +72,23 @@ html.jjs-lock { overflow: hidden; }
 .jjs-kakao:hover { background: #fada0a; border-color: #fada0a; }
 .jjs-copy:hover, .jjs-save:hover { border-color: #58a6ff; color: #58a6ff; }
 
+.jjs-guide {
+  margin-top: 12px; padding: 12px 14px; border-radius: 8px;
+  border: 1px solid #0a66c2; background: rgba(10, 102, 194, 0.12);
+  font-size: 0.8rem; color: var(--text-primary, #e6edf3);
+}
+.jjs-guide[hidden] { display: none; }
+.jjs-guide-title { display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 6px; }
+.jjs-guide-title svg { width: 14px; height: 14px; color: #0a66c2; flex-shrink: 0; }
+.jjs-guide ol { margin: 0 0 10px; padding-left: 20px; line-height: 1.7; color: var(--text-secondary, #8b949e); }
+.jjs-guide b { color: var(--text-primary, #e6edf3); }
+.jjs-guide code { font-size: 0.75rem; color: #58a6ff; word-break: break-all; }
+.jjs-guide-open {
+  display: inline-block; padding: 7px 16px; border-radius: 6px;
+  background: #0a66c2; color: #fff; font-weight: 700; text-decoration: none;
+}
+.jjs-guide-open:hover { background: #004182; text-decoration: none; }
+
 .jjs-toast {
   position: absolute; left: 50%; bottom: 14px; transform: translate(-50%, 8px);
   background: #e6edf3; color: #0d1117; font-size: 0.78rem; font-weight: 600;
