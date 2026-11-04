@@ -832,7 +832,9 @@ test.describe("H. 수익률 공유 카드", () => {
     for (const bad of ["$", "987", "123.45", "54321", "54,321", "678.9"]) {
       expect(joined, `카드에 민감 정보 "${bad}" 노출`).not.toContain(bad);
     }
-    expect(Object.keys(info.data).sort()).toEqual(["end", "label", "pct", "start"]);
+    // path = 카드/링크가 가리킬 사이트 경로 (포트폴리오 크립토 행용) — 금액 아님
+    expect(Object.keys(info.data).sort()).toEqual(["end", "label", "path", "pct", "start"]);
+    expect(info.data.path).toBeNull();
     // 배경 #0d1117 근처, 양수 → 상단 바 초록 (#3fb950)
     info.bg.forEach((v, i) => expect(Math.abs(v - [13, 17, 23][i])).toBeLessThan(25));
     expect(info.bar).toEqual([63, 185, 80]);
