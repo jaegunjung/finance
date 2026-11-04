@@ -363,8 +363,12 @@
           '<ol>' +
             '<li><span class="en-only">Click <b>Open LinkedIn</b> — the text and link are filled in.</span>' +
               '<span class="ko-only"><b>링크드인 열기</b>를 누르면 글과 링크가 자동으로 채워집니다.</span></li>' +
-            '<li><span class="en-only">In the post box, click the <b>photo</b> icon 🖼 (or drag the file in).</span>' +
-              '<span class="ko-only">글쓰기 창 아래 <b>사진</b> 아이콘 🖼 클릭 (또는 파일을 끌어다 놓기)</span></li>' +
+            // LinkedIn hides the photo button while a link preview is attached —
+            // closing the preview brings it back (the link stays in the text).
+            '<li><span class="en-only">Close the <b>link preview</b> card with its <b>✕</b> — the photo icon only appears once it is gone. The link stays in the text.</span>' +
+              '<span class="ko-only">글 아래 <b>링크 미리보기 카드</b>의 <b>✕</b>를 눌러 닫기 — 닫아야 사진 아이콘이 나타납니다. 링크는 본문에 그대로 남아요.</span></li>' +
+            '<li><span class="en-only">Click the <b>photo</b> icon 🖼 (or drag the file in).</span>' +
+              '<span class="ko-only"><b>사진</b> 아이콘 🖼 클릭 (또는 파일을 끌어다 놓기)</span></li>' +
             '<li><span class="en-only">Pick </span><span class="ko-only">다운로드 폴더의 </span>' +
               '<code class="jjs-guide-file"></code><span class="en-only"> from Downloads.</span><span class="ko-only"> 선택</span></li>' +
           '</ol>' +
