@@ -1,6 +1,11 @@
 ---
 layout: post
 title: "비트코인 박스권 예측 게임 출시 — 역대 데이터로 당신의 분석력을 테스트하세요"
+title_ko: "비트코인 박스권 예측 게임 출시 — 역대 데이터로 당신의 분석력을 테스트하세요"
+title_en: "BTC Range Breaker Is Live — Test Your Read on Bitcoin with Real Historical Ranges"
+excerpt: "실제 역사적 BTC 박스권 5개 시나리오로 방향과 목표가를 예측하는 인터랙티브 게임을 만들었습니다."
+excerpt_ko: "실제 역사적 BTC 박스권 5개 시나리오로 방향과 목표가를 예측하는 인터랙티브 게임을 만들었습니다."
+excerpt_en: "An interactive game built on five real historical Bitcoin trading ranges: predict the breakout direction and target price, then see what actually happened."
 date: 2026-11-03
 categories: announcement
 tags: [bitcoin, 게임, 비트코인, 투자분석]
