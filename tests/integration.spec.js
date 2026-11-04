@@ -879,6 +879,29 @@ test.describe("H. 수익률 공유 카드", () => {
     await expect(page.locator("#jjShareModal")).not.toHaveClass(/\bopen\b/);
   });
 
+  test("H-4b. 포트폴리오 크립토 종목 LinkedIn 공유 (텍스트 + UTM, 금액 미포함)", async ({ page }) => {
+    await gotoShare(page, "/portfolio/");
+    await expect(page.locator("#portNotLoggedIn")).toBeVisible({ timeout: 15_000 });
+    const r = await page.evaluate(() => {
+      document.documentElement.classList.add("ko-mode");
+      const row = { sym: "BTC", remainingShares: 0.5, allTimePct: 127.3, totalBought: 1000 };
+      return {
+        btn: _cryptoShareBtn(row),
+        stockBtn: _cryptoShareBtn({ ...row, sym: "ENVX" }),
+        closedBtn: _cryptoShareBtn({ ...row, remainingShares: 0 }),
+        url: _cryptoLinkedInUrl("ETH", -4.27),
+      };
+    });
+    expect(r.btn).toContain("h-li-share");
+    expect(r.stockBtn).toBe("");
+    expect(r.closedBtn).toBe("");
+    const u = new URL(r.url);
+    expect(u.origin + u.pathname).toBe("https://www.linkedin.com/feed/");
+    expect(u.searchParams.get("text")).toBe(
+      "ETH -4.3% 손실 중 📉 jjanalysis.com 분석 기반\n" +
+      "https://jjanalysis.com/crypto/eth/?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share");
+  });
+
   test("H-5. 블로그 포스트는 기존 공유 바 유지, 수익률 공유 없음", async ({ page }) => {
     await page.goto(BASE_URL + "/blog/", { waitUntil: "domcontentloaded" });
     const href = await page.evaluate(() =>

@@ -38,6 +38,9 @@ title_ko: 포트폴리오
 .h-table td:not(:first-child) { text-align:right; }
 .h-table tr:hover td { background:rgba(88,166,255,0.04); }
 .h-ticker { font-weight:700; font-size:0.92rem; color:var(--text-primary); }
+.h-li-share { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-left:6px; padding:0; border:1px solid var(--border); border-radius:4px; background:none; color:#0a66c2; cursor:pointer; vertical-align:middle; }
+.h-li-share:hover { background:#0a66c2; color:#fff; border-color:#0a66c2; }
+.h-li-share svg { width:12px; height:12px; }
 .h-price  { font-size:0.76rem; color:var(--text-muted); margin-top:2px; }
 .h-shares { font-size:0.74rem; color:var(--text-muted); margin-top:1px; }
 .h-val    { font-weight:600; font-size:0.88rem; color:var(--text-primary); }
@@ -1574,7 +1577,7 @@ function portRenderHoldings() {
       : remainingShares > 0.0001 ? `<div class="h-shares">${fN(remainingShares)} sh @ ${fA(avgCost)}</div>` : '';
     return `<tr>
       <td>
-        <div class="h-ticker">${_AVAILABLE_SYMS.has(sym) ? `<a href="${_CRYPTO_SYMS.includes(sym) ? _CRYPTO_URL : _STOCK_URL + sym + '/'}" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='inherit'">${dispSym}</a>` : `<span title="${jjT('Data not available yet', '데이터 준비 중')}">${dispSym}</span>`}</div>
+        <div class="h-ticker">${_AVAILABLE_SYMS.has(sym) ? `<a href="${_CRYPTO_SYMS.includes(sym) ? _CRYPTO_URL : _STOCK_URL + sym + '/'}" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--accent-blue)'" onmouseout="this.style.color='inherit'">${dispSym}</a>` : `<span title="${jjT('Data not available yet', '데이터 준비 중')}">${dispSym}</span>`}${_cryptoShareBtn(row)}</div>
         <div class="h-price">${isCashSym ? '' : priceStr}</div>
         ${sharesLine}
       </td>
@@ -1675,6 +1678,55 @@ function portRenderHoldings() {
 
   contentEl.innerHTML = html;
   _portPublishShare(grandPct, principal);
+}
+
+// ── Crypto LinkedIn share ──────────────────────────────────────────────
+// Stock rows link to /stock/<SYM>/, whose layout (stock-chart.html) carries
+// the 수익률 공유 button. Crypto rows link to /crypto/ pages, which don't, so
+// open crypto positions get their own LinkedIn button here. Same privacy
+// rule as share.js: only the ticker and return % go out, never $ or shares.
+const _CRYPTO_PAGE = { BTC: _CRYPTO_URL, ETH: _CRYPTO_URL + 'eth/', PEPE: _CRYPTO_URL + 'pepe/' };
+const _LI_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>';
+
+function _isCryptoSym(sym) {
+  return _CRYPTO_SYMS.includes(sym) || /-USD$/i.test(sym);
+}
+
+function _cryptoShareBtn(row) {
+  const { sym, remainingShares, allTimePct, totalBought } = row;
+  if (!_isCryptoSym(sym) || !(remainingShares > 0.0001) || !(totalBought > 0) || !isFinite(allTimePct)) return '';
+  const title = jjT('Share on LinkedIn', '링크드인에 공유');
+  return `<button type="button" class="h-li-share" title="${title}" aria-label="${title}"
+    data-sym="${sym}" data-pct="${allTimePct}" onclick="portShareCryptoLinkedIn(this.dataset.sym, Number(this.dataset.pct))">${_LI_ICON}</button>`;
+}
+
+function _cryptoShareText(sym, pct) {
+  const label = sym.replace(/-USD$/i, '').toUpperCase();
+  const abs = Math.abs(pct);
+  const num = (pct >= 0 ? '+' : '-') + (abs >= 10 ? abs.toFixed(0) : abs.toFixed(1)) + '%';
+  const up = pct >= 0;
+  return document.documentElement.classList.contains('ko-mode')
+    ? `${label} ${num} ${up ? '수익' : '손실'} 중 ${up ? '📈' : '📉'} jjanalysis.com 분석 기반`
+    : `${label} ${num} ${up ? 'gain' : 'loss'} ${up ? '📈' : '📉'} Powered by jjanalysis.com analysis`;
+}
+
+function _cryptoShareUrl(sym) {
+  const label = sym.replace(/-USD$/i, '').toUpperCase();
+  const path = _CRYPTO_PAGE[label] || _CRYPTO_URL;
+  return 'https://jjanalysis.com' + path +
+    '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share';
+}
+
+// LinkedIn's feed composer accepts prefilled text (share-offsite only takes a
+// URL), so the text and the UTM link go in together.
+function _cryptoLinkedInUrl(sym, pct) {
+  const text = _cryptoShareText(sym, pct) + '\n' + _cryptoShareUrl(sym);
+  return 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(text);
+}
+
+function portShareCryptoLinkedIn(sym, pct) {
+  if (!isFinite(pct)) return;
+  window.open(_cryptoLinkedInUrl(sym, pct), '_blank', 'noopener,width=640,height=720');
 }
 
 // Feed the 수익률 공유 card (assets/js/share.js) with the 평가 합계 row's
