@@ -33,6 +33,7 @@
   var lastLines = [];
   var modal = null, canvas = null, toastTimer = null;
   var logoImg = null;
+  var cardBlob = null;   // PNG of the card as last drawn — kept ready so a click can use it without waiting
 
   function isKo() { return document.documentElement.classList.contains('ko-mode'); }
 
@@ -239,11 +240,12 @@
   function render() {
     var d = resolve();
     if (!d || !canvas) return Promise.resolve(null);
+    cardBlob = null;
     drawCard(canvas, d, logoImg);         // draw immediately, logo if cached
     return loadLogo().then(function (img) {
       if (img) drawCard(canvas, d, img);
-      return d;
-    });
+      return toBlob();
+    }).then(function (b) { cardBlob = b; return d; });
   }
 
   function toBlob() {
@@ -260,13 +262,13 @@
   }
 
   // ── UI ──────────────────────────────────────────────────────────────────
-  function toast(msg) {
+  function toast(msg, ms) {
     var t = modal && modal.querySelector('.jjs-toast');
     if (!t) return;
     t.textContent = msg;
     t.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, ms || 2200);
   }
 
   var ICONS = {
@@ -314,10 +316,7 @@
       var d = resolve();
       if (d) this.href = xIntentUrl(d);   // refresh in case language changed
     });
-    modal.querySelector('.jjs-li').addEventListener('click', function () {
-      var d = resolve();
-      if (d) this.href = linkedinUrl(d);
-    });
+    modal.querySelector('.jjs-li').addEventListener('click', shareLinkedIn);
     modal.querySelector('.jjs-copy').addEventListener('click', copyLink);
     modal.querySelector('.jjs-kakao').addEventListener('click', shareKakao);
     modal.querySelector('.jjs-save').addEventListener('click', saveImage);
@@ -367,6 +366,65 @@
     } catch (e) { return false; }
   }
 
+  // LinkedIn's share URL only takes text — a site can't attach an image to
+  // the post. So the card goes along another way:
+  //   mobile  → native share sheet with the PNG (pick LinkedIn there)
+  //   desktop → copy the PNG to the clipboard, then open the LinkedIn composer
+  //             with the text prefilled; the user pastes the image (Ctrl+V).
+  //             If the clipboard refuses, the PNG is downloaded instead.
+  function shareLinkedIn(e) {
+    var d = resolve();
+    if (!d) return;
+    var a = e.currentTarget;
+    a.href = linkedinUrl(d);
+    if (!canvas) return;   // let the plain link work
+    e.preventDefault();
+    var ko = isKo();
+    var openLi = function () { window.open(a.href, '_blank', 'noopener'); };
+
+    if (cardBlob && window.matchMedia('(pointer: coarse)').matches) {
+      try {
+        var file = new File([cardBlob], fileName(), { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], text: linkedinText(d) + '\n' + shareUrl(d) +
+            '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share' })
+            .catch(function (err) { if (err && err.name !== 'AbortError') openLi(); });
+          return;
+        }
+      } catch (err) { /* fall through */ }
+    }
+
+    var paste = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘V' : 'Ctrl+V';
+    var blobP = cardBlob ? Promise.resolve(cardBlob) : toBlob();
+    var copied;
+    try {
+      copied = (navigator.clipboard && window.ClipboardItem)
+        ? navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })])
+        : Promise.reject(new Error('no clipboard'));
+    } catch (err) { copied = Promise.reject(err); }
+
+    copied.then(function () {
+      toast(ko ? '카드 이미지를 복사했어요 — 링크드인 글쓰기 창에서 ' + paste + '로 붙여넣으세요'
+               : 'Card image copied — paste it (' + paste + ') into the LinkedIn post', 6000);
+    }, function () {
+      return blobP.then(function (blob) {
+        if (blob) downloadBlob(blob);
+        toast(ko ? '카드 이미지를 저장했어요 — 링크드인 글에 사진으로 첨부하세요'
+                 : 'Card image saved — attach it to the LinkedIn post as a photo', 6000);
+      });
+    }).then(function () { setTimeout(openLi, 900); });   // let the toast be seen first
+  }
+
+  function downloadBlob(blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+
   function saveImage() {
     toBlob().then(function (blob) {
       if (!blob) return;
@@ -380,13 +438,7 @@
           return;
         }
       } catch (e) { /* fall through to download */ }
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      downloadBlob(blob);
     });
   }
 

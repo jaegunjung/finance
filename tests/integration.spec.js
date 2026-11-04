@@ -914,6 +914,28 @@ test.describe("H. 수익률 공유 카드", () => {
     expect(await page.evaluate(() => window.jjShare._resolve()?.path ?? null)).toBeNull();
   });
 
+  test("H-4c. LinkedIn 버튼 → 카드 이미지 클립보드 복사 후 LinkedIn 글쓰기 열기", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE_URL });
+    await gotoShare(page, "/portfolio/");
+    await expect(page.locator("#portNotLoggedIn")).toBeVisible({ timeout: 15_000 });
+    await page.evaluate(async () => {
+      window._opened = [];
+      window.open = (u) => { window._opened.push(u); return null; };
+      window.jjShare.open({ label: "BTC", pct: 14.59, start: "2021-06-21", end: "2026-11-02", path: "/crypto/" });
+      await window.jjShare._render();
+    });
+    await page.locator("#jjShareModal .jjs-li").click();
+    await expect.poll(() => page.evaluate(() => window._opened.length), { timeout: 5_000 }).toBe(1);
+    const r = await page.evaluate(async () => {
+      const items = await navigator.clipboard.read();
+      return { types: items.flatMap(i => i.types), url: window._opened[0] };
+    });
+    expect(r.types).toContain("image/png");
+    expect(new URL(r.url).searchParams.get("text"))
+      .toContain("utm_campaign=portfolio-share");
+    await expect(page.locator("#jjShareModal .jjs-toast")).toHaveClass(/\bshow\b/);
+  });
+
   test("H-5. 블로그 포스트는 기존 공유 바 유지, 수익률 공유 없음", async ({ page }) => {
     await page.goto(BASE_URL + "/blog/", { waitUntil: "domcontentloaded" });
     const href = await page.evaluate(() =>
