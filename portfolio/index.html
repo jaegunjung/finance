@@ -38,9 +38,9 @@ title_ko: 포트폴리오
 .h-table td:not(:first-child) { text-align:right; }
 .h-table tr:hover td { background:rgba(88,166,255,0.04); }
 .h-ticker { font-weight:700; font-size:0.92rem; color:var(--text-primary); }
-.h-li-share { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-left:6px; padding:0; border:1px solid var(--border); border-radius:4px; background:none; color:#0a66c2; cursor:pointer; vertical-align:middle; }
-.h-li-share:hover { background:#0a66c2; color:#fff; border-color:#0a66c2; }
-.h-li-share svg { width:12px; height:12px; }
+.h-share-btn { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin-left:6px; padding:0; border:1px solid var(--border); border-radius:5px; background:none; color:var(--text-secondary); cursor:pointer; vertical-align:middle; }
+.h-share-btn:hover { color:var(--accent-green, #3fb950); border-color:var(--accent-green, #3fb950); }
+.h-share-btn svg { width:12px; height:12px; }
 .h-price  { font-size:0.76rem; color:var(--text-muted); margin-top:2px; }
 .h-shares { font-size:0.74rem; color:var(--text-muted); margin-top:1px; }
 .h-val    { font-weight:600; font-size:0.88rem; color:var(--text-primary); }
@@ -1308,8 +1308,9 @@ async function portLoadHoldings() {
     // cost basis even though their realized gain is still in totalRealGain.
     totalBoughtAll += totalBought;
 
+    const firstDate = symbolMap[sym].reduce((m, t) => (t.trade_date && (!m || t.trade_date < m)) ? t.trade_date : m, null);
     const row = { sym, price, remainingShares, avgCost, totalCost, curValue,
-      unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct, totalBought };
+      unrealGain, allTimeGain, allTimePct, realizedGain, todayVal, todayPct, totalBought, firstDate };
 
     if (remainingShares > 0.0001) openRows.push(row);
     else if (realizedGain !== 0)   closedRows.push(row);
@@ -1680,53 +1681,42 @@ function portRenderHoldings() {
   _portPublishShare(grandPct, principal);
 }
 
-// ── Crypto LinkedIn share ──────────────────────────────────────────────
+// ── Crypto return-share card ───────────────────────────────────────────
 // Stock rows link to /stock/<SYM>/, whose layout (stock-chart.html) carries
-// the 수익률 공유 button. Crypto rows link to /crypto/ pages, which don't, so
-// open crypto positions get their own LinkedIn button here. Same privacy
-// rule as share.js: only the ticker and return % go out, never $ or shares.
+// the 수익률 공유 card. Crypto rows link to /crypto/ pages, which don't, so
+// open crypto positions get a button here that opens the same card
+// (assets/js/share.js) for that one coin. Only ticker, %, period and the coin's
+// page path go in — share.js drops anything else.
 const _CRYPTO_PAGE = { BTC: _CRYPTO_URL, ETH: _CRYPTO_URL + 'eth/', PEPE: _CRYPTO_URL + 'pepe/' };
-const _LI_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>';
+const _SHARE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
 
 function _isCryptoSym(sym) {
   return _CRYPTO_SYMS.includes(sym) || /-USD$/i.test(sym);
 }
 
+function _cryptoShareData(row) {
+  const { sym, remainingShares, allTimePct, totalBought, firstDate } = row;
+  if (!_isCryptoSym(sym) || !(remainingShares > 0.0001) || !(totalBought > 0) || !isFinite(allTimePct)) return null;
+  const label = sym.replace(/-USD$/i, '').toUpperCase();
+  return {
+    label, pct: allTimePct, start: firstDate,
+    end: _holdingsAsOfDate || new Date().toISOString().slice(0, 10),
+    path: _CRYPTO_PAGE[label] || _CRYPTO_URL,
+  };
+}
+
 function _cryptoShareBtn(row) {
-  const { sym, remainingShares, allTimePct, totalBought } = row;
-  if (!_isCryptoSym(sym) || !(remainingShares > 0.0001) || !(totalBought > 0) || !isFinite(allTimePct)) return '';
-  const title = jjT('Share on LinkedIn', '링크드인에 공유');
-  return `<button type="button" class="h-li-share" title="${title}" aria-label="${title}"
-    data-sym="${sym}" data-pct="${allTimePct}" onclick="portShareCryptoLinkedIn(this.dataset.sym, Number(this.dataset.pct))">${_LI_ICON}</button>`;
+  const d = _cryptoShareData(row);
+  if (!d) return '';
+  const title = jjT('Share return', '수익률 공유');
+  return `<button type="button" class="h-share-btn" title="${title}" aria-label="${title}"
+    data-share="${encodeURIComponent(JSON.stringify(d))}"
+    onclick="portOpenRowShare(this)">${_SHARE_ICON}</button>`;
 }
 
-function _cryptoShareText(sym, pct) {
-  const label = sym.replace(/-USD$/i, '').toUpperCase();
-  const abs = Math.abs(pct);
-  const num = (pct >= 0 ? '+' : '-') + (abs >= 10 ? abs.toFixed(0) : abs.toFixed(1)) + '%';
-  const up = pct >= 0;
-  return document.documentElement.classList.contains('ko-mode')
-    ? `${label} ${num} ${up ? '수익' : '손실'} 중 ${up ? '📈' : '📉'} jjanalysis.com 분석 기반`
-    : `${label} ${num} ${up ? 'gain' : 'loss'} ${up ? '📈' : '📉'} Powered by jjanalysis.com analysis`;
-}
-
-function _cryptoShareUrl(sym) {
-  const label = sym.replace(/-USD$/i, '').toUpperCase();
-  const path = _CRYPTO_PAGE[label] || _CRYPTO_URL;
-  return 'https://jjanalysis.com' + path +
-    '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share';
-}
-
-// LinkedIn's feed composer accepts prefilled text (share-offsite only takes a
-// URL), so the text and the UTM link go in together.
-function _cryptoLinkedInUrl(sym, pct) {
-  const text = _cryptoShareText(sym, pct) + '\n' + _cryptoShareUrl(sym);
-  return 'https://www.linkedin.com/feed/?shareActive=true&text=' + encodeURIComponent(text);
-}
-
-function portShareCryptoLinkedIn(sym, pct) {
-  if (!isFinite(pct)) return;
-  window.open(_cryptoLinkedInUrl(sym, pct), '_blank', 'noopener,width=640,height=720');
+function portOpenRowShare(btn) {
+  if (!window.jjShare || !window.jjShare.open) return;
+  try { window.jjShare.open(JSON.parse(decodeURIComponent(btn.dataset.share))); } catch (e) {}
 }
 
 // Feed the 수익률 공유 card (assets/js/share.js) with the 평가 합계 row's

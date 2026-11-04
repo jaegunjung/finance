@@ -4,9 +4,11 @@
  * Pages publish what to share with:
  *   window.jjShare.set({ label, pct, start, end })   // or a function returning that
  *   window.jjShare.set(null)                          // hide the button
+ *   window.jjShare.open({ label, pct, start, end, path })  // one-off card (e.g. a
+ *     portfolio row); path = site page the card/links point to instead of this one
  *
  * Only these fields are ever read — label (ticker / "My Portfolio"), pct
- * (return in %), start/end (YYYY-MM-DD period). Anything else a caller passes
+ * (return in %), start/end (YYYY-MM-DD period), path (site path). Anything else a caller passes
  * (shares, prices, dollar amounts) is dropped by _sanitize(), so the card and
  * the share text can never contain cost basis or position size.
  *
@@ -27,6 +29,7 @@
   var root = document.getElementById('jjReturnShare');
   var stub = window.jjShare || {};
   var source = stub._q !== undefined ? stub._q : null;
+  var override = null;   // one-off data passed to open(d); cleared on close
   var lastLines = [];
   var modal = null, canvas = null, toastTimer = null;
   var logoImg = null;
@@ -45,20 +48,40 @@
       label: label,
       pct: pct,
       start: dateRe.test(d.start || '') ? d.start : null,
-      end: dateRe.test(d.end || '') ? d.end : null
+      end: dateRe.test(d.end || '') ? d.end : null,
+      path: /^\/[A-Za-z0-9\/_-]*$/.test(d.path || '') ? d.path : null
     };
   }
 
-  function resolve() {
-    var d = source;
+  function resolve() { return resolveFrom(override || source); }
+
+  function resolveFrom(d) {
     if (typeof d === 'function') {
       try { d = d(); } catch (e) { d = null; }
     }
     return _sanitize(d);
   }
 
-  function shareUrl() {
-    return 'https://' + SITE + location.pathname;
+  function pagePath(d) { return (d && d.path) || location.pathname; }
+
+  function shareUrl(d) {
+    return 'https://' + SITE + pagePath(d || resolve());
+  }
+
+  // LinkedIn's feed composer takes prefilled text (share-offsite only takes a
+  // URL), so the text and the UTM-tagged link go in together.
+  function linkedinText(d) {
+    var up = d.pct >= 0;
+    var p = fmtPct(d.pct, true);
+    return isKo()
+      ? d.label + ' ' + p + '% ' + (up ? '수익' : '손실') + ' 중 ' + (up ? '📈' : '📉') + ' jjanalysis.com 분석 기반'
+      : d.label + ' ' + p + '% ' + (up ? 'gain' : 'loss') + ' ' + (up ? '📈' : '📉') + ' Powered by jjanalysis.com analysis';
+  }
+
+  function linkedinUrl(d) {
+    var url = shareUrl(d) + '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share';
+    return 'https://www.linkedin.com/feed/?shareActive=true&text=' +
+      encodeURIComponent(linkedinText(d) + '\n' + url);
   }
 
   // ascii: plain '-' for share text (searchable); the card uses the typographic '−'.
@@ -86,7 +109,7 @@
 
   function xIntentUrl(d) {
     return 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText(d)) +
-      '&url=' + encodeURIComponent(shareUrl());
+      '&url=' + encodeURIComponent(shareUrl(d));
   }
 
   // ── card ────────────────────────────────────────────────────────────────
@@ -209,7 +232,7 @@
     ctx.fillStyle = '#58a6ff';
     ctx.font = '600 26px ' + FONT;
     ctx.textAlign = 'right';
-    txt(ctx, SITE + location.pathname.replace(/\/$/, ''), W - 72, H - 52);
+    txt(ctx, SITE + pagePath(d).replace(/\/$/, ''), W - 72, H - 52);
     ctx.textAlign = 'left';
   }
 
@@ -247,6 +270,7 @@
   }
 
   var ICONS = {
+    linkedin: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.735-8.835L1.254 2.25H8.08l4.26 5.632 5.905-5.632Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
     kakao: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3C6.48 3 2 6.58 2 11c0 2.84 1.86 5.33 4.66 6.75l-.95 3.48c-.08.3.26.54.52.37l4.13-2.74c.54.06 1.08.1 1.64.1 5.52 0 10-3.58 10-8S17.52 3 12 3z"/></svg>',
     link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
@@ -270,6 +294,7 @@
         '<p class="jjs-note"><span class="en-only">Only the return % and period are shown — no prices or share counts.</span>' +
           '<span class="ko-only">수익률(%)과 기간만 표시됩니다 — 매수가·보유수량은 포함되지 않습니다.</span></p>' +
         '<div class="jjs-actions">' +
+          '<a class="jjs-btn jjs-li" target="_blank" rel="noopener">' + ICONS.linkedin + '<span>LinkedIn</span></a>' +
           '<a class="jjs-btn jjs-x" target="_blank" rel="noopener">' + ICONS.x + '<span>X</span></a>' +
           '<button type="button" class="jjs-btn jjs-kakao">' + ICONS.kakao + '<span><span class="en-only">KakaoTalk</span><span class="ko-only">카카오톡</span></span></button>' +
           '<button type="button" class="jjs-btn jjs-copy">' + ICONS.link + '<span><span class="en-only">Copy link</span><span class="ko-only">링크 복사</span></span></button>' +
@@ -289,16 +314,24 @@
       var d = resolve();
       if (d) this.href = xIntentUrl(d);   // refresh in case language changed
     });
+    modal.querySelector('.jjs-li').addEventListener('click', function () {
+      var d = resolve();
+      if (d) this.href = linkedinUrl(d);
+    });
     modal.querySelector('.jjs-copy').addEventListener('click', copyLink);
     modal.querySelector('.jjs-kakao').addEventListener('click', shareKakao);
     modal.querySelector('.jjs-save').addEventListener('click', saveImage);
   }
 
-  function open() {
+  // open()      → the page's own data (set()).
+  // open(data)  → a one-off card, e.g. one portfolio row; set() is untouched.
+  function open(data) {
+    override = (data && typeof data === 'object' && !(data instanceof Event)) ? data : null;
     var d = resolve();
-    if (!d) return;
+    if (!d) { override = null; return; }
     build();
     modal.querySelector('.jjs-x').href = xIntentUrl(d);
+    modal.querySelector('.jjs-li').href = linkedinUrl(d);
     modal.classList.add('open');
     document.documentElement.classList.add('jjs-lock');
     render();
@@ -308,6 +341,7 @@
     if (!modal) return;
     modal.classList.remove('open');
     document.documentElement.classList.remove('jjs-lock');
+    override = null;
   }
 
   function copyLink() {
@@ -389,7 +423,7 @@
         // Kakao needs a hosted image URL; uploadImage puts the card on Kakao's CDN.
         return Kakao.Share.uploadImage({ file: [file] });
       }).then(function (res) {
-        var url = shareUrl();
+        var url = shareUrl(d);
         Kakao.Share.sendDefault({
           objectType: 'feed',
           content: {
@@ -411,7 +445,7 @@
   // ── public API ──────────────────────────────────────────────────────────
   function refreshButton() {
     if (!root) return;
-    root.hidden = !resolve();
+    root.hidden = !resolveFrom(source);
   }
 
   window.jjShare = {
@@ -422,6 +456,7 @@
     _resolve: resolve,
     _shareText: function () { var d = resolve(); return d ? shareText(d) : null; },
     _xIntentUrl: function () { var d = resolve(); return d ? xIntentUrl(d) : null; },
+    _linkedinUrl: function () { var d = resolve(); return d ? linkedinUrl(d) : null; },
     _shareUrl: shareUrl,
     _cardLines: function () { return lastLines.slice(); },
     _render: render
@@ -429,7 +464,7 @@
 
   if (root) {
     var btn = root.querySelector('.jjs-open');
-    if (btn) btn.addEventListener('click', open);
+    if (btn) btn.addEventListener('click', function () { open(); });
   }
   refreshButton();
 })();

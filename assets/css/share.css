@@ -52,8 +52,9 @@ html.jjs-lock { overflow: hidden; }
   margin: 8px 0 14px; font-size: 0.72rem; color: var(--text-muted, #6e7681);
 }
 
-.jjs-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-@media (max-width: 520px) { .jjs-actions { grid-template-columns: repeat(2, 1fr); } }
+.jjs-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+@media (max-width: 640px) { .jjs-actions { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 420px) { .jjs-actions { grid-template-columns: repeat(2, 1fr); } }
 
 .jjs-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -64,6 +65,8 @@ html.jjs-lock { overflow: hidden; }
 }
 .jjs-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 .jjs-btn:hover { text-decoration: none; }
+.jjs-li { background: #0a66c2; border-color: #0a66c2; color: #fff; }
+.jjs-li:hover { background: #004182; border-color: #004182; }
 .jjs-x:hover { background: #000; border-color: #e6edf3; color: #fff; }
 .jjs-kakao { background: #fee500; border-color: #fee500; color: #191919; }
 .jjs-kakao:hover { background: #fada0a; border-color: #fada0a; }

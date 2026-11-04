@@ -879,27 +879,39 @@ test.describe("H. 수익률 공유 카드", () => {
     await expect(page.locator("#jjShareModal")).not.toHaveClass(/\bopen\b/);
   });
 
-  test("H-4b. 포트폴리오 크립토 종목 LinkedIn 공유 (텍스트 + UTM, 금액 미포함)", async ({ page }) => {
+  test("H-4b. 포트폴리오 크립토 종목 → 수익률 카드 + LinkedIn(UTM)", async ({ page }) => {
     await gotoShare(page, "/portfolio/");
     await expect(page.locator("#portNotLoggedIn")).toBeVisible({ timeout: 15_000 });
     const r = await page.evaluate(() => {
       document.documentElement.classList.add("ko-mode");
-      const row = { sym: "BTC", remainingShares: 0.5, allTimePct: 127.3, totalBought: 1000 };
-      return {
-        btn: _cryptoShareBtn(row),
+      const row = { sym: "ETH", remainingShares: 0.5, allTimePct: 127.3, totalBought: 1000,
+                    firstDate: "2021-05-03", avgCost: 999, totalCost: 999 };
+      const out = {
         stockBtn: _cryptoShareBtn({ ...row, sym: "ENVX" }),
         closedBtn: _cryptoShareBtn({ ...row, remainingShares: 0 }),
-        url: _cryptoLinkedInUrl("ETH", -4.27),
       };
+      const host = document.createElement("div");
+      host.innerHTML = _cryptoShareBtn(row);
+      document.body.appendChild(host);
+      host.querySelector("button").click();
+      out.resolved = window.jjShare._resolve();
+      out.li = window.jjShare._linkedinUrl();
+      return out;
     });
-    expect(r.btn).toContain("h-li-share");
     expect(r.stockBtn).toBe("");
     expect(r.closedBtn).toBe("");
-    const u = new URL(r.url);
+    // 금액/수량은 카드 데이터에 들어가지 않음
+    expect(r.resolved).toEqual({ label: "ETH", pct: 127.3, start: "2021-05-03",
+      end: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), path: "/crypto/eth/" });
+    await expect(page.locator("#jjShareModal")).toHaveClass(/\bopen\b/);
+    const u = new URL(r.li);
     expect(u.origin + u.pathname).toBe("https://www.linkedin.com/feed/");
     expect(u.searchParams.get("text")).toBe(
-      "ETH -4.3% 손실 중 📉 jjanalysis.com 분석 기반\n" +
+      "ETH +127.30% 수익 중 📈 jjanalysis.com 분석 기반\n" +
       "https://jjanalysis.com/crypto/eth/?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share");
+    // 닫으면 포트폴리오 전체 공유 데이터로 복귀
+    await page.keyboard.press("Escape");
+    expect(await page.evaluate(() => window.jjShare._resolve()?.path ?? null)).toBeNull();
   });
 
   test("H-5. 블로그 포스트는 기존 공유 바 유지, 수익률 공유 없음", async ({ page }) => {
