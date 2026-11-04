@@ -1,0 +1,20 @@
+# share.jjanalysis.com — LinkedIn link-preview pages for the 수익률 공유 card.
+# See src/index.js for what it does and supabase/share_cards.sql for the data.
+#
+# Deploy (one time, from this folder):
+#   npx wrangler login
+#   npx wrangler deploy
+# `custom_domain = true` makes Cloudflare create the share.jjanalysis.com DNS
+# record and certificate itself; the main jjanalysis.com records are untouched.
+name = "jj-share"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+routes = [
+  { pattern = "share.jjanalysis.com", custom_domain = true }
+]
+
+[vars]
+SUPABASE_URL = "https://zhncuebqgfjjssivzatu.supabase.co"
+# Public anon key (same one assets/js/auth.js ships to every browser) — not a secret.
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpobmN1ZWJxZ2ZqanNzaXZ6YXR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMTUxMzIsImV4cCI6MjA5NTU5MTEzMn0.6G-IOX4ONqowIZzseqak_UCXbVtlcaJPuxY8Y2909Kc"

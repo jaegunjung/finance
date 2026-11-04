@@ -79,10 +79,64 @@
       : d.label + ' ' + p + '% ' + (up ? 'gain' : 'loss') + ' ' + (up ? '📈' : '📉') + ' Powered by jjanalysis.com analysis';
   }
 
-  function linkedinUrl(d) {
-    var url = shareUrl(d) + '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share';
+  var LI_UTM = '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share';
+
+  // link: a share.jjanalysis.com preview link (shows the card image in the
+  // LinkedIn post); without one, the plain page URL.
+  function linkedinUrl(d, link) {
+    var url = (link || shareUrl(d)) + LI_UTM;
     return 'https://www.linkedin.com/feed/?shareActive=true&text=' +
       encodeURIComponent(linkedinText(d) + '\n' + url);
+  }
+
+  // ── LinkedIn preview links (share.jjanalysis.com) ───────────────────────
+  // Logged-in users: the card PNG goes to Supabase Storage + a share_cards row
+  // (supabase/share_cards.sql), and the post links to PREVIEW_HOST/s/<id> —
+  // a Cloudflare Worker (cloudflare/share-worker) that serves that PNG as the
+  // link's og:image and forwards people to the real page. If the Worker isn't
+  // reachable, the user isn't logged in, or the upload fails, null → the
+  // download-and-attach guide is used instead.
+  var PREVIEW_HOST = 'https://share.jjanalysis.com';
+  var previewReady = null;     // null = unknown, true/false once /health answered
+  var previewCache = {};       // card key → preview link, so repeat clicks don't re-upload
+
+  function checkPreview() {
+    if (previewReady !== null || checkPreview._p) return;
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 3000);
+    checkPreview._p = fetch(PREVIEW_HOST + '/health', { cache: 'no-store', signal: ctl && ctl.signal })
+      .then(function (r) { return r.ok ? r.text() : ''; })
+      .then(function (t) { previewReady = t.trim() === 'ok'; })
+      .catch(function () { previewReady = false; })
+      .then(function () { clearTimeout(timer); checkPreview._p = null; });
+  }
+
+  function cardKey(d) { return [d.label, d.pct, d.start, d.end, pagePath(d), isKo() ? 'ko' : 'en'].join('|'); }
+
+  function createPreviewLink(d) {
+    var sb = window._jjSb;
+    var key = cardKey(d);
+    if (previewCache[key]) return Promise.resolve(previewCache[key]);
+    if (!previewReady || !sb || !sb.storage || !(window.crypto && crypto.randomUUID)) return Promise.resolve(null);
+    var id = crypto.randomUUID();
+    return sb.auth.getSession().then(function (res) {
+      if (!res || !res.data || !res.data.session) return null;
+      return (cardBlob ? Promise.resolve(cardBlob) : toBlob()).then(function (blob) {
+        if (!blob) return null;
+        return sb.storage.from('share-cards').upload(id + '.png', blob, { contentType: 'image/png', upsert: false })
+          .then(function (r) {
+            if (r.error) throw r.error;
+            return sb.from('share_cards').insert({
+              id: id, label: d.label, pct: Math.round(d.pct * 100) / 100,
+              start_date: d.start, end_date: d.end, path: pagePath(d), lang: isKo() ? 'ko' : 'en'
+            });
+          })
+          .then(function (r) {
+            if (r.error) throw r.error;
+            return (previewCache[key] = PREVIEW_HOST + '/s/' + id);
+          });
+      });
+    }).catch(function () { return null; });
   }
 
   // ascii: plain '-' for share text (searchable); the card uses the typographic '−'.
@@ -347,6 +401,7 @@
     modal.querySelector('.jjs-x').href = xIntentUrl(d);
     modal.querySelector('.jjs-li').href = linkedinUrl(d);
     modal.querySelector('.jjs-guide').hidden = true;
+    checkPreview();
     modal.classList.add('open');
     document.documentElement.classList.add('jjs-lock');
     render();
@@ -384,10 +439,11 @@
 
   // LinkedIn's share URL only takes text — a site can't attach an image to
   // the post, and LinkedIn's web composer ignores pasted images. So:
+  //   logged in + Worker up → link to a share.jjanalysis.com preview page
+  //             whose og:image is this card (LinkedIn shows it as the link card)
   //   mobile  → native share sheet with the PNG (pick LinkedIn there)
-  //   desktop → save the PNG, then show a short guide in the card with an
-  //             "Open LinkedIn" link (text prefilled); the user attaches the
-  //             saved file with LinkedIn's photo button.
+  //   else    → save the PNG and show a guide to attach it with LinkedIn's
+  //             photo button, plus an "Open LinkedIn" link (text prefilled).
   function shareLinkedIn(e) {
     var d = resolve();
     if (!d) return;
@@ -395,13 +451,38 @@
     a.href = linkedinUrl(d);
     if (!canvas) return;   // let the plain link work
     e.preventDefault();
+    if (a.classList.contains('busy')) return;
 
+    if (previewReady && window._jjSb) {
+      // Open the tab now, while the click still counts as a user gesture —
+      // a window.open after the upload would be popup-blocked.
+      var w = null;
+      try { w = window.open('', '_blank'); } catch (err) { w = null; }
+      a.classList.add('busy');
+      createPreviewLink(d).then(function (link) {
+        a.classList.remove('busy');
+        if (link) {
+          var u = linkedinUrl(d, link);
+          if (w) { try { w.opener = null; } catch (err) {} w.location.href = u; }
+          else window.open(u, '_blank', 'noopener');
+          toast(isKo() ? '링크드인 글에 카드 이미지가 링크 미리보기로 붙습니다'
+                       : 'The card image shows as the link preview in your post', 4000);
+          return;
+        }
+        if (w) w.close();
+        fallbackLinkedIn(d);
+      });
+      return;
+    }
+    fallbackLinkedIn(d);
+  }
+
+  function fallbackLinkedIn(d) {
     if (cardBlob && window.matchMedia('(pointer: coarse)').matches) {
       try {
         var file = new File([cardBlob], fileName(), { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], text: linkedinText(d) + '\n' + shareUrl(d) +
-            '?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share' })
+          navigator.share({ files: [file], text: linkedinText(d) + '\n' + shareUrl(d) + LI_UTM })
             .catch(function (err) { if (err && err.name !== 'AbortError') showLiGuide(d); });
           return;
         }
@@ -515,6 +596,7 @@
     _shareText: function () { var d = resolve(); return d ? shareText(d) : null; },
     _xIntentUrl: function () { var d = resolve(); return d ? xIntentUrl(d) : null; },
     _linkedinUrl: function () { var d = resolve(); return d ? linkedinUrl(d) : null; },
+    _previewReady: function () { return previewReady; },
     _shareUrl: shareUrl,
     _cardLines: function () { return lastLines.slice(); },
     _render: render

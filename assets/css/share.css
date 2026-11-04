@@ -67,6 +67,7 @@ html.jjs-lock { overflow: hidden; }
 .jjs-btn:hover { text-decoration: none; }
 .jjs-li { background: #0a66c2; border-color: #0a66c2; color: #fff; }
 .jjs-li:hover { background: #004182; border-color: #004182; }
+.jjs-li.busy { opacity: 0.6; cursor: progress; }
 .jjs-x:hover { background: #000; border-color: #e6edf3; color: #fff; }
 .jjs-kakao { background: #fee500; border-color: #fee500; color: #191919; }
 .jjs-kakao:hover { background: #fada0a; border-color: #fada0a; }

@@ -915,6 +915,8 @@ test.describe("H. 수익률 공유 카드", () => {
   });
 
   test("H-4c. LinkedIn 버튼 → 카드 PNG 저장 + 첨부 안내 + 글쓰기 링크", async ({ page }) => {
+    // 미리보기 Worker가 안 될 때의 폴백 경로를 고정 검증
+    await page.route("https://share.jjanalysis.com/**", r => r.abort());
     await gotoShare(page, "/portfolio/");
     await expect(page.locator("#portNotLoggedIn")).toBeVisible({ timeout: 15_000 });
     await page.evaluate(async () => {
@@ -936,6 +938,40 @@ test.describe("H. 수익률 공유 카드", () => {
     await page.keyboard.press("Escape");
     await page.evaluate(() => window.jjShare.open({ label: "ETH", pct: 3, path: "/crypto/eth/" }));
     await expect(guide).toBeHidden();
+  });
+
+  test("H-4d. 로그인 + 미리보기 Worker → 카드 PNG 업로드, 글 링크는 share.jjanalysis.com/s/<id>", async ({ page, context }) => {
+    await context.route("https://share.jjanalysis.com/health", r =>
+      r.fulfill({ status: 200, body: "ok", headers: { "access-control-allow-origin": "*" } }));
+    await context.route("https://www.linkedin.com/**", r => r.fulfill({ status: 200, body: "li" }));
+    await gotoShare(page, "/portfolio/");
+    await expect(page.locator("#portNotLoggedIn")).toBeVisible({ timeout: 15_000 });
+    await page.evaluate(async () => {
+      document.documentElement.classList.add("ko-mode");
+      window._calls = [];
+      window._jjSb = {   // 로그인된 Supabase 클라이언트 흉내 (업로드/insert만 기록)
+        auth: { getSession: async () => ({ data: { session: { user: { id: "u" } } } }) },
+        storage: { from: (bk) => ({ upload: async (name, blob) => { window._calls.push({ bk, name, type: blob.type }); return { error: null }; } }) },
+        from: (t) => ({ insert: async (row) => { window._calls.push({ t, row }); return { error: null }; } }),
+      };
+      window.jjShare.open({ label: "BTC", pct: 14.5912, start: "2021-06-21", end: "2026-11-02", path: "/crypto/" });
+      await window.jjShare._render();
+    });
+    await expect.poll(() => page.evaluate(() => window.jjShare._previewReady())).toBe(true);
+    const [popup] = await Promise.all([
+      context.waitForEvent("page"),
+      page.locator("#jjShareModal .jjs-li").click(),
+    ]);
+    await popup.waitForURL(/linkedin\.com/);
+    const text = new URL(popup.url()).searchParams.get("text");
+    expect(text).toMatch(/^BTC \+14\.59% 수익 중 📈 jjanalysis\.com 분석 기반\nhttps:\/\/share\.jjanalysis\.com\/s\/[0-9a-f-]{36}\?utm_source=linkedin&utm_medium=social&utm_campaign=portfolio-share$/);
+    const calls = await page.evaluate(() => window._calls);
+    const id = text.match(/\/s\/([0-9a-f-]{36})/)[1];
+    expect(calls[0]).toEqual({ bk: "share-cards", name: id + ".png", type: "image/png" });
+    // 저장되는 건 카드에 보이는 값뿐 (금액·수량 없음)
+    expect(calls[1]).toEqual({ t: "share_cards", row: { id, label: "BTC", pct: 14.59,
+      start_date: "2021-06-21", end_date: "2026-11-02", path: "/crypto/", lang: "ko" } });
+    await expect(page.locator("#jjShareModal .jjs-guide")).toBeHidden();
   });
 
   test("H-5. 블로그 포스트는 기존 공유 바 유지, 수익률 공유 없음", async ({ page }) => {
