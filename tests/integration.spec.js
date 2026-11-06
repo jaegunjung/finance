@@ -1319,6 +1319,19 @@ test.describe("L. SEO & 재방문 유도", () => {
     await expect(page.locator(".next-reads")).toHaveCount(0);
   });
 
+  test("L-8b. 내부 링크 강화 — portfolio next-read, crypto→공포탐욕 글, ENVX→crypto", async ({ page }) => {
+    const hrefsOf = () => page.locator(".next-reads .next-read-card").evaluateAll(as => as.map(a => a.getAttribute("href")));
+    await page.goto(BASE_URL + "/portfolio/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#nextReadsTitle")).toContainText(/Worth reading next|다음에 볼 만한 분석/);
+    expect(await hrefsOf()).toEqual(["/stock/envx/", "/crypto/", "/macro/"]);
+    await page.goto(BASE_URL + "/crypto/", { waitUntil: "domcontentloaded" });
+    expect(await hrefsOf()).toContain("/strategy/2026/06/23/fear-greed-data-test/");
+    await page.goto(BASE_URL + "/stock/envx/", { waitUntil: "domcontentloaded" });
+    expect(await hrefsOf()).toContain("/crypto/");
+    const r = await page.request.get(BASE_URL + "/strategy/2026/06/23/fear-greed-data-test/");
+    expect(r.status()).toBe(200);
+  });
+
   test("L-9. 블로그 검색 ?q= — 일치하는 글만 표시", async ({ page }) => {
     await page.goto(BASE_URL + "/blog/?q=ENVX", { waitUntil: "domcontentloaded" });
     await expect(page.locator("#postSearch")).toHaveValue("ENVX");
